@@ -94,20 +94,24 @@ if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', (e) => { if (save.pending > 0) { e.preventDefault(); e.returnValue = '' } })
 }
 
+// Tables that database triggers write to as a side effect of writing another table.
+const TRIGGER_TARGETS = { job_applications: ['application_history'] }
+const afterWrite = (table) => { for (const t of TRIGGER_TARGETS[table] ?? []) if (state.has(t)) scheduleRefetch(t) }
+
 // ------------------------------------------------------------------ mutations
 export const insert = (table, rows) => tracked(async () => {
   const out = await db.insert(table, Array.isArray(rows) ? rows : [rows])
-  upsertLocal(table, out)
+  upsertLocal(table, out); afterWrite(table)
   return Array.isArray(rows) ? out : out[0]
 })
 export const update = (table, id, patch) => tracked(async () => {
   const row = await db.update(table, id, patch)
-  upsertLocal(table, [row])
+  upsertLocal(table, [row]); afterWrite(table)
   return row
 })
 export const upsert = (table, rows, opts) => tracked(async () => {
   const out = await db.upsert(table, Array.isArray(rows) ? rows : [rows], opts)
-  upsertLocal(table, out)
+  upsertLocal(table, out); afterWrite(table)
   return Array.isArray(rows) ? out : out[0]
 })
 export const remove = (table, id) => tracked(async () => {

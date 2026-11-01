@@ -29,6 +29,7 @@ const sb = {
     if (error) throw toAppError(error)
   },
   async updatePassword(password) { const { error } = await supabase.auth.updateUser({ password }); if (error) throw toAppError(error) },
+  async updateDisplayName(name) { const { error } = await supabase.auth.updateUser({ data: { display_name: name } }); if (error) throw toAppError(error) },
   async deleteAccount() {
     const { error } = await supabase.rpc('delete_my_account')
     if (error) throw toAppError(error)
@@ -81,6 +82,11 @@ const local = {
     const s = current(); if (!s) throw new AppError('Not signed in.')
     const h = await hash(password)
     localStorage.setItem(USERS, JSON.stringify(users().map((u) => (u.id === s.user.id ? { ...u, hash: h } : u))))
+  },
+  async updateDisplayName(name) {
+    const s = current(); if (!s) throw new AppError('Not signed in.')
+    localStorage.setItem(USERS, JSON.stringify(users().map((u) => (u.id === s.user.id ? { ...u, name } : u))))
+    emit('USER_UPDATED')
   },
   async deleteAccount() {
     const s = current(); if (!s) return

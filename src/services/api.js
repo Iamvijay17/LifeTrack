@@ -56,9 +56,11 @@ export async function startStudy({ goal_id = null, topic_id = null }, today) {
   if (store.peek('study_sessions').some((s) => s.status === 'running')) throw new AppError('A study timer is already running.')
   return store.insert('study_sessions', { status: 'running', source: 'timer', session_date: today, started_at: nowIso(), goal_id, topic_id })
 }
-export function stopStudy(session, { problems_solved = 0, notes = '' } = {}) {
+/** `minutes` lets you correct a forgotten timer downwards; it can never exceed the real elapsed time. */
+export function stopStudy(session, { problems_solved = 0, notes = '', minutes } = {}) {
   const ended = new Date()
-  const secs = Math.max(0, Math.round((ended.getTime() - new Date(session.started_at).getTime()) / 1000))
+  const elapsed = Math.max(0, Math.round((ended.getTime() - new Date(session.started_at).getTime()) / 1000))
+  const secs = minutes == null ? elapsed : Math.min(elapsed, Math.round(minutes * 60))
   return store.update('study_sessions', session.id, { status: 'completed', ended_at: ended.toISOString(), duration_seconds: secs, problems_solved, notes })
 }
 export const discardStudy = (session) => store.update('study_sessions', session.id, { status: 'discarded', ended_at: nowIso() })

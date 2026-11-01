@@ -4,7 +4,7 @@ import { Sidebar } from './Sidebar'
 import { MobileNav } from './MobileNav'
 import { Banners, SaveStatus, LiveDot } from './StatusIndicators'
 import { Logo } from './Logo'
-import { QuickAddMenu, QuickActionsProvider } from '@/features/quick/QuickActions'
+import { QuickAddMenu, QuickFab, QuickActionsProvider } from '@/features/quick/QuickActions'
 import { useSettings } from '@/hooks/useSettings'
 import { useThemeSync } from '@/hooks/useTheme'
 import { seedDefaults } from '@/services/api'
@@ -51,6 +51,7 @@ export function AppShell() {
         </main>
       </div>
       <MobileNav />
+      <QuickFab />
     </QuickActionsProvider>
   )
 }

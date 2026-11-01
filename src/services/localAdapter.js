@@ -14,7 +14,10 @@ const clone = (v) => (v == null ? v : JSON.parse(JSON.stringify(v)))
 
 const bc = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('lifetrack-dev') : null
 const localListeners = new Set()
-const notify = (table) => { bc?.postMessage({ table, uid: getUserId() }); }
+const notify = (table) => {
+  bc?.postMessage({ table, uid: getUserId() })           // other tabs
+  queueMicrotask(() => localListeners.forEach((cb) => cb(table))) // this tab (Supabase Realtime also echoes your own changes)
+}
 bc?.addEventListener('message', (e) => { if (e.data.uid === getUserId()) localListeners.forEach((cb) => cb(e.data.table)) })
 
 const dup = () => new AppError('That record already exists.', { code: '23505' })
@@ -27,9 +30,17 @@ function violatesUnique(table, rows, row, selfId) {
   return false
 }
 
+// Columns whose database default is now()
+const NOW_COLUMNS = { application_history: ['changed_at'], study_sessions: ['started_at'] }
+
+// Strictly increasing timestamps keep ordering deterministic for rows written in the same millisecond.
+let lastTs = 0
+const monotonicNow = () => { lastTs = Math.max(Date.now(), lastTs + 1); return new Date(lastTs).toISOString() }
+
 function buildRow(table, input) {
-  const now = new Date().toISOString()
-  return { id: uuid(), created_at: now, updated_at: now, ...clone(DEFAULTS[table] ?? {}), ...clone(input), user_id: getUserId() }
+  const now = monotonicNow()
+  const nowDefaults = Object.fromEntries((NOW_COLUMNS[table] ?? []).map((c) => [c, now]))
+  return { id: uuid(), created_at: now, updated_at: now, ...nowDefaults, ...clone(DEFAULTS[table] ?? {}), ...clone(input), user_id: getUserId() }
 }
 
 /** Emulates public.log_application_status() */

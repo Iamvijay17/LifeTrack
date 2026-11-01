@@ -17,7 +17,7 @@ export default defineConfig({
     launchOptions: { executablePath, args: ['--no-sandbox'] },
   },
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } },
+    { name: 'desktop', testIgnore: /responsive/, use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } },
     { name: 'mobile', use: { ...devices['Pixel 7'] }, testMatch: /responsive/ },
   ],
   // Builds in DEV mode (no Supabase env) so the suite is hermetic.

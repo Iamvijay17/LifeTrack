@@ -53,7 +53,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
-        <Toaster theme="system" position="bottom-right" toastOptions={{ classNames: { toast: '!bg-card !text-foreground !border-border' } }} />
+        <Toaster theme="system" position="top-center" toastOptions={{ classNames: { toast: '!bg-card !text-foreground !border-border' } }} />
       </ConfirmProvider>
     </AuthProvider>
   )
