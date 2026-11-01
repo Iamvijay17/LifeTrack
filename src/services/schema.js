@@ -1,0 +1,52 @@
+// Table metadata shared by the local dev adapter and the import/export code.
+// (The real source of truth for Supabase is supabase/migrations.)
+
+/** Parents before children — also the restore order. */
+export const TABLES = [
+  'learning_topics', 'goals', 'tasks', 'habits', 'habit_logs', 'study_sessions', 'job_applications',
+  'application_history', 'interview_events', 'exercises', 'routines', 'workouts', 'exercise_logs',
+  'body_measurements', 'health_logs', 'transactions', 'budgets', 'journal_entries',
+]
+export const ALL_TABLES = ['user_settings', ...TABLES]
+
+export const CONFLICT_KEYS = {
+  user_settings: 'user_id', habit_logs: 'habit_id,log_date', health_logs: 'user_id,log_date', journal_entries: 'user_id,entry_date',
+  budgets: 'user_id,month,category', body_measurements: 'user_id,measured_on', learning_topics: 'user_id,group_name,name', exercises: 'user_id,name',
+}
+
+const s = ''
+export const DEFAULTS = {
+  user_settings: { timezone: 'Asia/Kolkata', currency: 'INR', theme: 'dark', daily_study_target_minutes: 120, monthly_budget_paise: 0, water_goal_ml: 3000, steps_goal: 8000, week_starts_on: 1, habit_prefs: {}, workout_plan: {}, defaults_seeded: false },
+  learning_topics: { notes: s, revision_dates: [], archived: false },
+  goals: { category: 'Learning', topic_id: null, target_minutes: 0, due_date: null, status: 'active', notes: s },
+  tasks: { notes: s, category: 'Personal', priority: 'medium', status: 'pending', due_date: null, started_at: null, completed_at: null, recurrence: 'none', recurrence_until: null, series_id: null },
+  habits: { description: s, color: '#8B5CF6', frequency: 'daily', days_of_week: [], weekly_target: 3, archived_at: null },
+  habit_logs: { status: 'done', note: s },
+  study_sessions: { goal_id: null, topic_id: null, ended_at: null, duration_seconds: null, status: 'completed', source: 'manual', problems_solved: 0, notes: s },
+  job_applications: { jd_url: s, location: s, salary_paise: null, applied_date: null, source: s, status: 'interested', contact_person: s, followup_date: null, resume_version: s, prep_checklist: [], notes: s },
+  application_history: { from_status: null, note: s },
+  interview_events: { round_name: 'Interview', mode: 'video', link: s, status: 'scheduled', notes: s },
+  exercises: { muscle_group: s, equipment: s },
+  routines: { exercises: [], notes: s, archived_at: null },
+  workouts: { routine_id: null, name: 'Workout', kind: 'strength', status: 'completed', duration_minutes: null, cardio_minutes: null, cardio_distance_km: null, notes: s },
+  exercise_logs: { exercise_id: null, order_index: 0, set_number: 1, reps: 0, weight_kg: 0 },
+  body_measurements: { chest_cm: null, waist_cm: null, hips_cm: null, arm_cm: null, thigh_cm: null, body_fat_pct: null, notes: s },
+  health_logs: { bedtime: null, wake_time: null, sleep_minutes: null, water_ml: 0, steps: 0, energy_level: null, weight_kg: null, notes: s },
+  transactions: { category: 'Other', note: s },
+  budgets: { category: s },
+  journal_entries: { mood: null, content: s, wins: s },
+}
+
+/** Unique constraints (mirrors the SQL). `when` makes a constraint partial. */
+export const UNIQUES = {
+  user_settings: [{ cols: ['user_id'] }],
+  learning_topics: [{ cols: ['user_id', 'group_name', 'name'] }],
+  tasks: [{ cols: ['user_id', 'series_id', 'due_date'], when: (r) => r.series_id != null }],
+  habit_logs: [{ cols: ['habit_id', 'log_date'] }],
+  study_sessions: [{ cols: ['user_id'], when: (r) => r.status === 'running' }],
+  exercises: [{ cols: ['user_id', 'name'] }],
+  body_measurements: [{ cols: ['user_id', 'measured_on'] }],
+  health_logs: [{ cols: ['user_id', 'log_date'] }],
+  budgets: [{ cols: ['user_id', 'month', 'category'] }],
+  journal_entries: [{ cols: ['user_id', 'entry_date'] }],
+}
