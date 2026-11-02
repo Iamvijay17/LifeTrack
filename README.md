@@ -4,7 +4,7 @@ Private, cloud-first productivity app: daily planner, learning tracker with serv
 board with immutable status history, gym & fitness, sleep/health, finance (INR, integer paise), habits with
 heatmap, analytics, JSON/CSV export + restore. React + Vite + Tailwind, Supabase (Postgres, Auth, RLS, Realtime), installable PWA.
 
-**Start here → [docs/SETUP.md](docs/SETUP.md)**
+**Start here → [docs/QUICKSTART.md](docs/QUICKSTART.md)** (details: [docs/SETUP.md](docs/SETUP.md))
 
 ## Status / honest limitations
 - **Verified here:** unit tests (43), SQL/RLS tests on real Postgres (18 checks), Playwright E2E on desktop + mobile profile (29).
