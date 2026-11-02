@@ -27,10 +27,17 @@ export function Progress({ value, tone = 'primary', className, label }) {
 
 export function Segmented({ value, onChange, options, className }) {
   return (
-    <div role="tablist" className={cn('inline-flex rounded-md border border-border bg-card p-0.5', className)}>
+    <div role="tablist" className={cn('inline-flex max-w-full overflow-x-auto rounded-md border border-border bg-card p-0.5', className)}
+      onKeyDown={(e) => {
+        const i = options.findIndex((o) => o.value === value)
+        const next = e.key === 'ArrowRight' ? (i + 1) % options.length : e.key === 'ArrowLeft' ? (i - 1 + options.length) % options.length : e.key === 'Home' ? 0 : e.key === 'End' ? options.length - 1 : null
+        if (next == null) return
+        e.preventDefault(); onChange(options[next].value)
+        e.currentTarget.querySelectorAll('[role=tab]')[next]?.focus()
+      }}>
       {options.map((o) => (
-        <button key={o.value} role="tab" aria-selected={value === o.value} type="button" onClick={() => onChange(o.value)}
-          className={cn('rounded px-3 py-1.5 text-[13px] font-medium transition-colors', value === o.value ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}>
+        <button key={o.value} role="tab" aria-selected={value === o.value} tabIndex={value === o.value ? 0 : -1} type="button" onClick={() => onChange(o.value)}
+          className={cn('shrink-0 whitespace-nowrap rounded px-3 py-1.5 text-[13px] font-medium transition-colors', value === o.value ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}>
           {o.label}
         </button>
       ))}

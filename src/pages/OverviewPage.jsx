@@ -1,11 +1,10 @@
-import { useMemo } from 'react'
+import { Suspense, lazy, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Bar, BarChart, Cell } from 'recharts'
 import { Activity, BookOpen, Briefcase, Check, CheckCircle2, Circle, Droplets, Dumbbell, Flame, Footprints, Moon, Plus, Repeat, Wallet } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate } from '@/components/shared/states'
 import { StatCard } from '@/components/shared/StatCard'
-import { Chart, C, grid, tooltip, xAxis, yAxis } from '@/components/shared/charts'
+import { Skeleton } from '@/components/ui/misc'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/misc'
@@ -24,6 +23,8 @@ import { countedMinutes } from '@/domain/learning'
 import { addDays, dateStrInTz, eachDay, fmtDay, fmtDuration, startOfWeek, timeStrInTz } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
 import { cn } from '@/lib/utils'
+
+const WeeklyChart = lazy(() => import('@/features/overview/WeeklyChart'))
 
 function Ring({ percent }) {
   const r = 52, c = 2 * Math.PI * r
@@ -119,9 +120,7 @@ export default function OverviewPage() {
 
           <div className="grid gap-4 lg:grid-cols-5">
             <Card className="lg:col-span-3"><CardHeader><CardTitle>Weekly productivity</CardTitle><span className="flex items-center gap-1.5 text-xs text-muted-foreground"><Flame className="h-3.5 w-3.5 text-warning" />{streak}-day active streak</span></CardHeader><CardContent>
-              <Chart height={190} empty={weekly.every((x) => x.pct == null)} emptyText="Plan tasks or habits to see daily completion.">
-                <BarChart data={weekly.map((x) => ({ ...x, pct: x.pct ?? undefined }))}>{grid()}{xAxis({ dataKey: 'label' })}{yAxis({ domain: [0, 100], unit: '%' })}{tooltip({ formatter: (v) => [`${v}%`, 'Completed'] })}<Bar dataKey="pct" radius={[4, 4, 0, 0]}>{weekly.map((x) => <Cell key={x.d} fill={x.d === today ? C.primary : C.secondary} fillOpacity={x.d === today ? 1 : 0.6} />)}</Bar></BarChart>
-              </Chart>
+              <Suspense fallback={<Skeleton className="h-[190px] w-full" />}><WeeklyChart weekly={weekly} today={today} /></Suspense>
             </CardContent></Card>
             <Card className="lg:col-span-2"><CardHeader><CardTitle className="flex items-center gap-2"><Activity className="h-4 w-4" />Recent activity</CardTitle></CardHeader><CardContent>
               {activity.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">Your activity will show up here.</p> : <ul className="space-y-2.5">{activity.map((a, i) => <li key={i} className="flex items-start gap-2.5 text-sm"><a.icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1 truncate">{a.text}</span><span className="shrink-0 text-xs text-muted-foreground">{rel(a.at)}</span></li>)}</ul>}

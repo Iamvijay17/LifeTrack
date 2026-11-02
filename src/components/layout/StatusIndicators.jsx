@@ -22,17 +22,18 @@ export function LiveDot() {
   const live = online && realtime === 'SUBSCRIBED'
   const label = !online ? 'Offline' : live ? (isDevMode ? 'Live (cross-tab)' : 'Live sync on') : 'Connecting…'
   return (
-    <span title={label} aria-label={label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-      <span className={cn('h-2 w-2 rounded-full', live ? 'bg-success' : online ? 'bg-warning' : 'bg-danger')} />
-      <span className="hidden lg:inline">{label}</span>
+    <span title={label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <span aria-hidden className={cn('h-2 w-2 rounded-full', live ? 'bg-success' : online ? 'bg-warning' : 'bg-danger')} />
+      <span className="sr-only lg:not-sr-only">{label}</span>
     </span>
   )
 }
 
 export function Banners() {
   const online = useOnline()
+  if (!isDevMode && online) return null
   return (
-    <>
+    <section aria-label="Connection notices">
       {isDevMode && (
         <div role="note" className="border-b border-warning/30 bg-warning/10 px-4 py-1.5 text-center text-xs text-warning">
           DEV MODE — Supabase is not configured. Data is stored only in this browser and is <b>not</b> synced across devices. See docs/SETUP.md.
@@ -43,6 +44,6 @@ export function Banners() {
           <CloudOff className="h-3.5 w-3.5" /> You're offline. LifeTrack is online-only, so changes can't be saved until you reconnect.
         </div>
       )}
-    </>
+    </section>
   )
 }

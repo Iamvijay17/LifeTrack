@@ -51,7 +51,7 @@ export function TaskSection({ title, tasks, today, onEdit, showDue, hint, empty 
   if (!tasks.length && !empty) return null
   return (
     <section>
-      <h3 className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}<span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">{tasks.length}</span></h3>
+      <h2 className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}<span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">{tasks.length}</span></h2>
       {hint && <p className="mb-1 text-xs text-muted-foreground">{hint}</p>}
       {tasks.length ? <ul>{tasks.map((t) => <TaskRow key={t.id} task={t} today={today} onEdit={onEdit} showDue={showDue} />)}</ul> : <p className="px-2 py-3 text-sm text-muted-foreground">{empty}</p>}
     </section>

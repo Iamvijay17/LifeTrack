@@ -13,7 +13,7 @@ export const tooltip = (p = {}) => (
     labelStyle={{ color: 'rgb(var(--muted-foreground))' }} itemStyle={{ color: 'rgb(var(--foreground))' }} {...p} />
 )
 
-export function Chart({ height = 220, children, empty, emptyText = 'No data in this range yet.' }) {
+export function Chart({ height = 220, label, children, empty, emptyText = 'No data in this range yet.' }) {
   if (empty) return <div className="grid place-items-center text-center text-sm text-muted-foreground" style={{ height }}><div><BarChart3 className="mx-auto mb-2 h-5 w-5 opacity-60" />{emptyText}</div></div>
-  return <div style={{ height }}><ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer></div>
+  return <div style={{ height }} role={label ? 'img' : undefined} aria-label={label}><ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer></div>
 }

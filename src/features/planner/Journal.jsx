@@ -45,7 +45,7 @@ export function Journal({ date }) {
         </div>
       </CardContent></Card>
       <div className="space-y-2 lg:col-span-2">
-        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Recent entries</h3>
+        <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Recent entries</h2>
         {past.length === 0 ? <EmptyState title="No other entries yet" description="Short daily notes build a useful record over time." /> : past.map((e) => (
           <Card key={e.id}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{fmtDay(e.entry_date, 'EEE, d MMM')}</p><p className="mt-1 line-clamp-3 text-sm">{e.content || e.wins || '—'}</p></CardContent></Card>
         ))}

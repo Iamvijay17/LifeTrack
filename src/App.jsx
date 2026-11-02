@@ -7,6 +7,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { PageSkeleton } from '@/components/shared/states'
 import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from '@/features/auth/AuthPages'
 import { Logo } from '@/components/layout/Logo'
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 
 const page = (loader) => lazy(loader)
 const Overview = page(() => import('@/pages/OverviewPage'))
@@ -30,6 +31,7 @@ function Protected({ children }) {
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <AuthProvider>
       <ConfirmProvider>
         <Suspense fallback={<div className="p-6"><PageSkeleton /></div>}>
@@ -56,5 +58,6 @@ export default function App() {
         <Toaster theme="system" position="top-center" toastOptions={{ classNames: { toast: '!bg-card !text-foreground !border-border' } }} />
       </ConfirmProvider>
     </AuthProvider>
+    </ErrorBoundary>
   )
 }
