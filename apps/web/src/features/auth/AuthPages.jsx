@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { emailSchema, passwordSchema } from '@lifetrack/schemas'
 import { AuthLayout } from './AuthLayout'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/form'
@@ -10,8 +11,8 @@ import { auth } from '@/services/auth'
 import { toAppError } from '@/services/errors'
 import { useAuth } from '@/hooks/useAuth'
 
-const email = z.string().trim().toLowerCase().min(1, 'Enter your email').email('Enter a valid email')
-const password = z.string().min(8, 'Use at least 8 characters').max(72, 'Too long')
+const email = emailSchema
+const password = passwordSchema
 
 function useSubmit(fn) {
   const [error, setError] = useState(null)

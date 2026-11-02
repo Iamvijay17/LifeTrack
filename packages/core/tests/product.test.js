@@ -1,14 +1,11 @@
-import '@testing-library/jest-dom/vitest'
 import { describe, it, expect } from 'vitest'
-import { dailyScore, normalizeWeights, averageScore, explainScore, DEFAULT_WEIGHTS } from '@lifetrack/core/score'
-import { nextRemindDate, dueReminders, afterFire } from '@lifetrack/core/reminders'
-import { focusMinutes, dailyFocus, nextBreak, fmtClock, remainingSeconds, completedCount } from '@lifetrack/core/focus'
-import { goalPercent, isOverdue } from '@lifetrack/core/goals'
-import { buildReport } from '@lifetrack/core/report'
-import { parseBlocks } from '@/lib/markdown'
-import { searchAll } from '@/components/layout/GlobalSearch'
-import { parseTags } from '@/features/notes/NoteDialog'
-import { STATUS_LABEL, funnel } from '@lifetrack/core/jobs'
+import { dailyScore, normalizeWeights, averageScore, explainScore, DEFAULT_WEIGHTS } from '../src/score'
+import { nextRemindDate, dueReminders, afterFire } from '../src/reminders'
+import { focusMinutes, dailyFocus, nextBreak, fmtClock, remainingSeconds, completedCount } from '../src/focus'
+import { goalPercent, isOverdue } from '../src/goals'
+import { buildReport } from '../src/report'
+import { STATUS_LABEL, funnel } from '../src/jobs'
+
 
 const D = '2026-11-02' // a Monday
 const settings = { daily_study_target_minutes: 60, water_goal_ml: 2000, steps_goal: 10000, workout_plan: {}, timezone: 'Asia/Kolkata', score_weights: DEFAULT_WEIGHTS }
@@ -152,23 +149,3 @@ describe('report', () => {
   })
 })
 
-describe('markdown', () => {
-  it('parses blocks and checklists', () => {
-    const b = parseBlocks('# Title\n\nhello **world**\n\n- a\n- [x] done\n- [ ] todo\n\n> quote\n\n```\ncode\n```')
-    expect(b.map((x) => x.type)).toEqual(['h', 'p', 'ul', 'quote', 'code'])
-    expect(b[2].items).toEqual([{ text: 'a' }, { text: 'done', checked: true }, { text: 'todo', checked: false }])
-  })
-})
-
-describe('search & tags', () => {
-  it('finds across modules and pages, case-insensitively', () => {
-    const data = { tasks: [{ id: 't', title: 'Read React docs', due_date: D }], notes: [{ id: 'n', title: 'Ideas', body: 'react hooks', category: 'Learning', tags: [] }], goals: [{ id: 'g', title: 'Ship', notes: '' }], job_applications: [], habits: [], transactions: [] }
-    const groups = searchAll('REACT', data)
-    expect(groups.map((g) => g.title)).toEqual(['Tasks', 'Notes'])
-    expect(searchAll('focus', data)[0].items[0].to).toBe('/focus')
-    expect(searchAll('   ', data)).toEqual([])
-  })
-  it('normalises tags', () => {
-    expect(parseTags('#React, react , Interview,,')).toEqual(['react', 'interview'])
-  })
-})

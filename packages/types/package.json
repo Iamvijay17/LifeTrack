@@ -1,0 +1,12 @@
+{
+  "name": "@lifetrack/types",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "dependencies": { "@lifetrack/schemas": "workspace:*", "zod": "^3.25.76" },
+  "devDependencies": { "typescript": "^5.9.0" }
+}

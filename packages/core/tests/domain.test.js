@@ -1,54 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { dateStrInTz, addDays, startOfWeek, weekday, zonedToIso, fmtDuration, monthEnd, eachDay } from '@/lib/dates'
-import { parseMoney, formatMoney, paiseToInput, lpaToPaise } from '@/lib/money'
-import { sleepMinutes } from '@lifetrack/core/sleep'
-import { streaks, completion, isDueToday, activeDayStreak, isScheduled } from '@lifetrack/core/streaks'
-import { dailyProgress } from '@lifetrack/core/progress'
-import { goalProgress, countedMinutes, problemsSolved } from '@lifetrack/core/learning'
-import { summarize, categoryBreakdown } from '@lifetrack/core/finance'
-import { funnel } from '@lifetrack/core/jobs'
-import { nextOccurrence, nextDueDate } from '@lifetrack/core/recurrence'
-
-describe('dates (Asia/Kolkata)', () => {
-  it('uses IST for the calendar day, not UTC', () => {
-    // 2026-03-10 20:00 UTC == 2026-03-11 01:30 IST
-    expect(dateStrInTz(new Date('2026-03-10T20:00:00Z'), 'Asia/Kolkata')).toBe('2026-03-11')
-    expect(dateStrInTz(new Date('2026-03-10T20:00:00Z'), 'UTC')).toBe('2026-03-10')
-  })
-  it('date arithmetic is timezone independent', () => {
-    expect(addDays('2026-02-28', 1)).toBe('2026-03-01')
-    expect(addDays('2024-02-28', 1)).toBe('2024-02-29')
-    expect(weekday('2026-11-01')).toBe(0)
-    expect(startOfWeek('2026-11-01', 1)).toBe('2026-10-26')
-    expect(startOfWeek('2026-11-01', 0)).toBe('2026-11-01')
-    expect(monthEnd('2026-02-10')).toBe('2026-02-28')
-    expect(eachDay('2026-01-30', '2026-02-02')).toHaveLength(4)
-  })
-  it('converts IST wall-clock to UTC', () => {
-    expect(zonedToIso('2026-03-11', '09:00', 'Asia/Kolkata')).toBe('2026-03-11T03:30:00.000Z')
-  })
-  it('formats durations', () => {
-    expect(fmtDuration(125)).toBe('2h 5m'); expect(fmtDuration(60)).toBe('1h'); expect(fmtDuration(45)).toBe('45m')
-  })
-})
-
-describe('money (integer paise)', () => {
-  it('parses without float error', () => {
-    expect(parseMoney('0.1')).toBe(10)
-    expect(parseMoney('1,250.50')).toBe(125050)
-    expect(parseMoney('19.99')).toBe(1999)
-    expect(parseMoney('1.005')).toBeNull()
-    expect(parseMoney('abc')).toBeNull()
-    expect(parseMoney('-5')).toBeNull()
-    expect(0.1 + 0.2).not.toBe(0.3) // why we use paise
-    expect(parseMoney('0.1') + parseMoney('0.2')).toBe(30)
-  })
-  it('round-trips and formats', () => {
-    expect(paiseToInput(125050)).toBe('1250.50'); expect(paiseToInput(5000)).toBe('50')
-    expect(formatMoney(125050)).toContain('1,250.50'); expect(formatMoney(100000)).toContain('1,000')
-    expect(lpaToPaise('12.5')).toBe(125000000)
-  })
-})
+import { dateStrInTz, addDays, startOfWeek, weekday, eachDay } from '@lifetrack/utils'
+import { sleepMinutes } from '../src/sleep'
+import { streaks, completion, isDueToday, activeDayStreak, isScheduled } from '../src/streaks'
+import { dailyProgress } from '../src/progress'
+import { goalProgress, countedMinutes, problemsSolved } from '../src/learning'
+import { summarize, categoryBreakdown } from '../src/finance'
+import { funnel } from '../src/jobs'
+import { nextOccurrence, nextDueDate } from '../src/recurrence'
 
 describe('sleep duration', () => {
   it('handles overnight and same-day sleep', () => {
@@ -221,28 +179,5 @@ describe('recurrence', () => {
     expect(nextOccurrence({ recurrence: 'none', due_date: '2026-01-01' })).toBeNull()
     expect(nextOccurrence({ recurrence: 'daily', due_date: '2026-01-01', recurrence_until: '2026-01-01' })).toBeNull()
     expect(nextOccurrence({ recurrence: 'daily', due_date: '2026-01-01', recurrence_until: '2026-01-05' })).toBe('2026-01-02')
-  })
-})
-
-import { parseBackup, summarizeBackup } from '@/services/backup'
-import { toCsv } from '@/services/csv'
-describe('backup + csv', () => {
-  const ok = { app: 'lifetrack', version: 1, exported_at: 'x', tables: { tasks: [{ id: 'a', title: 't' }], habits: [] } }
-  it('parses valid backups, including one with a BOM', () => {
-    expect(parseBackup(JSON.stringify(ok)).tables.tasks).toHaveLength(1)
-    expect(parseBackup('﻿' + JSON.stringify(ok)).app).toBe('lifetrack')
-    expect(summarizeBackup(ok)).toEqual([{ table: 'tasks', count: 1 }])
-  })
-  it('rejects wrong / newer / malformed / unknown-table files', () => {
-    expect(() => parseBackup('nope')).toThrow(/valid JSON/)
-    expect(() => parseBackup(JSON.stringify({ hello: 1 }))).toThrow(/not a LifeTrack backup/)
-    expect(() => parseBackup(JSON.stringify({ ...ok, version: 99 }))).toThrow(/newer version/)
-    expect(() => parseBackup(JSON.stringify({ ...ok, tables: { evil: [{ id: '1' }] } }))).toThrow(/Unknown table/)
-    expect(() => parseBackup(JSON.stringify({ ...ok, tables: { tasks: [{ title: 'no id' }] } }))).toThrow()
-  })
-  it('CSV escapes quotes/commas and neutralises spreadsheet formulas', () => {
-    const csv = toCsv([{ a: 'He said "hi", ok', b: '=SUM(A1)' }, { a: '-5', b: '@cmd' }], [{ header: 'A', value: (r) => r.a }, { header: 'B', value: (r) => r.b }])
-    expect(csv).toContain('"He said ""hi"", ok",\'=SUM(A1)')
-    expect(csv).toContain("-5,'@cmd") // plain numbers are untouched
   })
 })
