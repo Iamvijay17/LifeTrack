@@ -9,6 +9,7 @@ const EMPTY = Object.freeze({ rows: Object.freeze([]), status: 'idle', error: nu
 const state = new Map() // table -> { rows, status: idle|loading|ready|error, error }
 const subs = new Map() // table -> Set<fn>
 const inflight = new Map() // table -> Promise
+const fetchedAt = new Map() // table -> Date.now() of the last successful load
 const timers = new Map()
 let epoch = 0 // bumps on sign-out so stale responses are dropped
 
@@ -27,7 +28,10 @@ export function load(table, { force = false } = {}) {
   const p = db
     .list(table)
     .then((rows) => {
-      if (my === epoch) set(table, { rows, status: 'ready', error: null })
+      if (my === epoch) {
+        fetchedAt.set(table, Date.now())
+        set(table, { rows, status: 'ready', error: null })
+      }
     })
     .catch((e) => {
       if (my === epoch) set(table, { status: 'error', error: toAppError(e).message })
@@ -39,9 +43,18 @@ export function load(table, { force = false } = {}) {
 
 export const refetch = (table) => load(table, { force: true })
 
-/** Re-pull every table that has been loaded (used on focus / reconnect / realtime reconnect). */
-export function refetchLoaded() {
-  return Promise.all([...state.keys()].filter((t) => get(t).status !== 'idle').map((t) => refetch(t)))
+/**
+ * Re-pull the tables that have been loaded (focus / reconnect / realtime reconnect / safety-net poll).
+ * Tables fetched less than `maxAgeMs` ago are skipped: a focus + visibilitychange pair, or a poll right after a Realtime-triggered
+ * refetch, would otherwise download the same data twice.
+ */
+export function refetchLoaded({ maxAgeMs = 0 } = {}) {
+  const now = Date.now()
+  return Promise.all(
+    [...state.keys()]
+      .filter((t) => get(t).status !== 'idle' && !(maxAgeMs && now - (fetchedAt.get(t) ?? 0) < maxAgeMs))
+      .map((t) => refetch(t)),
+  )
 }
 
 export function scheduleRefetch(table) {
@@ -57,6 +70,7 @@ export function scheduleRefetch(table) {
 export function resetStore() {
   epoch++
   inflight.clear()
+  fetchedAt.clear()
   timers.forEach(clearTimeout)
   const keys = [...state.keys()]
   state.clear()
@@ -215,28 +229,39 @@ export function useTables(...tables) {
 // ------------------------------------------------------------------- realtime
 let unsub = null
 let pollTimer = null
+let realtimeUp = false
+let wasUp = false
+const FOCUS_MAX_AGE = 15_000 // returning to the tab within 15 s of a load needs no re-download
+const POLL_MS = 90_000 // safety net while Realtime is down
+const POLL_MS_LIVE = 600_000 // while Realtime is connected it is only a backstop for missed events
 export function startSync(onStatus) {
   stopSync()
+  realtimeUp = false
+  wasUp = false
   unsub = db.subscribe(
     (table) => scheduleRefetch(table),
     (status) => {
+      realtimeUp = status === 'SUBSCRIBED'
       onStatus?.(status)
-      if (status === 'SUBSCRIBED') refetchLoaded() // catch up on anything missed while disconnected
+      // The first connection follows the initial loads, so skip tables that are fresh; a RE-connection may have missed events, so re-pull all.
+      if (realtimeUp) refetchLoaded({ maxAgeMs: wasUp ? 0 : FOCUS_MAX_AGE })
+      if (realtimeUp) wasUp = true
     },
   )
   const onVisible = () => {
-    if (document.visibilityState === 'visible') refetchLoaded()
+    if (document.visibilityState === 'visible') refetchLoaded({ maxAgeMs: FOCUS_MAX_AGE })
   }
+  const onOnline = () => refetchLoaded() // coming back online: always catch up
   window.addEventListener('visibilitychange', onVisible)
   window.addEventListener('focus', onVisible)
-  window.addEventListener('online', onVisible)
+  window.addEventListener('online', onOnline)
   pollTimer = setInterval(() => {
-    if (document.visibilityState === 'visible' && navigator.onLine) refetchLoaded()
-  }, 90_000)
+    if (document.visibilityState === 'visible' && navigator.onLine) refetchLoaded({ maxAgeMs: realtimeUp ? POLL_MS_LIVE : POLL_MS - 1000 })
+  }, POLL_MS)
   stopFns = () => {
     window.removeEventListener('visibilitychange', onVisible)
     window.removeEventListener('focus', onVisible)
-    window.removeEventListener('online', onVisible)
+    window.removeEventListener('online', onOnline)
     clearInterval(pollTimer)
   }
 }

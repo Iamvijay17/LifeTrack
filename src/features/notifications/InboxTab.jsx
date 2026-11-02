@@ -5,6 +5,8 @@ import { useConfirm } from '@/components/shared/Confirm'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/misc'
+import { useShowMore } from '@/hooks/useShowMore'
+import { ShowMore } from '@/components/shared/ShowMore'
 import { relativeTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -42,6 +44,7 @@ function NotificationRow({ n, onRead, onDelete }) {
 /** `inbox` is notifications, newest first. */
 export function InboxTab({ inbox, unread, readingAll, onRead, onReadAll, onDelete, onClearRead, onCreateReminder }) {
   const confirm = useConfirm()
+  const page = useShowMore(inbox)
   const askClear = async () => {
     if (await confirm({ title: 'Clear read notifications?', description: 'Unread ones are kept.', confirmLabel: 'Clear' })) onClearRead()
   }
@@ -70,10 +73,11 @@ export function InboxTab({ inbox, unread, readingAll, onRead, onReadAll, onDelet
       ) : (
         <Card>
           <ul className="divide-y divide-border">
-            {inbox.map((n) => (
+            {page.visible.map((n) => (
               <NotificationRow key={n.id} n={n} onRead={onRead} onDelete={onDelete} />
             ))}
           </ul>
+          <ShowMore more={page.more} onClick={page.showMore} />
         </Card>
       )}
     </div>

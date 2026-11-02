@@ -2,15 +2,16 @@ import { Clock, Pencil, Trash2 } from 'lucide-react'
 import { EmptyState } from '@/components/shared/states'
 import { Card } from '@/components/ui/card'
 import { Menu } from '@/components/ui/menu'
+import { useShowMore } from '@/hooks/useShowMore'
+import { ShowMore } from '@/components/shared/ShowMore'
 import { useConfirmedDelete } from '@/hooks/useConfirmedDelete'
 import { sessionName } from '@/domain/learning'
 import { fmtDay, fmtDuration } from '@/lib/dates'
 
-const MAX_ROWS = 100
-
 /** `history` is completed sessions, newest first. */
 export function SessionsTab({ history, goals, topics, onEdit }) {
   const removeSession = useConfirmedDelete('study_sessions', 'Session deleted')
+  const page = useShowMore(history)
   if (history.length === 0) {
     return (
       <EmptyState
@@ -23,7 +24,7 @@ export function SessionsTab({ history, goals, topics, onEdit }) {
   return (
     <Card>
       <ul className="divide-y divide-border">
-        {history.slice(0, MAX_ROWS).map((s) => (
+        {page.visible.map((s) => (
           <li key={s.id} className="flex items-center gap-3 px-4 py-3">
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{sessionName(s, goals, topics)}</p>
@@ -53,6 +54,7 @@ export function SessionsTab({ history, goals, topics, onEdit }) {
           </li>
         ))}
       </ul>
+      <ShowMore more={page.more} onClick={page.showMore} />
     </Card>
   )
 }

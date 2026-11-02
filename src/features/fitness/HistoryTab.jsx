@@ -4,12 +4,12 @@ import { EmptyState } from '@/components/shared/states'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/misc'
 import { Menu } from '@/components/ui/menu'
+import { useShowMore } from '@/hooks/useShowMore'
+import { ShowMore } from '@/components/shared/ShowMore'
 import { useConfirmedDelete } from '@/hooks/useConfirmedDelete'
 import { summarizeSets, volume } from '@/domain/fitness'
 import { fmtDay } from '@/lib/dates'
 import { cn } from '@/lib/utils'
-
-const MAX_ROWS = 100
 
 function details(x, sets) {
   return (
@@ -24,12 +24,13 @@ function details(x, sets) {
 export function HistoryTab({ history, logsByWorkout, onEdit }) {
   const [openId, setOpenId] = useState(null)
   const removeWorkout = useConfirmedDelete('workouts', 'Workout deleted')
+  const page = useShowMore(history)
   if (history.length === 0)
     return <EmptyState icon={Flame} title="No workouts logged" description="Your sets, reps and weights will be listed here." />
   return (
     <Card>
       <ul className="divide-y divide-border">
-        {history.slice(0, MAX_ROWS).map((x) => {
+        {page.visible.map((x) => {
           const sets = logsByWorkout.get(x.id) ?? []
           const open = openId === x.id
           return (
@@ -74,6 +75,7 @@ export function HistoryTab({ history, logsByWorkout, onEdit }) {
           )
         })}
       </ul>
+      <ShowMore more={page.more} onClick={page.showMore} />
     </Card>
   )
 }

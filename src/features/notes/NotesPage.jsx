@@ -15,6 +15,8 @@ import { NoteViewer } from '@/features/notes/NoteViewer'
 import { filterNotes, noteCategories, noteTags } from '@/domain/notes'
 import { useTables } from '@/hooks/store'
 import * as store from '@/hooks/store'
+import { useShowMore } from '@/hooks/useShowMore'
+import { ShowMore } from '@/components/shared/ShowMore'
 import { useToday } from '@/hooks/useToday'
 import { useAction } from '@/hooks/useAction'
 
@@ -43,6 +45,7 @@ export default function NotesPage() {
   const categories = useMemo(() => noteCategories(data.notes), [data.notes])
   const tags = useMemo(() => noteTags(data.notes), [data.notes])
   const list = useMemo(() => filterNotes(data.notes, { q, category, tag }), [data.notes, q, category, tag])
+  const page = useShowMore(list, 30, `${q}|${category}|${tag}`)
   const [togglePin] = useAction((n) => store.update('notes', n.id, { pinned: !n.pinned }))
   const [del] = useAction((id) => store.remove('notes', id), { success: 'Note deleted' })
   const askDelete = async (n) => {
@@ -123,21 +126,24 @@ export default function NotesPage() {
           ) : list.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">No notes match your search.</p>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {list.map((n) => (
-                <NoteCard
-                  key={n.id}
-                  note={n}
-                  goalName={goalName(n.goal_id)}
-                  taskName={taskName(n.task_id)}
-                  onOpen={setView}
-                  onEdit={(note) => setDlg({ open: true, note })}
-                  onTogglePin={togglePin}
-                  onDelete={askDelete}
-                  onTag={setTag}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {page.visible.map((n) => (
+                  <NoteCard
+                    key={n.id}
+                    note={n}
+                    goalName={goalName(n.goal_id)}
+                    taskName={taskName(n.task_id)}
+                    onOpen={setView}
+                    onEdit={(note) => setDlg({ open: true, note })}
+                    onTogglePin={togglePin}
+                    onDelete={askDelete}
+                    onTag={setTag}
+                  />
+                ))}
+              </div>
+              <ShowMore more={page.more} step={30} onClick={page.showMore} />
+            </>
           )}
           <NoteDialog
             open={dlg.open}
