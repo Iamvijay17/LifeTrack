@@ -1,37 +1,25 @@
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { applicationFormSchema, applicationToForm, applicationToPayload, blankApplication, blankInterview, interviewFormSchema, interviewToForm, interviewToPayload } from '@lifetrack/schemas'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { Field, Input, Select, Textarea } from '@/components/ui/form'
 import { JOB_STATUSES, STATUS_LABEL } from '@lifetrack/core/jobs'
 import { APPLICATION_SOURCES } from '@lifetrack/constants/defaults'
-import { isValidDay, zonedToIso, dateStrInTz, timeStrInTz } from '@/lib/dates'
-import { lpaToPaise, paiseToLpa, parseMoney } from '@/lib/money'
 import { useAction } from '@/hooks/useAction'
 import * as store from '@/hooks/store'
 
-const day = z.string().refine((v) => v === '' || isValidDay(v), 'Enter a valid date')
-
 export function ApplicationDialog({ open, onOpenChange, app, today, defaultStatus = 'interested', onSaved }) {
-  const schema = z.object({
-    company: z.string().trim().min(1, 'Company is required').max(120),
-    job_title: z.string().trim().min(1, 'Job title is required').max(120),
-    jd_url: z.string().trim().refine((v) => v === '' || /^https?:\/\/\S+$/i.test(v), 'Must start with http:// or https://'),
-    location: z.string().max(120), salary_lpa: z.string().refine((v) => v.trim() === '' || parseMoney(v) !== null, 'Enter a number like 12 or 18.5'),
-    applied_date: day, source: z.string().max(60), status: z.enum(JOB_STATUSES), contact_person: z.string().max(120),
-    followup_date: day, resume_version: z.string().max(80), notes: z.string().max(4000),
-  })
-  const blank = { company: '', job_title: '', jd_url: '', location: '', salary_lpa: '', applied_date: '', source: '', status: defaultStatus, contact_person: '', followup_date: '', resume_version: '', notes: '' }
+  const schema = applicationFormSchema
+  const blank = blankApplication(defaultStatus, today)
   const { register, handleSubmit, reset, formState: { errors } } = useForm({ resolver: zodResolver(schema), defaultValues: blank })
   useEffect(() => {
     if (!open) return
-    reset(app ? { ...blank, ...Object.fromEntries(Object.keys(blank).map((k) => [k, app[k] ?? ''])), salary_lpa: app.salary_paise != null ? String(paiseToLpa(app.salary_paise)) : '' } : { ...blank, status: defaultStatus, applied_date: defaultStatus === 'applied' ? today : '' })
+    reset(app ? applicationToForm(app) : blankApplication(defaultStatus, today))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, app?.id, defaultStatus])
   const [save, pending] = useAction(async (v) => {
-    const { salary_lpa, ...rest } = v
-    const row = { ...rest, applied_date: v.applied_date || null, followup_date: v.followup_date || null, salary_paise: salary_lpa.trim() ? lpaToPaise(salary_lpa) : null }
+    const row = applicationToPayload(v)
     const saved = app ? await store.update('job_applications', app.id, row) : await store.insert('job_applications', row)
     onSaved?.(saved)
     onOpenChange(false)
@@ -57,21 +45,16 @@ export function ApplicationDialog({ open, onOpenChange, app, today, defaultStatu
 }
 
 export function InterviewDialog({ open, onOpenChange, event, applicationId, apps, tz, today }) {
-  const schema = z.object({
-    application_id: z.string().min(1, 'Choose an application'), round_name: z.string().trim().min(1, 'Name the round').max(80),
-    date: z.string().refine(isValidDay, 'Pick a date'), time: z.string().regex(/^\d{2}:\d{2}$/, 'Pick a time'),
-    mode: z.enum(['video', 'phone', 'onsite', 'other']), link: z.string().max(500), status: z.enum(['scheduled', 'completed', 'cancelled']), notes: z.string().max(2000),
-  })
-  const blank = { application_id: applicationId ?? '', round_name: 'Technical round', date: today, time: '11:00', mode: 'video', link: '', status: 'scheduled', notes: '' }
+  const schema = interviewFormSchema
+  const blank = blankInterview(applicationId ?? '', today)
   const { register, handleSubmit, reset, formState: { errors } } = useForm({ resolver: zodResolver(schema), defaultValues: blank })
   useEffect(() => {
     if (!open) return
-    reset(event ? { application_id: event.application_id, round_name: event.round_name, date: dateStrInTz(event.scheduled_at, tz), time: timeStrInTz(event.scheduled_at, tz), mode: event.mode, link: event.link ?? '', status: event.status, notes: event.notes ?? '' } : { ...blank, application_id: applicationId ?? apps[0]?.id ?? '' })
+    reset(event ? interviewToForm(event, tz) : { ...blank, application_id: applicationId ?? apps[0]?.id ?? '' })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, event?.id, applicationId])
   const [save, pending] = useAction(async (v) => {
-    const { date, time, ...rest } = v
-    const row = { ...rest, scheduled_at: zonedToIso(date, time, tz) }
+    const row = interviewToPayload(v, tz)
     if (event) await store.update('interview_events', event.id, row); else await store.insert('interview_events', row)
     onOpenChange(false)
   }, { success: event ? 'Interview updated' : 'Interview scheduled' })

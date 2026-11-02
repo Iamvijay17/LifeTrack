@@ -14,8 +14,7 @@ import { WeeklyApplicationsChart, SalaryChart } from '@/features/analytics/JobCh
 import { useTables } from '@/hooks/store'
 import { useSettings } from '@/hooks/useSettings'
 import { useToday } from '@/hooks/useToday'
-import { dueFollowups, funnel, JOB_STATUSES, STATUS_LABEL } from '@lifetrack/core/jobs'
-import { addDays, startOfWeek } from '@/lib/dates'
+import { applicationSources, filterApplications, jobsOverview, JOB_STATUSES, STATUS_LABEL } from '@lifetrack/core/jobs'
 
 export default function JobsPage() {
   const today = useToday()
@@ -32,20 +31,10 @@ export default function JobsPage() {
 
   const apps = data.job_applications
   const detail = apps.find((a) => a.id === openId) ?? null
-  const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase()
-    return apps.filter((a) => (!status || a.status === status) && (!source || a.source === source) && (!s || [a.company, a.job_title, a.location, a.notes, a.contact_person].some((x) => x?.toLowerCase().includes(s))))
-      .sort((a, b) => b.created_at.localeCompare(a.created_at))
-  }, [apps, q, status, source])
-  const sources = [...new Set(apps.map((a) => a.source).filter(Boolean))]
-
-  const weekStart = startOfWeek(today, w)
-  const thisWeek = apps.filter((a) => a.applied_date && a.applied_date >= weekStart && a.applied_date <= addDays(weekStart, 6)).length
-  const f = funnel(apps, data.application_history, data.interview_events, '0000-01-01', '9999-12-31')
-  const active = apps.filter((a) => ['interested', 'preparing', 'applied', 'assessment', 'interview'].includes(a.status)).length
-  const now = new Date().toISOString(), soon = new Date(Date.now() + 7 * 864e5).toISOString()
-  const upcoming = data.interview_events.filter((e) => e.status === 'scheduled' && e.scheduled_at >= now && e.scheduled_at <= soon).map((e) => ({ ...e, app: apps.find((a) => a.id === e.application_id) })).filter((e) => e.app)
-  const followups = dueFollowups(apps, today)
+  const filtered = useMemo(() => filterApplications(apps, { q, status, source }), [apps, q, status, source])
+  const sources = applicationSources(apps)
+  const o = useMemo(() => jobsOverview(apps, data.application_history, data.interview_events, today, w), [apps, data.application_history, data.interview_events, today, w])
+  const { thisWeek, funnel: f, active, upcoming, followups } = o
   const scheduleFor = (appId) => setIntDlg({ open: true, event: null, appId })
 
   return (

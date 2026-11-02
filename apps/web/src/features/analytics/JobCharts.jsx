@@ -1,16 +1,9 @@
 import { Bar, BarChart, CartesianGrid, Line, LineChart, Tooltip } from 'recharts'
 import { Chart, C, grid, tooltip, xAxis, yAxis } from '@/components/shared/charts'
-import { addDays, fmtDay, startOfWeek } from '@/lib/dates'
-import { salaryProgression } from '@lifetrack/core/jobs'
+import { fmtDay } from '@/lib/dates'
+import { salaryProgression, weeklyApplications } from '@lifetrack/core/jobs'
 
-export function weeklyApplications(apps, today, weekStartsOn, weeks = 8) {
-  const start = startOfWeek(today, weekStartsOn)
-  return Array.from({ length: weeks }, (_, i) => {
-    const ws = addDays(start, -(weeks - 1 - i) * 7)
-    const we = addDays(ws, 6)
-    return { label: fmtDay(ws, 'd MMM'), count: apps.filter((a) => a.applied_date && a.applied_date >= ws && a.applied_date <= we).length }
-  })
-}
+export { weeklyApplications }
 
 export function WeeklyApplicationsChart({ apps, today, weekStartsOn }) {
   const data = weeklyApplications(apps, today, weekStartsOn)

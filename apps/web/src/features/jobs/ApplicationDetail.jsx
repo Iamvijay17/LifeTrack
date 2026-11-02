@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox, Input, Select } from '@/components/ui/form'
 import { Badge } from '@/components/ui/misc'
 import { useConfirm } from '@/components/shared/Confirm'
-import { STATUS_LABEL, JOB_STATUSES, DEFAULT_PREP } from '@lifetrack/core/jobs'
+import { STATUS_LABEL, JOB_STATUSES, DEFAULT_PREP, applicationEvents, applicationHistory, interviewTone, prepProgress, statusTone } from '@lifetrack/core/jobs'
 import { fmtDay, fmtDateTime } from '@/lib/dates'
 import { dateStrInTz } from '@/lib/dates'
 import { uid, pct } from '@/lib/utils'
@@ -14,8 +14,7 @@ import { useAction } from '@/hooks/useAction'
 import * as store from '@/hooks/store'
 import { setApplicationStatus } from '@/services/api'
 
-const TONE = { selected: 'success', offer: 'success', rejected: 'danger', withdrawn: 'neutral', interview: 'primary', assessment: 'warning' }
-export const StatusBadge = ({ status }) => <Badge tone={TONE[status] ?? 'neutral'}>{STATUS_LABEL[status]}</Badge>
+export const StatusBadge = ({ status }) => <Badge tone={statusTone(status)}>{STATUS_LABEL[status]}</Badge>
 
 function Section({ title, icon: Icon, action, children }) {
   return (
@@ -35,9 +34,9 @@ export function ApplicationDetail({ app, history, events, tz, today, onClose, on
   const [delEvent] = useAction((id) => store.remove('interview_events', id), { success: 'Interview removed' })
   if (!app) return null
   const checklist = app.prep_checklist ?? []
-  const doneCount = checklist.filter((i) => i.done).length
-  const hist = history.filter((h) => h.application_id === app.id).sort((a, b) => a.changed_at.localeCompare(b.changed_at))
-  const evs = events.filter((e) => e.application_id === app.id).sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))
+  const { done: doneCount } = prepProgress(checklist)
+  const hist = applicationHistory(app.id, history)
+  const evs = applicationEvents(app.id, events)
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()} title={`${app.company}`} description={app.job_title} className="md:max-w-2xl">
       <div className="space-y-6">
@@ -57,7 +56,7 @@ export function ApplicationDetail({ app, history, events, tz, today, onClose, on
           {evs.length === 0 ? <p className="text-sm text-muted-foreground">No interviews scheduled.</p> : <ul className="space-y-1.5">{evs.map((e) => (
             <li key={e.id} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
               <div className="min-w-0 flex-1"><p className="truncate font-medium">{e.round_name}</p><p className="text-xs text-muted-foreground">{fmtDateTime(e.scheduled_at, tz)} · {e.mode}</p></div>
-              <Badge tone={e.status === 'completed' ? 'success' : e.status === 'cancelled' ? 'neutral' : 'primary'}>{e.status}</Badge>
+              <Badge tone={interviewTone(e.status)}>{e.status}</Badge>
               <button aria-label="Edit interview" className="text-muted-foreground hover:text-foreground" onClick={() => onEditInterview(e)}><Pencil className="h-3.5 w-3.5" /></button>
               <button aria-label="Remove interview" className="text-muted-foreground hover:text-danger" onClick={async () => { if (await confirm({ title: 'Remove this interview?' })) delEvent(e.id) }}><X className="h-4 w-4" /></button>
             </li>))}</ul>}

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { isValidDay, paiseToInput, parseMoney, parseTags, sleepMinutes } from '@lifetrack/utils'
+import { dateStrInTz, isValidDay, lpaToPaise, paiseToInput, paiseToLpa, parseMoney, parseTags, sleepMinutes, timeStrInTz, zonedToIso } from '@lifetrack/utils'
 import { TASK_CATEGORIES } from './tables'
 
 // Form-level validation + payload mapping shared by web and mobile. Forms hold strings ('' = empty);
@@ -202,4 +202,53 @@ export function parseAmountOrThrow(input: string, message: string, { allowZero =
   const p = parseMoney(input)
   if (p === null || (!allowZero && p <= 0)) throw new Error(message)
   return p
+}
+
+// --------------------------------------------------------------------- jobs
+export const APPLICATION_STATUSES = ['interested', 'preparing', 'applied', 'assessment', 'interview', 'selected', 'offer', 'rejected', 'withdrawn'] as const
+export const applicationFormSchema = z.object({
+  company: z.string().trim().min(1, 'Company is required').max(120),
+  job_title: z.string().trim().min(1, 'Job title is required').max(120),
+  jd_url: z.string().trim().refine((v) => v === '' || /^https?:\/\/\S+$/i.test(v), 'Must start with http:// or https://'),
+  location: z.string().max(120),
+  salary_lpa: z.string().refine((v) => v.trim() === '' || parseMoney(v) !== null, 'Enter a number like 12 or 18.5'),
+  applied_date: day,
+  source: z.string().max(60),
+  status: z.enum(APPLICATION_STATUSES),
+  contact_person: z.string().max(120),
+  followup_date: day,
+  resume_version: z.string().max(80),
+  notes: z.string().max(4000),
+})
+export type ApplicationForm = z.infer<typeof applicationFormSchema>
+export const blankApplication = (status: ApplicationForm['status'] = 'interested', today = ''): ApplicationForm =>
+  ({ company: '', job_title: '', jd_url: '', location: '', salary_lpa: '', applied_date: status === 'applied' ? today : '', source: '', status, contact_person: '', followup_date: '', resume_version: '', notes: '' })
+export const applicationToForm = (a: Partial<Record<keyof ApplicationForm, string | null>> & { salary_paise?: number | null }): ApplicationForm => {
+  const b = blankApplication()
+  const out = Object.fromEntries((Object.keys(b) as (keyof ApplicationForm)[]).map((k) => [k, (a[k] as string | null | undefined) ?? ''])) as ApplicationForm
+  return { ...out, salary_lpa: a.salary_paise != null ? String(paiseToLpa(a.salary_paise)) : '' }
+}
+export const applicationToPayload = (v: ApplicationForm) => {
+  const { salary_lpa, ...rest } = v
+  return { ...rest, applied_date: v.applied_date || null, followup_date: v.followup_date || null, salary_paise: salary_lpa.trim() ? lpaToPaise(salary_lpa) : null }
+}
+
+export const INTERVIEW_MODES = ['video', 'phone', 'onsite', 'other'] as const
+export const interviewFormSchema = z.object({
+  application_id: z.string().min(1, 'Choose an application'),
+  round_name: z.string().trim().min(1, 'Name the round').max(80),
+  date: z.string().refine(isValidDay, 'Pick a date'),
+  time: z.string().regex(/^\d{2}:\d{2}$/, 'Pick a time'),
+  mode: z.enum(INTERVIEW_MODES),
+  link: z.string().max(500),
+  status: z.enum(['scheduled', 'completed', 'cancelled']),
+  notes: z.string().max(2000),
+})
+export type InterviewForm = z.infer<typeof interviewFormSchema>
+export const blankInterview = (applicationId: string, today: string): InterviewForm => ({ application_id: applicationId, round_name: 'Technical round', date: today, time: '11:00', mode: 'video', link: '', status: 'scheduled', notes: '' })
+export const interviewToForm = (e: { application_id: string; round_name: string; scheduled_at: string; mode: InterviewForm['mode']; link?: string | null; status: InterviewForm['status']; notes?: string | null }, tz: string): InterviewForm =>
+  ({ application_id: e.application_id, round_name: e.round_name, date: dateStrInTz(e.scheduled_at, tz), time: timeStrInTz(e.scheduled_at, tz), mode: e.mode, link: e.link ?? '', status: e.status, notes: e.notes ?? '' })
+export const interviewToPayload = (v: InterviewForm, tz: string) => {
+  const { date, time, ...rest } = v
+  return { ...rest, scheduled_at: zonedToIso(date, time, tz) }
 }

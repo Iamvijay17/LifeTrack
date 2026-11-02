@@ -143,7 +143,7 @@ export function Segmented<T extends string>({ value, options, onChange }: { valu
 
 export interface SelectOption { value: string; label: string; group?: string }
 /** Dropdown replacement: a field that opens a sheet of (optionally grouped) choices. */
-export function SelectField({ label, value, options, onChange, placeholder = 'Select…' }: { label: string; value: string; options: SelectOption[]; onChange: (v: string) => void; placeholder?: string }) {
+export function SelectField({ label, value, options, onChange, placeholder = 'Select…', error }: { label: string; value: string; options: SelectOption[]; onChange: (v: string) => void; placeholder?: string; error?: string }) {
   const { colors, radius } = useTheme()
   const [open, setOpen] = useState(false)
   const current = options.find((o) => o.value === value)
@@ -152,9 +152,10 @@ export function SelectField({ label, value, options, onChange, placeholder = 'Se
     <View style={{ gap: 6 }}>
       <Text style={{ color: colors.foreground, fontWeight: '500' }}>{label}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel={`${label}: ${current?.label ?? 'none'}`} onPress={() => setOpen(true)}
-        style={{ minHeight: 48, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, paddingHorizontal: 12, justifyContent: 'center' }}>
+        style={{ minHeight: 48, borderRadius: radius.lg, borderWidth: 1, borderColor: error ? colors.danger : colors.border, backgroundColor: colors.card, paddingHorizontal: 12, justifyContent: 'center' }}>
         <Text numberOfLines={1} style={{ color: current ? colors.foreground : colors.mutedForeground, fontSize: 16 }}>{current?.label ?? placeholder}  ▾</Text>
       </Pressable>
+      {error ? <Text accessibilityLiveRegion="polite" style={{ color: colors.danger, fontSize: 13 }}>{error}</Text> : null}
       <SelectSheet visible={open} title={label} groups={groups} options={options} value={value} onClose={() => setOpen(false)} onPick={(v) => { onChange(v); setOpen(false) }} />
     </View>
   )
