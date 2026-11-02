@@ -1,33 +1,28 @@
 import { useEffect } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { blankTransaction, transactionFormSchema, transactionToForm, transactionToPayload } from '@lifetrack/schemas'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { Field, Input, Select } from '@/components/ui/form'
 import { Segmented } from '@/components/ui/misc'
 import { CATEGORIES_BY_TYPE, PAYMENT_METHODS } from '@lifetrack/core/finance'
-import { isValidDay } from '@/lib/dates'
-import { parseMoney, paiseToInput, CURRENCIES } from '@/lib/money'
+import { CURRENCIES } from '@/lib/money'
 import { useAction } from '@/hooks/useAction'
 import { useSettings } from '@/hooks/useSettings'
 import * as store from '@/hooks/store'
 
-const schema = z.object({
-  type: z.enum(['expense', 'income', 'savings']),
-  amount: z.string().trim().refine((v) => { const p = parseMoney(v); return p !== null && p > 0 }, 'Enter an amount greater than 0 (max 2 decimals)'),
-  category: z.string().min(1, 'Choose a category'), txn_date: z.string().refine(isValidDay, 'Pick a date'), payment_method: z.enum(['Cash', 'UPI', 'Credit card', 'Debit card', 'Bank transfer', 'Other']), note: z.string().max(300),
-})
+const schema = transactionFormSchema
 
 export function TransactionDialog({ open, onOpenChange, txn, today, defaultType = 'expense' }) {
   const { settings } = useSettings()
-  const blank = { type: defaultType, amount: '', category: CATEGORIES_BY_TYPE[defaultType][0], txn_date: today, payment_method: 'UPI', note: '' }
+  const blank = blankTransaction(defaultType, CATEGORIES_BY_TYPE[defaultType][0], today)
   const { register, control, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm({ resolver: zodResolver(schema), defaultValues: blank })
-  useEffect(() => { if (open) reset(txn ? { type: txn.type, amount: paiseToInput(txn.amount_paise), category: txn.category, txn_date: txn.txn_date, payment_method: txn.payment_method ?? 'Other', note: txn.note ?? '' } : { ...blank, txn_date: today }) },
+  useEffect(() => { if (open) reset(txn ? transactionToForm(txn) : { ...blank, txn_date: today }) },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [open, txn?.id, defaultType])
   const type = watch('type')
   const [save, pending] = useAction(async (v) => {
-    const row = { type: v.type, amount_paise: parseMoney(v.amount), category: v.category, txn_date: v.txn_date, payment_method: v.payment_method, note: v.note }
+    const row = transactionToPayload(v)
     if (txn) await store.update('transactions', txn.id, row); else await store.insert('transactions', row)
     onOpenChange(false)
   }, { success: txn ? 'Transaction updated' : 'Transaction added' })

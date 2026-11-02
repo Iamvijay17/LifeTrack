@@ -5,5 +5,5 @@ import * as store from '@/hooks/store'
 
 export const {
   createTask, setTaskStatus, setHabitStatus, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater,
-  setApplicationStatus, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, fireDueReminders, markNotificationRead, markAllRead,
+  setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, fireDueReminders, markNotificationRead, markAllRead,
 } = createApi(store)

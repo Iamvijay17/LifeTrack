@@ -67,3 +67,60 @@ export function LineChart({ data, height = 160, color, unit = '', summary }: { d
     </View>
   )
 }
+
+/** Donut chart for category shares. `slices`: [{ label, value, color }]. The legend is rendered by the caller. */
+export function DonutChart({ slices, size = 180, thickness = 26, centerLabel, summary }: { slices: { label: string; value: number; color: string }[]; size?: number; thickness?: number; centerLabel?: string; summary: string }) {
+  const { colors } = useTheme()
+  const total = slices.reduce((a, s) => a + s.value, 0)
+  const r = (size - thickness) / 2, c = 2 * Math.PI * r
+  let offset = 0
+  return (
+    <View accessible accessibilityRole="image" accessibilityLabel={summary} style={{ alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: [{ rotate: '-90deg' }] }}>
+        <Circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={colors.muted} strokeWidth={thickness} />
+        {total > 0 ? slices.map((s) => {
+          const len = (s.value / total) * c
+          const el = <Circle key={s.label} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={s.color} strokeWidth={thickness} strokeDasharray={`${Math.max(0, len - 2)} ${c - Math.max(0, len - 2)}`} strokeDashoffset={-offset} />
+          offset += len
+          return el
+        }) : null}
+      </Svg>
+      {centerLabel ? <Text style={{ position: 'absolute', color: colors.foreground, fontWeight: '600', fontSize: 15 }}>{centerLabel}</Text> : null}
+    </View>
+  )
+}
+
+/** Grouped bars: `series` = [{ name, color }], `data` = [{ label, values: number[] }] (one value per series). */
+export function GroupedBarChart({ data, series, height = 180, summary }: { data: { label: string; values: number[] }[]; series: { name: string; color: string }[]; height?: number; summary: string }) {
+  const { colors } = useTheme()
+  const [w, setW] = useState(0)
+  const max = Math.max(1, ...data.flatMap((d) => d.values))
+  const padB = 22, padT = 8
+  const plotH = height - padB - padT
+  const slot = w / Math.max(1, data.length)
+  const bar = Math.min(14, (slot * 0.8) / series.length)
+  return (
+    <View accessible accessibilityRole="image" accessibilityLabel={summary}>
+      <View onLayout={(e) => setW(e.nativeEvent.layout.width)}>
+        {w > 0 ? (
+          <Svg width={w} height={height}>
+            <Line x1={0} x2={w} y1={height - padB} y2={height - padB} stroke={colors.border} strokeWidth={1} />
+            {data.map((d, i) => (
+              <G key={d.label}>
+                {d.values.map((v, k) => {
+                  const h = (v / max) * plotH
+                  const x = i * slot + (slot - bar * series.length) / 2 + k * bar
+                  return <Rect key={k} x={x} y={height - padB - h} width={bar - 1} height={Math.max(h, v > 0 ? 2 : 0)} rx={2} fill={series[k].color} />
+                })}
+                <SvgText x={i * slot + slot / 2} y={height - 6} fontSize={11} fill={colors.mutedForeground} textAnchor="middle">{d.label}</SvgText>
+              </G>
+            ))}
+          </Svg>
+        ) : <View style={{ height }} />}
+      </View>
+      <View style={{ flexDirection: 'row', gap: 14, justifyContent: 'center', marginTop: 4 }}>
+        {series.map((s) => <View key={s.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: s.color }} /><Text style={{ color: colors.mutedForeground, fontSize: 12 }}>{s.name}</Text></View>)}
+      </View>
+    </View>
+  )
+}

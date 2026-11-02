@@ -19,14 +19,13 @@ import * as store from '@/hooks/store'
 import { useSettings } from '@/hooks/useSettings'
 import { useToday } from '@/hooks/useToday'
 import { useAction } from '@/hooks/useAction'
-import { PAYMENT_METHODS, categoryBreakdown, dailySeries, monthlySeries, summarize } from '@lifetrack/core/finance'
-import { addMonths, fmtDay, monthEnd, monthKey, monthStart } from '@/lib/dates'
-import { formatMoney as fm, parseMoney, paiseToInput } from '@/lib/money'
-import { CONFLICT_KEYS } from '@lifetrack/constants/schema'
+import { PAYMENT_METHODS, budgetTone, filterTransactions, financeMonth, savingsShareOfIncome, signFor, TYPE_TONE } from '@lifetrack/core/finance'
+import { parseAmountOrThrow } from '@lifetrack/schemas'
+import { setMonthBudget } from '@/services/api'
+import { addMonths, fmtDay, monthEnd, monthStart } from '@/lib/dates'
+import { formatMoney as fm, paiseToInput } from '@/lib/money'
 import { download, toCsv, TX_COLUMNS } from '@/services/csv'
 import { cn } from '@/lib/utils'
-
-const TYPE_TONE = { income: 'success', expense: 'danger', savings: 'primary' }
 
 export default function FinancePage() {
   const today = useToday()
@@ -37,36 +36,24 @@ export default function FinancePage() {
   const { data, loading, error, refetch } = useTables('transactions', 'budgets')
   const [month, setMonth] = useState(null)
   const m = month ?? monthStart(today)
-  const mk = monthKey(m)
   const [dlg, setDlg] = useState({ open: false, txn: null, type: 'expense' })
   const [budgetOpen, setBudgetOpen] = useState(false)
   const [budgetInput, setBudgetInput] = useState('')
   const [f, setF] = useState({ type: '', category: '', method: '', q: '', from: '', to: '' })
 
-  const overall = data.budgets.find((b) => b.month === m && b.category === '')
-  const budget = overall ? overall.amount_paise : settings.monthly_budget_paise
-  const sum = useMemo(() => summarize(data.transactions, mk, budget), [data.transactions, mk, budget])
-  const monthTx = useMemo(() => data.transactions.filter((t) => monthKey(t.txn_date) === mk), [data.transactions, mk])
-  const breakdown = useMemo(() => categoryBreakdown(monthTx), [monthTx])
-  const series = useMemo(() => monthlySeries(data.transactions, m, 6).map((s) => ({ ...s, label: fmtDay(s.month + '-01', 'MMM') })), [data.transactions, m])
-  const daily = useMemo(() => dailySeries(data.transactions, m, monthEnd(m) > today && mk === monthKey(today) ? today : monthEnd(m)).map((d) => ({ ...d, label: Number(d.date.slice(8)), rupees: d.paise / 100 })), [data.transactions, m, mk, today])
-
-  const filtered = useMemo(() => {
-    const q = f.q.trim().toLowerCase()
-    return monthTx.filter((t) => (!f.type || t.type === f.type) && (!f.category || t.category === f.category) && (!f.method || t.payment_method === f.method) && (!f.from || t.txn_date >= f.from) && (!f.to || t.txn_date <= f.to) && (!q || `${t.note} ${t.category} ${t.payment_method}`.toLowerCase().includes(q)))
-      .sort((a, b) => (b.txn_date + b.created_at).localeCompare(a.txn_date + a.created_at))
-  }, [monthTx, f])
+  const fin = useMemo(() => financeMonth({ transactions: data.transactions, budgets: data.budgets, defaultBudget: settings.monthly_budget_paise, month: m, today }), [data.transactions, data.budgets, settings.monthly_budget_paise, m, today])
+  const { overall, budget, monthTx, summary: sum, breakdown, series } = fin
+  const daily = useMemo(() => fin.daily.map((d) => ({ ...d, label: d.day, rupees: d.paise / 100 })), [fin.daily])
+  const filtered = useMemo(() => filterTransactions(monthTx, f), [monthTx, f])
   const [del] = useAction((id) => store.remove('transactions', id), { success: 'Transaction deleted' })
   const [saveBudget, savingBudget] = useAction(async () => {
-    const p = parseMoney(budgetInput)
-    if (p === null) throw new Error('Enter a valid amount, e.g. 25000')
-    await store.upsert('budgets', { month: m, category: '', amount_paise: p }, { onConflict: CONFLICT_KEYS.budgets })
+    await setMonthBudget(m, parseAmountOrThrow(budgetInput, 'Enter a valid amount, e.g. 25000', { allowZero: true }))
     setBudgetOpen(false)
   }, { success: 'Budget saved' })
 
   const used = sum.budgetUsed
-  const tone = used == null ? 'primary' : used > 1 ? 'danger' : used > 0.8 ? 'warning' : 'success'
-  const allCats = [...new Set(monthTx.map((t) => t.category))]
+  const tone = budgetTone(used)
+  const allCats = fin.categories
 
   return (
     <>
@@ -82,8 +69,8 @@ export default function FinancePage() {
           </div>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatCard icon={TrendingUp} label="Income" value={money(sum.income)} />
-            <StatCard icon={TrendingDown} label="Expenses" value={money(sum.expense)} sub={`${monthTx.filter((t) => t.type === 'expense').length} transactions`} />
-            <StatCard icon={PiggyBank} label="Savings" value={money(sum.savings)} sub={sum.income ? `${Math.round((sum.savings / sum.income) * 100)}% of income` : undefined} />
+            <StatCard icon={TrendingDown} label="Expenses" value={money(sum.expense)} sub={`${fin.expenseCount} transactions`} />
+            <StatCard icon={PiggyBank} label="Savings" value={money(sum.savings)} sub={sum.income ? `${savingsShareOfIncome(sum)}% of income` : undefined} />
             <StatCard icon={Wallet} label="Budget left" value={sum.remaining == null ? 'No budget' : money(sum.remaining)} sub={sum.budget ? `of ${money(sum.budget)}${overall ? '' : ' (default)'}` : 'Set a monthly budget'} progress={used == null ? null : Math.min(100, used * 100)} tone={tone} onClick={() => { setBudgetInput(paiseToInput(budget || 0)); setBudgetOpen(true) }} />
           </div>
 
@@ -121,7 +108,7 @@ export default function FinancePage() {
               : <ul className="divide-y divide-border">{filtered.map((t) => (
                 <li key={t.id} className="flex items-center gap-3 px-4 py-2.5">
                   <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{t.note || t.category}</p><p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">{fmtDay(t.txn_date, 'EEE, d MMM')}<Badge tone={TYPE_TONE[t.type]}>{t.category}</Badge>{t.payment_method && t.payment_method !== 'Other' && <span>· {t.payment_method}</span>}</p></div>
-                  <span className={cn('text-sm font-semibold tabular-nums', t.type === 'income' ? 'text-success' : t.type === 'expense' ? 'text-foreground' : 'text-secondary')}>{t.type === 'income' ? '+' : t.type === 'expense' ? '−' : ''}{money(t.amount_paise)}</span>
+                  <span className={cn('text-sm font-semibold tabular-nums', t.type === 'income' ? 'text-success' : t.type === 'expense' ? 'text-foreground' : 'text-secondary')}>{signFor(t.type)}{money(t.amount_paise)}</span>
                   <Menu label="Transaction actions" items={[{ label: 'Edit', icon: Pencil, onClick: () => setDlg({ open: true, txn: t, type: t.type }) }, { label: 'Delete', icon: Trash2, danger: true, onClick: async () => { if (await confirm({ title: 'Delete this transaction?', description: `${money(t.amount_paise)} · ${t.category}` })) del(t.id) } }]} />
                 </li>))}</ul>}
             </CardContent></Card>

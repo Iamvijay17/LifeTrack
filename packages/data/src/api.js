@@ -107,6 +107,18 @@ export function createApi(store) {
     return store.update('job_applications', app.id, patch) // the history row is written by the database trigger
   }
 
+  // ------------------------------------------------------------------ finance
+  /** Sets the overall budget (category '') for a month. `month` is 'yyyy-MM-01'; `paise` an integer >= 0. */
+  function setMonthBudget(month, paise) {
+    return store.upsert('budgets', { month, category: '', amount_paise: paise }, { onConflict: CONFLICT_KEYS.budgets })
+  }
+  /** Adds to a savings goal using the freshest cached value so two quick additions on one device don't overwrite each other. */
+  async function addSavingsFunds(goal, paise) {
+    if (!Number.isInteger(paise) || paise <= 0) throw new AppError('Enter an amount greater than 0.')
+    const fresh = store.peek('savings_goals').find((g) => g.id === goal.id) ?? goal
+    return store.update('savings_goals', goal.id, { saved_paise: fresh.saved_paise + paise })
+  }
+
   // ------------------------------------------------------------------ seeding
   async function seedDefaults() {
     const topics = Object.entries(DEFAULT_TOPICS).flatMap(([group_name, names]) => names.map((name) => ({ group_name, name })))
@@ -163,5 +175,5 @@ export function createApi(store) {
     return unread.length
   }
 
-  return { createTask, setTaskStatus, setHabitStatus, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, setApplicationStatus, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, fireDueReminders, markNotificationRead, markAllRead }
+  return { createTask, setTaskStatus, setHabitStatus, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, fireDueReminders, markNotificationRead, markAllRead }
 }

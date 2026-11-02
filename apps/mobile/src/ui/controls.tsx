@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { ActivityIndicator, Platform, Pressable, RefreshControl, Text, View } from 'react-native'
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker'
-import { addDays, fmtDay, isValidDay, parseDay } from '@lifetrack/utils'
+import { addDays, addMonths, fmtDay, isValidDay, parseDay } from '@lifetrack/utils'
 import { useTheme } from '../providers/ThemeProvider'
 import { Button, Txt } from './index'
 import { Sheet } from './Sheet'
@@ -201,6 +201,25 @@ export function TimeField({ label, value, onChange, error, clearable }: { label:
       </View>
       {Platform.OS === 'ios' && open ? <DateTimePicker value={fromHm(value)} mode="time" display="spinner" is24Hour onChange={(_e, d) => { if (d) onChange(hm(d)) }} /> : null}
       {error ? <Text accessibilityLiveRegion="polite" style={{ color: colors.danger, fontSize: 13 }}>{error}</Text> : null}
+    </View>
+  )
+}
+
+/** Previous / next month with a "This month" shortcut. `month` is 'yyyy-MM-01'. */
+export function MonthNav({ month, thisMonth, onChange }: { month: string; thisMonth: string; onChange: (m: string | null) => void }) {
+  const { colors } = useTheme()
+  const btn = (label: string, a11y: string, to: string) => (
+    <Pressable accessibilityRole="button" accessibilityLabel={a11y} onPress={() => onChange(to)} hitSlop={6}
+      style={{ width: 44, height: 44, borderRadius: 8, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ color: colors.foreground, fontSize: 20 }}>{label}</Text>
+    </Pressable>
+  )
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      {btn('‹', 'Previous month', addMonths(month, -1))}
+      <Text accessibilityLiveRegion="polite" style={{ flex: 1, textAlign: 'center', color: colors.foreground, fontWeight: '600' }}>{fmtDay(month, 'MMMM yyyy')}</Text>
+      {btn('›', 'Next month', addMonths(month, 1))}
+      {month !== thisMonth ? <Button title="This month" variant="ghost" onPress={() => onChange(null)} /> : null}
     </View>
   )
 }

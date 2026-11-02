@@ -24,6 +24,9 @@ export const chartColors: Record<'light' | 'dark', Record<ChartColorName, string
   dark: { primary: '#8b5cf6', secondary: '#a78bfa', success: '#22c55e', warning: '#f59e0b', danger: '#ef4444', grid: '#27272a', axis: '#a1a1aa' },
 }
 
+/** Categorical series colours (pie/donut slices, multi-series charts). Same on every platform and theme. */
+export const chartPalette = ['#8B5CF6', '#22C55E', '#F59E0B', '#3B82F6', '#EC4899', '#14B8A6', '#EF4444', '#A1A1AA'] as const
+
 export const radius = { sm: 4, md: 6, lg: 8 } as const
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const
 export const fontFamily = { sans: 'Inter' } as const

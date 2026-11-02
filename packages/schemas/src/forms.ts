@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { isValidDay, parseTags, sleepMinutes } from '@lifetrack/utils'
+import { isValidDay, paiseToInput, parseMoney, parseTags, sleepMinutes } from '@lifetrack/utils'
 import { TASK_CATEGORIES } from './tables'
 
 // Form-level validation + payload mapping shared by web and mobile. Forms hold strings ('' = empty);
@@ -164,3 +164,42 @@ export const journalFormSchema = z.object({
   content: z.string().max(20000),
   wins: z.string().max(5000),
 })
+
+// ------------------------------------------------------------------ finance
+export const TX_TYPES = ['expense', 'income', 'savings'] as const
+export const TX_PAYMENT_METHODS = ['Cash', 'UPI', 'Credit card', 'Debit card', 'Bank transfer', 'Other'] as const
+export const transactionFormSchema = z.object({
+  type: z.enum(TX_TYPES),
+  amount: z.string().trim().refine((v) => { const p = parseMoney(v); return p !== null && p > 0 }, 'Enter an amount greater than 0 (max 2 decimals)'),
+  category: z.string().min(1, 'Choose a category'),
+  txn_date: z.string().refine(isValidDay, 'Pick a date'),
+  payment_method: z.enum(TX_PAYMENT_METHODS),
+  note: z.string().max(300),
+})
+export type TransactionForm = z.infer<typeof transactionFormSchema>
+export const blankTransaction = (type: TransactionForm['type'], firstCategory: string, today: string): TransactionForm => ({ type, amount: '', category: firstCategory, txn_date: today, payment_method: 'UPI', note: '' })
+export const transactionToForm = (t: { type: TransactionForm['type']; amount_paise: number; category: string; txn_date: string; payment_method?: string | null; note?: string | null }): TransactionForm =>
+  ({ type: t.type, amount: paiseToInput(t.amount_paise), category: t.category, txn_date: t.txn_date, payment_method: (t.payment_method ?? 'Other') as TransactionForm['payment_method'], note: t.note ?? '' })
+export const transactionToPayload = (v: TransactionForm) =>
+  ({ type: v.type, amount_paise: parseMoney(v.amount) as number, category: v.category, txn_date: v.txn_date, payment_method: v.payment_method, note: v.note })
+
+const money = (label: string, min = 1) => z.string().trim().refine((v) => { const p = parseMoney(v); return p !== null && p >= min }, `Enter a valid ${label}`)
+export const savingsGoalFormSchema = z.object({
+  name: z.string().trim().min(1, 'Name the goal').max(80, 'Keep it under 80 characters'),
+  target: money('target amount (more than 0)'),
+  saved: z.string().trim().refine((v) => v === '' || parseMoney(v) !== null, 'Enter a valid amount'),
+  target_date: z.string().refine((v) => v === '' || isValidDay(v), 'Enter a valid date'),
+})
+export type SavingsGoalForm = z.infer<typeof savingsGoalFormSchema>
+export const blankSavingsGoal = (): SavingsGoalForm => ({ name: '', target: '', saved: '', target_date: '' })
+export const savingsGoalToForm = (g: { name: string; target_paise: number; saved_paise: number; target_date?: string | null }): SavingsGoalForm =>
+  ({ name: g.name, target: paiseToInput(g.target_paise), saved: paiseToInput(g.saved_paise), target_date: g.target_date ?? '' })
+export const savingsGoalToPayload = (v: SavingsGoalForm) =>
+  ({ name: v.name.trim(), target_paise: parseMoney(v.target) as number, saved_paise: v.saved ? (parseMoney(v.saved) as number) : 0, target_date: v.target_date || null })
+
+/** Parse a typed money amount for the budget / add-funds inputs; returns paise or throws a friendly Error. */
+export function parseAmountOrThrow(input: string, message: string, { allowZero = false } = {}): number {
+  const p = parseMoney(input)
+  if (p === null || (!allowZero && p <= 0)) throw new Error(message)
+  return p
+}
