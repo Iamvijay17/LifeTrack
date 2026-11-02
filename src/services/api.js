@@ -10,6 +10,11 @@ import { AppError } from './errors'
 
 const nowIso = () => new Date().toISOString()
 
+// ------------------------------------------------------------ generic rows
+/** Create (no `entity`) or update (with `entity`) a row. Forms call this instead of reaching into the store. */
+export const saveRow = (table, entity, values) => (entity ? store.update(table, entity.id, values) : store.insert(table, values))
+export const deleteRow = (table, id) => store.remove(table, id)
+
 // ------------------------------------------------------------------- tasks
 export function createTask(input) {
   const row = { ...input }

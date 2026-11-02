@@ -124,7 +124,7 @@ export default function OverviewPage() {
             </CardContent></Card>}
           </div>}
           {on('priorities') && <div className="grid gap-4 lg:grid-cols-5">
-            <Card className="lg:col-span-5"><CardHeader><CardTitle>Top priorities</CardTitle><span className="text-xs text-muted-foreground">{openToday} pending · {doneTodayTasks} completed today</span><Link to="/planner" className="text-xs text-secondary hover:underline">Planner</Link></CardHeader><CardContent className="space-y-1">
+            <Card className="lg:col-span-5"><CardHeader><CardTitle>Top priorities</CardTitle><span className="text-xs text-muted-foreground">{openToday} pending · {doneTodayTasks} completed today</span><Link to="/planner" className="text-xs text-secondary underline underline-offset-2">Planner</Link></CardHeader><CardContent className="space-y-1">
               {todays.length === 0 ? <div className="py-4 text-center text-sm text-muted-foreground">{data.tasks.some((t) => t.due_date === today) ? 'All priorities done 🎉' : 'No tasks for today.'}<div className="mt-2"><Button size="sm" variant="outline" onClick={() => quick.open('task')}><Plus className="h-4 w-4" />Add task</Button></div></div>
               : todays.map((t) => <button key={t.id} onClick={() => complete(t)} aria-label={`Complete ${t.title}`} className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-muted/40"><Circle className="h-5 w-5 shrink-0 text-muted-foreground" /><span className="truncate text-sm">{t.title}</span></button>)}
             </CardContent></Card>
@@ -142,11 +142,11 @@ export default function OverviewPage() {
           </div>}
 
           {(on('goals') || on('spending')) && <div className="grid gap-4 lg:grid-cols-2">
-            {on('goals') && <Card><CardHeader><CardTitle className="flex items-center gap-2"><Target className="h-4 w-4" />Goal progress</CardTitle><Link to="/goals" className="text-xs text-secondary hover:underline">All goals</Link></CardHeader><CardContent>
-              {activeGoals.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">No active goals. <Link to="/goals" className="text-secondary hover:underline">Create one</Link></p>
+            {on('goals') && <Card><CardHeader><CardTitle className="flex items-center gap-2"><Target className="h-4 w-4" />Goal progress</CardTitle><Link to="/goals" className="text-xs text-secondary underline underline-offset-2">All goals</Link></CardHeader><CardContent>
+              {activeGoals.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">No active goals. <Link to="/goals" className="text-secondary underline underline-offset-2">Create one</Link></p>
                 : <ul className="space-y-3">{activeGoals.map(({ g, p }) => <li key={g.id}><div className="mb-1 flex justify-between text-sm"><span className="truncate">{g.title}</span><span className="text-muted-foreground tabular-nums">{p.percent}%</span></div><Progress value={p.percent} tone={p.percent >= 100 ? 'success' : 'primary'} label={g.title} /></li>)}</ul>}
             </CardContent></Card>}
-            {on('spending') && <Card><CardHeader><CardTitle className="flex items-center gap-2"><Wallet className="h-4 w-4" />Spending this month</CardTitle><Link to="/finance" className="text-xs text-secondary hover:underline">Finance</Link></CardHeader><CardContent className="space-y-3">
+            {on('spending') && <Card><CardHeader><CardTitle className="flex items-center gap-2"><Wallet className="h-4 w-4" />Spending this month</CardTitle><Link to="/finance" className="text-xs text-secondary underline underline-offset-2">Finance</Link></CardHeader><CardContent className="space-y-3">
               <div className="flex items-baseline justify-between"><span className="text-2xl font-semibold tabular-nums" data-testid="month-spend">{formatMoney(monthSum.expense, cur)}</span>{monthSum.budget > 0 && <span className="text-xs text-muted-foreground">of {formatMoney(monthSum.budget, cur)} budget</span>}</div>
               {monthSum.budgetUsed != null ? <><Progress value={Math.min(100, monthSum.budgetUsed * 100)} tone={monthSum.budgetUsed > 1 ? 'danger' : monthSum.budgetUsed > 0.8 ? 'warning' : 'success'} label="Budget used" /><p className="text-xs text-muted-foreground">{Math.round(monthSum.budgetUsed * 100)}% used · {monthSum.remaining >= 0 ? `${formatMoney(monthSum.remaining, cur)} left` : `${formatMoney(-monthSum.remaining, cur)} over`}</p></> : <p className="text-xs text-muted-foreground">Income {formatMoney(monthSum.income, cur)} · set a budget in Finance to track usage.</p>}
             </CardContent></Card>}

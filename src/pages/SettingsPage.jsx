@@ -171,7 +171,7 @@ export default function SettingsPage() {
     <>
       <PageHeader title="Settings" description={isDevMode ? 'DEV mode: stored in this browser only.' : 'Synced to your account.'} />
       <DataGate loading={loading} error={error} cards={0}>
-        <div className="mx-auto max-w-2xl space-y-4"><ProfileCard /><PreferencesCard /><ScoreCard /><FocusCard /><Section title="Your data" desc="Exports, backup and restore live on their own page."><Link to="/export" className="text-sm text-secondary hover:underline">Open Data Export →</Link></Section><AccountCard /></div>
+        <div className="mx-auto max-w-2xl space-y-4"><ProfileCard /><PreferencesCard /><ScoreCard /><FocusCard /><Section title="Your data" desc="Exports, backup and restore live on their own page."><Link to="/export" className="text-sm text-secondary underline underline-offset-2">Open Data Export →</Link></Section><AccountCard /></div>
       </DataGate>
     </>
   )

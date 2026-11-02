@@ -1,6 +1,4 @@
-import { useEffect } from 'react'
-import { useForm, Controller } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { Controller } from 'react-hook-form'
 import { z } from 'zod'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { Field, Input, Select } from '@/components/ui/form'
@@ -8,9 +6,8 @@ import { Segmented } from '@/components/ui/misc'
 import { CATEGORIES_BY_TYPE, PAYMENT_METHODS } from '@/domain/finance'
 import { isValidDay } from '@/lib/dates'
 import { parseMoney, paiseToInput, CURRENCIES } from '@/lib/money'
-import { useAction } from '@/hooks/useAction'
+import { useEntityForm } from '@/hooks/useEntityForm'
 import { useSettings } from '@/hooks/useSettings'
-import * as store from '@/hooks/store'
 
 const schema = z.object({
   type: z.enum(['expense', 'income', 'savings']),
@@ -21,18 +18,15 @@ const schema = z.object({
 export function TransactionDialog({ open, onOpenChange, txn, today, defaultType = 'expense' }) {
   const { settings } = useSettings()
   const blank = { type: defaultType, amount: '', category: CATEGORIES_BY_TYPE[defaultType][0], txn_date: today, payment_method: 'UPI', note: '' }
-  const { register, control, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm({ resolver: zodResolver(schema), defaultValues: blank })
-  useEffect(() => { if (open) reset(txn ? { type: txn.type, amount: paiseToInput(txn.amount_paise), category: txn.category, txn_date: txn.txn_date, payment_method: txn.payment_method ?? 'Other', note: txn.note ?? '' } : { ...blank, txn_date: today }) },
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [open, txn?.id, defaultType])
+  const { register, control, watch, setValue, formState: { errors }, onSubmit, pending } = useEntityForm({
+    open, entity: txn, schema, blank, table: 'transactions', resetKeys: [defaultType],
+    fromEntity: (t) => ({ type: t.type, amount: paiseToInput(t.amount_paise), category: t.category, txn_date: t.txn_date, payment_method: t.payment_method ?? 'Other', note: t.note ?? '' }),
+    toRow: (v) => ({ type: v.type, amount_paise: parseMoney(v.amount), category: v.category, txn_date: v.txn_date, payment_method: v.payment_method, note: v.note }),
+    success: txn ? 'Transaction updated' : 'Transaction added', onDone: () => onOpenChange(false),
+  })
   const type = watch('type')
-  const [save, pending] = useAction(async (v) => {
-    const row = { type: v.type, amount_paise: parseMoney(v.amount), category: v.category, txn_date: v.txn_date, payment_method: v.payment_method, note: v.note }
-    if (txn) await store.update('transactions', txn.id, row); else await store.insert('transactions', row)
-    onOpenChange(false)
-  }, { success: txn ? 'Transaction updated' : 'Transaction added' })
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={txn ? 'Edit transaction' : 'Add transaction'} pending={pending} onSubmit={handleSubmit(save)}>
+    <FormDialog open={open} onOpenChange={onOpenChange} title={txn ? 'Edit transaction' : 'Add transaction'} pending={pending} onSubmit={onSubmit}>
       <Controller control={control} name="type" render={({ field }) => (
         <Segmented className="w-full [&>button]:flex-1" value={field.value} options={[{ value: 'expense', label: 'Expense' }, { value: 'income', label: 'Income' }, { value: 'savings', label: 'Savings' }]}
           onChange={(v) => { field.onChange(v); if (!CATEGORIES_BY_TYPE[v].includes(watch('category'))) setValue('category', CATEGORIES_BY_TYPE[v][0]) }} />)} />

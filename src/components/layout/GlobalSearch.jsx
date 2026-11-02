@@ -25,12 +25,13 @@ export function searchAll(q, data, limit = 5) {
   return groups.map((g) => ({ ...g, items: g.items.slice(0, limit) })).filter((g) => g.items.length)
 }
 
-function Results({ q, onPick }) {
+function Results({ q, onPick, onActive }) {
   const { data, loading } = useTables('tasks', 'notes', 'goals', 'job_applications', 'habits', 'transactions')
   const groups = useMemo(() => searchAll(q, data), [q, data])
   const flat = groups.flatMap((g) => g.items)
   const [cursor, setCursor] = useState(0)
   useEffect(() => setCursor(0), [q])
+  useEffect(() => { onActive?.(flat[cursor] ? `search-opt-${cursor}` : undefined) }, [flat, cursor, onActive])
   useEffect(() => {
     const key = (e) => {
       if (e.key === 'ArrowDown') { e.preventDefault(); setCursor((c) => Math.min(flat.length - 1, c + 1)) }
@@ -45,19 +46,19 @@ function Results({ q, onPick }) {
   if (!flat.length) return <p className="px-4 py-8 text-center text-sm text-muted-foreground">No results for “{q}”.</p>
   let idx = -1
   return (
-    <div role="listbox" aria-label="Search results" className="max-h-[50dvh] overflow-y-auto p-2">
+    <div id="search-results" role="listbox" aria-label="Search results" className="max-h-[50dvh] overflow-y-auto p-2">
       {groups.map((g) => (
-        <section key={g.title} className="mb-2">
-          <h3 className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{g.title}</h3>
+        <div key={g.title} role="group" aria-label={g.title} className="mb-2">
+          <div aria-hidden="true" className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{g.title}</div>
           {g.items.map((it) => { idx++; const mine = idx; return (
-            <button key={g.title + it.id} role="option" aria-selected={cursor === mine} onMouseEnter={() => setCursor(mine)} onClick={() => onPick(it.to)}
+            <button key={g.title + it.id} id={`search-opt-${mine}`} role="option" aria-selected={cursor === mine} onMouseEnter={() => setCursor(mine)} onClick={() => onPick(it.to)}
               className={cn('flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left text-sm', cursor === mine ? 'bg-muted' : 'hover:bg-muted/60')}>
               <g.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
               <span className="min-w-0 flex-1 truncate">{it.label}</span>
               {it.sub && <span className="shrink-0 text-xs text-muted-foreground">{it.sub}</span>}
               {cursor === mine && <CornerDownLeft className="h-3.5 w-3.5 text-muted-foreground" />}
             </button>) })}
-        </section>))}
+        </div>))}
     </div>
   )
 }
@@ -67,6 +68,7 @@ export function GlobalSearch() {
   const [q, setQ] = useState('')
   const nav = useNavigate()
   const input = useRef(null)
+  const [activeId, setActiveId] = useState()
   useEffect(() => {
     const key = (e) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setOpen((o) => !o) } }
     window.addEventListener('keydown', key)
@@ -86,9 +88,9 @@ export function GlobalSearch() {
             <D.Title className="sr-only">Search</D.Title><D.Description className="sr-only">Search your data and pages</D.Description>
             <div className="flex items-center gap-2 border-b border-border px-3">
               <Search className="h-4 w-4 text-muted-foreground" />
-              <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search everything…" aria-label="Search everything" className="h-12 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
+              <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search everything…" aria-label="Search everything" role="combobox" aria-expanded={!!q.trim()} aria-controls="search-results" aria-autocomplete="list" aria-activedescendant={activeId} className="h-12 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
             </div>
-            <Results q={q} onPick={pick} />
+            <Results q={q} onPick={pick} onActive={setActiveId} />
           </D.Content>
         </D.Portal>
       </D.Root>

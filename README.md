@@ -21,4 +21,4 @@ heatmap, analytics, JSON/CSV export + restore. React + Vite + Tailwind, Supabase
 - Reminders become notifications while LifeTrack is open on any device (one notification per reminder per day, de-duplicated by the database). There is no background/push server, so a closed app cannot notify you.
 - A running Pomodoro timer is a per-device convenience (stored in the browser); finished focus blocks are saved to your account.
 - Savings-goal "add funds" is read-modify-write like water intake.
-- Existing projects: run `supabase/migrations/0003_focus_notes_goals_reminders.sql` once (`setup-all.sql` already includes it; regenerate with `npm run sql:build`).
+- Existing projects: run any migrations you have not applied yet, in order (`0003_focus_notes_goals_reminders.sql`, then `0004_hardening.sql`: ownership guards, indexes and the atomic `add_water` / `replace_exercise_logs` functions the app now calls). `setup-all.sql` already includes them; regenerate with `npm run sql:build`. Migrations are safe to re-run.

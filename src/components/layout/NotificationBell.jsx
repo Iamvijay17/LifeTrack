@@ -39,7 +39,7 @@ export function NotificationBell() {
       {open && (
         <div className="absolute right-0 z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-border bg-card shadow-xl animate-fade-in">
           <div className="flex items-center justify-between border-b border-border px-3 py-2.5"><span className="text-sm font-medium">Notifications</span>
-            <button disabled={!unread} onClick={() => readAll()} className="text-xs text-secondary hover:underline disabled:opacity-40 disabled:no-underline">Mark all read</button></div>
+            <button disabled={!unread} onClick={() => readAll()} className="text-xs text-secondary underline underline-offset-2 disabled:opacity-40 disabled:no-underline">Mark all read</button></div>
           {latest.length === 0 ? <p className="px-4 py-8 text-center text-sm text-muted-foreground">You're all caught up.</p> : (
             <ul className="max-h-80 divide-y divide-border overflow-y-auto">{latest.map((n) => (
               <li key={n.id}><Link to={n.link || '/notifications'} onClick={() => { read(n); setOpen(false) }} className={cn('block px-3 py-2.5 hover:bg-muted/50', !n.read_at && 'bg-primary/5')}>
