@@ -73,3 +73,10 @@ describe('phase 6 tables in the local adapter', () => {
     expect(r).toMatchObject({ kind: 'custom', repeat: 'none', active: true, remind_time: '09:00' })
   })
 })
+
+import { toAppError } from '@/services/errors'
+describe('missing-migration errors', () => {
+  it('explains how to fix a missing table', () => {
+    expect(toAppError({ code: 'PGRST205', message: "Could not find the table 'public.milestones' in the schema cache" }).message).toMatch(/0003_focus_notes_goals_reminders\.sql/)
+  })
+})

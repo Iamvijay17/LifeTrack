@@ -16,6 +16,8 @@ const PG = {
   '23502': 'A required value is missing.',
   '42501': 'You do not have permission to do that. Try signing in again.',
   PGRST301: 'Your session has expired. Please sign in again.',
+  PGRST205: 'Your database is missing the latest LifeTrack tables. In Supabase → SQL Editor, run supabase/migrations/0003_focus_notes_goals_reminders.sql once, then reload.',
+  '42P01': 'Your database is missing the latest LifeTrack tables. In Supabase → SQL Editor, run supabase/migrations/0003_focus_notes_goals_reminders.sql once, then reload.',
   PGRST116: 'That record could not be found.',
 }
 
