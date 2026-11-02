@@ -152,3 +152,11 @@ export function explainScore(result) {
   const skipped = result.categories.filter((c) => !c.applicable).map((c) => c.label)
   return `${parts.join(' + ')} = ${result.score}.${skipped.length ? ` ${skipped.join(', ')} had nothing planned or logged, so ${skipped.length > 1 ? 'their' : 'its'} weight was shared among the rest instead of counting as zero.` : ''}`
 }
+
+/** Each category's share of the total weight as a whole percentage (0 when every weight is zero). */
+export function weightShares(weights) {
+  const total = SCORE_CATEGORIES.reduce((a, c) => a + (Number(weights?.[c.key]) || 0), 0)
+  return Object.fromEntries(
+    SCORE_CATEGORIES.map((c) => [c.key, total > 0 ? Math.round(((Number(weights?.[c.key]) || 0) / total) * 100) : 0]),
+  )
+}

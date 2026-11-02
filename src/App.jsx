@@ -24,8 +24,8 @@ const Notes = page(() => import('@/features/notes/NotesPage'))
 const Goals = page(() => import('@/features/goals/GoalsPage'))
 const Reports = page(() => import('@/pages/ReportsPage'))
 const Notifications = page(() => import('@/features/notifications/NotificationsPage'))
-const ExportPage = page(() => import('@/pages/ExportPage'))
-const Settings = page(() => import('@/pages/SettingsPage'))
+const ExportPage = page(() => import('@/features/export/ExportPage'))
+const Settings = page(() => import('@/features/settings/SettingsPage'))
 
 function Protected({ children }) {
   const { session, loading } = useAuth()
