@@ -21,5 +21,5 @@ export default defineConfig({
     { name: 'mobile', use: { ...devices['Pixel 7'] }, testMatch: /responsive/ },
   ],
   // Builds in DEV mode (no Supabase env) so the suite is hermetic.
-  webServer: { command: 'npm run build && npm run preview', url: 'http://localhost:4173', reuseExistingServer: true, timeout: 180_000 },
+  webServer: { command: 'VITE_ALLOW_DEV_MODE=1 npm run build && npm run preview', url: 'http://localhost:4173', reuseExistingServer: true, timeout: 180_000 },
 })

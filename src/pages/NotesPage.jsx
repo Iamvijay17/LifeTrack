@@ -80,7 +80,7 @@ export default function NotesPage() {
                   <button onClick={() => setView(n)} className="min-w-0 flex-1 text-left"><h3 className="truncate text-sm font-semibold">{n.pinned && <Pin className="mr-1 inline h-3 w-3 text-secondary" aria-label="pinned" />}{n.title || 'Untitled'}</h3></button>
                   <Menu label={`Actions for ${n.title || 'note'}`} items={[{ label: 'Edit', icon: Pencil, onClick: () => setDlg({ open: true, note: n }) }, { label: n.pinned ? 'Unpin' : 'Pin', icon: n.pinned ? PinOff : Pin, onClick: () => togglePin(n) }, { label: 'Delete', icon: Trash2, danger: true, onClick: () => askDelete(n) }]} />
                 </div>
-                <button onClick={() => setView(n)} className="block w-full text-left"><p className="line-clamp-4 whitespace-pre-line text-[13px] text-muted-foreground">{n.body.replace(/[#*`>\-\[\]]/g, '').trim() || ' '}</p></button>
+                <button onClick={() => setView(n)} className="block w-full text-left"><p className="line-clamp-4 whitespace-pre-line text-[13px] text-muted-foreground">{n.body.replace(/[#*`>\-[\]]/g, '').trim() || ' '}</p></button>
                 <div className="flex flex-wrap items-center gap-1.5"><Badge tone="primary">{n.category}</Badge>{(n.tags ?? []).map((t) => <button key={t} onClick={() => setTag(t)}><Badge>#{t}</Badge></button>)}</div>
                 <p className="text-[11px] text-muted-foreground">{fmtDay(n.updated_at.slice(0, 10), 'd MMM yyyy')}{n.goal_id && goalName(n.goal_id) ? ` · Goal: ${goalName(n.goal_id)}` : ''}{n.task_id && taskName(n.task_id) ? ` · Task: ${taskName(n.task_id)}` : ''}</p>
               </CardContent></Card>))}</div>}
