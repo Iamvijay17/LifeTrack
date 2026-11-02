@@ -114,7 +114,7 @@ describe('habits domain', () => {
     expect(s.rate30).toBeGreaterThan(0)
   })
   it('summarises only active habits', () => {
-    const stats = buildHabitStats([daily, { ...weekly, archived_at: 'x' }], [log('h1', TODAY)], TODAY, 1)
+    const stats = buildHabitStats([daily, { ...weekly, archived_at: '2026-10-30T00:00:00Z' }], [log('h1', TODAY)], TODAY, 1)
     const sum = summarizeHabits(stats, TODAY)
     expect(sum.active).toHaveLength(1)
     expect(sum.doneOnDay).toBe(1)
@@ -357,7 +357,11 @@ describe('HabitRow', () => {
   it('cannot be checked when archived', () => {
     render(
       <ul>
-        <HabitRow s={buildHabitStats([{ ...habit, archived_at: 'x' }], [], TODAY, 1)[0]} date={TODAY} onEdit={() => {}} />
+        <HabitRow
+          s={buildHabitStats([{ ...habit, archived_at: '2026-10-30T00:00:00Z' }], [], TODAY, 1)[0]}
+          date={TODAY}
+          onEdit={() => {}}
+        />
       </ul>,
     )
     expect(screen.getByRole('button', { name: 'Complete Read' })).toBeDisabled()

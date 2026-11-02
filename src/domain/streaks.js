@@ -1,4 +1,4 @@
-import { addDays, diffDays, eachDay, startOfWeek, weekday } from '@/lib/dates'
+import { addDays, dateStrInTz, DEFAULT_TZ, diffDays, eachDay, startOfWeek, weekday } from '@/lib/dates'
 
 /** Is the habit expected on this calendar day? (weekly habits are expected "some days" — handled separately) */
 export function isScheduled(habit, date) {
@@ -86,7 +86,10 @@ export function streaks(habit, logs, today, weekStartsOn = 1) {
 export function completion(habit, logs, from, to, today, weekStartsOn = 1) {
   const map = buildLogMap(logs)
   const lo = from < habit.start_date ? habit.start_date : from
-  const hi = to > today ? today : to
+  let hi = to > today ? today : to
+  // An archived habit stops accruing "missed" days on the day it was archived (its earlier history still counts).
+  const archivedOn = habit.archived_at ? dateStrInTz(habit.archived_at, DEFAULT_TZ) : null
+  if (archivedOn && archivedOn < hi) hi = archivedOn
   if (lo > hi) return { done: 0, expected: 0, rate: null }
   if (habit.frequency === 'weekly') {
     let done = 0
