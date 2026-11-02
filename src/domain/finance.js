@@ -1,4 +1,4 @@
-import { monthKey, eachDay, addMonths, monthStart } from '@/lib/dates'
+import { monthKey, eachDay, addMonths, monthStart, monthEnd } from '@/lib/dates'
 
 export const EXPENSE_CATEGORIES = ['Food', 'Travel', 'Shopping', 'Bills', 'Subscriptions', 'Health', 'Entertainment', 'Other']
 export const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Interest', 'Gift', 'Other']
@@ -52,3 +52,46 @@ export function dailySeries(transactions, from, to, type = 'expense') {
 }
 
 export const PAYMENT_METHODS = ['Cash', 'UPI', 'Credit card', 'Debit card', 'Bank transfer', 'Other']
+
+// ------------------------------------------------------------- month helpers
+export const monthTransactions = (transactions, mk) => transactions.filter((t) => monthKey(t.txn_date) === mk)
+
+/** The budget that applies to a month: that month's override if there is one, else the default from settings. */
+export function resolveBudget(budgets, monthStartDate, defaultPaise) {
+  const override = budgets.find((b) => b.month === monthStartDate && b.category === '')
+  return { paise: override ? override.amount_paise : defaultPaise, isOverride: !!override }
+}
+
+/** Colour tone for budget usage: green until 80%, amber to 100%, red beyond. */
+export const budgetTone = (used) => (used == null ? 'primary' : used > 1 ? 'danger' : used > 0.8 ? 'warning' : 'success')
+
+/** Savings as a whole percentage of income, or null when there is no income to compare with. */
+export const savingsRate = (sum) => (sum.income ? Math.round((sum.savings / sum.income) * 100) : null)
+
+/** Daily expense series for a month — the whole month, or only up to today when viewing the current month. */
+export function spendingDays(transactions, monthStartDate, today) {
+  const end = monthEnd(monthStartDate)
+  const to = end > today && monthKey(monthStartDate) === monthKey(today) ? today : end
+  return dailySeries(transactions, monthStartDate, to)
+}
+
+export const savingsGoalPercent = (g) => Math.min(100, Math.round((g.saved_paise / g.target_paise) * 100))
+
+// ---------------------------------------------------------------- filtering
+export const transactionCategories = (transactions) => [...new Set(transactions.map((t) => t.category))]
+
+/** Filter by type / category / payment method / date range / free text; newest first. */
+export function filterTransactions(transactions, { type = '', category = '', method = '', from = '', to = '', q = '' } = {}) {
+  const s = q.trim().toLowerCase()
+  return transactions
+    .filter(
+      (t) =>
+        (!type || t.type === type) &&
+        (!category || t.category === category) &&
+        (!method || t.payment_method === method) &&
+        (!from || t.txn_date >= from) &&
+        (!to || t.txn_date <= to) &&
+        (!s || `${t.note} ${t.category} ${t.payment_method}`.toLowerCase().includes(s)),
+    )
+    .sort((a, b) => (b.txn_date + b.created_at).localeCompare(a.txn_date + a.created_at))
+}

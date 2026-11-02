@@ -1,29 +1,22 @@
-import { useEffect } from 'react'
-import { useForm, Controller } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { Controller } from 'react-hook-form'
 import { z } from 'zod'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { Field, Input, Select } from '@/components/ui/form'
 import { Segmented } from '@/components/ui/misc'
 import { CATEGORIES_BY_TYPE, PAYMENT_METHODS } from '@/domain/finance'
-import { isValidDay } from '@/lib/dates'
+import { moneyField, requiredDay } from '@/lib/validation'
 import { parseMoney, paiseToInput, CURRENCIES } from '@/lib/money'
 import { useAction } from '@/hooks/useAction'
+import { useDialogForm } from '@/hooks/useDialogForm'
 import { useSettings } from '@/hooks/useSettings'
 import * as store from '@/hooks/store'
 
 const schema = z.object({
   type: z.enum(['expense', 'income', 'savings']),
-  amount: z
-    .string()
-    .trim()
-    .refine((v) => {
-      const p = parseMoney(v)
-      return p !== null && p > 0
-    }, 'Enter an amount greater than 0 (max 2 decimals)'),
+  amount: moneyField('Enter an amount greater than 0 (max 2 decimals)'),
   category: z.string().min(1, 'Choose a category'),
-  txn_date: z.string().refine(isValidDay, 'Pick a date'),
-  payment_method: z.enum(['Cash', 'UPI', 'Credit card', 'Debit card', 'Bank transfer', 'Other']),
+  txn_date: requiredDay(),
+  payment_method: z.enum(PAYMENT_METHODS),
   note: z.string().max(300),
 })
 
@@ -37,34 +30,22 @@ export function TransactionDialog({ open, onOpenChange, txn, today, defaultType 
     payment_method: 'UPI',
     note: '',
   }
+  const fromTxn = (t) => ({
+    type: t.type,
+    amount: paiseToInput(t.amount_paise),
+    category: t.category,
+    txn_date: t.txn_date,
+    payment_method: t.payment_method ?? 'Other',
+    note: t.note ?? '',
+  })
   const {
     register,
     control,
     handleSubmit,
-    reset,
     watch,
     setValue,
     formState: { errors },
-  } = useForm({ resolver: zodResolver(schema), defaultValues: blank })
-  useEffect(
-    () => {
-      if (open)
-        reset(
-          txn
-            ? {
-                type: txn.type,
-                amount: paiseToInput(txn.amount_paise),
-                category: txn.category,
-                txn_date: txn.txn_date,
-                payment_method: txn.payment_method ?? 'Other',
-                note: txn.note ?? '',
-              }
-            : { ...blank, txn_date: today },
-        )
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [open, txn?.id, defaultType],
-  )
+  } = useDialogForm({ open, schema, recordKey: `${txn?.id ?? 'new'}|${defaultType}`, valuesFor: () => (txn ? fromTxn(txn) : blank) })
   const type = watch('type')
   const [save, pending] = useAction(
     async (v) => {
@@ -117,13 +98,21 @@ export function TransactionDialog({ open, onOpenChange, txn, today, defaultType 
           <Input type="date" {...register('txn_date')} />
         </Field>
       </div>
-      <Field label="Category" error={errors.category?.message}>
-        <Select {...register('category')}>
-          {[...new Set([...CATEGORIES_BY_TYPE[type], watch('category')])].filter(Boolean).map((c) => (
-            <option key={c}>{c}</option>
-          ))}
-        </Select>
-      </Field>
+      {/* Controlled (not register()): when the type changes the option list changes, and an uncontrolled <select> would
+          display a different category than the one stored in the form. */}
+      <Controller
+        control={control}
+        name="category"
+        render={({ field }) => (
+          <Field label="Category" error={errors.category?.message}>
+            <Select value={field.value} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} ref={field.ref}>
+              {[...new Set([...CATEGORIES_BY_TYPE[type], field.value])].filter(Boolean).map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </Select>
+          </Field>
+        )}
+      />
       <Field label="Payment method">
         <Select {...register('payment_method')}>
           {PAYMENT_METHODS.map((m) => (
