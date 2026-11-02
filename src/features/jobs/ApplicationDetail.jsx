@@ -1,28 +1,16 @@
-import { useState } from 'react'
-import { ArrowRight, CalendarPlus, ExternalLink, ListChecks, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { CalendarPlus, ExternalLink, ListChecks, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Checkbox, Input, Select } from '@/components/ui/form'
-import { Badge } from '@/components/ui/misc'
-import { useConfirm } from '@/components/shared/Confirm'
-import { STATUS_LABEL, JOB_STATUSES, DEFAULT_PREP } from '@/domain/jobs'
-import { fmtDay, fmtDateTime } from '@/lib/dates'
-import { dateStrInTz } from '@/lib/dates'
-import { uid, pct } from '@/lib/utils'
-import { paiseToLpa } from '@/lib/money'
+import { Select } from '@/components/ui/form'
+import { STATUS_LABEL, JOB_STATUSES, checklistProgress } from '@/domain/jobs'
+import { fmtDay } from '@/lib/dates'
+import { formatLpa } from '@/lib/money'
 import { useAction } from '@/hooks/useAction'
-import * as store from '@/hooks/store'
+import { useConfirmedDelete } from '@/hooks/useConfirmedDelete'
 import { setApplicationStatus } from '@/services/api'
-
-const TONE = {
-  selected: 'success',
-  offer: 'success',
-  rejected: 'danger',
-  withdrawn: 'neutral',
-  interview: 'primary',
-  assessment: 'warning',
-}
-export const StatusBadge = ({ status }) => <Badge tone={TONE[status] ?? 'neutral'}>{STATUS_LABEL[status]}</Badge>
+import { PrepChecklist, usePrepChecklist } from './PrepChecklist'
+import { StatusHistory } from './StatusHistory'
+import { ApplicationInterviews } from './ApplicationInterviews'
 
 function Section({ title, icon: Icon, action, children }) {
   return (
@@ -39,26 +27,35 @@ function Section({ title, icon: Icon, action, children }) {
   )
 }
 
+/** Everything about one application: status, facts, interviews, preparation checklist and status history. */
 export function ApplicationDetail({ app, history, events, tz, today, onClose, onEdit, onScheduleInterview, onEditInterview }) {
-  const confirm = useConfirm()
-  const [newItem, setNewItem] = useState('')
   const [move, moving] = useAction((s) => setApplicationStatus(app, s, today), { success: 'Status updated' })
-  const [del] = useAction(
-    async () => {
-      await store.remove('job_applications', app.id)
-      onClose()
-    },
-    { success: 'Application deleted' },
-  )
-  const [savePrep] = useAction((list) => store.update('job_applications', app.id, { prep_checklist: list }))
-  const [delEvent] = useAction((id) => store.remove('interview_events', id), { success: 'Interview removed' })
-  if (!app) return null
-  const checklist = app.prep_checklist ?? []
-  const doneCount = checklist.filter((i) => i.done).length
+  const removeApp = useConfirmedDelete('job_applications', 'Application deleted')
+  const checklist = usePrepChecklist(app)
+  const { done, total, percent } = checklistProgress(checklist.list)
   const hist = history.filter((h) => h.application_id === app.id).sort((a, b) => a.changed_at.localeCompare(b.changed_at))
   const evs = events.filter((e) => e.application_id === app.id).sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))
+
+  const facts = [
+    ['Location', app.location],
+    ['Package', formatLpa(app.salary_paise)],
+    ['Applied', app.applied_date && fmtDay(app.applied_date, 'd MMM yyyy')],
+    ['Source', app.source],
+    ['Contact', app.contact_person],
+    ['Follow-up', app.followup_date && fmtDay(app.followup_date, 'd MMM yyyy')],
+    ['Resume', app.resume_version],
+  ].filter(([, v]) => v)
+
+  const askDelete = async () => {
+    const deleted = await removeApp(app.id, {
+      title: `Delete ${app.company}?`,
+      description: 'This also deletes its status history and interviews.',
+    })
+    if (deleted) onClose()
+  }
+
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()} title={`${app.company}`} description={app.job_title} className="md:max-w-2xl">
+    <Dialog open onOpenChange={(o) => !o && onClose()} title={app.company} description={app.job_title} className="md:max-w-2xl">
       <div className="space-y-6">
         <div className="flex flex-wrap items-center gap-2">
           <Select
@@ -89,36 +86,18 @@ export function ApplicationDetail({ app, history, events, tz, today, onClose, on
               Job post
             </a>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto text-danger"
-            onClick={async () => {
-              if (await confirm({ title: `Delete ${app.company}?`, description: 'This also deletes its status history and interviews.' }))
-                del()
-            }}
-          >
+          <Button variant="ghost" size="sm" className="ml-auto text-danger" onClick={askDelete}>
             <Trash2 className="h-3.5 w-3.5" />
             Delete
           </Button>
         </div>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-          {[
-            ['Location', app.location],
-            ['Package', app.salary_paise != null ? `${paiseToLpa(app.salary_paise)} LPA` : ''],
-            ['Applied', app.applied_date && fmtDay(app.applied_date, 'd MMM yyyy')],
-            ['Source', app.source],
-            ['Contact', app.contact_person],
-            ['Follow-up', app.followup_date && fmtDay(app.followup_date, 'd MMM yyyy')],
-            ['Resume', app.resume_version],
-          ]
-            .filter(([, v]) => v)
-            .map(([k, v]) => (
-              <div key={k}>
-                <dt className="text-xs text-muted-foreground">{k}</dt>
-                <dd>{v}</dd>
-              </div>
-            ))}
+          {facts.map(([k, v]) => (
+            <div key={k}>
+              <dt className="text-xs text-muted-foreground">{k}</dt>
+              <dd>{v}</dd>
+            </div>
+          ))}
         </dl>
         {app.notes && <p className="whitespace-pre-wrap rounded-md bg-muted/40 p-3 text-sm">{app.notes}</p>}
 
@@ -132,109 +111,25 @@ export function ApplicationDetail({ app, history, events, tz, today, onClose, on
             </Button>
           }
         >
-          {evs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No interviews scheduled.</p>
-          ) : (
-            <ul className="space-y-1.5">
-              {evs.map((e) => (
-                <li key={e.id} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{e.round_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {fmtDateTime(e.scheduled_at, tz)} · {e.mode}
-                    </p>
-                  </div>
-                  <Badge tone={e.status === 'completed' ? 'success' : e.status === 'cancelled' ? 'neutral' : 'primary'}>{e.status}</Badge>
-                  <button
-                    aria-label="Edit interview"
-                    className="text-muted-foreground hover:text-foreground"
-                    onClick={() => onEditInterview(e)}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    aria-label="Remove interview"
-                    className="text-muted-foreground hover:text-danger"
-                    onClick={async () => {
-                      if (await confirm({ title: 'Remove this interview?' })) delEvent(e.id)
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ApplicationInterviews events={evs} tz={tz} onEdit={onEditInterview} />
         </Section>
 
         <Section
-          title={`Preparation ${checklist.length ? `(${doneCount}/${checklist.length} · ${pct(doneCount, checklist.length)}%)` : ''}`}
+          title={`Preparation ${total ? `(${done}/${total} · ${percent}%)` : ''}`}
           icon={ListChecks}
           action={
-            checklist.length === 0 && (
-              <Button variant="ghost" size="sm" onClick={() => savePrep(DEFAULT_PREP.map((text) => ({ id: uid(), text, done: false })))}>
+            total === 0 && (
+              <Button variant="ghost" size="sm" onClick={checklist.applyTemplate}>
                 Use template
               </Button>
             )
           }
         >
-          <ul className="space-y-1">
-            {checklist.map((i) => (
-              <li key={i.id} className="flex items-center justify-between gap-2">
-                <Checkbox
-                  checked={i.done}
-                  label={<span className={i.done ? 'text-muted-foreground line-through' : ''}>{i.text}</span>}
-                  onChange={(v) => savePrep(checklist.map((x) => (x.id === i.id ? { ...x, done: v } : x)))}
-                />
-                <button
-                  aria-label={`Remove ${i.text}`}
-                  className="text-muted-foreground hover:text-danger"
-                  onClick={() => savePrep(checklist.filter((x) => x.id !== i.id))}
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </li>
-            ))}
-          </ul>
-          <form
-            className="flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault()
-              const t = newItem.trim()
-              if (t) {
-                savePrep([...checklist, { id: uid(), text: t, done: false }])
-                setNewItem('')
-              }
-            }}
-          >
-            <Input value={newItem} onChange={(e) => setNewItem(e.target.value)} placeholder="Add a prep item" aria-label="New prep item" />
-            <Button type="submit" variant="outline">
-              Add
-            </Button>
-          </form>
+          <PrepChecklist checklist={checklist} />
         </Section>
 
         <Section title="Status history">
-          <ol className="space-y-1.5 border-l border-border pl-4">
-            {hist.map((h) => (
-              <li key={h.id} className="relative text-sm">
-                <span className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-primary" />
-                <span className="flex flex-wrap items-center gap-1.5">
-                  {h.from_status ? (
-                    <>
-                      <StatusBadge status={h.from_status} />
-                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                    </>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">Created as</span>
-                  )}
-                  <StatusBadge status={h.to_status} />
-                </span>
-                <span className="text-xs text-muted-foreground">{fmtDay(dateStrInTz(h.changed_at, tz), 'd MMM yyyy')}</span>
-              </li>
-            ))}
-            {hist.length === 0 && <li className="text-sm text-muted-foreground">History is recorded automatically from now on.</li>}
-          </ol>
+          <StatusHistory history={hist} tz={tz} />
         </Section>
       </div>
     </Dialog>

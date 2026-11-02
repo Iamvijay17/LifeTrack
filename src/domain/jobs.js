@@ -1,4 +1,5 @@
-import { dateStrInTz } from '@/lib/dates'
+import { addDays, dateStrInTz, fmtDay, startOfWeek } from '@/lib/dates'
+import { pct, uid } from '@/lib/utils'
 
 export const JOB_STATUSES = ['interested', 'preparing', 'applied', 'assessment', 'interview', 'selected', 'offer', 'rejected', 'withdrawn']
 export const STATUS_LABEL = { ...Object.fromEntries(JOB_STATUSES.map((s) => [s, s[0].toUpperCase() + s.slice(1)])), interested: 'Wishlist' }
@@ -65,3 +66,82 @@ export const DEFAULT_PREP = [
   'Prepare questions to ask',
   'Test video/audio setup',
 ]
+
+// ---------------------------------------------------------------- pipeline
+export const isOpenApplication = (a) => OPEN_STATUSES.includes(a.status)
+export const activePipelineCount = (apps) => apps.filter(isOpenApplication).length
+
+/** A follow-up date has arrived (or passed) for an application that is still in play. */
+export const isFollowupOverdue = (app, today) => !!app.followup_date && app.followup_date <= today && isOpenApplication(app)
+
+export const applicationSources = (apps) => [...new Set(apps.map((a) => a.source).filter(Boolean))]
+
+/** Applications applied for within the 7 days starting at `weekStart`. */
+export const appliedInWeek = (apps, weekStart) =>
+  apps.filter((a) => a.applied_date && a.applied_date >= weekStart && a.applied_date <= addDays(weekStart, 6)).length
+
+/** Filter by status / source / free text (company, title, location, notes, contact); newest first. */
+export function filterApplications(apps, { q = '', status = '', source = '' } = {}) {
+  const s = q.trim().toLowerCase()
+  return apps
+    .filter(
+      (a) =>
+        (!status || a.status === status) &&
+        (!source || a.source === source) &&
+        (!s || [a.company, a.job_title, a.location, a.notes, a.contact_person].some((x) => x?.toLowerCase().includes(s))),
+    )
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+}
+
+/** Applications per week for the last `weeks` weeks (oldest first), for the insights chart. */
+export function weeklyApplications(apps, today, weekStartsOn, weeks = 8) {
+  const start = startOfWeek(today, weekStartsOn)
+  return Array.from({ length: weeks }, (_, i) => {
+    const ws = addDays(start, -(weeks - 1 - i) * 7)
+    const we = addDays(ws, 6)
+    return { label: fmtDay(ws, 'd MMM'), count: apps.filter((a) => a.applied_date && a.applied_date >= ws && a.applied_date <= we).length }
+  })
+}
+
+// -------------------------------------------------------------- interviews
+const DAY_MS = 864e5
+
+/** Scheduled interviews in the next `days` days (from `nowMs`), each with its application attached; interviews whose application is gone are dropped. */
+export function upcomingInterviews(events, apps, nowMs, days = 7) {
+  const now = new Date(nowMs).toISOString()
+  const soon = new Date(nowMs + days * DAY_MS).toISOString()
+  return events
+    .filter((e) => e.status === 'scheduled' && e.scheduled_at >= now && e.scheduled_at <= soon)
+    .map((e) => ({ ...e, app: apps.find((a) => a.id === e.application_id) }))
+    .filter((e) => e.app)
+}
+
+/** Next scheduled interviews from `nowMs`, soonest first. */
+export const nextInterviews = (events, nowMs, limit = 6) =>
+  events
+    .filter((e) => e.status === 'scheduled' && e.scheduled_at >= new Date(nowMs).toISOString())
+    .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))
+    .slice(0, limit)
+
+/** Map of 'yyyy-MM-dd' (in the user's timezone) -> interviews that day, in time order. */
+export function groupInterviewsByDay(events, tz) {
+  const byDay = new Map()
+  for (const e of [...events].sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))) {
+    const d = dateStrInTz(e.scheduled_at, tz)
+    byDay.set(d, [...(byDay.get(d) ?? []), e])
+  }
+  return byDay
+}
+
+// ------------------------------------------------------- prep checklist (pure)
+export const newChecklist = (texts = DEFAULT_PREP) => texts.map((text) => ({ id: uid(), text, done: false }))
+export const addChecklistItem = (list, text) => {
+  const t = text.trim()
+  return t ? [...list, { id: uid(), text: t, done: false }] : list
+}
+export const toggleChecklistItem = (list, id, done) => list.map((x) => (x.id === id ? { ...x, done } : x))
+export const removeChecklistItem = (list, id) => list.filter((x) => x.id !== id)
+export const checklistProgress = (list) => {
+  const done = list.filter((i) => i.done).length
+  return { done, total: list.length, percent: pct(done, list.length) }
+}
