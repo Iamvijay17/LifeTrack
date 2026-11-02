@@ -1,12 +1,10 @@
-import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { Field, Input, Select } from '@/components/ui/form'
 import { REMINDER_KINDS, REPEATS } from '@/domain/reminders'
-import { isValidDay } from '@/lib/dates'
+import { requiredDay } from '@/lib/validation'
 import { useAction } from '@/hooks/useAction'
+import { useDialogForm } from '@/hooks/useDialogForm'
 import * as store from '@/hooks/store'
 import { useSettings } from '@/hooks/useSettings'
 import { fireDueReminders } from '@/services/api'
@@ -15,7 +13,7 @@ import { timeStrInTz, todayStr } from '@/lib/dates'
 const schema = z.object({
   kind: z.enum(['task', 'study', 'workout', 'habit', 'bill', 'custom']),
   title: z.string().trim().min(1, 'What should we remind you about?').max(160, 'Keep it under 160 characters'),
-  remind_date: z.string().refine(isValidDay, 'Pick a date'),
+  remind_date: requiredDay(),
   remind_time: z.string().regex(/^\d{2}:\d{2}$/, 'Pick a time'),
   repeat: z.enum(['none', 'daily', 'weekly', 'monthly']),
 })
@@ -23,30 +21,18 @@ const schema = z.object({
 export function ReminderDialog({ open, onOpenChange, reminder, today }) {
   const { settings } = useSettings()
   const blank = { kind: 'custom', title: '', remind_date: today, remind_time: '09:00', repeat: 'none' }
+  const fromReminder = (r) => ({
+    kind: r.kind,
+    title: r.title,
+    remind_date: r.remind_date,
+    remind_time: r.remind_time.slice(0, 5),
+    repeat: r.repeat,
+  })
   const {
     register,
     handleSubmit,
-    reset,
     formState: { errors },
-  } = useForm({ resolver: zodResolver(schema), defaultValues: blank })
-  useEffect(
-    () => {
-      if (open)
-        reset(
-          reminder
-            ? {
-                kind: reminder.kind,
-                title: reminder.title,
-                remind_date: reminder.remind_date,
-                remind_time: reminder.remind_time.slice(0, 5),
-                repeat: reminder.repeat,
-              }
-            : { ...blank, remind_date: today },
-        )
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [open, reminder?.id],
-  )
+  } = useDialogForm({ open, schema, recordKey: reminder?.id, valuesFor: () => (reminder ? fromReminder(reminder) : blank) })
   const [save, pending] = useAction(
     async (v) => {
       // Editing re-arms the reminder: clear "already fired" and make it active again.

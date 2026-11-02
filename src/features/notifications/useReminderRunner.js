@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { fireDueReminders } from '@/services/api'
-import { useSettings } from './useSettings'
+import { useSettings } from '@/hooks/useSettings'
 import { timeStrInTz, todayStr } from '@/lib/dates'
 
 /** While the app is open: every minute (and on focus) turn due reminders into notifications. Idempotent across devices. */

@@ -1,6 +1,6 @@
 # Architecture conventions
 
-Modules are migrated to this layout one at a time (done: **Planner**, **Notes & Journal**, **Learning**, **Habits**, **Finance**, **Jobs**, **Fitness**; the rest still live in `src/pages/`).
+Modules are migrated to this layout one at a time (done: **Planner**, **Notes & Journal**, **Learning**, **Habits**, **Finance**, **Jobs**, **Fitness**, **Health**, **Goals**, **Focus**, **Notifications**; Overview, Analytics, Reports, Settings and Export remain in `src/pages/`).
 
 ```
 src/
@@ -22,5 +22,6 @@ Rules of thumb
   "reset when the dialog opens" — the hook already does it correctly.
 - **Delete flows**: `useConfirmedDelete(table, toast)` = confirm dialog + delete + toast + duplicate-submit protection.
 - **Writes** go through `hooks/store` (`insert/update/upsert/remove`) or a domain operation in `services/api.js`; UI never calls Supabase.
+- **Forms bound to a stored record** (a day's journal, a day's health log) use `useRecordForm`: remote changes update fields you have not touched and never overwrite what you are typing.
 - **Unsaved input is never overwritten** by a background refresh (see `features/notes/Journal.jsx`).
 - Every module keeps (a) unit tests for its domain logic, (b) component tests for its forms, (c) an E2E flow.

@@ -5,15 +5,8 @@ import { useTable } from '@/hooks/store'
 import { markAllRead, markNotificationRead } from '@/services/api'
 import { unreadCount } from '@/domain/reminders'
 import { useAction } from '@/hooks/useAction'
+import { relativeTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
-
-export const relTime = (iso) => {
-  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  if (mins < 1440) return `${Math.round(mins / 60)}h ago`
-  return `${Math.round(mins / 1440)}d ago`
-}
 
 export function NotificationBell() {
   const { rows } = useTable('notifications')
@@ -85,7 +78,7 @@ export function NotificationBell() {
                       {!n.read_at && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-label="unread" />}
                       <span className="truncate">{n.title}</span>
                     </p>
-                    <p className="text-xs text-muted-foreground">{relTime(n.created_at)}</p>
+                    <p className="text-xs text-muted-foreground">{relativeTime(n.created_at)}</p>
                   </Link>
                 </li>
               ))}

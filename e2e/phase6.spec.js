@@ -189,8 +189,10 @@ test.describe('focus mode', () => {
     await register(page)
     await page.goto('/focus')
     await page.evaluate(() => {
+      // the running timer is stored per account
+      const userId = JSON.parse(localStorage.getItem('lifetrack-dev:session')).userId
       localStorage.setItem(
-        'lifetrack:focus-timer',
+        `lifetrack:focus-timer:${userId}`,
         JSON.stringify({
           mode: 'focus',
           plannedMinutes: 25,

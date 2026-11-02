@@ -1,25 +1,39 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { remainingSeconds } from '@/domain/focus'
+import { getUserId } from '@/services/session'
 
-const KEY = 'lifetrack:focus-timer'
+// The running timer is a per-device, per-ACCOUNT convenience kept in localStorage, so it survives a reload. It is keyed by
+// user id so one account never inherits another account's timer on a shared browser.
+const keyFor = () => `lifetrack:focus-timer:${getUserId() ?? 'anon'}`
 const load = () => {
   try {
-    return JSON.parse(localStorage.getItem(KEY))
+    return JSON.parse(localStorage.getItem(keyFor()))
   } catch {
     return null
   }
 }
+const storageWorks = () => {
+  try {
+    localStorage.setItem('__lt-probe', '1')
+    localStorage.removeItem('__lt-probe')
+    return true
+  } catch {
+    return false
+  }
+}
 const persist = (v) => {
   try {
-    v ? localStorage.setItem(KEY, JSON.stringify(v)) : localStorage.removeItem(KEY)
+    v ? localStorage.setItem(keyFor(), JSON.stringify(v)) : localStorage.removeItem(keyFor())
   } catch {
     /* the timer still works without storage */
   }
 }
 
 /**
- * Pomodoro countdown driven by an absolute end timestamp, so it stays accurate in background tabs and survives a reload
- * (the in-progress timer is a per-device convenience; finished focus blocks are saved to the database by the caller).
+ * Pomodoro countdown driven by an absolute end timestamp, so it stays accurate in background tabs and survives a reload.
+ * Several tabs of the same browser stay in step (pause/resume/stop in one is reflected in the others) and a finished block is
+ * saved exactly once: the tab that finishes it first "claims" it by clearing the shared state, and other tabs see that and skip.
+ * Finished focus blocks are saved to the database by the caller (`onFinish`).
  * state: { mode, plannedMinutes, endsAt|null, pausedLeft|null, taskId, topicId, label, startedAt }
  */
 export function useFocusTimer({ onFinish }) {
@@ -36,6 +50,15 @@ export function useFocusTimer({ onFinish }) {
   const running = !!t && t.endsAt != null
   const left = !t ? 0 : t.endsAt != null ? remainingSeconds(t.endsAt, now) : (t.pausedLeft ?? t.plannedMinutes * 60)
 
+  // follow changes made by another tab
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === keyFor() || e.key === null) setT(load())
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
   useEffect(() => {
     if (!running) return
     const id = setInterval(() => setNow(Date.now()), 500)
@@ -46,8 +69,11 @@ export function useFocusTimer({ onFinish }) {
     if (running && left === 0 && !fired.current) {
       fired.current = true
       const done = t
+      // Another tab may have finished (and saved) it already. Without working storage there is nothing to coordinate on.
+      const stored = load()
+      const stillMine = stored ? stored.startedAt === done.startedAt : !storageWorks()
       update(null)
-      finish.current(done, true)
+      if (stillMine) finish.current(done, true)
     }
     if (!running) fired.current = false
   }, [running, left, t, update])

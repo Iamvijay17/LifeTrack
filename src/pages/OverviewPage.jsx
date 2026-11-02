@@ -48,6 +48,7 @@ import { activeDayStreak } from '@/domain/streaks'
 import { countedMinutes } from '@/domain/learning'
 import { addDays, eachDay, fmtDay, fmtDuration, startOfWeek, timeStrInTz } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
+import { relativeTime } from '@/lib/format'
 
 function Ring({ percent }) {
   const r = 52,
@@ -86,14 +87,6 @@ function Ring({ percent }) {
       </text>
     </svg>
   )
-}
-
-const rel = (iso) => {
-  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  if (mins < 1440) return `${Math.round(mins / 60)}h ago`
-  return `${Math.round(mins / 1440)}d ago`
 }
 
 export default function OverviewPage() {
@@ -519,7 +512,7 @@ export default function OverviewPage() {
                           <li key={i} className="flex items-start gap-2.5 text-sm">
                             <a.icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                             <span className="min-w-0 flex-1 truncate">{a.text}</span>
-                            <span className="shrink-0 text-xs text-muted-foreground">{rel(a.at)}</span>
+                            <span className="shrink-0 text-xs text-muted-foreground">{relativeTime(a.at)}</span>
                           </li>
                         ))}
                       </ul>

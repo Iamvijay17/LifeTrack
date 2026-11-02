@@ -29,3 +29,32 @@ export const weekRange = (today, weekStartsOn) => {
   const from = addDays(today, -diff)
   return { from, to: addDays(from, 6) }
 }
+
+// --------------------------------------------------------------- setup form
+export const MODE_LABEL = { focus: 'Focus', short_break: 'Short break', long_break: 'Long break' }
+export const MIN_MINUTES = 1
+export const MAX_MINUTES = 240
+export const isValidMinutes = (n) => Number.isInteger(n) && n >= MIN_MINUTES && n <= MAX_MINUTES
+
+/** Length of the next block in minutes: the chosen preset/custom length for focus, the configured break otherwise. */
+export function plannedMinutes({ mode, preset, custom, prefs }) {
+  if (mode === 'focus') return preset === 'custom' ? Number(custom) : Number(preset)
+  return mode === 'short_break' ? prefs.short_break : prefs.long_break
+}
+
+/** 'task:<id>' | 'topic:<id>' | '' (the "Working on" select) -> the columns stored on a focus session. */
+export function parseFocusTarget(value) {
+  const [kind, id] = value.split(':')
+  return { taskId: kind === 'task' && id ? id : null, topicId: kind === 'topic' && id ? id : null }
+}
+
+/** Open tasks (pending or in progress) that can be focused on. */
+export const focusableTasks = (tasks) => tasks.filter((t) => t.status === 'pending' || t.status === 'in_progress')
+
+/** What a session was spent on, and its optional extra note (shown after a dash when it adds information). */
+export function sessionTitle(s, tasks, topics) {
+  const what = tasks.find((t) => t.id === s.task_id)?.title ?? topics.find((t) => t.id === s.topic_id)?.name ?? s.label ?? 'Focus'
+  return { what: what || 'Focus', note: s.label && s.label !== what ? s.label : null }
+}
+
+export const newestFirst = (sessions) => [...sessions].sort((a, b) => b.started_at.localeCompare(a.started_at))

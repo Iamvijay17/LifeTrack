@@ -54,3 +54,22 @@ export function afterFire(r, today) {
 }
 
 export const unreadCount = (notifications) => notifications.filter((n) => !n.read_at).length
+
+// ------------------------------------------------------------- list helpers
+export const kindLabel = (kind) => REMINDER_KINDS.find((k) => k.value === kind)?.label
+export const repeatLabel = (repeat) => REPEATS.find((r) => r.value === repeat)?.label
+
+/** A kind is on unless the user explicitly turned it off (so a new kind is on by default). */
+export const isKindEnabled = (prefs, kind) => prefs?.[kind] !== false
+
+/** Newest first. */
+export const sortInbox = (notifications) => [...notifications].sort((a, b) => b.created_at.localeCompare(a.created_at))
+
+/** Active reminders first, then by date and time. */
+export const sortReminders = (reminders) =>
+  [...reminders].sort(
+    (a, b) => Number(b.active) - Number(a.active) || (a.remind_date + a.remind_time).localeCompare(b.remind_date + b.remind_time),
+  )
+
+/** The fields that change when a reminder is switched on or off. Turning one back on re-arms it for its next time. */
+export const togglePatch = (reminder) => ({ active: !reminder.active, ...(!reminder.active ? { last_fired_on: null } : {}) })
