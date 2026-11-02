@@ -12,13 +12,13 @@ import {
   weekStats,
   weeklySeries,
   todayStatus,
-  weightSeries,
   libraryGroups,
   routineToFormExercises,
   formExercisesToLogs,
   splitMeasurements,
   historyOf,
 } from '@/domain/fitness'
+import { weightSeries } from '@/domain/health'
 
 const mocks = vi.hoisted(() => ({
   insert: vi.fn(),

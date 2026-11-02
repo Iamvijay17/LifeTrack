@@ -1,6 +1,3 @@
-import { useEffect, useRef } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Smile, Meh, Frown, Laugh, Angry } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
@@ -9,6 +6,7 @@ import { Field, Textarea } from '@/components/ui/form'
 import { EmptyState } from '@/components/shared/states'
 import { useTable } from '@/hooks/store'
 import { useAction } from '@/hooks/useAction'
+import { useRecordForm } from '@/hooks/useRecordForm'
 import * as store from '@/hooks/store'
 import { CONFLICT_KEYS } from '@/services/schema'
 import { fmtDay } from '@/lib/dates'
@@ -39,20 +37,7 @@ export function Journal({ date }) {
     watch,
     setValue,
     formState: { isDirty, errors },
-  } = useForm({ resolver: zodResolver(schema), defaultValues: valuesOf(entry) })
-
-  // Load the stored entry into the form when the day changes, or when it changes remotely — but a remote update never
-  // overwrites text you are in the middle of typing on this device.
-  const shownDate = useRef(date)
-  const dirty = useRef(false)
-  dirty.current = isDirty
-  const stored = useRef(entry)
-  stored.current = entry
-  useEffect(() => {
-    const dayChanged = shownDate.current !== date
-    shownDate.current = date
-    if (dayChanged || !dirty.current) reset(valuesOf(stored.current))
-  }, [date, entry?.id, entry?.updated_at, reset])
+  } = useRecordForm({ schema, recordKey: date, version: `${entry?.id}|${entry?.updated_at}`, valuesFor: () => valuesOf(entry) })
 
   const mood = watch('mood')
   const [content, wins] = watch(['content', 'wins'])

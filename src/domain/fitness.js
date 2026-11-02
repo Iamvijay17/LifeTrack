@@ -85,15 +85,6 @@ export const historyOf = (workouts) =>
   [...workouts].sort((a, b) => (b.workout_date + b.created_at).localeCompare(a.workout_date + a.created_at))
 
 // ------------------------------------------------------------ body & library
-/** Weight entries from the daily health logs: the latest one and the last `limit` points for the trend chart. */
-export function weightSeries(healthLogs, limit = 40) {
-  const weights = healthLogs.filter((h) => h.weight_kg != null).sort((a, b) => a.log_date.localeCompare(b.log_date))
-  return {
-    latest: weights.at(-1) ?? null,
-    data: weights.slice(-limit).map((h) => ({ label: fmtDay(h.log_date, 'd MMM'), kg: Number(h.weight_kg) })),
-  }
-}
-
 /** The exercise library as [{ group, items }], items A–Z, groups in first-seen order of the sorted list ('' -> 'Other'). */
 export function libraryGroups(exercises) {
   const sorted = [...exercises].sort((a, b) => a.name.localeCompare(b.name))

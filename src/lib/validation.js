@@ -31,3 +31,10 @@ export const nonNegativeNumber = (max, label) =>
 
 /** Like nonNegativeNumber, but the field may be left blank ('' means "not provided"). */
 export const optionalNumber = (max, label) => z.union([z.literal(''), nonNegativeNumber(max, label)])
+
+/** A time of day 'HH:MM', or '' when left blank. */
+export const optionalTime = z.string().refine((v) => v === '' || /^\d{2}:\d{2}$/.test(v), 'Use HH:MM')
+
+/** A number typed as text that must lie in [min, max]; '' (blank) is allowed. */
+export const numberInRange = (min, max, label) =>
+  z.string().refine((v) => v === '' || (Number.isFinite(Number(v)) && Number(v) >= min && Number(v) <= max), `${label}: ${min}–${max}`)
