@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { isValidDay, sleepMinutes } from '@lifetrack/utils'
+import { isValidDay, parseTags, sleepMinutes } from '@lifetrack/utils'
 import { TASK_CATEGORIES } from './tables'
 
 // Form-level validation + payload mapping shared by web and mobile. Forms hold strings ('' = empty);
@@ -141,3 +141,26 @@ export const healthFormToPayload = (v: HealthForm) => {
     water_ml: n(v.water_ml) ?? 0, steps: n(v.steps) ?? 0, energy_level: n(v.energy_level), weight_kg: n(v.weight_kg), notes: v.notes,
   }
 }
+
+// -------------------------------------------------------------------- notes
+export const noteFormSchema = z.object({
+  title: z.string().trim().max(160, 'Keep the title under 160 characters'),
+  body: z.string().max(20000, 'Notes can be up to 20,000 characters'),
+  category: z.string().trim().min(1, 'Pick a category').max(40),
+  tags: z.string().max(200),
+  pinned: z.boolean(),
+  goal_id: z.string(),
+  task_id: z.string(),
+}).refine((v) => v.title || v.body.trim(), { path: ['body'], message: 'Write a title or some content' })
+export type NoteForm = z.infer<typeof noteFormSchema>
+export const blankNote = (): NoteForm => ({ title: '', body: '', category: 'General', tags: '', pinned: false, goal_id: '', task_id: '' })
+export const noteToForm = (n: { title: string; body: string; category: string; tags?: string[] | null; pinned: boolean; goal_id?: string | null; task_id?: string | null }): NoteForm =>
+  ({ title: n.title, body: n.body, category: n.category, tags: (n.tags ?? []).join(', '), pinned: n.pinned, goal_id: n.goal_id ?? '', task_id: n.task_id ?? '' })
+export const noteToPayload = (v: NoteForm) =>
+  ({ title: v.title.trim(), body: v.body, category: v.category.trim(), tags: parseTags(v.tags), pinned: v.pinned, goal_id: v.goal_id || null, task_id: v.task_id || null })
+
+export const journalFormSchema = z.object({
+  mood: z.number().int().min(1).max(5).nullable(),
+  content: z.string().max(20000),
+  wins: z.string().max(5000),
+})

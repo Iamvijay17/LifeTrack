@@ -9,16 +9,18 @@ import { useAction } from '@/hooks/useAction'
 import * as store from '@/hooks/store'
 import { CONFLICT_KEYS } from '@lifetrack/constants/schema'
 import { fmtDay } from '@/lib/dates'
+import { JOURNAL_MOODS, journalCanSave, journalDirty, journalDraft } from '@lifetrack/core/notes'
 import { cn } from '@/lib/utils'
 
-const MOODS = [[1, Angry, 'Rough'], [2, Frown, 'Low'], [3, Meh, 'Okay'], [4, Smile, 'Good'], [5, Laugh, 'Great']]
+const MOOD_ICON = { 1: Angry, 2: Frown, 3: Meh, 4: Smile, 5: Laugh }
+const MOODS = JOURNAL_MOODS.map((m) => [m.value, MOOD_ICON[m.value], m.label])
 
 export function Journal({ date }) {
   const { rows } = useTable('journal_entries')
   const entry = rows.find((r) => r.entry_date === date)
-  const [form, setForm] = useState({ mood: null, content: '', wins: '' })
-  const dirty = form.mood !== (entry?.mood ?? null) || form.content !== (entry?.content ?? '') || form.wins !== (entry?.wins ?? '')
-  useEffect(() => { setForm({ mood: entry?.mood ?? null, content: entry?.content ?? '', wins: entry?.wins ?? '' }) }, [date, entry?.id, entry?.updated_at])
+  const [form, setForm] = useState(journalDraft(null))
+  const dirty = journalDirty(form, entry)
+  useEffect(() => { setForm(journalDraft(entry)) }, [date, entry?.id, entry?.updated_at])
 
   const [save, pending] = useAction(() => store.upsert('journal_entries', { entry_date: date, ...form }, { onConflict: CONFLICT_KEYS.journal_entries }), { success: 'Journal saved' })
   const [clear] = useAction(() => store.remove('journal_entries', entry.id), { success: 'Entry deleted' })
@@ -40,7 +42,7 @@ export function Journal({ date }) {
           <span className="text-xs text-muted-foreground">{dirty ? 'Unsaved changes' : entry ? 'Saved' : ''}</span>
           <div className="flex gap-2">
             {entry && <Button variant="ghost" onClick={clear}>Delete</Button>}
-            <Button onClick={save} loading={pending} disabled={!dirty || (!form.content.trim() && !form.wins.trim() && form.mood == null)}>Save entry</Button>
+            <Button onClick={save} loading={pending} disabled={!journalCanSave(form, entry)}>Save entry</Button>
           </div>
         </div>
       </CardContent></Card>

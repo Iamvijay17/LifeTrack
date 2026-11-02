@@ -27,6 +27,12 @@ export function Sheet({ visible, title, onClose, children, footer }: { visible: 
   )
 }
 
+/**
+ * iOS cannot present a modal/alert while another modal is still dismissing (the new one is silently dropped), so anything
+ * that opens a sheet or Alert right after closing a sheet should go through this. Android needs no delay.
+ */
+export const afterSheetClose = (fn: () => void) => { setTimeout(fn, Platform.OS === 'ios' ? 400 : 0) }
+
 export interface MenuAction { label: string; onPress: () => void; destructive?: boolean; hidden?: boolean }
 /** Context menu rendered as a sheet of actions (works identically on iOS and Android). */
 export function ActionSheet({ visible, title, actions, onClose }: { visible: boolean; title: string; actions: MenuAction[]; onClose: () => void }) {
@@ -34,7 +40,7 @@ export function ActionSheet({ visible, title, actions, onClose }: { visible: boo
   return (
     <Sheet visible={visible} title={title} onClose={onClose}>
       {actions.filter((a) => !a.hidden).map((a) => (
-        <Button key={a.label} title={a.label} variant={a.destructive ? 'danger' : 'ghost'} onPress={() => { onClose(); a.onPress() }} />
+        <Button key={a.label} title={a.label} variant={a.destructive ? 'danger' : 'ghost'} onPress={() => { onClose(); afterSheetClose(a.onPress) }} />
       ))}
     </Sheet>
   )

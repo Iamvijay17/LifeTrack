@@ -13,6 +13,7 @@ import { useConfirm } from '@/components/shared/Confirm'
 import { Journal } from '@/features/planner/Journal'
 import { NoteDialog } from '@/features/notes/NoteDialog'
 import { Markdown } from '@/lib/markdown'
+import { filterNotes, noteCategories, notePreview, noteTags } from '@lifetrack/core/notes'
 import { useTables } from '@/hooks/store'
 import * as store from '@/hooks/store'
 import { useToday } from '@/hooks/useToday'
@@ -42,14 +43,9 @@ export default function NotesPage() {
     setParams({}, { replace: true })
   }, [params, loading, data.notes, setParams])
 
-  const categories = useMemo(() => [...new Set(data.notes.map((n) => n.category))].sort(), [data.notes])
-  const tags = useMemo(() => [...new Set(data.notes.flatMap((n) => n.tags ?? []))].sort(), [data.notes])
-  const list = useMemo(() => {
-    const s = q.trim().toLowerCase()
-    return data.notes
-      .filter((n) => (!category || n.category === category) && (!tag || (n.tags ?? []).includes(tag)) && (!s || `${n.title} ${n.body} ${(n.tags ?? []).join(' ')}`.toLowerCase().includes(s)))
-      .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updated_at.localeCompare(a.updated_at))
-  }, [data.notes, q, category, tag])
+  const categories = useMemo(() => noteCategories(data.notes), [data.notes])
+  const tags = useMemo(() => noteTags(data.notes), [data.notes])
+  const list = useMemo(() => filterNotes(data.notes, { q, category, tag }), [data.notes, q, category, tag])
   const [togglePin] = useAction((n) => store.update('notes', n.id, { pinned: !n.pinned }))
   const [del] = useAction((id) => store.remove('notes', id), { success: 'Note deleted' })
   const askDelete = async (n) => { if (await confirm({ title: 'Delete this note?', description: n.title || 'Untitled note' })) { setView(null); del(n.id) } }
@@ -80,7 +76,7 @@ export default function NotesPage() {
                   <button onClick={() => setView(n)} className="min-w-0 flex-1 text-left"><h3 className="truncate text-sm font-semibold">{n.pinned && <Pin className="mr-1 inline h-3 w-3 text-secondary" aria-label="pinned" />}{n.title || 'Untitled'}</h3></button>
                   <Menu label={`Actions for ${n.title || 'note'}`} items={[{ label: 'Edit', icon: Pencil, onClick: () => setDlg({ open: true, note: n }) }, { label: n.pinned ? 'Unpin' : 'Pin', icon: n.pinned ? PinOff : Pin, onClick: () => togglePin(n) }, { label: 'Delete', icon: Trash2, danger: true, onClick: () => askDelete(n) }]} />
                 </div>
-                <button onClick={() => setView(n)} className="block w-full text-left"><p className="line-clamp-4 whitespace-pre-line text-[13px] text-muted-foreground">{n.body.replace(/[#*`>\-\[\]]/g, '').trim() || ' '}</p></button>
+                <button onClick={() => setView(n)} className="block w-full text-left"><p className="line-clamp-4 whitespace-pre-line text-[13px] text-muted-foreground">{notePreview(n.body) || ' '}</p></button>
                 <div className="flex flex-wrap items-center gap-1.5"><Badge tone="primary">{n.category}</Badge>{(n.tags ?? []).map((t) => <button key={t} onClick={() => setTag(t)}><Badge>#{t}</Badge></button>)}</div>
                 <p className="text-[11px] text-muted-foreground">{fmtDay(n.updated_at.slice(0, 10), 'd MMM yyyy')}{n.goal_id && goalName(n.goal_id) ? ` · Goal: ${goalName(n.goal_id)}` : ''}{n.task_id && taskName(n.task_id) ? ` · Task: ${taskName(n.task_id)}` : ''}</p>
               </CardContent></Card>))}</div>}

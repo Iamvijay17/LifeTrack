@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { noteFormSchema, blankNote, noteToForm, noteToPayload } from '@lifetrack/schemas'
+import { NOTE_CATEGORIES, parseTags } from '@lifetrack/core/notes'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { Field, Input, Select, Textarea, Checkbox } from '@/components/ui/form'
 import { Segmented } from '@/components/ui/misc'
@@ -9,30 +10,21 @@ import { Markdown } from '@/lib/markdown'
 import { useAction } from '@/hooks/useAction'
 import * as store from '@/hooks/store'
 
-export const NOTE_CATEGORIES = ['General', 'Learning', 'Career', 'Ideas', 'Health', 'Finance', 'Personal']
-export const parseTags = (s) => [...new Set(String(s ?? '').split(',').map((t) => t.trim().toLowerCase().replace(/^#/, '')).filter(Boolean))].slice(0, 12)
-
-const schema = z.object({
-  title: z.string().trim().max(160, 'Keep the title under 160 characters'),
-  body: z.string().max(20000, 'Notes can be up to 20,000 characters'),
-  category: z.string().trim().min(1, 'Pick a category').max(40),
-  tags: z.string().max(200),
-  pinned: z.boolean(),
-  goal_id: z.string(), task_id: z.string(),
-}).refine((v) => v.title || v.body.trim(), { path: ['body'], message: 'Write a title or some content' })
+export { NOTE_CATEGORIES, parseTags }
+const schema = noteFormSchema
 
 export function NoteDialog({ open, onOpenChange, note, goals = [], tasks = [], categories = [] }) {
-  const blank = { title: '', body: '', category: 'General', tags: '', pinned: false, goal_id: '', task_id: '' }
+  const blank = blankNote()
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm({ resolver: zodResolver(schema), defaultValues: blank })
   const [preview, setPreview] = useState('write')
   useEffect(() => {
     if (!open) return
     setPreview('write')
-    reset(note ? { title: note.title, body: note.body, category: note.category, tags: (note.tags ?? []).join(', '), pinned: note.pinned, goal_id: note.goal_id ?? '', task_id: note.task_id ?? '' } : blank)
+    reset(note ? noteToForm(note) : blank)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, note?.id])
   const [save, pending] = useAction(async (v) => {
-    const row = { title: v.title.trim(), body: v.body, category: v.category.trim(), tags: parseTags(v.tags), pinned: v.pinned, goal_id: v.goal_id || null, task_id: v.task_id || null }
+    const row = noteToPayload(v)
     if (note) await store.update('notes', note.id, row); else await store.insert('notes', row)
     onOpenChange(false)
   }, { success: note ? 'Note updated' : 'Note saved' })
