@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import * as D from '@radix-ui/react-dialog'
 import { Search, CheckSquare, NotebookPen, Target, Briefcase, Repeat, Wallet, CornerDownLeft } from 'lucide-react'
 import { NAV } from '@/lib/nav'
+import { SectionLoader } from '@/components/loaders/SectionLoader'
 import { useTables } from '@/hooks/store'
 import { cn } from '@/lib/utils'
 
@@ -41,7 +42,7 @@ function Results({ q, onPick }) {
     return () => window.removeEventListener('keydown', key)
   }, [flat, cursor, onPick])
   if (!q.trim()) return <p className="px-4 py-8 text-center text-sm text-muted-foreground">Search tasks, notes, goals, job applications, habits, transactions and pages.</p>
-  if (loading && !flat.length) return <p className="px-4 py-8 text-center text-sm text-muted-foreground">Searching…</p>
+  if (loading && !flat.length) return <SectionLoader message="Searching your data..." minHeight={120} />
   if (!flat.length) return <p className="px-4 py-8 text-center text-sm text-muted-foreground">No results for “{q}”.</p>
   let idx = -1
   return (

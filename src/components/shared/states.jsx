@@ -1,7 +1,6 @@
 import { AlertTriangle, Inbox } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/misc'
-import { Card } from '@/components/ui/card'
+import { SkeletonLoader } from '@/components/loaders/SkeletonLoader'
 import { cn } from '@/lib/utils'
 
 export function EmptyState({ icon: Icon = Inbox, title, description, action, className }) {
@@ -26,15 +25,7 @@ export function ErrorState({ message, onRetry }) {
   )
 }
 
-export function PageSkeleton({ cards = 4 }) {
-  return (
-    <div className="space-y-4" aria-busy="true" aria-label="Loading">
-      <Skeleton className="h-8 w-48" />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{Array.from({ length: cards }).map((_, i) => <Card key={i} className="space-y-3 p-4"><Skeleton className="h-3 w-20" /><Skeleton className="h-7 w-16" /></Card>)}</div>
-      <Card className="space-y-3 p-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-9" />)}</Card>
-    </div>
-  )
-}
+export function PageSkeleton({ cards = 4 }) { return <SkeletonLoader variant="page" cards={cards} /> }
 
 /** Standard gate: skeleton while loading, error with retry, otherwise children. */
 export function DataGate({ loading, error, onRetry, children, cards }) {

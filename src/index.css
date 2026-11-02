@@ -78,3 +78,35 @@
   #main { max-width: none !important; padding: 0 !important; }
   [data-radix-popper-content-wrapper] { display: none !important; }
 }
+
+/* ───────────────────────── LifeTrack Progress Orbit ─────────────────────────
+   Only transform / opacity / stroke-dashoffset are animated (compositor-friendly, no filters, no blur).
+   Palette: #7C3AED primary · #A78BFA secondary · #C4B5FD highlight (darkened on light theme for contrast). */
+.lt-orbit { --lt-a: #7c3aed; --lt-b: #a78bfa; --lt-c: #c4b5fd; display: block; flex: none; }
+:root:not(.dark) .lt-orbit { --lt-b: #8b5cf6; --lt-c: #6d28d9; }
+.lt-orbit .lt-spin, .lt-orbit .lt-glow { transform-box: view-box; transform-origin: 60px 60px; }
+.lt-orbit .lt-glow { transform-box: fill-box; transform-origin: center; }
+.lt-spin-outer { animation: lt-spin 10s linear infinite; will-change: transform; }
+.lt-spin-inner { animation: lt-spin 7s linear infinite reverse; will-change: transform; }
+.lt-glow { animation: lt-glow 2.6s ease-in-out infinite; }
+.lt-check { stroke-dasharray: 1; stroke-dashoffset: 1; animation: lt-draw .8s cubic-bezier(.4, 0, .2, 1) .15s forwards; }
+.lt-check + .lt-check { animation-delay: .75s; animation-duration: .35s; }
+.lt-msg { animation: lt-breathe 2.4s ease-in-out infinite; }
+/* Fade in only if loading takes longer than a blink, so fast loads never flash a loader. Space is always reserved. */
+.lt-delayed { opacity: 0; animation: lt-appear .25s ease-out .18s forwards; }
+
+@keyframes lt-spin { to { transform: rotate(360deg); } }
+@keyframes lt-glow { 0%, 100% { opacity: .35; transform: scale(.92); } 50% { opacity: .75; transform: scale(1.06); } }
+@keyframes lt-draw { to { stroke-dashoffset: 0; } }
+@keyframes lt-breathe { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@keyframes lt-appear { to { opacity: 1; } }
+
+/* Boot screen shown by index.html before JavaScript has loaded */
+.lt-boot { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: rgb(var(--background)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .lt-spin-outer, .lt-spin-inner, .lt-glow, .lt-msg { animation: none; will-change: auto; }
+  .lt-glow { opacity: .55; }
+  .lt-check { animation: none; stroke-dashoffset: 0; }
+  .lt-delayed { animation-duration: .01s; }
+}

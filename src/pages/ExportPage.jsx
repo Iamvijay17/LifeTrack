@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, Input } from '@/components/ui/form'
 import { Dialog } from '@/components/ui/dialog'
 import { Progress } from '@/components/ui/misc'
+import { SectionLoader } from '@/components/loaders/SectionLoader'
 import { useAction } from '@/hooks/useAction'
 import { useConfirm } from '@/components/shared/Confirm'
 import { buildExport, importBackup, parseBackup, summarizeBackup } from '@/services/backup'
@@ -43,6 +44,7 @@ function BackupCard() {
       <Dialog open={!!pending} onOpenChange={(o) => !o && !restoring && setPending(null)} title="Restore backup?" description={pending && `${pending.name} · exported ${new Date(pending.exported_at).toLocaleString()}`}
         footer={<><Button variant="outline" disabled={restoring} onClick={() => setPending(null)}>Cancel</Button><Button onClick={restore} loading={restoring}>Restore</Button></>}>
         {pending && <div className="space-y-3 text-sm"><ul className="grid grid-cols-2 gap-x-4 gap-y-1">{summarizeBackup(pending).map((s) => <li key={s.table} className="flex justify-between"><span className="text-muted-foreground">{s.table}</span><b>{s.count}</b></li>)}</ul>
+          {restoring && <SectionLoader message="Restoring your data..." minHeight={120} />}
           {prog && <Progress value={(prog.done / prog.total) * 100} label="Import progress" />}
           <p className="text-xs text-muted-foreground">Records are merged by ID into your account. Existing data is kept.</p></div>}
       </Dialog>
@@ -80,6 +82,7 @@ function EraseCard() {
       <Button variant="outline" className="border-danger/50 text-danger hover:bg-danger/10" onClick={() => { setTyped(''); setOpen(true) }}><Trash2 className="h-4 w-4" />Erase all data…</Button>
       <Dialog open={open} onOpenChange={(o) => !erasing && setOpen(o)} title="Erase all data?" description="Download a JSON backup first if you might want anything back."
         footer={<><Button variant="outline" disabled={erasing} onClick={() => setOpen(false)}>Cancel</Button><Button variant="destructive" loading={erasing} disabled={typed !== 'ERASE'} onClick={() => erase()}>Erase everything</Button></>}>
+        {erasing && <SectionLoader message="Erasing your data..." minHeight={100} />}
         <div className="space-y-3"><p className="flex items-start gap-2 text-sm text-muted-foreground"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />This applies to every device signed in to your account.</p>
           <Field label="Type ERASE to confirm"><Input value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" /></Field></div>
       </Dialog>

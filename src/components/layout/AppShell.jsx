@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
+import { PageLoader } from '@/components/loaders/PageLoader'
+import { messageForPath } from '@/components/loaders/messages'
 import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { MobileNav } from './MobileNav'
@@ -54,7 +56,7 @@ export function AppShell() {
           </div>
         </header>
         <main id="main" ref={main} tabIndex={-1} className="mx-auto w-full max-w-6xl px-4 pb-28 pt-5 outline-none md:px-6 md:pb-10">
-          <Outlet />
+          <Suspense fallback={<PageLoader message={messageForPath(pathname)} />}><Outlet /></Suspense>
         </main>
       </div>
       <MobileNav />

@@ -1,6 +1,6 @@
 import { forwardRef } from 'react'
 import { cva } from 'class-variance-authority'
-import { Loader2 } from 'lucide-react'
+import { ButtonLoader } from '@/components/loaders/ButtonLoader'
 import { cn } from '@/lib/utils'
 
 export const buttonVariants = cva(
@@ -22,8 +22,8 @@ export const buttonVariants = cva(
 )
 
 export const Button = forwardRef(({ className, variant, size, loading, disabled, children, type = 'button', ...props }, ref) => (
-  <button ref={ref} type={type} disabled={disabled || loading} className={cn(buttonVariants({ variant, size }), className)} {...props}>
-    {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+  <button ref={ref} type={type} disabled={disabled || loading} aria-busy={loading || undefined} className={cn(buttonVariants({ variant, size }), className)} {...props}>
+    {loading && <ButtonLoader />}
     {children}
   </button>
 ))

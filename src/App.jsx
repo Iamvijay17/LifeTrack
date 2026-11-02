@@ -4,9 +4,8 @@ import { Toaster } from 'sonner'
 import { AuthProvider, useAuth } from '@/hooks/useAuth'
 import { ConfirmProvider } from '@/components/shared/Confirm'
 import { AppShell } from '@/components/layout/AppShell'
-import { PageSkeleton } from '@/components/shared/states'
+import { FullScreenLoader, InitialAppLoader } from '@/components/loaders'
 import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from '@/features/auth/AuthPages'
-import { Logo } from '@/components/layout/Logo'
 
 const page = (loader) => lazy(loader)
 const Overview = page(() => import('@/pages/OverviewPage'))
@@ -29,7 +28,7 @@ const Settings = page(() => import('@/pages/SettingsPage'))
 function Protected({ children }) {
   const { session, loading } = useAuth()
   const loc = useLocation()
-  if (loading) return <div className="grid min-h-dvh place-items-center"><Logo /></div>
+  if (loading) return <InitialAppLoader />
   if (!session) return <Navigate to="/login" replace state={{ from: loc.pathname }} />
   return children
 }
@@ -38,7 +37,7 @@ export default function App() {
   return (
     <AuthProvider>
       <ConfirmProvider>
-        <Suspense fallback={<div className="p-6"><PageSkeleton /></div>}>
+        <Suspense fallback={<FullScreenLoader message="Syncing your progress..." />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />

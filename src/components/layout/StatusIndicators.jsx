@@ -1,4 +1,5 @@
-import { AlertCircle, Check, CloudOff, Loader2 } from 'lucide-react'
+import { AlertCircle, Check } from 'lucide-react'
+import { ButtonLoader } from '@/components/loaders/ButtonLoader'
 import { useSaveStatus } from '@/hooks/store'
 import { useOnline } from '@/hooks/useOnline'
 import { useAuth } from '@/hooks/useAuth'
@@ -9,7 +10,7 @@ export function SaveStatus() {
   const s = useSaveStatus()
   if (s.status === 'idle') return <span className="hidden text-xs text-muted-foreground sm:inline" data-testid="save-status">All changes saved</span>
   const cfg = {
-    saving: { icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />, text: 'Saving…', cls: 'text-muted-foreground' },
+    saving: { icon: <ButtonLoader size={14} />, text: 'Saving…', cls: 'text-muted-foreground' },
     saved: { icon: <Check className="h-3.5 w-3.5" />, text: 'Saved', cls: 'text-success' },
     error: { icon: <AlertCircle className="h-3.5 w-3.5" />, text: 'Save failed', cls: 'text-danger' },
   }[s.status]
