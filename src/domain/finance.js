@@ -1,6 +1,6 @@
 import { monthKey, eachDay, addMonths, monthStart } from '@/lib/dates'
 
-export const EXPENSE_CATEGORIES = ['Food', 'Travel', 'Shopping', 'Bills', 'Subscriptions', 'Health', 'Entertainment', 'Other']
+export const EXPENSE_CATEGORIES = ['Food', 'Travel', 'Shopping', 'Bills', 'Subscriptions', 'EMI', 'Health', 'Entertainment', 'Other']
 export const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Interest', 'Gift', 'Other']
 export const SAVINGS_CATEGORIES = ['Emergency fund', 'Investments', 'Goal', 'Other']
 export const CATEGORIES_BY_TYPE = { expense: EXPENSE_CATEGORIES, income: INCOME_CATEGORIES, savings: SAVINGS_CATEGORIES }
