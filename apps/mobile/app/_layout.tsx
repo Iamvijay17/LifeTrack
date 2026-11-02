@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
-import { Stack } from 'expo-router'
+import { Stack, useRouter } from 'expo-router'
+import * as Linking from 'expo-linking'
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -8,6 +9,7 @@ import { ThemeProvider, useTheme } from '../src/providers/ThemeProvider'
 import { AuthProvider, useAuth } from '../src/providers/AuthProvider'
 import { queryClient } from '../src/data/client'
 import { isConfigured } from '../src/lib/supabase'
+import { pathFromUrl, rememberPending, takePending } from '../src/lib/deepLinks'
 import { Screen, Txt } from '../src/ui'
 
 SplashScreen.preventAutoHideAsync().catch(() => {})
@@ -15,7 +17,17 @@ SplashScreen.preventAutoHideAsync().catch(() => {})
 function Gate() {
   const { session, loading } = useAuth()
   const { colors, scheme } = useTheme()
+  const router = useRouter()
+  const url = Linking.useLinkingURL()
   useEffect(() => { if (!loading) SplashScreen.hideAsync().catch(() => {}) }, [loading])
+  // A link opened while signed out (e.g. tapping a notification) is remembered, then followed once sign-in completes.
+  useEffect(() => { if (!loading && !session) rememberPending(pathFromUrl(url)) }, [loading, session, url])
+  useEffect(() => {
+    if (!loading && session) {
+      const target = takePending()
+      if (target) setTimeout(() => router.push(target as never), 0) // after the protected stack has mounted
+    }
+  }, [loading, session, router])
   if (!isConfigured) {
     return (
       <Screen>

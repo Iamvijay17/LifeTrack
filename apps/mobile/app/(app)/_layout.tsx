@@ -1,15 +1,11 @@
-import type { ColorValue } from 'react-native'
-import { Tabs } from 'expo-router'
-import { Ionicons } from '@expo/vector-icons'
+import { Stack } from 'expo-router'
 import { useTheme } from '../../src/providers/ThemeProvider'
 import { RealtimeSync } from '../../src/providers/RealtimeSync'
 import { ThemeSync } from '../../src/providers/ThemeSync'
 import { QuickActionsProvider } from '../../src/features/quick/QuickActions'
 
-const tab = (title: string, icon: React.ComponentProps<typeof Ionicons>['name']) => ({
-  title,
-  tabBarIcon: ({ color, size }: { color: ColorValue; size: number }) => <Ionicons name={icon} size={size} color={color as string} />,
-})
+// A deep link straight to a module still has the tabs underneath it, so Back always has somewhere to go.
+export const unstable_settings = { initialRouteName: '(tabs)' }
 
 export default function AppLayout() {
   const { colors } = useTheme()
@@ -17,28 +13,10 @@ export default function AppLayout() {
     <QuickActionsProvider>
       <RealtimeSync />
       <ThemeSync />
-      <Tabs screenOptions={{
-        headerShown: false, tabBarActiveTintColor: colors.primary, tabBarInactiveTintColor: colors.mutedForeground,
-        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border },
-        sceneStyle: { backgroundColor: colors.background },
-      }}>
-        <Tabs.Screen name="index" options={tab('Dashboard', 'home-outline')} />
-        <Tabs.Screen name="planner" options={tab('Planner', 'calendar-outline')} />
-        <Tabs.Screen name="habits" options={tab('Habits', 'repeat-outline')} />
-        <Tabs.Screen name="finance" options={tab('Finance', 'wallet-outline')} />
-        <Tabs.Screen name="more" options={tab('More', 'ellipsis-horizontal')} />
-        <Tabs.Screen name="module/[slug]" options={{ href: null }} />
-        <Tabs.Screen name="module/focus" options={{ href: null }} />
-        <Tabs.Screen name="module/learning" options={{ href: null }} />
-        <Tabs.Screen name="module/goals" options={{ href: null }} />
-        <Tabs.Screen name="module/health" options={{ href: null }} />
-        <Tabs.Screen name="module/notes" options={{ href: null }} />
-        <Tabs.Screen name="module/jobs" options={{ href: null }} />
-        <Tabs.Screen name="module/fitness" options={{ href: null }} />
-        <Tabs.Screen name="module/analytics" options={{ href: null }} />
-        <Tabs.Screen name="module/settings" options={{ href: null }} />
-        <Tabs.Screen name="sync-check" options={{ href: null }} />
-      </Tabs>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+        <Stack.Screen name="(tabs)" />
+        {/* module/* and sync-check are plain stack screens: native push animation, iOS swipe-back, Android hardware back. */}
+      </Stack>
     </QuickActionsProvider>
   )
 }

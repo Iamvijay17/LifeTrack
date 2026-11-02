@@ -1,11 +1,11 @@
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { View } from 'react-native'
-import { MODULES } from '../../src/lib/modules'
-import { authService } from '../../src/lib/supabase'
-import { useAuth } from '../../src/providers/AuthProvider'
-import { useTheme } from '../../src/providers/ThemeProvider'
-import { Button, Card, Screen, Txt } from '../../src/ui'
+import { MODULES } from '../../../src/lib/modules'
+import { authService } from '../../../src/lib/supabase'
+import { useAuth } from '../../../src/providers/AuthProvider'
+import { useTheme } from '../../../src/providers/ThemeProvider'
+import { Button, Card, Screen, Txt } from '../../../src/ui'
 
 export default function More() {
   const router = useRouter()
