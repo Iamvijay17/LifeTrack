@@ -1,24 +1,13 @@
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { Field, Input, Select, Textarea, Checkbox } from '@/components/ui/form'
 import { Segmented } from '@/components/ui/misc'
 import { Markdown } from '@/lib/markdown'
 import { useAction } from '@/hooks/useAction'
+import { useDialogForm } from '@/hooks/useDialogForm'
+import { NOTE_CATEGORIES, parseTags } from '@/domain/notes'
 import * as store from '@/hooks/store'
-
-export const NOTE_CATEGORIES = ['General', 'Learning', 'Career', 'Ideas', 'Health', 'Finance', 'Personal']
-export const parseTags = (s) =>
-  [
-    ...new Set(
-      String(s ?? '')
-        .split(',')
-        .map((t) => t.trim().toLowerCase().replace(/^#/, ''))
-        .filter(Boolean),
-    ),
-  ].slice(0, 12)
 
 const schema = z
   .object({
@@ -34,32 +23,25 @@ const schema = z
 
 export function NoteDialog({ open, onOpenChange, note, goals = [], tasks = [], categories = [] }) {
   const blank = { title: '', body: '', category: 'General', tags: '', pinned: false, goal_id: '', task_id: '' }
+  const fromNote = (n) => ({
+    title: n.title,
+    body: n.body,
+    category: n.category,
+    tags: (n.tags ?? []).join(', '),
+    pinned: n.pinned,
+    goal_id: n.goal_id ?? '',
+    task_id: n.task_id ?? '',
+  })
   const {
     register,
     handleSubmit,
-    reset,
     watch,
     setValue,
     formState: { errors },
-  } = useForm({ resolver: zodResolver(schema), defaultValues: blank })
+  } = useDialogForm({ open, schema, recordKey: note?.id, valuesFor: () => (note ? fromNote(note) : blank) })
   const [preview, setPreview] = useState('write')
   useEffect(() => {
-    if (!open) return
-    setPreview('write')
-    reset(
-      note
-        ? {
-            title: note.title,
-            body: note.body,
-            category: note.category,
-            tags: (note.tags ?? []).join(', '),
-            pinned: note.pinned,
-            goal_id: note.goal_id ?? '',
-            task_id: note.task_id ?? '',
-          }
-        : blank,
-    )
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (open) setPreview('write')
   }, [open, note?.id])
   const [save, pending] = useAction(
     async (v) => {

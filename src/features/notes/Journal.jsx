@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { Smile, Meh, Frown, Laugh, Angry } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -19,17 +22,45 @@ const MOODS = [
   [5, Laugh, 'Great'],
 ]
 
+const schema = z.object({
+  mood: z.number().int().min(1).max(5).nullable(),
+  content: z.string().max(20000, 'Keep the reflection under 20,000 characters'),
+  wins: z.string().max(2000, 'Keep wins under 2,000 characters'),
+})
+const valuesOf = (e) => ({ mood: e?.mood ?? null, content: e?.content ?? '', wins: e?.wins ?? '' })
+
 export function Journal({ date }) {
   const { rows } = useTable('journal_entries')
   const entry = rows.find((r) => r.entry_date === date)
-  const [form, setForm] = useState({ mood: null, content: '', wins: '' })
-  const dirty = form.mood !== (entry?.mood ?? null) || form.content !== (entry?.content ?? '') || form.wins !== (entry?.wins ?? '')
-  useEffect(() => {
-    setForm({ mood: entry?.mood ?? null, content: entry?.content ?? '', wins: entry?.wins ?? '' })
-  }, [date, entry?.id, entry?.updated_at, entry?.content, entry?.mood, entry?.wins])
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    formState: { isDirty, errors },
+  } = useForm({ resolver: zodResolver(schema), defaultValues: valuesOf(entry) })
 
+  // Load the stored entry into the form when the day changes, or when it changes remotely — but a remote update never
+  // overwrites text you are in the middle of typing on this device.
+  const shownDate = useRef(date)
+  const dirty = useRef(false)
+  dirty.current = isDirty
+  const stored = useRef(entry)
+  stored.current = entry
+  useEffect(() => {
+    const dayChanged = shownDate.current !== date
+    shownDate.current = date
+    if (dayChanged || !dirty.current) reset(valuesOf(stored.current))
+  }, [date, entry?.id, entry?.updated_at, reset])
+
+  const mood = watch('mood')
+  const [content, wins] = watch(['content', 'wins'])
   const [save, pending] = useAction(
-    () => store.upsert('journal_entries', { entry_date: date, ...form }, { onConflict: CONFLICT_KEYS.journal_entries }),
+    async (values) => {
+      await store.upsert('journal_entries', { entry_date: date, ...values }, { onConflict: CONFLICT_KEYS.journal_entries })
+      reset(values) // the saved text is the new baseline, so the form is clean again
+    },
     { success: 'Journal saved' },
   )
   const [clear] = useAction(() => store.remove('journal_entries', entry.id), { success: 'Entry deleted' })
@@ -49,11 +80,11 @@ export function Journal({ date }) {
                 <button
                   key={v}
                   type="button"
-                  aria-pressed={form.mood === v}
-                  onClick={() => setForm((f) => ({ ...f, mood: f.mood === v ? null : v }))}
+                  aria-pressed={mood === v}
+                  onClick={() => setValue('mood', mood === v ? null : v, { shouldDirty: true })}
                   className={cn(
                     'flex flex-1 flex-col items-center gap-1 rounded-md border border-border py-2 text-[11px] text-muted-foreground',
-                    form.mood === v && 'border-primary bg-primary/15 text-secondary',
+                    mood === v && 'border-primary bg-primary/15 text-secondary',
                   )}
                 >
                   <Icon className="h-5 w-5" />
@@ -62,24 +93,14 @@ export function Journal({ date }) {
               ))}
             </div>
           </div>
-          <Field label="Reflection">
-            <Textarea
-              rows={6}
-              value={form.content}
-              onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
-              placeholder="What happened? What did you learn?"
-            />
+          <Field label="Reflection" error={errors.content?.message}>
+            <Textarea rows={6} placeholder="What happened? What did you learn?" {...register('content')} />
           </Field>
-          <Field label="Wins">
-            <Textarea
-              rows={2}
-              value={form.wins}
-              onChange={(e) => setForm((f) => ({ ...f, wins: e.target.value }))}
-              placeholder="Small or big — what went well?"
-            />
+          <Field label="Wins" error={errors.wins?.message}>
+            <Textarea rows={2} placeholder="Small or big — what went well?" {...register('wins')} />
           </Field>
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">{dirty ? 'Unsaved changes' : entry ? 'Saved' : ''}</span>
+            <span className="text-xs text-muted-foreground">{isDirty ? 'Unsaved changes' : entry ? 'Saved' : ''}</span>
             <div className="flex gap-2">
               {entry && (
                 <Button variant="ghost" onClick={clear}>
@@ -87,9 +108,9 @@ export function Journal({ date }) {
                 </Button>
               )}
               <Button
-                onClick={save}
+                onClick={handleSubmit(save)}
                 loading={pending}
-                disabled={!dirty || (!form.content.trim() && !form.wins.trim() && form.mood == null)}
+                disabled={!isDirty || (!content.trim() && !wins.trim() && mood == null)}
               >
                 Save entry
               </Button>

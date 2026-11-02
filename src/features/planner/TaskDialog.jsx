@@ -1,26 +1,23 @@
-import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { Field, Input, Select, Textarea } from '@/components/ui/form'
 import { TASK_CATEGORIES, PRIORITIES } from '@/domain/defaults'
 import { RECURRENCES } from '@/domain/recurrence'
-import { isValidDay } from '@/lib/dates'
+import { optionalDay } from '@/lib/validation'
+import { useDialogForm } from '@/hooks/useDialogForm'
 import { useAction } from '@/hooks/useAction'
 import { createTask } from '@/services/api'
 import * as store from '@/hooks/store'
 
-const day = z.string().refine((v) => v === '' || isValidDay(v), 'Enter a valid date')
 const schema = z
   .object({
     title: z.string().trim().min(1, 'Give the task a title').max(200, 'Keep it under 200 characters'),
     notes: z.string().max(2000),
     category: z.enum(TASK_CATEGORIES),
     priority: z.enum(['low', 'medium', 'high']),
-    due_date: day,
+    due_date: optionalDay,
     recurrence: z.enum(['none', 'daily', 'weekdays', 'weekly', 'monthly']),
-    recurrence_until: day,
+    recurrence_until: optionalDay,
   })
   .superRefine((v, ctx) => {
     if (v.recurrence !== 'none' && !v.due_date)
@@ -39,30 +36,21 @@ export function TaskDialog({ open, onOpenChange, task, defaultDate = '' }) {
     recurrence: 'none',
     recurrence_until: '',
   }
+  const fromTask = (t) => ({
+    title: t.title,
+    notes: t.notes ?? '',
+    category: t.category,
+    priority: t.priority,
+    due_date: t.due_date ?? '',
+    recurrence: t.recurrence,
+    recurrence_until: t.recurrence_until ?? '',
+  })
   const {
     register,
     handleSubmit,
-    reset,
     watch,
     formState: { errors },
-  } = useForm({ resolver: zodResolver(schema), defaultValues: blank })
-  useEffect(() => {
-    if (!open) return
-    reset(
-      task
-        ? {
-            title: task.title,
-            notes: task.notes ?? '',
-            category: task.category,
-            priority: task.priority,
-            due_date: task.due_date ?? '',
-            recurrence: task.recurrence,
-            recurrence_until: task.recurrence_until ?? '',
-          }
-        : blank,
-    )
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, task?.id, defaultDate])
+  } = useDialogForm({ open, schema, recordKey: `${task?.id ?? 'new'}|${defaultDate}`, valuesFor: () => (task ? fromTask(task) : blank) })
   const recurrence = watch('recurrence')
 
   const [save, pending] = useAction(

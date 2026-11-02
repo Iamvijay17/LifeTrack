@@ -7,7 +7,7 @@ import { goalPercent, isOverdue } from '@/domain/goals'
 import { buildReport } from '@/domain/report'
 import { parseBlocks } from '@/lib/markdown'
 import { searchAll } from '@/components/layout/GlobalSearch'
-import { parseTags } from '@/features/notes/NoteDialog'
+import { parseTags } from '@/domain/notes'
 import { STATUS_LABEL, funnel } from '@/domain/jobs'
 
 const D = '2026-11-02' // a Monday
