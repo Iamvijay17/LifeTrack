@@ -2,7 +2,7 @@
 
 ## 1. Install
 ```bash
-npm install
+pnpm install
 cp .env.example .env.local
 ```
 
@@ -33,15 +33,15 @@ Without these env vars the app runs in **DEV mode** (orange banner): data stays 
 ## 3. Run
 | Command | What |
 |---|---|
-| `npm run dev` | dev server on :5173 |
-| `npm run build` / `npm run preview` | production build / serve it on :4173 |
-| `npm test` | unit + component-level logic tests (Vitest) |
-| `npm run test:sql` | applies the migrations to an in-memory Postgres and proves RLS isolation, history trigger, constraints |
-| `npm run test:e2e` | Playwright (desktop + Pixel 7). Uses DEV mode, hermetic |
-| `E2E_CLOUD=1 npm run test:e2e -- cloud-sync` | **real** two-device sync test (build with Supabase env first) |
+| `pnpm dev` | dev server on :5173 |
+| `pnpm build` / `pnpm preview` | production build / serve it on :4173 |
+| `pnpm test` | unit + component-level logic tests (Vitest) |
+| `pnpm test:sql` | applies the migrations to an in-memory Postgres and proves RLS isolation, history trigger, constraints |
+| `pnpm test:e2e` | Playwright (desktop + Pixel 7). Uses DEV mode, hermetic |
+| `E2E_CLOUD=1 pnpm test:e2e -- cloud-sync` | **real** two-device sync test (build with Supabase env first) |
 
 ## 4. Deploy (Vercel or Cloudflare Pages)
-- Build command `npm run build`, output `dist`, framework: Vite.
+- Vercel: Root Directory `apps/web`, install `pnpm install --frozen-lockfile`, build `pnpm build`, output `dist`, framework: Vite.
 - Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as environment variables **before** building (they are inlined at build time).
 - SPA fallback is configured: `vercel.json` (Vercel) / `public/_redirects` (Cloudflare Pages).
 - HTTPS is required for PWA install and the service worker (both hosts provide it).
