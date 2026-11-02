@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { isValidDay } from '@lifetrack/utils'
+import { isValidDay, sleepMinutes } from '@lifetrack/utils'
 import { TASK_CATEGORIES } from './tables'
 
 // Form-level validation + payload mapping shared by web and mobile. Forms hold strings ('' = empty);
@@ -119,3 +119,25 @@ export const milestoneFormSchema = z.object({
   title: z.string().trim().min(1, 'Name the milestone first.').max(160),
   due_date: z.string().refine((v) => v === '' || isValidDay(v), 'Enter a valid date.'),
 })
+
+// ------------------------------------------------------------------- health
+const hhmm = z.string().refine((v) => v === '' || /^\d{2}:\d{2}$/.test(v), 'Use HH:MM')
+const numRange = (min: number, max: number, label: string) =>
+  z.string().refine((v) => v === '' || (Number.isFinite(Number(v)) && Number(v) >= min && Number(v) <= max), `${label}: ${min}–${max}`)
+export const healthFormSchema = z.object({
+  bedtime: hhmm, wake_time: hhmm, water_ml: numRange(0, 20000, 'Water'), steps: numRange(0, 200000, 'Steps'),
+  energy_level: z.string(), weight_kg: numRange(20, 500, 'Weight'), notes: z.string().max(1000),
+}).superRefine((v, ctx) => {
+  if (!!v.bedtime !== !!v.wake_time) ctx.addIssue({ code: 'custom', path: [v.bedtime ? 'wake_time' : 'bedtime'], message: 'Enter both bedtime and wake-up time' })
+  if (v.bedtime && v.wake_time && sleepMinutes(v.bedtime, v.wake_time) == null) ctx.addIssue({ code: 'custom', path: ['wake_time'], message: 'Bedtime and wake-up time can’t be identical' })
+})
+export type HealthForm = z.infer<typeof healthFormSchema>
+export const healthToForm = (h?: { bedtime?: string | null; wake_time?: string | null; water_ml?: number | null; steps?: number | null; energy_level?: number | null; weight_kg?: number | string | null; notes?: string | null } | null): HealthForm =>
+  ({ bedtime: h?.bedtime?.slice(0, 5) ?? '', wake_time: h?.wake_time?.slice(0, 5) ?? '', water_ml: h ? String(h.water_ml ?? 0) : '', steps: h ? String(h.steps ?? 0) : '', energy_level: h?.energy_level ? String(h.energy_level) : '', weight_kg: h?.weight_kg != null ? String(h.weight_kg) : '', notes: h?.notes ?? '' })
+export const healthFormToPayload = (v: HealthForm) => {
+  const n = (s: string) => (s === '' ? null : Number(s))
+  return {
+    bedtime: v.bedtime || null, wake_time: v.wake_time || null, sleep_minutes: v.bedtime ? sleepMinutes(v.bedtime, v.wake_time) : null,
+    water_ml: n(v.water_ml) ?? 0, steps: n(v.steps) ?? 0, energy_level: n(v.energy_level), weight_kg: n(v.weight_kg), notes: v.notes,
+  }
+}

@@ -75,6 +75,14 @@ export function fmtDuration(mins: number | null | undefined): string {
   if (h === 0) return `${r}m`
   return r === 0 ? `${h}h` : `${h}h ${r}m`
 }
+/** Minutes slept between bedtime and wake time, correctly handling overnight sleep (23:30 -> 06:30 = 7h). */
+export function sleepMinutes(bedtime: string | null | undefined, wake: string | null | undefined): number | null {
+  const b = timeToMinutes(bedtime)
+  const w = timeToMinutes(wake)
+  if (b == null || w == null || Number.isNaN(b) || Number.isNaN(w)) return null
+  if (b === w) return null // ambiguous: 0 or 24h — ask the user to fix it
+  return (w - b + 1440) % 1440
+}
 export const minutesToHours = (mins: number): number => Math.round((mins / 60) * 10) / 10
 
 /** Combine a yyyy-MM-dd and HH:mm in `tz` into a UTC ISO string (IST has no DST; works for any fixed/DST zone via iteration). */

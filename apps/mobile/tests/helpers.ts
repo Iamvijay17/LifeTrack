@@ -23,10 +23,11 @@ export function fakeDb() {
     async update(t, id, patch) { const r = rows(t).find((x) => x.id === id); if (!r) throw new Error('not found'); Object.assign(r, patch); return { ...r } },
     async upsert(t, input, opts) {
       const cols = (opts?.onConflict ?? 'id').split(',')
-      return input.map((r) => {
+      return input.map((raw) => {
+        const r: Record<string, any> = { user_id: 'u1', ...raw } // the real adapter stamps user_id before the conflict check
         const ex = rows(t).find((x) => cols.every((c) => x[c] === r[c]))
         if (ex) { Object.assign(ex, r); return { ...ex } }
-        const row = { ...(DEFAULTS as any)[t], id: newId(), user_id: 'u1', ...r } as any
+        const row = { ...(DEFAULTS as any)[t], id: newId(), ...r } as any
         rows(t).push(row); return { ...row }
       })
     },

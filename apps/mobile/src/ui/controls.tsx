@@ -178,3 +178,29 @@ function SelectSheet({ visible, title, groups, options, value, onClose, onPick }
     </Sheet>
   )
 }
+
+const hm = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+const fromHm = (v: string) => { const d = new Date(); const [h, m] = (v || '00:00').split(':').map(Number); d.setHours(h, m, 0, 0); return d }
+/** Native time picker; value is 'HH:mm' ('' = empty). */
+export function TimeField({ label, value, onChange, error, clearable }: { label: string; value: string; onChange: (v: string) => void; error?: string; clearable?: boolean }) {
+  const { colors, radius } = useTheme()
+  const [open, setOpen] = useState(false)
+  const show = () => {
+    if (Platform.OS === 'android') DateTimePickerAndroid.open({ value: fromHm(value), mode: 'time', is24Hour: true, onChange: (e, d) => { if (e.type === 'set' && d) onChange(hm(d)) } })
+    else setOpen((o) => !o)
+  }
+  return (
+    <View style={{ gap: 6, flex: 1 }}>
+      <Text style={{ color: colors.foreground, fontWeight: '500' }}>{label}</Text>
+      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`${label}: ${value || 'not set'}`} onPress={show}
+          style={{ flex: 1, minHeight: 48, borderRadius: radius.lg, borderWidth: 1, borderColor: error ? colors.danger : colors.border, backgroundColor: colors.card, paddingHorizontal: 12, justifyContent: 'center' }}>
+          <Text style={{ color: value ? colors.foreground : colors.mutedForeground, fontSize: 16 }}>{value || 'Not set'}</Text>
+        </Pressable>
+        {clearable && value ? <Button title="Clear" variant="ghost" onPress={() => onChange('')} /> : null}
+      </View>
+      {Platform.OS === 'ios' && open ? <DateTimePicker value={fromHm(value)} mode="time" display="spinner" is24Hour onChange={(_e, d) => { if (d) onChange(hm(d)) }} /> : null}
+      {error ? <Text accessibilityLiveRegion="polite" style={{ color: colors.danger, fontSize: 13 }}>{error}</Text> : null}
+    </View>
+  )
+}
