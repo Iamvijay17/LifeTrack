@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { fireDueReminders } from '@/services/api'
 import { useSettings } from './useSettings'
 import { timeStrInTz, todayStr } from '@/lib/dates'
+import { clientNowTime } from '@lifetrack/core/reminders'
 
 /** While the app is open: every minute (and on focus) turn due reminders into notifications. Idempotent across devices. */
 export function useReminderRunner() {
@@ -17,7 +18,8 @@ export function useReminderRunner() {
       if (busy.current) return
       busy.current = true
       try {
-        const n = await fireDueReminders(todayStr(tz), timeStrInTz(new Date(), tz), prefs.current)
+        // Wait a short grace period: the server job fires first (and also pushes to phones); this is only the fallback.
+        const n = await fireDueReminders(todayStr(tz), clientNowTime(timeStrInTz(new Date(), tz)), prefs.current)
         if (n > 0) toast(`${n} new reminder${n > 1 ? 's' : ''}`, { description: 'Open the bell to see them.' })
       } catch { /* a failed check is retried on the next tick; nothing is lost */ }
       finally { busy.current = false }

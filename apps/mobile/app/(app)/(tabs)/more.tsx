@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { View } from 'react-native'
 import { MODULES } from '../../../src/lib/modules'
-import { authService } from '../../../src/lib/supabase'
+import { signOutCleanly } from '../../../src/lib/signOut'
 import { useAuth } from '../../../src/providers/AuthProvider'
 import { useTheme } from '../../../src/providers/ThemeProvider'
 import { Button, Card, Screen, Txt } from '../../../src/ui'
@@ -24,7 +24,7 @@ export default function More() {
       ))}
       <Card onPress={() => router.push('/module/settings')}><Txt variant="heading">Settings</Txt><Txt variant="small" muted>Profile, preferences, score weights, account</Txt></Card>
       <Card onPress={() => router.push('/sync-check')}><Txt variant="heading">Account &amp; sync check</Txt><Txt variant="small" muted>{email}</Txt></Card>
-      <Button title="Sign out" variant="ghost" onPress={() => { authService!.signOut().catch(() => {}) }} />
+      <Button title="Sign out" variant="ghost" onPress={() => { signOutCleanly().catch(() => {}) }} />
     </Screen>
   )
 }

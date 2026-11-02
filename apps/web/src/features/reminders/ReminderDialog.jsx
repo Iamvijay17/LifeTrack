@@ -1,35 +1,28 @@
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { blankReminder, reminderFormSchema, reminderToForm, reminderToPayload } from '@lifetrack/schemas'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { Field, Input, Select } from '@/components/ui/form'
 import { REMINDER_KINDS, REPEATS } from '@lifetrack/core/reminders'
-import { isValidDay } from '@/lib/dates'
 import { useAction } from '@/hooks/useAction'
 import * as store from '@/hooks/store'
 import { useSettings } from '@/hooks/useSettings'
 import { fireDueReminders } from '@/services/api'
 import { timeStrInTz, todayStr } from '@/lib/dates'
 
-const schema = z.object({
-  kind: z.enum(['task', 'study', 'workout', 'habit', 'bill', 'custom']),
-  title: z.string().trim().min(1, 'What should we remind you about?').max(160, 'Keep it under 160 characters'),
-  remind_date: z.string().refine(isValidDay, 'Pick a date'),
-  remind_time: z.string().regex(/^\d{2}:\d{2}$/, 'Pick a time'),
-  repeat: z.enum(['none', 'daily', 'weekly', 'monthly']),
-})
+const schema = reminderFormSchema
 
 export function ReminderDialog({ open, onOpenChange, reminder, today }) {
   const { settings } = useSettings()
-  const blank = { kind: 'custom', title: '', remind_date: today, remind_time: '09:00', repeat: 'none' }
+  const blank = blankReminder(today)
   const { register, handleSubmit, reset, formState: { errors } } = useForm({ resolver: zodResolver(schema), defaultValues: blank })
-  useEffect(() => { if (open) reset(reminder ? { kind: reminder.kind, title: reminder.title, remind_date: reminder.remind_date, remind_time: reminder.remind_time.slice(0, 5), repeat: reminder.repeat } : { ...blank, remind_date: today }) },
+  useEffect(() => { if (open) reset(reminder ? reminderToForm(reminder) : { ...blank, remind_date: today }) },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [open, reminder?.id])
   const [save, pending] = useAction(async (v) => {
     // Editing re-arms the reminder: clear "already fired" and make it active again.
-    const row = { ...v, title: v.title.trim(), active: true, last_fired_on: null }
+    const row = reminderToPayload(v)
     if (reminder) await store.update('reminders', reminder.id, row); else await store.insert('reminders', row)
     onOpenChange(false)
     // a reminder that is already due should notify right away, not on the next minute tick

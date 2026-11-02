@@ -35,3 +35,23 @@ export function afterFire(r, today) {
 }
 
 export const unreadCount = (notifications) => notifications.filter((n) => !n.read_at).length
+
+// ---- presentation + runner helpers shared by web and mobile
+/**
+ * Background runners in the apps wait this long after a reminder's time before firing it themselves, so the server job
+ * (which also sends the push) always gets the first chance. The apps only act as a fallback if the server is not running.
+ */
+export const CLIENT_GRACE_MINUTES = 2
+/** 'HH:MM' shifted earlier by `minutes` (clamped at 00:00; reminders from earlier days are due regardless of time). */
+export function clientNowTime(nowTime, minutes = CLIENT_GRACE_MINUTES) {
+  const [h, m] = nowTime.split(':').map(Number)
+  const t = Math.max(0, h * 60 + m - minutes)
+  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`
+}
+export const kindLabel = (kind) => REMINDER_KINDS.find((k) => k.value === kind)?.label ?? kind
+export const repeatLabel = (repeat) => REPEATS.find((r) => r.value === repeat)?.label ?? repeat
+/** A kind is enabled unless the user explicitly turned it off. */
+export const prefEnabled = (prefs, kind) => prefs?.[kind] !== false
+export const sortInbox = (notifications) => [...notifications].sort((a, b) => b.created_at.localeCompare(a.created_at))
+/** Active reminders first, then by next date/time. */
+export const sortReminders = (reminders) => [...reminders].sort((a, b) => Number(b.active) - Number(a.active) || (a.remind_date + a.remind_time).localeCompare(b.remind_date + b.remind_time))

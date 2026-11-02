@@ -36,3 +36,16 @@ describe('focus prefs, name, password', () => {
     expect(DELETE_CONFIRM_WORD).toBe('DELETE')
   })
 })
+
+import { blankReminder, insertSchemas, reminderFormSchema, reminderToForm, reminderToPayload } from '../src'
+describe('reminder form', () => {
+  it('validates and re-arms on save', () => {
+    expect(reminderFormSchema.safeParse(blankReminder('2026-11-02')).success).toBe(false)
+    expect(reminderFormSchema.safeParse({ ...blankReminder('2026-11-02'), title: 'x', remind_time: '9:00' }).success).toBe(false)
+    expect(reminderFormSchema.safeParse({ ...blankReminder('2026-02-30'), title: 'x' }).success).toBe(false)
+    const p = reminderToPayload(reminderFormSchema.parse({ ...blankReminder('2026-11-02'), title: ' Pay rent ', kind: 'bill', repeat: 'monthly' }))
+    expect(p).toMatchObject({ title: 'Pay rent', active: true, last_fired_on: null, kind: 'bill' })
+    expect(insertSchemas.reminders.safeParse(p).success).toBe(true)
+    expect(reminderToForm({ kind: 'task', title: 'a', remind_date: '2026-11-02', remind_time: '09:00:00', repeat: 'none' }).remind_time).toBe('09:00')
+  })
+})

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { focusLeft, isFinished, isRunning, pauseFocus, resumeFocus, spentSeconds, startFocus } from '@lifetrack/core/focusTimer'
+import { askForTimerNotificationsOnce, timerNotifier } from '../features/notifications'
 import { useNow } from './useNow'
 
 const KEY = 'lifetrack:focus-timer'
@@ -26,6 +27,9 @@ export function useFocusTimer({ onFinish }: { onFinish: (t: FocusState, complete
     ;(next ? AsyncStorage.setItem(KEY, JSON.stringify(next)) : AsyncStorage.removeItem(KEY)).catch(() => { /* the timer still works without storage */ })
   }, [])
 
+  // Keep one OS notification scheduled for the end of the running timer (cancelled on pause/stop/finish).
+  useEffect(() => { if (ready) timerNotifier.sync(t).catch(() => {}) }, [ready, t?.endsAt, t?.mode, t?.plannedMinutes]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const left = focusLeft(t, now)
   const running = isRunning(t)
   useEffect(() => {
@@ -36,7 +40,7 @@ export function useFocusTimer({ onFinish }: { onFinish: (t: FocusState, complete
 
   return {
     ready, timer: t, left, running, paused: !!t && !running,
-    start: (cfg: Omit<FocusState, 'endsAt' | 'pausedLeft' | 'startedAt'>) => { fired.current = false; update(startFocus(cfg, Date.now())) },
+    start: async (cfg: Omit<FocusState, 'endsAt' | 'pausedLeft' | 'startedAt'>) => { fired.current = false; await askForTimerNotificationsOnce().catch(() => {}); update(startFocus(cfg, Date.now())) },
     pause: () => t && update(pauseFocus(t, Date.now())),
     resume: () => t && update(resumeFocus(t, Date.now())),
     /** Stop early: returns seconds actually spent. */

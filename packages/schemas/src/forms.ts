@@ -335,3 +335,20 @@ export const displayNameSchema = z.string().trim().min(1, 'Enter a name up to 80
 export const passwordChangeSchema = z.object({ a: z.string().min(8, 'Use at least 8 characters.'), b: z.string() }).refine((v) => v.a === v.b, { path: ['b'], message: 'Passwords do not match.' })
 /** The word a user must type to confirm permanent account deletion. */
 export const DELETE_CONFIRM_WORD = 'DELETE'
+
+// ---------------------------------------------------------------- reminders
+export const REMINDER_KIND_VALUES = ['task', 'study', 'workout', 'habit', 'bill', 'custom'] as const
+export const REMINDER_REPEAT_VALUES = ['none', 'daily', 'weekly', 'monthly'] as const
+export const reminderFormSchema = z.object({
+  kind: z.enum(REMINDER_KIND_VALUES),
+  title: z.string().trim().min(1, 'What should we remind you about?').max(160, 'Keep it under 160 characters'),
+  remind_date: z.string().refine(isValidDay, 'Pick a date'),
+  remind_time: z.string().regex(/^\d{2}:\d{2}$/, 'Pick a time'),
+  repeat: z.enum(REMINDER_REPEAT_VALUES),
+})
+export type ReminderForm = z.infer<typeof reminderFormSchema>
+export const blankReminder = (today: string): ReminderForm => ({ kind: 'custom', title: '', remind_date: today, remind_time: '09:00', repeat: 'none' })
+export const reminderToForm = (r: { kind: ReminderForm['kind']; title: string; remind_date: string; remind_time: string; repeat: ReminderForm['repeat'] }): ReminderForm =>
+  ({ kind: r.kind, title: r.title, remind_date: r.remind_date, remind_time: r.remind_time.slice(0, 5), repeat: r.repeat })
+/** Saving (new or edited) re-arms the reminder: active again and not yet fired. */
+export const reminderToPayload = (v: ReminderForm) => ({ ...v, title: v.title.trim(), active: true, last_fired_on: null })

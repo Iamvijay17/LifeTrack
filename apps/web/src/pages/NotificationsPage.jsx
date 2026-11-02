@@ -16,8 +16,8 @@ import * as store from '@/hooks/store'
 import { useSettings } from '@/hooks/useSettings'
 import { useToday } from '@/hooks/useToday'
 import { useAction } from '@/hooks/useAction'
-import { markAllRead, markNotificationRead } from '@/services/api'
-import { REMINDER_KINDS, REPEATS, unreadCount } from '@lifetrack/core/reminders'
+import { markAllRead, markNotificationRead, toggleReminder, clearReadNotifications } from '@/services/api'
+import { REMINDER_KINDS, kindLabel, prefEnabled, repeatLabel, sortInbox, sortReminders, unreadCount } from '@lifetrack/core/reminders'
 import { fmtDay } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
@@ -31,18 +31,18 @@ export default function NotificationsPage() {
   const [read] = useAction(markNotificationRead)
   const [readAll, readingAll] = useAction(markAllRead, { success: (n) => (n ? 'All marked as read' : undefined) })
   const [delN] = useAction((id) => store.remove('notifications', id))
-  const [clear] = useAction(() => store.removeMany('notifications', data.notifications.filter((n) => n.read_at).map((n) => n.id)), { success: 'Read notifications cleared' })
+  const [clear] = useAction(clearReadNotifications, { success: 'Read notifications cleared' })
   const [delR] = useAction((id) => store.remove('reminders', id), { success: 'Reminder deleted' })
-  const [toggle] = useAction((r) => store.update('reminders', r.id, { active: !r.active, ...(!r.active ? { last_fired_on: null } : {}) }))
+  const [toggle] = useAction(toggleReminder)
   const [setPref] = useAction((k, v) => save({ notification_prefs: { ...settings.notification_prefs, [k]: v } }))
 
-  const inbox = [...data.notifications].sort((a, b) => b.created_at.localeCompare(a.created_at))
+  const inbox = sortInbox(data.notifications)
   const unread = unreadCount(inbox)
-  const reminders = [...data.reminders].sort((a, b) => Number(b.active) - Number(a.active) || (a.remind_date + a.remind_time).localeCompare(b.remind_date + b.remind_time))
+  const reminders = sortReminders(data.reminders)
 
   return (
     <>
-      <PageHeader title="Notifications" description="Reminders become notifications while LifeTrack is open on any of your devices."
+      <PageHeader title="Notifications" description="Reminders become notifications when they are due. With push enabled in the mobile app, they also reach your phone when the app is closed."
         actions={tab === 'reminders' ? <Button onClick={() => setDlg({ open: true, reminder: null })}><Plus className="h-4 w-4" />New reminder</Button> : undefined} />
       <Segmented className="mb-4" value={tab} onChange={setTab} options={[{ value: 'inbox', label: unread ? `Inbox (${unread})` : 'Inbox' }, { value: 'reminders', label: 'Reminders' }, { value: 'prefs', label: 'Preferences' }]} />
       <DataGate loading={loading} error={error} onRetry={refetch} cards={0}>
@@ -67,7 +67,7 @@ export default function NotificationsPage() {
             <li key={r.id} className="flex items-center gap-3 px-4 py-3">
               <Switch checked={r.active} onChange={() => toggle(r)} label={`${r.active ? 'Disable' : 'Enable'} ${r.title}`} />
               <div className={cn('min-w-0 flex-1', !r.active && 'opacity-60')}><p className="truncate text-sm font-medium">{r.title}</p>
-                <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground"><Badge tone="primary">{REMINDER_KINDS.find((k) => k.value === r.kind)?.label}</Badge>{fmtDay(r.remind_date, 'EEE, d MMM yyyy')} · {r.remind_time.slice(0, 5)}{r.repeat !== 'none' && ` · ${REPEATS.find((x) => x.value === r.repeat)?.label.toLowerCase()}`}{!r.active && ' · done'}</p></div>
+                <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground"><Badge tone="primary">{kindLabel(r.kind)}</Badge>{fmtDay(r.remind_date, 'EEE, d MMM yyyy')} · {r.remind_time.slice(0, 5)}{r.repeat !== 'none' && ` · ${repeatLabel(r.repeat).toLowerCase()}`}{!r.active && ' · done'}</p></div>
               <Menu label={`Actions for ${r.title}`} items={[{ label: 'Edit', icon: Pencil, onClick: () => setDlg({ open: true, reminder: r }) }, { label: 'Delete', icon: Trash2, danger: true, onClick: async () => { if (await confirm({ title: 'Delete this reminder?', description: r.title })) delR(r.id) } }]} />
             </li>))}</ul></Card>)}
         {tab === 'prefs' && (
@@ -75,7 +75,7 @@ export default function NotificationsPage() {
             <p className="px-3 pb-1 pt-2 text-sm text-muted-foreground">Choose which kinds of reminders create notifications. Turning a type off silences it everywhere.</p>
             {REMINDER_KINDS.map((k) => (
               <div key={k.value} className="flex items-center justify-between rounded-md px-3 py-2.5 hover:bg-muted/40"><span className="text-sm">{k.label} reminders</span>
-                <Switch checked={settings.notification_prefs?.[k.value] !== false} onChange={(v) => setPref(k.value, v)} label={`${k.label} reminders`} /></div>))}
+                <Switch checked={prefEnabled(settings.notification_prefs, k.value)} onChange={(v) => setPref(k.value, v)} label={`${k.label} reminders`} /></div>))}
           </CardContent></Card>)}
       </DataGate>
       <ReminderDialog open={dlg.open} reminder={dlg.reminder} today={today} onOpenChange={(o) => setDlg((d) => ({ ...d, open: o }))} />

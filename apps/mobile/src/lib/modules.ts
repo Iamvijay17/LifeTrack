@@ -15,4 +15,5 @@ export const MODULES: { slug: string; title: string; icon: IconName; href: strin
   { slug: 'notes', title: 'Notes & Journal', icon: 'create-outline', href: '/module/notes' },
   { slug: 'goals', title: 'Goals & Milestones', icon: 'flag-outline', href: '/module/goals' },
   { slug: 'analytics', title: 'Analytics', icon: 'stats-chart-outline', href: '/module/analytics' },
+  { slug: 'notifications', title: 'Notifications & Reminders', icon: 'notifications-outline', href: '/module/notifications' },
 ]

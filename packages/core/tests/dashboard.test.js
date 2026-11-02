@@ -89,3 +89,25 @@ describe('validateScoreWeights', () => {
 })
 
 describe('scoreTone', () => { it('thresholds', () => expect([null, 0, 39, 40, 74, 75, 100].map(scoreTone)).toEqual(['primary', 'warning', 'warning', 'primary', 'primary', 'success', 'success'])) })
+
+import { clientNowTime, CLIENT_GRACE_MINUTES, kindLabel, repeatLabel, prefEnabled, sortInbox, sortReminders, dueReminders } from '../src/reminders'
+describe('reminder runner helpers', () => {
+  it('clients wait a grace period so the server (which also pushes) fires first', () => {
+    expect(CLIENT_GRACE_MINUTES).toBe(2)
+    expect(clientNowTime('09:00')).toBe('08:58')
+    expect(clientNowTime('09:01')).toBe('08:59')
+    expect(clientNowTime('00:01')).toBe('00:00')
+    expect(clientNowTime('00:00')).toBe('00:00')
+    expect(clientNowTime('12:30', 0)).toBe('12:30')
+    const r = { active: true, last_fired_on: null, remind_date: '2026-11-02', remind_time: '09:00' }
+    expect(dueReminders([r], '2026-11-02', clientNowTime('09:01'))).toHaveLength(0) // server's turn
+    expect(dueReminders([r], '2026-11-02', clientNowTime('09:02'))).toHaveLength(1) // server did not run → client takes over
+    expect(dueReminders([{ ...r, remind_date: '2026-11-01' }], '2026-11-02', clientNowTime('00:00'))).toHaveLength(1) // yesterday's: due regardless
+  })
+  it('labels, prefs and ordering', () => {
+    expect([kindLabel('bill'), repeatLabel('weekly'), kindLabel('x')]).toEqual(['Bill', 'Weekly', 'x'])
+    expect([prefEnabled({ task: false }, 'task'), prefEnabled({ task: false }, 'bill'), prefEnabled(undefined, 'bill')]).toEqual([false, true, true])
+    expect(sortInbox([{ id: 'a', created_at: '2026-11-01T00:00:00Z' }, { id: 'b', created_at: '2026-11-02T00:00:00Z' }]).map((n) => n.id)).toEqual(['b', 'a'])
+    expect(sortReminders([{ id: 'off', active: false, remind_date: '2026-11-01', remind_time: '08:00' }, { id: 'late', active: true, remind_date: '2026-11-03', remind_time: '08:00' }, { id: 'soon', active: true, remind_date: '2026-11-02', remind_time: '09:00' }]).map((r) => r.id)).toEqual(['soon', 'late', 'off'])
+  })
+})

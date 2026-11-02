@@ -169,11 +169,19 @@ export function createApi(store) {
     return fired
   }
   const markNotificationRead = (n) => (n.read_at ? Promise.resolve(n) : store.update('notifications', n.id, { read_at: nowIso() }))
+  /** Pause/resume a reminder. Resuming also clears "already fired" so it can fire again. */
+  const toggleReminder = (r) => store.update('reminders', r.id, { active: !r.active, ...(!r.active ? { last_fired_on: null } : {}) })
+  /** Deletes read notifications (unread are kept). */
+  async function clearReadNotifications() {
+    const ids = store.peek('notifications').filter((n) => n.read_at).map((n) => n.id)
+    if (ids.length) await store.removeMany('notifications', ids)
+    return ids.length
+  }
   async function markAllRead() {
     const unread = store.peek('notifications').filter((n) => !n.read_at)
     await Promise.all(unread.map((n) => store.update('notifications', n.id, { read_at: nowIso() })))
     return unread.length
   }
 
-  return { createTask, setTaskStatus, setHabitStatus, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, fireDueReminders, markNotificationRead, markAllRead }
+  return { createTask, setTaskStatus, setHabitStatus, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, fireDueReminders, toggleReminder, clearReadNotifications, markNotificationRead, markAllRead }
 }

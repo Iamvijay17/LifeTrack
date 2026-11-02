@@ -4,9 +4,9 @@ import { TIMEZONES, todayStr } from '@lifetrack/utils'
 import { SCORE_CATEGORIES, normalizeWeights, validateScoreWeights } from '@lifetrack/core/score'
 import { DELETE_CONFIRM_WORD, displayNameSchema, focusPrefsFormSchema, passwordChangeSchema, preferencesFormSchema, preferencesToForm, preferencesToPayload } from '@lifetrack/schemas'
 import { CURRENCIES } from '@lifetrack/utils'
-import { toAppError } from '@lifetrack/data'
 import { store } from '../../data/client'
 import { authService } from '../../lib/supabase'
+import { signOutCleanly } from '../../lib/signOut'
 import { useAction } from '../../hooks/useAction'
 import { useSettings } from '../../hooks/useSettings'
 import { useZodForm } from '../../hooks/useZodForm'
@@ -135,7 +135,7 @@ export function AccountSection() {
       <Field label="Confirm password" value={pw.b} onChangeText={(b) => setPw({ ...pw, b })} secureTextEntry autoComplete="new-password" />
       <Button title="Change password" variant="ghost" onPress={changePw} loading={changing} disabled={!pw.a} />
       <View style={{ height: 1, backgroundColor: colors.border }} />
-      <Button title="Sign out" variant="ghost" onPress={() => { authService!.signOut().catch((e) => { throw toAppError(e) }) }} />
+      <Button title="Sign out" variant="ghost" onPress={() => { signOutCleanly().catch(() => {}) }} />
       <Button title="Delete account…" variant="danger" onPress={() => { setTyped(''); setOpen(true) }} />
       <Sheet visible={open} title="Delete your account?" onClose={() => { if (!deleting) setOpen(false) }} footer={<Button title="Delete everything" variant="danger" onPress={del} loading={deleting} disabled={typed !== DELETE_CONFIRM_WORD} />}>
         <Text style={{ color: colors.foreground }}>This permanently deletes your account and ALL of your data on every device. This cannot be undone.</Text>

@@ -10,5 +10,6 @@ export function useSettings() {
   const { rows, loading, error } = useTable<{ id: string }>('user_settings')
   const settings = useMemo(() => ({ ...DEFAULTS.user_settings, ...(rows[0] ?? {}) }) as Settings, [rows])
   const save = (patch: Record<string, unknown>) => store.upsert('user_settings', patch, { onConflict: 'user_id' })
-  return { settings, loading, error, save }
+  /** `row` is null until the account's settings have actually loaded (use it before acting on timezone-dependent data). */
+  return { settings, row: (rows[0] as { id: string } | undefined) ?? null, loading, error, save }
 }
