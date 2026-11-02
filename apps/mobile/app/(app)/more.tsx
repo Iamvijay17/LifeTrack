@@ -15,7 +15,7 @@ export default function More() {
     <Screen>
       <Txt variant="title">More</Txt>
       {MODULES.map((m) => (
-        <Card key={m.slug} onPress={() => router.push({ pathname: '/module/[slug]', params: { slug: m.slug } })}>
+        <Card key={m.slug} onPress={() => router.push(m.href as never)}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Ionicons name={m.icon} size={22} color={colors.primary} />
             <Txt>{m.title}</Txt>

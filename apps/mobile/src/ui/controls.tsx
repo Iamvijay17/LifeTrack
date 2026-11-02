@@ -4,6 +4,7 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import { addDays, fmtDay, isValidDay, parseDay } from '@lifetrack/utils'
 import { useTheme } from '../providers/ThemeProvider'
 import { Button, Txt } from './index'
+import { Sheet } from './Sheet'
 
 export const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
@@ -119,5 +120,61 @@ export function DateField({ label, value, onChange, error, clearable }: { label:
       {Platform.OS === 'ios' && open ? <DateTimePicker value={date} mode="date" display="inline" themeVariant={colors.background === 'rgb(9, 9, 11)' ? 'dark' : 'light'} onChange={(_e, d) => { if (d) onChange(ymd(d)) }} /> : null}
       {error ? <Text accessibilityLiveRegion="polite" style={{ color: colors.danger, fontSize: 13 }}>{error}</Text> : null}
     </View>
+  )
+}
+
+/** Segmented control for 2–4 mutually exclusive views. */
+export function Segmented<T extends string>({ value, options, onChange }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
+  const { colors, radius } = useTheme()
+  return (
+    <View accessibilityRole="tablist" style={{ flexDirection: 'row', backgroundColor: colors.muted, borderRadius: radius.lg, padding: 3 }}>
+      {options.map((o) => {
+        const on = o.value === value
+        return (
+          <Pressable key={o.value} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => onChange(o.value)}
+            style={{ flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: on ? colors.card : 'transparent' }}>
+            <Text numberOfLines={1} style={{ color: on ? colors.foreground : colors.mutedForeground, fontWeight: on ? '600' : '400', fontSize: 14 }}>{o.label}</Text>
+          </Pressable>
+        )
+      })}
+    </View>
+  )
+}
+
+export interface SelectOption { value: string; label: string; group?: string }
+/** Dropdown replacement: a field that opens a sheet of (optionally grouped) choices. */
+export function SelectField({ label, value, options, onChange, placeholder = 'Select…' }: { label: string; value: string; options: SelectOption[]; onChange: (v: string) => void; placeholder?: string }) {
+  const { colors, radius } = useTheme()
+  const [open, setOpen] = useState(false)
+  const current = options.find((o) => o.value === value)
+  const groups = [...new Set(options.map((o) => o.group ?? ''))]
+  return (
+    <View style={{ gap: 6 }}>
+      <Text style={{ color: colors.foreground, fontWeight: '500' }}>{label}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={`${label}: ${current?.label ?? 'none'}`} onPress={() => setOpen(true)}
+        style={{ minHeight: 48, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, paddingHorizontal: 12, justifyContent: 'center' }}>
+        <Text numberOfLines={1} style={{ color: current ? colors.foreground : colors.mutedForeground, fontSize: 16 }}>{current?.label ?? placeholder}  ▾</Text>
+      </Pressable>
+      <SelectSheet visible={open} title={label} groups={groups} options={options} value={value} onClose={() => setOpen(false)} onPick={(v) => { onChange(v); setOpen(false) }} />
+    </View>
+  )
+}
+
+function SelectSheet({ visible, title, groups, options, value, onClose, onPick }: { visible: boolean; title: string; groups: string[]; options: SelectOption[]; value: string; onClose: () => void; onPick: (v: string) => void }) {
+  const { colors } = useTheme()
+  return (
+    <Sheet visible={visible} title={title} onClose={onClose}>
+      {groups.map((g) => (
+        <View key={g || '_'} style={{ gap: 6 }}>
+          {g ? <Text accessibilityRole="header" style={{ color: colors.mutedForeground, fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 }}>{g}</Text> : null}
+          {options.filter((o) => (o.group ?? '') === g).map((o) => (
+            <Pressable key={o.value} accessibilityRole="radio" accessibilityState={{ selected: o.value === value }} onPress={() => onPick(o.value)}
+              style={{ minHeight: 48, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 8, backgroundColor: o.value === value ? colors.accent : 'transparent' }}>
+              <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: o.value === value ? '600' : '400' }}>{o.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ))}
+    </Sheet>
   )
 }

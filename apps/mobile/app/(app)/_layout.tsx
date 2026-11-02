@@ -25,6 +25,9 @@ export default function AppLayout() {
         <Tabs.Screen name="finance" options={tab('Finance', 'wallet-outline')} />
         <Tabs.Screen name="more" options={tab('More', 'ellipsis-horizontal')} />
         <Tabs.Screen name="module/[slug]" options={{ href: null }} />
+        <Tabs.Screen name="module/focus" options={{ href: null }} />
+        <Tabs.Screen name="module/learning" options={{ href: null }} />
+        <Tabs.Screen name="module/goals" options={{ href: null }} />
         <Tabs.Screen name="sync-check" options={{ href: null }} />
       </Tabs>
     </>
