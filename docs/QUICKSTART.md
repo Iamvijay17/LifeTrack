@@ -1,7 +1,7 @@
 # 10-minute setup (₹0)
 
 1. supabase.com → New project (free). Wait for it to finish.
-2. **SQL Editor → New query** → paste all of `supabase/setup-all.sql` → **Run**. Expect "Success".
+2. **SQL Editor → New query** → paste all of `supabase/setup-all.sql` → **Run**. Expect "Success". (Already set up before? Run only `supabase/migrations/0003_focus_notes_goals_reminders.sql`.)
 3. **Project Settings → API** → copy *Project URL* and *anon public key*.
 4. Deploy: vercel.com → Import this GitHub repo → add env vars `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` → Deploy.
 5. Supabase → **Authentication → URL Configuration**: Site URL = your Vercel URL; add `<your-url>/reset-password` to Redirect URLs.

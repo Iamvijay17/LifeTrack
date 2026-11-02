@@ -45,3 +45,31 @@ describe('local dev adapter mirrors the database contract', () => {
     expect(await db.list('application_history')).toHaveLength(0)
   })
 })
+
+describe('phase 6 tables in the local adapter', () => {
+  it('cascades milestones and nulls note/focus links like the database', async () => {
+    const [g] = await db.insert('goals', [{ title: 'G' }])
+    await db.insert('milestones', [{ goal_id: g.id, title: 'M' }])
+    const [t] = await db.insert('tasks', [{ title: 'T' }])
+    await db.insert('notes', [{ title: 'N', goal_id: g.id, task_id: t.id }])
+    await db.insert('focus_sessions', [{ session_date: '2026-01-01', planned_minutes: 25, task_id: t.id }])
+    await db.remove('goals', g.id)
+    expect(await db.list('milestones')).toHaveLength(0)
+    expect((await db.list('notes'))[0].goal_id).toBeNull()
+    await db.remove('tasks', t.id)
+    expect((await db.list('notes'))[0].task_id).toBeNull()
+    expect((await db.list('focus_sessions'))[0].task_id).toBeNull()
+  })
+  it('dedupes notifications by key but allows many without one', async () => {
+    await db.insert('notifications', [{ title: 'a', dedupe_key: 'reminder:1:2026-01-01' }])
+    await expect(db.insert('notifications', [{ title: 'b', dedupe_key: 'reminder:1:2026-01-01' }])).rejects.toMatchObject({ code: '23505' })
+    await db.insert('notifications', [{ title: 'c' }, { title: 'd' }])
+    expect(await db.list('notifications')).toHaveLength(3)
+  })
+  it('applies defaults for new tables', async () => {
+    const [n] = await db.insert('notes', [{ title: 'x' }])
+    expect(n).toMatchObject({ category: 'General', tags: [], pinned: false })
+    const [r] = await db.insert('reminders', [{ title: 'pay', remind_date: '2026-01-01' }])
+    expect(r).toMatchObject({ kind: 'custom', repeat: 'none', active: true, remind_time: '09:00' })
+  })
+})

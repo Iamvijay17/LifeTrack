@@ -141,7 +141,7 @@ test.describe('job applications', () => {
     await expect(page.getByRole('dialog').getByText('Created as')).toBeVisible()
     const timeline = page.getByRole('dialog').locator('ol > li')
     await expect(timeline).toHaveCount(3) // created as interested -> applied -> interview
-    await expect(timeline.nth(0)).toContainText('Interested')
+    await expect(timeline.nth(0)).toContainText('Wishlist')
     await expect(timeline.nth(1)).toContainText('Applied')
     await expect(timeline.nth(2)).toContainText('Interview')
     await page.keyboard.press('Escape')
@@ -268,14 +268,14 @@ test.describe('settings, export & restore', () => {
     await page.getByRole('button', { name: 'Add', exact: true }).click()
     await page.getByLabel(/^Amount/).fill('99.50')
     await page.getByRole('button', { name: 'Save', exact: true }).click()
-    await page.goto('/settings')
+    await page.goto('/export')
     const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export JSON backup' }).click()])
     const path = info.outputPath('backup.json')
     await dl.saveAs(path)
 
     await page.getByRole('button', { name: 'Sign out' }).first().click()
     await register(page)
-    await page.goto('/settings')
+    await page.goto('/export')
     await page.getByTestId('import-file').setInputFiles(path)
     await expect(page.getByRole('dialog').getByText('Restore backup?')).toBeVisible()
     await page.getByRole('button', { name: 'Restore', exact: true }).click()
@@ -288,7 +288,7 @@ test.describe('settings, export & restore', () => {
 
   test('rejects a file that is not a LifeTrack backup', async ({ page }, info) => {
     await register(page)
-    await page.goto('/settings')
+    await page.goto('/export')
     const fs = await import('node:fs')
     const path = info.outputPath('bad.json')
     fs.writeFileSync(path, JSON.stringify({ hello: 'world' }))

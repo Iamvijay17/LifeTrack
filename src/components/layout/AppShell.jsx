@@ -4,6 +4,10 @@ import { Sidebar } from './Sidebar'
 import { MobileNav } from './MobileNav'
 import { Banners, SaveStatus, LiveDot } from './StatusIndicators'
 import { Logo } from './Logo'
+import { GlobalSearch } from './GlobalSearch'
+import { NotificationBell } from './NotificationBell'
+import { ProfileMenu } from './ProfileMenu'
+import { useReminderRunner } from '@/hooks/useReminderRunner'
 import { QuickAddMenu, QuickFab, QuickActionsProvider } from '@/features/quick/QuickActions'
 import { useSettings } from '@/hooks/useSettings'
 import { useThemeSync } from '@/hooks/useTheme'
@@ -19,6 +23,7 @@ export function AppShell() {
   const { pathname } = useLocation()
   const main = useRef(null)
   useThemeSync()
+  useReminderRunner()
 
   // First sign-in on any device: create default topics / exercise library once (idempotent via unique keys).
   const { settings, row, loading } = useSettings()
@@ -39,11 +44,13 @@ export function AppShell() {
         <Banners />
         <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-background/85 px-4 backdrop-blur md:px-6">
           <div className="md:hidden"><Logo /></div>
-          <div className="hidden md:block" />
-          <div className="flex items-center gap-3">
+          <GlobalSearch />
+          <div className="flex items-center gap-2 sm:gap-3">
             <SaveStatus />
             <LiveDot />
             <QuickAddMenu />
+            <NotificationBell />
+            <ProfileMenu />
           </div>
         </header>
         <main id="main" ref={main} tabIndex={-1} className="mx-auto w-full max-w-6xl px-4 pb-28 pt-5 outline-none md:px-6 md:pb-10">

@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:sql": "node scripts/verify-sql.mjs",
+    "sql:build": "node scripts/build-setup-sql.mjs",
     "icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {

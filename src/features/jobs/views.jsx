@@ -20,7 +20,7 @@ function MoveMenu({ app, today }) {
 }
 
 function AppCard({ app, today, onOpen }) {
-  const overdue = app.followup_date && app.followup_date <= today && !['selected', 'rejected', 'withdrawn'].includes(app.status)
+  const overdue = app.followup_date && app.followup_date <= today && !['selected', 'offer', 'rejected', 'withdrawn'].includes(app.status)
   return (
     <div draggable onDragStart={(e) => { e.dataTransfer.setData('text/plain', app.id); e.dataTransfer.effectAllowed = 'move' }}
       className="cursor-grab rounded-md border border-border bg-background p-3 text-left transition-colors hover:border-muted-foreground/50 active:cursor-grabbing" data-testid="app-card">

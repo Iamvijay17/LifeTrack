@@ -45,3 +45,5 @@ export function dailySeries(transactions, from, to, type = 'expense') {
   for (const t of transactions) if (t.type === type && t.txn_date >= from && t.txn_date <= to) m.set(t.txn_date, (m.get(t.txn_date) ?? 0) + t.amount_paise)
   return eachDay(from, to).map((date) => ({ date, paise: m.get(date) ?? 0 }))
 }
+
+export const PAYMENT_METHODS = ['Cash', 'UPI', 'Credit card', 'Debit card', 'Bank transfer', 'Other']

@@ -6,6 +6,7 @@ export const TABLES = [
   'learning_topics', 'goals', 'tasks', 'habits', 'habit_logs', 'study_sessions', 'job_applications',
   'application_history', 'interview_events', 'exercises', 'routines', 'workouts', 'exercise_logs',
   'body_measurements', 'health_logs', 'transactions', 'budgets', 'journal_entries',
+  'milestones', 'focus_sessions', 'notes', 'savings_goals', 'reminders', 'notifications',
 ]
 export const ALL_TABLES = ['user_settings', ...TABLES]
 
@@ -16,9 +17,11 @@ export const CONFLICT_KEYS = {
 
 const s = ''
 export const DEFAULTS = {
-  user_settings: { timezone: 'Asia/Kolkata', currency: 'INR', theme: 'dark', daily_study_target_minutes: 120, monthly_budget_paise: 0, water_goal_ml: 3000, steps_goal: 8000, week_starts_on: 1, habit_prefs: {}, workout_plan: {}, defaults_seeded: false },
+  user_settings: { timezone: 'Asia/Kolkata', currency: 'INR', theme: 'dark', daily_study_target_minutes: 120, monthly_budget_paise: 0, water_goal_ml: 3000, steps_goal: 8000, week_starts_on: 1, habit_prefs: {}, workout_plan: {}, defaults_seeded: false,
+    score_weights: { learning: 25, career: 25, fitness: 20, habits: 15, health: 15 }, dashboard_widgets: {},
+    notification_prefs: { task: true, study: true, workout: true, habit: true, bill: true, custom: true }, focus_prefs: { short_break: 5, long_break: 15, long_every: 4 } },
   learning_topics: { notes: s, revision_dates: [], archived: false },
-  goals: { category: 'Learning', topic_id: null, target_minutes: 0, due_date: null, status: 'active', notes: s },
+  goals: { category: 'Learning', topic_id: null, target_minutes: 0, due_date: null, status: 'active', notes: s, period: 'monthly', start_date: null, manual_progress: 0, completed_at: null },
   tasks: { notes: s, category: 'Personal', priority: 'medium', status: 'pending', due_date: null, started_at: null, completed_at: null, recurrence: 'none', recurrence_until: null, series_id: null },
   habits: { description: s, color: '#8B5CF6', frequency: 'daily', days_of_week: [], weekly_target: 3, archived_at: null },
   habit_logs: { status: 'done', note: s },
@@ -32,9 +35,15 @@ export const DEFAULTS = {
   exercise_logs: { exercise_id: null, order_index: 0, set_number: 1, reps: 0, weight_kg: 0 },
   body_measurements: { chest_cm: null, waist_cm: null, hips_cm: null, arm_cm: null, thigh_cm: null, body_fat_pct: null, notes: s },
   health_logs: { bedtime: null, wake_time: null, sleep_minutes: null, water_ml: 0, steps: 0, energy_level: null, weight_kg: null, notes: s },
-  transactions: { category: 'Other', note: s },
+  transactions: { category: 'Other', note: s, payment_method: 'Other' },
   budgets: { category: s },
   journal_entries: { mood: null, content: s, wins: s },
+  milestones: { due_date: null, done: false, completed_at: null, position: 0 },
+  focus_sessions: { kind: 'focus', actual_seconds: 0, completed: false, task_id: null, topic_id: null, label: s },
+  notes: { title: s, body: s, category: 'General', tags: [], pinned: false, goal_id: null, task_id: null },
+  savings_goals: { saved_paise: 0, target_date: null },
+  reminders: { kind: 'custom', remind_time: '09:00', repeat: 'none', active: true, last_fired_on: null },
+  notifications: { kind: 'custom', body: s, link: s, dedupe_key: null, read_at: null },
 }
 
 /** Unique constraints (mirrors the SQL). `when` makes a constraint partial. */
@@ -49,4 +58,5 @@ export const UNIQUES = {
   health_logs: [{ cols: ['user_id', 'log_date'] }],
   budgets: [{ cols: ['user_id', 'month', 'category'] }],
   journal_entries: [{ cols: ['user_id', 'entry_date'] }],
+  notifications: [{ cols: ['user_id', 'dedupe_key'], when: (r) => r.dedupe_key != null }],
 }

@@ -4,6 +4,22 @@ import { countedMinutes } from './learning'
 
 const EXCLUDED_TASK = ['cancelled', 'skipped']
 
+/** Habits planned for `date` (skipped / rest-day logs are removed from the plan) and how many are done. */
+export function habitDay(habits, habitLogs, date) {
+  const logFor = new Map(habitLogs.filter((l) => l.log_date === date).map((l) => [l.habit_id, l.status]))
+  let done = 0, total = 0
+  for (const h of habits) {
+    if (h.archived_at) continue
+    const st = logFor.get(h.id)
+    if (st === 'skipped' || st === 'rest') continue
+    const planned = h.frequency === 'weekly' ? st === 'done' : isScheduled(h, date)
+    if (!planned && st !== 'done') continue
+    total++
+    if (st === 'done') done++
+  }
+  return { done, total }
+}
+
 /**
  * Daily progress is computed ONLY from real, planned activities for `date`:
  *  - each task due today (cancelled/skipped tasks are not planned)
@@ -18,17 +34,7 @@ export function dailyProgress({ date, tasks = [], habits = [], habitLogs = [], s
   const dayTasks = tasks.filter((t) => t.due_date === date && !EXCLUDED_TASK.includes(t.status))
   if (dayTasks.length) items.push({ key: 'tasks', label: 'Tasks', done: dayTasks.filter((t) => t.status === 'done').length, total: dayTasks.length })
 
-  const logFor = new Map(habitLogs.filter((l) => l.log_date === date).map((l) => [l.habit_id, l.status]))
-  let hDone = 0, hTotal = 0
-  for (const h of habits) {
-    if (h.archived_at) continue
-    const st = logFor.get(h.id)
-    if (st === 'skipped' || st === 'rest') continue
-    const planned = h.frequency === 'weekly' ? st === 'done' : isScheduled(h, date)
-    if (!planned && st !== 'done') continue
-    hTotal++
-    if (st === 'done') hDone++
-  }
+  const { done: hDone, total: hTotal } = habitDay(habits, habitLogs, date)
   if (hTotal) items.push({ key: 'habits', label: 'Habits', done: hDone, total: hTotal })
 
   const target = settings.daily_study_target_minutes ?? 0

@@ -14,7 +14,7 @@ import { useAction } from '@/hooks/useAction'
 import * as store from '@/hooks/store'
 import { setApplicationStatus } from '@/services/api'
 
-const TONE = { selected: 'success', rejected: 'danger', withdrawn: 'neutral', interview: 'primary', assessment: 'warning' }
+const TONE = { selected: 'success', offer: 'success', rejected: 'danger', withdrawn: 'neutral', interview: 'primary', assessment: 'warning' }
 export const StatusBadge = ({ status }) => <Badge tone={TONE[status] ?? 'neutral'}>{STATUS_LABEL[status]}</Badge>
 
 function Section({ title, icon: Icon, action, children }) {
