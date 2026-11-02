@@ -1,12 +1,9 @@
-import { useEffect } from 'react'
-import { useForm, Controller } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { Controller } from 'react-hook-form'
 import { z } from 'zod'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { Field, Input, Select } from '@/components/ui/form'
 import { isValidDay } from '@/lib/dates'
-import { useAction } from '@/hooks/useAction'
-import * as store from '@/hooks/store'
+import { useEntityForm } from '@/hooks/useEntityForm'
 import { cn } from '@/lib/utils'
 
 const COLORS = ['#8B5CF6', '#22C55E', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899', '#14B8A6']
@@ -23,19 +20,15 @@ const schema = z.object({
 
 export function HabitDialog({ open, onOpenChange, habit, today }) {
   const blank = { name: '', description: '', color: COLORS[0], frequency: 'daily', days_of_week: [], weekly_target: 3, start_date: today }
-  const { register, control, handleSubmit, reset, watch, formState: { errors } } = useForm({ resolver: zodResolver(schema), defaultValues: blank })
-  useEffect(() => { if (open) reset(habit ? { name: habit.name, description: habit.description ?? '', color: habit.color, frequency: habit.frequency, days_of_week: habit.days_of_week ?? [], weekly_target: habit.weekly_target, start_date: habit.start_date } : { ...blank, start_date: today }) },
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [open, habit?.id])
+  const { register, control, watch, formState: { errors }, onSubmit, pending } = useEntityForm({
+    open, entity: habit, schema, blank, table: 'habits', // logs are untouched on edit: history is preserved
+    fromEntity: (h) => ({ name: h.name, description: h.description ?? '', color: h.color, frequency: h.frequency, days_of_week: h.days_of_week ?? [], weekly_target: h.weekly_target, start_date: h.start_date }),
+    success: habit ? 'Habit updated' : 'Habit created', onDone: () => onOpenChange(false),
+  })
   const frequency = watch('frequency')
-  const [save, pending] = useAction(async (v) => {
-    if (habit) await store.update('habits', habit.id, v) // logs are untouched: history is preserved
-    else await store.insert('habits', v)
-    onOpenChange(false)
-  }, { success: habit ? 'Habit updated' : 'Habit created' })
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={habit ? 'Edit habit' : 'New habit'} description={habit ? 'Past check-ins are kept exactly as logged.' : undefined} pending={pending} onSubmit={handleSubmit(save)}>
+    <FormDialog open={open} onOpenChange={onOpenChange} title={habit ? 'Edit habit' : 'New habit'} description={habit ? 'Past check-ins are kept exactly as logged.' : undefined} pending={pending} onSubmit={onSubmit}>
       <Field label="Name" error={errors.name?.message}><Input autoFocus placeholder="e.g. Read 20 pages" {...register('name')} /></Field>
       <Field label="Description (optional)"><Input {...register('description')} /></Field>
       <div className="grid grid-cols-2 gap-3">

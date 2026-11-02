@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar'
 import { MobileNav } from './MobileNav'
 import { Banners, SaveStatus, LiveDot } from './StatusIndicators'
 import { Logo } from './Logo'
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { GlobalSearch } from './GlobalSearch'
 import { NotificationBell } from './NotificationBell'
 import { ProfileMenu } from './ProfileMenu'
@@ -54,7 +55,7 @@ export function AppShell() {
           </div>
         </header>
         <main id="main" ref={main} tabIndex={-1} className="mx-auto w-full max-w-6xl px-4 pb-28 pt-5 outline-none md:px-6 md:pb-10">
-          <Outlet />
+          <ErrorBoundary resetKey={pathname}><Outlet /></ErrorBoundary>
         </main>
       </div>
       <MobileNav />

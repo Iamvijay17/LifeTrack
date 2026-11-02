@@ -10,6 +10,11 @@ import { AppError } from './errors'
 
 const nowIso = () => new Date().toISOString()
 
+// ------------------------------------------------------------ generic rows
+/** Create (no `entity`) or update (with `entity`) a row. Forms call this instead of reaching into the store. */
+export const saveRow = (table, entity, values) => (entity ? store.update(table, entity.id, values) : store.insert(table, values))
+export const deleteRow = (table, id) => store.remove(table, id)
+
 // ------------------------------------------------------------------- tasks
 export function createTask(input) {
   const row = { ...input }
@@ -78,17 +83,19 @@ export async function saveWorkout(workout, sets, existing) {
     return w
   }
   const w = await store.update('workouts', existing.id, workout)
-  const old = store.peek('exercise_logs').filter((l) => l.workout_id === existing.id).map((l) => l.id)
-  if (sets.length) await store.insert('exercise_logs', sets.map((s) => ({ ...s, workout_id: existing.id })))
-  if (old.length) await store.removeMany('exercise_logs', old) // remove old sets only after the new ones are safely stored
+  // One database transaction swaps every set, so a failure or retry can never leave duplicate or missing sets.
+  const fresh = await store.rpc('replace_exercise_logs', { p_workout: existing.id, p_sets: sets })
+  store.patchGroup('exercise_logs', (l) => l.workout_id === existing.id, fresh ?? [])
   return w
 }
 
 // ------------------------------------------------------------------- health
 export const saveHealth = (date, patch) => store.upsert('health_logs', { log_date: date, ...patch }, { onConflict: CONFLICT_KEYS.health_logs })
-export function addWater(date, ml) {
-  const cur = store.peek('health_logs').find((h) => h.log_date === date)?.water_ml ?? 0
-  return saveHealth(date, { water_ml: Math.max(0, cur + ml) })
+/** Atomic on the server (`water_ml = water_ml + ml`), so two devices adding water at once never lose an increment. */
+export async function addWater(date, ml) {
+  const row = await store.rpc('add_water', { p_date: date, p_ml: ml })
+  store.patch('health_logs', [row])
+  return row
 }
 
 // ---------------------------------------------------------------- job board

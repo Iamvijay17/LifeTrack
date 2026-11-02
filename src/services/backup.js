@@ -5,6 +5,8 @@ import { ALL_TABLES, CONFLICT_KEYS, TABLES } from './schema'
 import { AppError } from './errors'
 
 export const BACKUP_VERSION = 1
+export const MAX_BACKUP_BYTES = 50 * 1024 * 1024
+export const MAX_ROWS_PER_TABLE = 200_000
 
 /** Full export, read straight from the database (not the cache) so it is always complete. */
 export async function buildExport() {
@@ -14,12 +16,13 @@ export async function buildExport() {
 }
 
 const envelope = z.object({
-  app: z.literal('lifetrack', { errorMap: () => ({ message: 'This is not a LifeTrack backup file.' }) }),
+  app: z.literal('lifetrack', { error: 'This is not a LifeTrack backup file.' }),
   version: z.number().int().max(BACKUP_VERSION, 'This backup was made by a newer version of LifeTrack.'),
-  tables: z.record(z.array(z.object({ id: z.string().min(1) }).passthrough())),
+  tables: z.record(z.string(), z.array(z.object({ id: z.string().min(1) }).passthrough()).max(MAX_ROWS_PER_TABLE, 'A table in this backup has too many rows.')),
 })
 
 export function parseBackup(text) {
+  if (typeof text !== 'string' || text.length > MAX_BACKUP_BYTES) throw new AppError('That backup file is too large.')
   let json
   try { json = JSON.parse(text.replace(/^\uFEFF/, '')) } catch { throw new AppError('That file is not valid JSON.') }
   const r = envelope.safeParse(json)

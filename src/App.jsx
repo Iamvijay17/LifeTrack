@@ -7,6 +7,8 @@ import { AppShell } from '@/components/layout/AppShell'
 import { PageSkeleton } from '@/components/shared/states'
 import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from '@/features/auth/AuthPages'
 import { Logo } from '@/components/layout/Logo'
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
+import { isSupabaseConfigured, devModeAllowed } from '@/lib/supabase'
 
 const page = (loader) => lazy(loader)
 const Overview = page(() => import('@/pages/OverviewPage'))
@@ -34,8 +36,22 @@ function Protected({ children }) {
   return children
 }
 
-export default function App() {
+function NotConfigured() {
   return (
+    <div role="alert" className="mx-auto grid min-h-dvh max-w-md place-items-center px-5 text-center">
+      <div className="space-y-3">
+        <Logo />
+        <h1 className="text-xl font-semibold">LifeTrack isn't configured</h1>
+        <p className="text-sm text-muted-foreground">This deployment is missing its Supabase settings (<code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code>), so nothing can be saved or synced. Add them in your hosting settings and redeploy. See docs/SETUP.md.</p>
+      </div>
+    </div>
+  )
+}
+
+export default function App() {
+  if (!isSupabaseConfigured && !devModeAllowed) return <NotConfigured />
+  return (
+    <ErrorBoundary>
     <AuthProvider>
       <ConfirmProvider>
         <Suspense fallback={<div className="p-6"><PageSkeleton /></div>}>
@@ -68,5 +84,6 @@ export default function App() {
         <Toaster theme="system" position="top-center" toastOptions={{ classNames: { toast: '!bg-card !text-foreground !border-border' } }} />
       </ConfirmProvider>
     </AuthProvider>
+    </ErrorBoundary>
   )
 }

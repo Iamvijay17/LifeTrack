@@ -33,7 +33,7 @@ export function LoginPage() {
   const { error, submit } = useSubmit(async (v) => { await auth.signIn(v.email, v.password); nav(loc.state?.from ?? '/', { replace: true }) })
   if (session) return <Navigate to="/" replace />
   return (
-    <AuthLayout title="Welcome back" subtitle="Sign in to your LifeTrack." footer={<>New here? <Link className="text-secondary hover:underline" to="/register">Create an account</Link></>}>
+    <AuthLayout title="Welcome back" subtitle="Sign in to your LifeTrack." footer={<>New here? <Link className="text-secondary underline underline-offset-2" to="/register">Create an account</Link></>}>
       <form onSubmit={handleSubmit(submit)} noValidate className="space-y-4">
         <Err>{error}</Err>
         <Field label="Email" error={errors.email?.message}><Input type="email" autoComplete="email" inputMode="email" {...register('email')} /></Field>
@@ -58,7 +58,7 @@ export function RegisterPage() {
   })
   if (session) return <Navigate to="/" replace />
   return (
-    <AuthLayout title="Create your account" subtitle="Your private life dashboard, synced on every device." footer={<>Already registered? <Link className="text-secondary hover:underline" to="/login">Sign in</Link></>}>
+    <AuthLayout title="Create your account" subtitle="Your private life dashboard, synced on every device." footer={<>Already registered? <Link className="text-secondary underline underline-offset-2" to="/login">Sign in</Link></>}>
       <form onSubmit={handleSubmit(submit)} noValidate className="space-y-4">
         <Err>{error}</Err><Note>{notice}</Note>
         <Field label="Name" error={errors.name?.message}><Input autoComplete="name" {...register('name')} /></Field>
@@ -75,7 +75,7 @@ export function ForgotPasswordPage() {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({ resolver: zodResolver(z.object({ email })) })
   const { error, notice, submit } = useSubmit(async (v, setNotice) => { await auth.sendPasswordReset(v.email); setNotice('If that email has an account, a reset link is on its way.') })
   return (
-    <AuthLayout title="Reset password" subtitle="We'll email you a link to choose a new password." footer={<Link className="text-secondary hover:underline" to="/login">Back to sign in</Link>}>
+    <AuthLayout title="Reset password" subtitle="We'll email you a link to choose a new password." footer={<Link className="text-secondary underline underline-offset-2" to="/login">Back to sign in</Link>}>
       <form onSubmit={handleSubmit(submit)} noValidate className="space-y-4">
         <Err>{error}</Err><Note>{notice}</Note>
         <Field label="Email" error={errors.email?.message}><Input type="email" autoComplete="email" {...register('email')} /></Field>
@@ -92,7 +92,7 @@ export function ResetPasswordPage() {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({ resolver: zodResolver(schema) })
   const { error, submit } = useSubmit(async (v) => { await auth.updatePassword(v.password); clearRecovery(); nav('/', { replace: true }) })
   if (!loading && !session) return (
-    <AuthLayout title="Link expired" subtitle="This reset link is invalid or has expired." footer={<Link className="text-secondary hover:underline" to="/forgot-password">Request a new link</Link>} />
+    <AuthLayout title="Link expired" subtitle="This reset link is invalid or has expired." footer={<Link className="text-secondary underline underline-offset-2" to="/forgot-password">Request a new link</Link>} />
   )
   return (
     <AuthLayout title="Choose a new password" subtitle={recovery ? undefined : 'You are signed in. Set a new password below.'}>

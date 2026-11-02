@@ -12,7 +12,7 @@ export function ScoreCard({ result, weekAvg }) {
   const tone = s == null ? 'primary' : s >= 75 ? 'success' : s >= 40 ? 'primary' : 'warning'
   return (
     <Card data-testid="score-card">
-      <CardHeader><CardTitle>Daily score</CardTitle><button onClick={() => setOpen(true)} className="flex items-center gap-1 text-xs text-secondary hover:underline"><Info className="h-3.5 w-3.5" />How is this calculated?</button></CardHeader>
+      <CardHeader><CardTitle>Daily score</CardTitle><button onClick={() => setOpen(true)} className="flex items-center gap-1 text-xs text-secondary underline underline-offset-2"><Info className="h-3.5 w-3.5" />How is this calculated?</button></CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-baseline gap-2"><span className="text-4xl font-semibold tabular-nums" data-testid="score-value">{s ?? '—'}</span><span className="text-sm text-muted-foreground">/ 100</span>{weekAvg != null && <span className="ml-auto text-xs text-muted-foreground">week avg {weekAvg}</span>}</div>
         <Progress value={s ?? 0} tone={tone} label="Daily score" />

@@ -25,7 +25,7 @@ import { CURRENCIES, parseMoney, paiseToInput } from '@/lib/money'
 const schema = z.object({
   timezone: z.string().refine((tz) => { try { new Intl.DateTimeFormat('en', { timeZone: tz }); return true } catch { return false } }, 'Unknown timezone'),
   currency: z.enum(['INR', 'USD', 'EUR']), week_starts_on: z.coerce.number().refine((n) => n === 0 || n === 1),
-  daily_study_target_minutes: z.coerce.number({ invalid_type_error: 'Enter minutes' }).int().min(0).max(1440, 'Max 1440'),
+  daily_study_target_minutes: z.coerce.number({ error: 'Enter minutes' }).int().min(0).max(1440, 'Max 1440'),
   monthly_budget: z.string().refine((v) => v.trim() === '' || parseMoney(v) !== null, 'Enter an amount like 30000'),
   water_goal_ml: z.coerce.number().int().min(0).max(20000), steps_goal: z.coerce.number().int().min(0).max(200000),
 })
@@ -171,7 +171,7 @@ export default function SettingsPage() {
     <>
       <PageHeader title="Settings" description={isDevMode ? 'DEV mode: stored in this browser only.' : 'Synced to your account.'} />
       <DataGate loading={loading} error={error} cards={0}>
-        <div className="mx-auto max-w-2xl space-y-4"><ProfileCard /><PreferencesCard /><ScoreCard /><FocusCard /><Section title="Your data" desc="Exports, backup and restore live on their own page."><Link to="/export" className="text-sm text-secondary hover:underline">Open Data Export →</Link></Section><AccountCard /></div>
+        <div className="mx-auto max-w-2xl space-y-4"><ProfileCard /><PreferencesCard /><ScoreCard /><FocusCard /><Section title="Your data" desc="Exports, backup and restore live on their own page."><Link to="/export" className="text-sm text-secondary underline underline-offset-2">Open Data Export →</Link></Section><AccountCard /></div>
       </DataGate>
     </>
   )

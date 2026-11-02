@@ -9,7 +9,6 @@ export function Dialog({ open, onOpenChange, title, description, children, class
       <D.Portal>
         <D.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-[2px]" />
         <D.Content
-          aria-describedby={description ? undefined : undefined}
           className={cn(
             'fixed z-50 flex max-h-[92dvh] w-full flex-col border border-border bg-card shadow-2xl animate-fade-in',
             'bottom-0 left-0 rounded-t-xl md:bottom-auto md:left-1/2 md:top-1/2 md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl',
