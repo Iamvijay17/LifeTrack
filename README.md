@@ -7,6 +7,7 @@ heatmap, analytics, JSON/CSV export + restore. React + Vite + Tailwind, Supabase
 **Start here → [docs/QUICKSTART.md](docs/QUICKSTART.md)** (details: [docs/SETUP.md](docs/SETUP.md))
 
 ## Status / honest limitations
+
 - **Verified here:** unit tests (68), SQL/RLS tests on real Postgres (incl. every user-owned table), Playwright E2E on desktop + mobile profile (42).
 - **Not verified here (no Supabase project was available in the build environment):** the live Supabase client path
   (auth emails, Realtime delivery, PostgREST paging) and true two-device sync. A `cloud-sync` Playwright test is provided;

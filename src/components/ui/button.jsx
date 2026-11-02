@@ -22,7 +22,14 @@ export const buttonVariants = cva(
 )
 
 export const Button = forwardRef(({ className, variant, size, loading, disabled, children, type = 'button', ...props }, ref) => (
-  <button ref={ref} type={type} disabled={disabled || loading} aria-busy={loading || undefined} className={cn(buttonVariants({ variant, size }), className)} {...props}>
+  <button
+    ref={ref}
+    type={type}
+    disabled={disabled || loading}
+    aria-busy={loading || undefined}
+    className={cn(buttonVariants({ variant, size }), className)}
+    {...props}
+  >
     {loading && <ButtonLoader />}
     {children}
   </button>

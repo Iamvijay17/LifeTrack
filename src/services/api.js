@@ -23,7 +23,10 @@ export function createTask(input) {
 export async function setTaskStatus(task, status, today) {
   const patch = { status }
   if (status === 'in_progress') patch.started_at = task.started_at ?? nowIso()
-  if (status === 'done') { patch.completed_at = nowIso(); patch.started_at = task.started_at ?? patch.completed_at }
+  if (status === 'done') {
+    patch.completed_at = nowIso()
+    patch.started_at = task.started_at ?? patch.completed_at
+  }
   if (status === 'pending') patch.completed_at = null
   const updated = await store.update('tasks', task.id, patch)
   if (status === 'done' && task.status !== 'done') {
@@ -56,14 +59,27 @@ export async function setHabitStatus(habitId, date, status) {
 // ------------------------------------------------------------ study sessions
 export async function startStudy({ goal_id = null, topic_id = null }, today) {
   if (store.peek('study_sessions').some((s) => s.status === 'running')) throw new AppError('A study timer is already running.')
-  return store.insert('study_sessions', { status: 'running', source: 'timer', session_date: today, started_at: nowIso(), goal_id, topic_id })
+  return store.insert('study_sessions', {
+    status: 'running',
+    source: 'timer',
+    session_date: today,
+    started_at: nowIso(),
+    goal_id,
+    topic_id,
+  })
 }
 /** `minutes` lets you correct a forgotten timer downwards; it can never exceed the real elapsed time. */
 export function stopStudy(session, { problems_solved = 0, notes = '', minutes } = {}) {
   const ended = new Date()
   const elapsed = Math.max(0, Math.round((ended.getTime() - new Date(session.started_at).getTime()) / 1000))
   const secs = minutes == null ? elapsed : Math.min(elapsed, Math.round(minutes * 60))
-  return store.update('study_sessions', session.id, { status: 'completed', ended_at: ended.toISOString(), duration_seconds: secs, problems_solved, notes })
+  return store.update('study_sessions', session.id, {
+    status: 'completed',
+    ended_at: ended.toISOString(),
+    duration_seconds: secs,
+    problems_solved,
+    notes,
+  })
 }
 export const discardStudy = (session) => store.update('study_sessions', session.id, { status: 'discarded', ended_at: nowIso() })
 
@@ -72,20 +88,35 @@ export async function saveWorkout(workout, sets, existing) {
   if (!existing) {
     const w = await store.insert('workouts', workout)
     if (sets.length) {
-      try { await store.insert('exercise_logs', sets.map((s) => ({ ...s, workout_id: w.id }))) }
-      catch (e) { await store.remove('workouts', w.id).catch(() => {}); throw e } // no half-saved workouts
+      try {
+        await store.insert(
+          'exercise_logs',
+          sets.map((s) => ({ ...s, workout_id: w.id })),
+        )
+      } catch (e) {
+        await store.remove('workouts', w.id).catch(() => {})
+        throw e
+      } // no half-saved workouts
     }
     return w
   }
   const w = await store.update('workouts', existing.id, workout)
-  const old = store.peek('exercise_logs').filter((l) => l.workout_id === existing.id).map((l) => l.id)
-  if (sets.length) await store.insert('exercise_logs', sets.map((s) => ({ ...s, workout_id: existing.id })))
+  const old = store
+    .peek('exercise_logs')
+    .filter((l) => l.workout_id === existing.id)
+    .map((l) => l.id)
+  if (sets.length)
+    await store.insert(
+      'exercise_logs',
+      sets.map((s) => ({ ...s, workout_id: existing.id })),
+    )
   if (old.length) await store.removeMany('exercise_logs', old) // remove old sets only after the new ones are safely stored
   return w
 }
 
 // ------------------------------------------------------------------- health
-export const saveHealth = (date, patch) => store.upsert('health_logs', { log_date: date, ...patch }, { onConflict: CONFLICT_KEYS.health_logs })
+export const saveHealth = (date, patch) =>
+  store.upsert('health_logs', { log_date: date, ...patch }, { onConflict: CONFLICT_KEYS.health_logs })
 export function addWater(date, ml) {
   const cur = store.peek('health_logs').find((h) => h.log_date === date)?.water_ml ?? 0
   return saveHealth(date, { water_ml: Math.max(0, cur + ml) })
@@ -102,7 +133,11 @@ export function setApplicationStatus(app, status, today) {
 export async function seedDefaults() {
   const topics = Object.entries(DEFAULT_TOPICS).flatMap(([group_name, names]) => names.map((name) => ({ group_name, name })))
   await store.upsert('learning_topics', topics, { onConflict: CONFLICT_KEYS.learning_topics, ignoreDuplicates: true })
-  await store.upsert('exercises', DEFAULT_EXERCISES.map(([name, muscle_group, equipment]) => ({ name, muscle_group, equipment })), { onConflict: CONFLICT_KEYS.exercises, ignoreDuplicates: true })
+  await store.upsert(
+    'exercises',
+    DEFAULT_EXERCISES.map(([name, muscle_group, equipment]) => ({ name, muscle_group, equipment })),
+    { onConflict: CONFLICT_KEYS.exercises, ignoreDuplicates: true },
+  )
   await store.upsert('user_settings', { defaults_seeded: true }, { onConflict: 'user_id' })
   await Promise.all([store.refetch('learning_topics'), store.refetch('exercises')])
 }
@@ -120,8 +155,14 @@ export async function toggleMilestone(m) {
 export async function recordFocus({ plannedMinutes, actualSeconds, completed, taskId = null, topicId = null, label = '', date }) {
   if (actualSeconds < MIN_RECORD_SECONDS && !completed) return null
   return store.insert('focus_sessions', {
-    session_date: date, kind: 'focus', planned_minutes: plannedMinutes, actual_seconds: Math.min(actualSeconds, plannedMinutes * 60 + 5),
-    completed, task_id: taskId, topic_id: topicId, label: label.slice(0, 120),
+    session_date: date,
+    kind: 'focus',
+    planned_minutes: plannedMinutes,
+    actual_seconds: Math.min(actualSeconds, plannedMinutes * 60 + 5),
+    completed,
+    task_id: taskId,
+    topic_id: topicId,
+    label: label.slice(0, 120),
   })
 }
 
@@ -137,9 +178,16 @@ export async function fireDueReminders(today, nowTime, prefs = {}) {
   for (const r of dueReminders(store.peek('reminders'), today, nowTime)) {
     if (prefs[r.kind] !== false) {
       try {
-        await store.insert('notifications', { kind: r.kind, title: r.title, link: KIND_LINK[r.kind] ?? '', dedupe_key: `reminder:${r.id}:${today}` })
+        await store.insert('notifications', {
+          kind: r.kind,
+          title: r.title,
+          link: KIND_LINK[r.kind] ?? '',
+          dedupe_key: `reminder:${r.id}:${today}`,
+        })
         fired++
-      } catch (e) { if (e.code !== '23505') throw e }
+      } catch (e) {
+        if (e.code !== '23505') throw e
+      }
     }
     await store.update('reminders', r.id, afterFire(r, today))
   }

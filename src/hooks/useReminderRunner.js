@@ -19,12 +19,18 @@ export function useReminderRunner() {
       try {
         const n = await fireDueReminders(todayStr(tz), timeStrInTz(new Date(), tz), prefs.current)
         if (n > 0) toast(`${n} new reminder${n > 1 ? 's' : ''}`, { description: 'Open the bell to see them.' })
-      } catch { /* a failed check is retried on the next tick; nothing is lost */ }
-      finally { busy.current = false }
+      } catch {
+        /* a failed check is retried on the next tick; nothing is lost */
+      } finally {
+        busy.current = false
+      }
     }
     run()
     const id = setInterval(run, 60_000)
     window.addEventListener('focus', run)
-    return () => { clearInterval(id); window.removeEventListener('focus', run) }
+    return () => {
+      clearInterval(id)
+      window.removeEventListener('focus', run)
+    }
   }, [row, settings.timezone])
 }

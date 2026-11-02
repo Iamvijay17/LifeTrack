@@ -1,7 +1,17 @@
 import '@testing-library/jest-dom/vitest'
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { FullScreenLoader, InitialAppLoader, PageLoader, SectionLoader, ButtonLoader, SkeletonLoader, OrbitMark, MESSAGES, messageForPath } from '@/components/loaders'
+import {
+  FullScreenLoader,
+  InitialAppLoader,
+  PageLoader,
+  SectionLoader,
+  ButtonLoader,
+  SkeletonLoader,
+  OrbitMark,
+  MESSAGES,
+  messageForPath,
+} from '@/components/loaders'
 import { Button } from '@/components/ui/button'
 import { readFileSync } from 'node:fs'
 
@@ -20,16 +30,19 @@ describe('loader messages', () => {
 })
 
 describe('loader components', () => {
-  it.each([['FullScreenLoader', <FullScreenLoader message="Hello..." />], ['PageLoader', <PageLoader message="Hello..." />], ['SectionLoader', <SectionLoader message="Hello..." />]])(
-    '%s is a polite live status region carrying the message', (_n, ui) => {
-      render(ui)
-      const status = screen.getByRole('status')
-      expect(status).toHaveAttribute('aria-live', 'polite')
-      expect(status).toHaveAttribute('aria-busy', 'true')
-      expect(status).toHaveTextContent('Hello...')
-      expect(status.querySelector('svg')).toHaveAttribute('aria-hidden', 'true') // the artwork is decorative
-      expect(status.textContent).not.toMatch(/%/)
-    })
+  it.each([
+    ['FullScreenLoader', <FullScreenLoader message="Hello..." />],
+    ['PageLoader', <PageLoader message="Hello..." />],
+    ['SectionLoader', <SectionLoader message="Hello..." />],
+  ])('%s is a polite live status region carrying the message', (_n, ui) => {
+    render(ui)
+    const status = screen.getByRole('status')
+    expect(status).toHaveAttribute('aria-live', 'polite')
+    expect(status).toHaveAttribute('aria-busy', 'true')
+    expect(status).toHaveTextContent('Hello...')
+    expect(status.querySelector('svg')).toHaveAttribute('aria-hidden', 'true') // the artwork is decorative
+    expect(status.textContent).not.toMatch(/%/)
+  })
   it('InitialAppLoader shows the dashboard message and brand name', () => {
     render(<InitialAppLoader />)
     expect(screen.getByRole('status')).toHaveTextContent(/Preparing your dashboard/)
@@ -42,7 +55,12 @@ describe('loader components', () => {
     expect(document.querySelector('svg[width="64"][height="64"]')).toBeTruthy()
   })
   it('gives each mark unique gradient ids (several can be on screen)', () => {
-    const { container } = render(<><OrbitMark /><OrbitMark /></>)
+    const { container } = render(
+      <>
+        <OrbitMark />
+        <OrbitMark />
+      </>,
+    )
     const ids = [...container.querySelectorAll('[id]')].map((e) => e.id)
     expect(new Set(ids).size).toBe(ids.length)
   })
@@ -54,17 +72,20 @@ describe('loader components', () => {
   it('Button shows the ButtonLoader, is busy and cannot be double-submitted', () => {
     render(<Button loading>Save</Button>)
     const b = screen.getByRole('button', { name: 'Save' })
-    expect(b).toBeDisabled(); expect(b).toHaveAttribute('aria-busy', 'true')
+    expect(b).toBeDisabled()
+    expect(b).toHaveAttribute('aria-busy', 'true')
     expect(b.querySelector('svg.lt-orbit')).toBeTruthy()
     render(<ButtonLoader />)
   })
 })
 
 describe('motion CSS', () => {
-  const css = readFileSync('src/index.css', 'utf8')
+  const css = readFileSync('src/index.css', 'utf8').replace(/\s+/g, ' ') // formatting-independent
   const orbit = css.slice(css.indexOf('LifeTrack Progress Orbit'))
   it('animates only compositor-friendly properties', () => {
-    const frames = [...orbit.matchAll(/@keyframes (lt-[\w-]+) \{([^]*?)\n\}|@keyframes (lt-[\w-]+) \{[^\n]*\}/g)].map((m) => m[0]).join('\n')
+    const frames = [...orbit.matchAll(/@keyframes (lt-[\w-]+) \{([^]*?)\n\}|@keyframes (lt-[\w-]+) \{[^\n]*\}/g)]
+      .map((m) => m[0])
+      .join('\n')
     expect(frames).toMatch(/lt-spin/)
     expect(frames).not.toMatch(/\b(width|height|top|left|margin|filter|blur|box-shadow)\b/)
   })

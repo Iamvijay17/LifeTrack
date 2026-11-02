@@ -27,7 +27,10 @@ export default function PlannerPage() {
       pending: open.slice(3),
       done: forDay.filter((t) => t.status === 'done'),
       off: forDay.filter((t) => t.status === 'skipped' || t.status === 'cancelled'),
-      overdue: day === today ? tasks.filter((t) => isOpen(t) && t.due_date && t.due_date < today).sort((a, b) => a.due_date.localeCompare(b.due_date)) : [],
+      overdue:
+        day === today
+          ? tasks.filter((t) => isOpen(t) && t.due_date && t.due_date < today).sort((a, b) => a.due_date.localeCompare(b.due_date))
+          : [],
       someday: tasks.filter((t) => isOpen(t) && !t.due_date).sort(byPriority),
       count: forDay.length,
     }
@@ -36,30 +39,74 @@ export default function PlannerPage() {
   const edit = (task) => setDialog({ open: true, task })
   return (
     <>
-      <PageHeader title="Daily Planner" description="Plan the day, finish what matters." actions={<Button onClick={() => setDialog({ open: true, task: null })}><Plus className="h-4 w-4" />New task</Button>} />
+      <PageHeader
+        title="Daily Planner"
+        description="Plan the day, finish what matters."
+        actions={
+          <Button onClick={() => setDialog({ open: true, task: null })}>
+            <Plus className="h-4 w-4" />
+            New task
+          </Button>
+        }
+      />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">Looking for your journal? It lives in Notes &amp; Journal.</p>
         <DateNav date={day} onChange={setDate} today={today} />
       </div>
       <DataGate loading={loading} error={error} onRetry={refetch} cards={0}>
-        {(
+        {
           <div className="grid gap-4 lg:grid-cols-3">
-            <Card className="lg:col-span-2"><CardContent className="space-y-5">
-              {g.count === 0 && g.overdue.length === 0 ? (
-                <EmptyState icon={CalendarCheck} title="Nothing planned for this day" description="Add tasks to build a plan. Daily progress is calculated from what you plan and finish." action={<Button size="sm" onClick={() => setDialog({ open: true, task: null })}>Add a task</Button>} />
-              ) : (<>
-                <TaskSection title="Top priorities" tasks={g.priorities} today={today} onEdit={edit} hint="Your three most important open tasks, ranked by priority." />
-                <TaskSection title="Pending" tasks={g.pending} today={today} onEdit={edit} />
-                <TaskSection title="Completed" tasks={g.done} today={today} onEdit={edit} />
-                <TaskSection title="Skipped / cancelled" tasks={g.off} today={today} onEdit={edit} />
-              </>)}
-            </CardContent></Card>
+            <Card className="lg:col-span-2">
+              <CardContent className="space-y-5">
+                {g.count === 0 && g.overdue.length === 0 ? (
+                  <EmptyState
+                    icon={CalendarCheck}
+                    title="Nothing planned for this day"
+                    description="Add tasks to build a plan. Daily progress is calculated from what you plan and finish."
+                    action={
+                      <Button size="sm" onClick={() => setDialog({ open: true, task: null })}>
+                        Add a task
+                      </Button>
+                    }
+                  />
+                ) : (
+                  <>
+                    <TaskSection
+                      title="Top priorities"
+                      tasks={g.priorities}
+                      today={today}
+                      onEdit={edit}
+                      hint="Your three most important open tasks, ranked by priority."
+                    />
+                    <TaskSection title="Pending" tasks={g.pending} today={today} onEdit={edit} />
+                    <TaskSection title="Completed" tasks={g.done} today={today} onEdit={edit} />
+                    <TaskSection title="Skipped / cancelled" tasks={g.off} today={today} onEdit={edit} />
+                  </>
+                )}
+              </CardContent>
+            </Card>
             <div className="space-y-4">
-              {g.overdue.length > 0 && <Card><CardContent><TaskSection title="Overdue" tasks={g.overdue} today={today} onEdit={edit} showDue /></CardContent></Card>}
-              <Card><CardContent><TaskSection title="No due date" tasks={g.someday} today={today} onEdit={edit} empty="Tasks without a date show up here." /></CardContent></Card>
+              {g.overdue.length > 0 && (
+                <Card>
+                  <CardContent>
+                    <TaskSection title="Overdue" tasks={g.overdue} today={today} onEdit={edit} showDue />
+                  </CardContent>
+                </Card>
+              )}
+              <Card>
+                <CardContent>
+                  <TaskSection
+                    title="No due date"
+                    tasks={g.someday}
+                    today={today}
+                    onEdit={edit}
+                    empty="Tasks without a date show up here."
+                  />
+                </CardContent>
+              </Card>
             </div>
           </div>
-        )}
+        }
       </DataGate>
       <TaskDialog open={dialog.open} task={dialog.task} defaultDate={day} onOpenChange={(o) => setDialog((d) => ({ ...d, open: o }))} />
     </>

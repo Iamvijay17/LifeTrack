@@ -11,7 +11,14 @@ import { parseTags } from '@/features/notes/NoteDialog'
 import { STATUS_LABEL, funnel } from '@/domain/jobs'
 
 const D = '2026-11-02' // a Monday
-const settings = { daily_study_target_minutes: 60, water_goal_ml: 2000, steps_goal: 10000, workout_plan: {}, timezone: 'Asia/Kolkata', score_weights: DEFAULT_WEIGHTS }
+const settings = {
+  daily_study_target_minutes: 60,
+  water_goal_ml: 2000,
+  steps_goal: 10000,
+  workout_plan: {},
+  timezone: 'Asia/Kolkata',
+  score_weights: DEFAULT_WEIGHTS,
+}
 const base = { date: D, settings }
 
 describe('daily score', () => {
@@ -46,11 +53,20 @@ describe('daily score', () => {
   it('treats unlogged sleep as unknown, not zero', () => {
     const r = dailyScore({ ...base, settings: { ...settings, daily_study_target_minutes: 0 } })
     expect(r.categories.find((c) => c.key === 'health').applicable).toBe(false)
-    const logged = dailyScore({ ...base, settings: { ...settings, daily_study_target_minutes: 0 }, health: { sleep_minutes: 450, water_ml: 2000, steps: 0 } })
+    const logged = dailyScore({
+      ...base,
+      settings: { ...settings, daily_study_target_minutes: 0 },
+      health: { sleep_minutes: 450, water_ml: 2000, steps: 0 },
+    })
     expect(logged.categories.find((c) => c.key === 'health').fraction).toBe(1)
   })
   it('credits applications sent and ignores cancelled/skipped tasks', () => {
-    const r = dailyScore({ ...base, settings: { ...settings, daily_study_target_minutes: 0 }, applications: [{ applied_date: D }], tasks: [{ due_date: D, status: 'cancelled', category: 'Job Search' }] })
+    const r = dailyScore({
+      ...base,
+      settings: { ...settings, daily_study_target_minutes: 0 },
+      applications: [{ applied_date: D }],
+      tasks: [{ due_date: D, status: 'cancelled', category: 'Job Search' }],
+    })
     expect(r.categories.find((c) => c.key === 'career').fraction).toBe(1)
   })
   it('sanitises weights and explains the result', () => {
@@ -93,11 +109,15 @@ describe('focus', () => {
   })
   it('builds a per-day series and schedules long breaks', () => {
     expect(dailyFocus([s()], '2026-11-01', '2026-11-03').map((d) => d.minutes)).toEqual([0, 25, 0])
-    expect(nextBreak(3)).toBe('short_break'); expect(nextBreak(4)).toBe('long_break'); expect(nextBreak(8, 4)).toBe('long_break')
+    expect(nextBreak(3)).toBe('short_break')
+    expect(nextBreak(4)).toBe('long_break')
+    expect(nextBreak(8, 4)).toBe('long_break')
   })
   it('formats the clock and never goes negative', () => {
-    expect(fmtClock(1500)).toBe('25:00'); expect(fmtClock(65)).toBe('01:05')
-    expect(remainingSeconds(10_000, 20_000)).toBe(0); expect(remainingSeconds(10_500, 10_000)).toBe(1)
+    expect(fmtClock(1500)).toBe('25:00')
+    expect(fmtClock(65)).toBe('01:05')
+    expect(remainingSeconds(10_000, 20_000)).toBe(0)
+    expect(remainingSeconds(10_500, 10_000)).toBe(1)
   })
 })
 
@@ -105,7 +125,17 @@ describe('goals', () => {
   it('prefers milestones, then study time, then manual progress', () => {
     const g = { id: 'g', status: 'active', target_minutes: 0, manual_progress: 40 }
     expect(goalPercent(g, [], []).percent).toBe(40)
-    expect(goalPercent(g, [{ goal_id: 'g', done: true }, { goal_id: 'g', done: false }, { goal_id: 'x', done: false }], []).percent).toBe(50)
+    expect(
+      goalPercent(
+        g,
+        [
+          { goal_id: 'g', done: true },
+          { goal_id: 'g', done: false },
+          { goal_id: 'x', done: false },
+        ],
+        [],
+      ).percent,
+    ).toBe(50)
     const study = { ...g, target_minutes: 120 }
     expect(goalPercent(study, [], [{ goal_id: 'g', status: 'completed', duration_seconds: 3600 }]).percent).toBe(50)
     expect(goalPercent({ ...g, status: 'completed' }, [], []).percent).toBe(100)
@@ -119,36 +149,70 @@ describe('goals', () => {
 
 describe('jobs: Wishlist / Offer', () => {
   it('labels the first column Wishlist and counts offers', () => {
-    expect(STATUS_LABEL.interested).toBe('Wishlist'); expect(STATUS_LABEL.offer).toBe('Offer')
+    expect(STATUS_LABEL.interested).toBe('Wishlist')
+    expect(STATUS_LABEL.offer).toBe('Offer')
     const apps = [{ id: 'a', status: 'offer', applied_date: D }]
     expect(funnel(apps, [], [], D, D)).toMatchObject({ applied: 1, interviews: 1, offers: 1 })
   })
 })
 
 describe('report', () => {
-  const empty = { tasks: [], habits: [], habit_logs: [], study_sessions: [], focus_sessions: [], workouts: [], health_logs: [], transactions: [], goals: [], milestones: [], job_applications: [], application_history: [], interview_events: [] }
+  const empty = {
+    tasks: [],
+    habits: [],
+    habit_logs: [],
+    study_sessions: [],
+    focus_sessions: [],
+    workouts: [],
+    health_logs: [],
+    transactions: [],
+    goals: [],
+    milestones: [],
+    job_applications: [],
+    application_history: [],
+    interview_events: [],
+  }
   const ctx = { today: D, settings, weekStartsOn: 1 }
   it('is empty — not zero-filled with fake scores — when the user has no data', () => {
     const r = buildReport(empty, '2026-10-26', '2026-11-01', ctx)
-    expect(r.summary.productivityScore).toBeNull(); expect(r.summary.scoredDays).toBe(0); expect(r.summary.sleepAvgHours).toBeNull()
+    expect(r.summary.productivityScore).toBeNull()
+    expect(r.summary.scoredDays).toBe(0)
+    expect(r.summary.sleepAvgHours).toBeNull()
   })
   it('does not score days before the first record or after today', () => {
     const data = { ...empty, study_sessions: [{ session_date: '2026-10-29', status: 'completed', duration_seconds: 3600 }] }
     const r = buildReport(data, '2026-10-26', '2026-11-08', ctx)
     expect(r.daily).toHaveLength(8) // 26 Oct .. 2 Nov (today)
-    expect(r.daily.filter((d) => d.score != null).map((d) => d.date)).toEqual(['2026-10-29', '2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02'])
+    expect(r.daily.filter((d) => d.score != null).map((d) => d.date)).toEqual([
+      '2026-10-29',
+      '2026-10-30',
+      '2026-10-31',
+      '2026-11-01',
+      '2026-11-02',
+    ])
     expect(r.daily.find((d) => d.date === '2026-10-29').score).toBe(100)
     expect(r.daily.find((d) => d.date === '2026-10-30').score).toBe(0)
     expect(r.summary.studyHours).toBe(1)
   })
   it('summarises money, sleep and applications for the range', () => {
-    const data = { ...empty,
-      transactions: [{ type: 'expense', amount_paise: 50000, txn_date: D }, { type: 'income', amount_paise: 100000, txn_date: D }, { type: 'expense', amount_paise: 999, txn_date: '2026-09-01' }],
-      health_logs: [{ log_date: D, sleep_minutes: 420, water_ml: 1000, steps: 0 }, { log_date: '2026-11-01', sleep_minutes: 360, water_ml: 0, steps: 0 }],
-      job_applications: [{ id: 'a', status: 'applied', applied_date: D }] }
+    const data = {
+      ...empty,
+      transactions: [
+        { type: 'expense', amount_paise: 50000, txn_date: D },
+        { type: 'income', amount_paise: 100000, txn_date: D },
+        { type: 'expense', amount_paise: 999, txn_date: '2026-09-01' },
+      ],
+      health_logs: [
+        { log_date: D, sleep_minutes: 420, water_ml: 1000, steps: 0 },
+        { log_date: '2026-11-01', sleep_minutes: 360, water_ml: 0, steps: 0 },
+      ],
+      job_applications: [{ id: 'a', status: 'applied', applied_date: D }],
+    }
     const r = buildReport(data, '2026-11-01', '2026-11-07', ctx).summary
-    expect(r.expensePaise).toBe(50000); expect(r.incomePaise).toBe(100000)
-    expect(r.sleepAvgHours).toBeCloseTo(6.5); expect(r.applications).toBe(1)
+    expect(r.expensePaise).toBe(50000)
+    expect(r.incomePaise).toBe(100000)
+    expect(r.sleepAvgHours).toBeCloseTo(6.5)
+    expect(r.applications).toBe(1)
   })
 })
 
@@ -162,7 +226,14 @@ describe('markdown', () => {
 
 describe('search & tags', () => {
   it('finds across modules and pages, case-insensitively', () => {
-    const data = { tasks: [{ id: 't', title: 'Read React docs', due_date: D }], notes: [{ id: 'n', title: 'Ideas', body: 'react hooks', category: 'Learning', tags: [] }], goals: [{ id: 'g', title: 'Ship', notes: '' }], job_applications: [], habits: [], transactions: [] }
+    const data = {
+      tasks: [{ id: 't', title: 'Read React docs', due_date: D }],
+      notes: [{ id: 'n', title: 'Ideas', body: 'react hooks', category: 'Learning', tags: [] }],
+      goals: [{ id: 'g', title: 'Ship', notes: '' }],
+      job_applications: [],
+      habits: [],
+      transactions: [],
+    }
     const groups = searchAll('REACT', data)
     expect(groups.map((g) => g.title)).toEqual(['Tasks', 'Notes'])
     expect(searchAll('focus', data)[0].items[0].to).toBe('/focus')

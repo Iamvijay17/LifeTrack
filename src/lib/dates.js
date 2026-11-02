@@ -59,7 +59,9 @@ export const parseDay = (s) => {
 }
 export const fmtDay = (s, pattern = 'EEE, d MMM') => (s ? format(parseDay(s), pattern) : '')
 export const fmtDateTime = (iso, tz = DEFAULT_TZ) =>
-  new Intl.DateTimeFormat('en-IN', { timeZone: tz, day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(iso))
+  new Intl.DateTimeFormat('en-IN', { timeZone: tz, day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(
+    new Date(iso),
+  )
 
 // ---- time-of-day helpers
 export const timeToMinutes = (t) => {
@@ -86,6 +88,15 @@ export function zonedToIso(day, time, tz = DEFAULT_TZ) {
 }
 
 export const TIMEZONES = [
-  'Asia/Kolkata', 'Asia/Dubai', 'Asia/Singapore', 'Asia/Tokyo', 'Europe/London', 'Europe/Berlin',
-  'America/New_York', 'America/Chicago', 'America/Los_Angeles', 'Australia/Sydney', 'UTC',
+  'Asia/Kolkata',
+  'Asia/Dubai',
+  'Asia/Singapore',
+  'Asia/Tokyo',
+  'Europe/London',
+  'Europe/Berlin',
+  'America/New_York',
+  'America/Chicago',
+  'America/Los_Angeles',
+  'Australia/Sydney',
+  'UTC',
 ]

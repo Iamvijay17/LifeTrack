@@ -37,11 +37,35 @@ function StudyStart({ onClose }) {
   const { data } = useTables('goals', 'learning_topics', 'study_sessions')
   const [target, setTarget] = useState('')
   const running = data.study_sessions.find((s) => s.status === 'running')
-  const [start, pending] = useAction(async () => { await startStudy(parseTarget(target, data.goals), today); onClose(); nav('/learning') }, { success: 'Timer started' })
+  const [start, pending] = useAction(
+    async () => {
+      await startStudy(parseTarget(target, data.goals), today)
+      onClose()
+      nav('/learning')
+    },
+    { success: 'Timer started' },
+  )
   return (
-    <FormDialog open onOpenChange={(o) => !o && onClose()} title="Start study session" description={running ? 'A timer is already running.' : 'The timer keeps running on all your devices.'} pending={pending} submitLabel="Start timer"
-      onSubmit={(e) => { e.preventDefault(); if (running) { onClose(); nav('/learning') } else start() }}>
-      {running ? <p className="text-sm text-muted-foreground">Stop it on the Learning page before starting another.</p> : <TargetSelect goals={data.goals} topics={data.learning_topics} value={target} onChange={setTarget} />}
+    <FormDialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title="Start study session"
+      description={running ? 'A timer is already running.' : 'The timer keeps running on all your devices.'}
+      pending={pending}
+      submitLabel="Start timer"
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (running) {
+          onClose()
+          nav('/learning')
+        } else start()
+      }}
+    >
+      {running ? (
+        <p className="text-sm text-muted-foreground">Stop it on the Learning page before starting another.</p>
+      ) : (
+        <TargetSelect goals={data.goals} topics={data.learning_topics} value={target} onChange={setTarget} />
+      )}
     </FormDialog>
   )
 }
@@ -54,12 +78,38 @@ function HabitQuick({ onClose }) {
   const list = stats.filter((s) => !s.habit.archived_at && (s.due || s.today))
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()} title="Complete habits" description="Tap to check in for today.">
-      {list.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">No habits due today. 🎉</p> : (
-        <ul className="space-y-2">{list.map((s) => { const done = s.today?.status === 'done'; return (
-          <li key={s.habit.id}><button disabled={pending} onClick={() => toggle(s.habit.id, done)} aria-pressed={done}
-            className={cn('flex w-full items-center gap-3 rounded-md border border-border px-3 py-2.5 text-left', done && 'bg-success/10')}>
-            <span className={cn('grid h-6 w-6 place-items-center rounded-full border-2', done ? 'border-success bg-success text-white' : 'border-muted-foreground/50')}>{done && <Check className="h-3.5 w-3.5" />}</span>
-            <span className={cn('flex-1 text-sm', done && 'text-muted-foreground line-through')}>{s.habit.name}</span></button></li>) })}</ul>)}
+      {list.length === 0 ? (
+        <p className="py-4 text-center text-sm text-muted-foreground">No habits due today. 🎉</p>
+      ) : (
+        <ul className="space-y-2">
+          {list.map((s) => {
+            const done = s.today?.status === 'done'
+            return (
+              <li key={s.habit.id}>
+                <button
+                  disabled={pending}
+                  onClick={() => toggle(s.habit.id, done)}
+                  aria-pressed={done}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-md border border-border px-3 py-2.5 text-left',
+                    done && 'bg-success/10',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'grid h-6 w-6 place-items-center rounded-full border-2',
+                      done ? 'border-success bg-success text-white' : 'border-muted-foreground/50',
+                    )}
+                  >
+                    {done && <Check className="h-3.5 w-3.5" />}
+                  </span>
+                  <span className={cn('flex-1 text-sm', done && 'text-muted-foreground line-through')}>{s.habit.name}</span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </Dialog>
   )
 }
@@ -67,7 +117,16 @@ function HabitQuick({ onClose }) {
 function QuickWorkout({ onClose }) {
   const today = useToday()
   const { data } = useTables('routines', 'exercises')
-  return <WorkoutDialog open onOpenChange={(o) => !o && onClose()} routines={data.routines} library={data.exercises} today={today} date={today} />
+  return (
+    <WorkoutDialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      routines={data.routines}
+      library={data.exercises}
+      today={today}
+      date={today}
+    />
+  )
 }
 
 export function QuickActionsProvider({ children }) {
@@ -80,8 +139,21 @@ export function QuickActionsProvider({ children }) {
     <Ctx.Provider value={value}>
       {children}
       <Dialog open={menu} onOpenChange={setMenu} title="Quick add">
-        <div className="grid grid-cols-2 gap-2">{QUICK.map(({ kind: k, label, icon: Icon }) => (
-          <button key={k} onClick={() => { setMenu(false); setKind(k) }} className="flex items-center gap-2.5 rounded-lg border border-border px-3 py-3 text-left text-sm font-medium transition-colors hover:border-primary/50 hover:bg-primary/5"><Icon className="h-4 w-4 text-secondary" />{label}</button>))}</div>
+        <div className="grid grid-cols-2 gap-2">
+          {QUICK.map(({ kind: k, label, icon: Icon }) => (
+            <button
+              key={k}
+              onClick={() => {
+                setMenu(false)
+                setKind(k)
+              }}
+              className="flex items-center gap-2.5 rounded-lg border border-border px-3 py-3 text-left text-sm font-medium transition-colors hover:border-primary/50 hover:bg-primary/5"
+            >
+              <Icon className="h-4 w-4 text-secondary" />
+              {label}
+            </button>
+          ))}
+        </div>
       </Dialog>
       {kind === 'task' && <TaskDialog open onOpenChange={(o) => !o && close()} defaultDate={today} />}
       {kind === 'expense' && <TransactionDialog open onOpenChange={(o) => !o && close()} today={today} defaultType="expense" />}
@@ -97,11 +169,25 @@ export function QuickActionsProvider({ children }) {
 /** Desktop header button. */
 export function QuickAddMenu() {
   const { menu } = useQuick()
-  return <Button size="sm" className="hidden md:inline-flex" onClick={menu}><Plus className="h-4 w-4" />Quick add</Button>
+  return (
+    <Button size="sm" className="hidden md:inline-flex" onClick={menu}>
+      <Plus className="h-4 w-4" />
+      Quick add
+    </Button>
+  )
 }
 
 /** Mobile floating action button. Must be rendered OUTSIDE the blurred header (backdrop-filter breaks position:fixed). */
 export function QuickFab() {
   const { menu } = useQuick()
-  return <button onClick={menu} aria-label="Quick add" className="fixed bottom-[4.5rem] right-4 z-30 grid h-12 w-12 place-items-center rounded-full bg-primary text-white shadow-lg shadow-primary/30 active:scale-95 md:hidden" style={{ marginBottom: 'env(safe-area-inset-bottom)' }}><Plus className="h-6 w-6" /></button>
+  return (
+    <button
+      onClick={menu}
+      aria-label="Quick add"
+      className="fixed bottom-[4.5rem] right-4 z-30 grid h-12 w-12 place-items-center rounded-full bg-primary text-white shadow-lg shadow-primary/30 active:scale-95 md:hidden"
+      style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
+    >
+      <Plus className="h-6 w-6" />
+    </button>
+  )
 }

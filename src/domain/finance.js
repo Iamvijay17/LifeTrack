@@ -13,8 +13,10 @@ export function summarize(transactions, month, budgetPaise = 0) {
   const expense = sum(rows.filter((t) => t.type === 'expense'))
   const savings = sum(rows.filter((t) => t.type === 'savings'))
   return {
-    income, expense, savings,
-    net: income - expense - savings,                 // what is left unallocated
+    income,
+    expense,
+    savings,
+    net: income - expense - savings, // what is left unallocated
     budget: budgetPaise,
     remaining: budgetPaise > 0 ? budgetPaise - expense : null,
     budgetUsed: budgetPaise > 0 ? expense / budgetPaise : null,
@@ -26,7 +28,9 @@ export function categoryBreakdown(transactions, type = 'expense') {
   const m = new Map()
   for (const t of transactions) if (t.type === type) m.set(t.category, (m.get(t.category) ?? 0) + t.amount_paise)
   const total = [...m.values()].reduce((a, b) => a + b, 0)
-  return [...m.entries()].map(([category, paise]) => ({ category, paise, share: total ? paise / total : 0 })).sort((a, b) => b.paise - a.paise)
+  return [...m.entries()]
+    .map(([category, paise]) => ({ category, paise, share: total ? paise / total : 0 }))
+    .sort((a, b) => b.paise - a.paise)
 }
 
 export function monthlySeries(transactions, endMonthStart, count = 6) {
@@ -42,7 +46,8 @@ export function monthlySeries(transactions, endMonthStart, count = 6) {
 
 export function dailySeries(transactions, from, to, type = 'expense') {
   const m = new Map()
-  for (const t of transactions) if (t.type === type && t.txn_date >= from && t.txn_date <= to) m.set(t.txn_date, (m.get(t.txn_date) ?? 0) + t.amount_paise)
+  for (const t of transactions)
+    if (t.type === type && t.txn_date >= from && t.txn_date <= to) m.set(t.txn_date, (m.get(t.txn_date) ?? 0) + t.amount_paise)
   return eachDay(from, to).map((date) => ({ date, paise: m.get(date) ?? 0 }))
 }
 

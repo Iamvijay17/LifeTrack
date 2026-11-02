@@ -5,7 +5,11 @@ export function applyTheme(theme) {
   const dark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
   document.documentElement.classList.toggle('dark', dark)
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', dark ? '#09090B' : '#FAFAFA')
-  try { localStorage.setItem('lifetrack:theme', theme) } catch { /* non-critical preference */ }
+  try {
+    localStorage.setItem('lifetrack:theme', theme)
+  } catch {
+    /* non-critical preference */
+  }
 }
 
 /** Keeps <html class="dark"> in sync with the account's theme setting (so it follows you across devices). */

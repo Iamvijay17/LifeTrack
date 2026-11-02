@@ -14,9 +14,13 @@ describe('connection banner', () => {
   it('shows and hides as the connection changes', () => {
     render(<Banners />)
     expect(screen.queryByRole('alert')).toBeNull()
-    act(() => { window.dispatchEvent(new Event('offline')) })
+    act(() => {
+      window.dispatchEvent(new Event('offline'))
+    })
     expect(screen.getByRole('alert')).toBeInTheDocument()
-    act(() => { window.dispatchEvent(new Event('online')) })
+    act(() => {
+      window.dispatchEvent(new Event('online'))
+    })
     expect(screen.queryByRole('alert')).toBeNull()
   })
 })

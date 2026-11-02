@@ -12,21 +12,43 @@ export function Heatmap({ levels, titles, today, weeks = 26, weekStartsOn = 1, o
   return (
     <div className="overflow-x-auto pb-1" role="img" aria-label="Activity heatmap">
       <div className="flex gap-1">
-        <div className="mr-1 grid grid-rows-7 gap-1 text-[10px] leading-3 text-muted-foreground">{dayNames.map((n, i) => <span key={i} className="h-3">{n}</span>)}</div>
+        <div className="mr-1 grid grid-rows-7 gap-1 text-[10px] leading-3 text-muted-foreground">
+          {dayNames.map((n, i) => (
+            <span key={i} className="h-3">
+              {n}
+            </span>
+          ))}
+        </div>
         {cols.map((col, w) => (
           <div key={w} className="grid grid-rows-7 gap-1">
             {col.map((d) => {
               const future = d > today
               const lvl = levels.get(d) ?? 0
               return (
-                <button key={d} type="button" disabled={future || !onSelect} onClick={() => onSelect?.(d)} title={future ? undefined : `${fmtDay(d, 'd MMM yyyy')}${titles?.get(d) ? ' — ' + titles.get(d) : ''}`}
-                  className={cn('h-3 w-3 rounded-[3px] transition-transform enabled:hover:scale-125', future ? 'opacity-0' : LEVELS[lvl], selected === d && 'ring-1 ring-foreground')} />
+                <button
+                  key={d}
+                  type="button"
+                  disabled={future || !onSelect}
+                  onClick={() => onSelect?.(d)}
+                  title={future ? undefined : `${fmtDay(d, 'd MMM yyyy')}${titles?.get(d) ? ' — ' + titles.get(d) : ''}`}
+                  className={cn(
+                    'h-3 w-3 rounded-[3px] transition-transform enabled:hover:scale-125',
+                    future ? 'opacity-0' : LEVELS[lvl],
+                    selected === d && 'ring-1 ring-foreground',
+                  )}
+                />
               )
             })}
           </div>
         ))}
       </div>
-      <div className="mt-2 flex items-center justify-end gap-1 text-[10px] text-muted-foreground">Less{LEVELS.map((c, i) => <span key={i} className={cn('h-3 w-3 rounded-[3px]', c)} />)}More</div>
+      <div className="mt-2 flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
+        Less
+        {LEVELS.map((c, i) => (
+          <span key={i} className={cn('h-3 w-3 rounded-[3px]', c)} />
+        ))}
+        More
+      </div>
     </div>
   )
 }

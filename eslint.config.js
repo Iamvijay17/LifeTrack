@@ -9,7 +9,12 @@ export default [
   {
     files: ['src/**/*.{js,jsx}'],
     plugins: { react, 'react-hooks': reactHooks },
-    languageOptions: { ecmaVersion: 'latest', sourceType: 'module', globals: globals.browser, parserOptions: { ecmaFeatures: { jsx: true } } },
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: globals.browser,
+      parserOptions: { ecmaFeatures: { jsx: true } },
+    },
     settings: { react: { version: 'detect' } },
     rules: {
       ...react.configs.recommended.rules,
@@ -25,8 +30,17 @@ export default [
   },
   {
     files: ['tests/**/*.{js,jsx}', 'e2e/**/*.js', 'scripts/**/*.mjs', '*.config.js'],
-    languageOptions: { ecmaVersion: 'latest', sourceType: 'module', globals: { ...globals.node, ...globals.browser, ...globals.vitest }, parserOptions: { ecmaFeatures: { jsx: true } } },
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: { ...globals.node, ...globals.browser, ...globals.vitest },
+      parserOptions: { ecmaFeatures: { jsx: true } },
+    },
     plugins: { react },
-    rules: { 'react/jsx-uses-vars': 'error', 'react/jsx-uses-react': 'off', 'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }] },
+    rules: {
+      'react/jsx-uses-vars': 'error',
+      'react/jsx-uses-react': 'off',
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+    },
   },
 ]

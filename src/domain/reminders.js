@@ -1,11 +1,27 @@
 import { addDays, addMonths, monthEnd } from '@/lib/dates'
 
 export const REMINDER_KINDS = [
-  { value: 'task', label: 'Task' }, { value: 'study', label: 'Study' }, { value: 'workout', label: 'Workout' },
-  { value: 'habit', label: 'Habit' }, { value: 'bill', label: 'Bill' }, { value: 'custom', label: 'Custom' },
+  { value: 'task', label: 'Task' },
+  { value: 'study', label: 'Study' },
+  { value: 'workout', label: 'Workout' },
+  { value: 'habit', label: 'Habit' },
+  { value: 'bill', label: 'Bill' },
+  { value: 'custom', label: 'Custom' },
 ]
-export const REPEATS = [{ value: 'none', label: 'Does not repeat' }, { value: 'daily', label: 'Daily' }, { value: 'weekly', label: 'Weekly' }, { value: 'monthly', label: 'Monthly' }]
-export const KIND_LINK = { task: '/planner', study: '/learning', workout: '/fitness', habit: '/habits', bill: '/finance', custom: '/notifications' }
+export const REPEATS = [
+  { value: 'none', label: 'Does not repeat' },
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+]
+export const KIND_LINK = {
+  task: '/planner',
+  study: '/learning',
+  workout: '/fitness',
+  habit: '/habits',
+  bill: '/finance',
+  custom: '/notifications',
+}
 
 /** Next date for a repeating reminder strictly after `date` (monthly clamps to the last day of shorter months). */
 export function nextRemindDate(date, repeat) {
@@ -21,15 +37,19 @@ export function nextRemindDate(date, repeat) {
 
 /** Reminders that should fire now: active, due on/before today (and past their time today), not already fired today. */
 export function dueReminders(reminders, today, nowTime) {
-  return reminders.filter((r) => r.active && r.last_fired_on !== today
-    && (r.remind_date < today || (r.remind_date === today && r.remind_time.slice(0, 5) <= nowTime)))
+  return reminders.filter(
+    (r) =>
+      r.active && r.last_fired_on !== today && (r.remind_date < today || (r.remind_date === today && r.remind_time.slice(0, 5) <= nowTime)),
+  )
 }
 
 /** What to store on the reminder after it fires. One-off reminders deactivate; repeating ones jump past today. */
 export function afterFire(r, today) {
   if (r.repeat === 'none') return { last_fired_on: today, active: false }
   let next = r.remind_date
-  do { next = nextRemindDate(next, r.repeat) } while (next <= today)
+  do {
+    next = nextRemindDate(next, r.repeat)
+  } while (next <= today)
   return { last_fired_on: today, remind_date: next }
 }
 

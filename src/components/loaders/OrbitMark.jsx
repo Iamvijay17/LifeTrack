@@ -11,12 +11,27 @@ export const OrbitMark = memo(function OrbitMark({ size = 96, className = '' }) 
   return (
     <svg className={`lt-orbit ${className}`} width={size} height={size} viewBox="0 0 120 120" fill="none" aria-hidden focusable="false">
       <defs>
-        <radialGradient id={`g${id}`} cx="50%" cy="50%" r="50%"><stop offset="0" stopColor="var(--lt-a)" stopOpacity=".55" /><stop offset="1" stopColor="var(--lt-a)" stopOpacity="0" /></radialGradient>
-        <linearGradient id={`c${id}`} x1="36" y1="30" x2="84" y2="72" gradientUnits="userSpaceOnUse"><stop offset="0" stopColor="var(--lt-b)" /><stop offset="1" stopColor="var(--lt-a)" /></linearGradient>
+        <radialGradient id={`g${id}`} cx="50%" cy="50%" r="50%">
+          <stop offset="0" stopColor="var(--lt-a)" stopOpacity=".55" />
+          <stop offset="1" stopColor="var(--lt-a)" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id={`c${id}`} x1="36" y1="30" x2="84" y2="72" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="var(--lt-b)" />
+          <stop offset="1" stopColor="var(--lt-a)" />
+        </linearGradient>
       </defs>
       <circle className="lt-glow" cx="60" cy="60" r="34" fill={`url(#g${id})`} />
       <g className="lt-spin lt-spin-outer">
-        <circle cx="60" cy="60" r="54" stroke="var(--lt-a)" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="92 36 22 36" opacity=".9" />
+        <circle
+          cx="60"
+          cy="60"
+          r="54"
+          stroke="var(--lt-a)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeDasharray="92 36 22 36"
+          opacity=".9"
+        />
         <circle cx="60" cy="6" r="3.4" fill="var(--lt-c)" />
         <circle cx="60" cy="114" r="2.2" fill="var(--lt-b)" />
       </g>

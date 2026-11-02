@@ -24,7 +24,10 @@ export function funnel(apps, history, events, from, to) {
   const applied = cohort.filter((a) => reached(a, APPLIED_OR_BEYOND) || a.applied_date).length
   const interviews = cohort.filter((a) => reached(a, INTERVIEW_OR_BEYOND) || evApps.has(a.id)).length
   const rejections = cohort.filter((a) => everStatuses(a, history).has('rejected')).length
-  const offers = cohort.filter((a) => { const e = everStatuses(a, history); return e.has('selected') || e.has('offer') }).length
+  const offers = cohort.filter((a) => {
+    const e = everStatuses(a, history)
+    return e.has('selected') || e.has('offer')
+  }).length
   return { applied, interviews, rejections, offers, conversion: applied ? interviews / applied : null }
 }
 
@@ -38,7 +41,12 @@ export function applicationsPerDay(apps, days) {
 export function salaryProgression(apps, tz) {
   return apps
     .filter((a) => a.salary_paise)
-    .map((a) => ({ date: a.applied_date ?? dateStrInTz(a.created_at, tz), company: a.company, lpa: a.salary_paise / 100 / 100000, status: a.status }))
+    .map((a) => ({
+      date: a.applied_date ?? dateStrInTz(a.created_at, tz),
+      company: a.company,
+      lpa: a.salary_paise / 100 / 100000,
+      status: a.status,
+    }))
     .sort((a, b) => a.date.localeCompare(b.date))
 }
 
@@ -48,4 +56,12 @@ export function dueFollowups(apps, today) {
     .sort((a, b) => a.followup_date.localeCompare(b.followup_date))
 }
 
-export const DEFAULT_PREP = ['Research the company', 'Review the job description', 'Revise core skills for the role', 'Practice DSA problems', 'Prepare project walkthroughs', 'Prepare questions to ask', 'Test video/audio setup']
+export const DEFAULT_PREP = [
+  'Research the company',
+  'Review the job description',
+  'Revise core skills for the role',
+  'Practice DSA problems',
+  'Prepare project walkthroughs',
+  'Prepare questions to ask',
+  'Test video/audio setup',
+]

@@ -12,7 +12,15 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let alive = true
-    auth.getSession().then((s) => { if (alive) { setUserId(s?.user?.id ?? null); setSession(s) } }).catch(() => alive && setSession(null))
+    auth
+      .getSession()
+      .then((s) => {
+        if (alive) {
+          setUserId(s?.user?.id ?? null)
+          setSession(s)
+        }
+      })
+      .catch(() => alive && setSession(null))
     const off = auth.onChange((event, s) => {
       const changed = (s?.user?.id ?? null) !== (window.__ltUser ?? null)
       window.__ltUser = s?.user?.id ?? null
@@ -21,20 +29,34 @@ export function AuthProvider({ children }) {
       if (event === 'PASSWORD_RECOVERY') setRecovery(true)
       setSession(s)
     })
-    return () => { alive = false; off() }
+    return () => {
+      alive = false
+      off()
+    }
   }, [])
 
   const userId = session?.user?.id
   useEffect(() => {
-    if (!userId) { stopSync(); return }
+    if (!userId) {
+      stopSync()
+      return
+    }
     startSync(setRealtime)
     return stopSync
   }, [userId])
 
-  const value = useMemo(() => ({
-    session, user: session?.user ?? null, loading: session === undefined, recovery, clearRecovery: () => setRecovery(false), realtime,
-    displayName: session?.user?.user_metadata?.display_name || session?.user?.email?.split('@')[0] || '',
-  }), [session, recovery, realtime])
+  const value = useMemo(
+    () => ({
+      session,
+      user: session?.user ?? null,
+      loading: session === undefined,
+      recovery,
+      clearRecovery: () => setRecovery(false),
+      realtime,
+      displayName: session?.user?.user_metadata?.display_name || session?.user?.email?.split('@')[0] || '',
+    }),
+    [session, recovery, realtime],
+  )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 

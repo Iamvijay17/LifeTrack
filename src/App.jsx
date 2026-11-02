@@ -43,7 +43,13 @@ export default function App() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
-            <Route element={<Protected><AppShell /></Protected>}>
+            <Route
+              element={
+                <Protected>
+                  <AppShell />
+                </Protected>
+              }
+            >
               <Route index element={<Overview />} />
               <Route path="planner" element={<Planner />} />
               <Route path="learning" element={<Learning />} />
@@ -64,7 +70,11 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
-        <Toaster theme="system" position="top-center" toastOptions={{ classNames: { toast: '!bg-card !text-foreground !border-border' } }} />
+        <Toaster
+          theme="system"
+          position="top-center"
+          toastOptions={{ classNames: { toast: '!bg-card !text-foreground !border-border' } }}
+        />
       </ConfirmProvider>
     </AuthProvider>
   )

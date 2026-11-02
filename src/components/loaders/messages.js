@@ -8,10 +8,21 @@ export const MESSAGES = {
 }
 
 const BY_ROUTE = [
-  ['/planner', MESSAGES.planner], ['/focus', MESSAGES.planner], ['/habits', MESSAGES.planner], ['/notes', MESSAGES.planner],
-  ['/learning', MESSAGES.learning], ['/goals', MESSAGES.learning], ['/jobs', MESSAGES.learning],
-  ['/analytics', MESSAGES.insights], ['/reports', MESSAGES.insights],
-  ['/fitness', MESSAGES.sync], ['/health', MESSAGES.sync], ['/finance', MESSAGES.sync], ['/notifications', MESSAGES.sync], ['/export', MESSAGES.sync], ['/settings', MESSAGES.sync],
+  ['/planner', MESSAGES.planner],
+  ['/focus', MESSAGES.planner],
+  ['/habits', MESSAGES.planner],
+  ['/notes', MESSAGES.planner],
+  ['/learning', MESSAGES.learning],
+  ['/goals', MESSAGES.learning],
+  ['/jobs', MESSAGES.learning],
+  ['/analytics', MESSAGES.insights],
+  ['/reports', MESSAGES.insights],
+  ['/fitness', MESSAGES.sync],
+  ['/health', MESSAGES.sync],
+  ['/finance', MESSAGES.sync],
+  ['/notifications', MESSAGES.sync],
+  ['/export', MESSAGES.sync],
+  ['/settings', MESSAGES.sync],
 ]
 /** Message for the page a route is loading. */
 export function messageForPath(pathname = '/') {

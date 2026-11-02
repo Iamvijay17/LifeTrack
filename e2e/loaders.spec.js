@@ -2,7 +2,11 @@ import { test, expect } from '@playwright/test'
 import { register } from './helpers'
 
 const SHOTS = '/tmp/claude-0/-home-user-LifeTrack/137c8166-0b5e-5d8e-96e7-8cb72e14747f/scratchpad'
-const slow = (page, glob, ms) => page.route(glob, async (route) => { await new Promise((r) => setTimeout(r, ms)); await route.continue() })
+const slow = (page, glob, ms) =>
+  page.route(glob, async (route) => {
+    await new Promise((r) => setTimeout(r, ms))
+    await route.continue()
+  })
 
 test.describe('branded loading system', () => {
   test('static boot screen is visible before the JS bundle arrives, then replaced by the app', async ({ page }) => {
@@ -35,7 +39,11 @@ test.describe('branded loading system', () => {
     await slow(page, '**/assets/index-*.js', 2500)
     await page.goto('/login', { waitUntil: 'commit' })
     await expect(page.locator('.lt-boot')).toBeVisible()
-    const style = (sel, prop) => page.locator(sel).first().evaluate((el, p) => getComputedStyle(el)[p], prop)
+    const style = (sel, prop) =>
+      page
+        .locator(sel)
+        .first()
+        .evaluate((el, p) => getComputedStyle(el)[p], prop)
     expect(await style('.lt-spin-outer', 'animationName')).toBe('lt-spin')
     expect(await style('.lt-spin-inner', 'animationDirection')).toBe('reverse')
     expect(await style('.lt-spin-outer', 'animationDirection')).toBe('normal')
@@ -72,6 +80,9 @@ test.describe('branded loading system', () => {
     await page.getByRole('button', { name: 'Sign in' }).click()
     // either still busy or already finished with an error; never double-clickable while busy
     const btn = page.getByRole('button', { name: 'Sign in' })
-    if (await btn.getAttribute('aria-busy')) { await expect(btn).toBeDisabled(); await expect(btn.locator('svg.lt-orbit')).toBeVisible() }
+    if (await btn.getAttribute('aria-busy')) {
+      await expect(btn).toBeDisabled()
+      await expect(btn.locator('svg.lt-orbit')).toBeVisible()
+    }
   })
 })
