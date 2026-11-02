@@ -56,7 +56,7 @@ export default function NotificationsPage() {
               : <Card><ul className="divide-y divide-border">{inbox.map((n) => (
                 <li key={n.id} className={cn('flex items-start gap-3 px-4 py-3', !n.read_at && 'bg-primary/5')}>
                   <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', n.read_at ? 'bg-transparent' : 'bg-primary')} aria-label={n.read_at ? 'read' : 'unread'} />
-                  <div className="min-w-0 flex-1"><p className="text-sm font-medium">{n.title}</p><p className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground"><Badge>{n.kind}</Badge>{relTime(n.created_at)}{n.link && <Link to={n.link} onClick={() => read(n)} className="text-secondary hover:underline">Open</Link>}</p></div>
+                  <div className="min-w-0 flex-1"><p className="text-sm font-medium">{n.title}</p><p className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground"><Badge>{n.kind}</Badge>{relTime(n.created_at)}{n.link && <Link to={n.link} onClick={() => read(n)} className="text-secondary underline underline-offset-2">Open</Link>}</p></div>
                   {!n.read_at && <Button variant="ghost" size="sm" onClick={() => read(n)}>Mark read</Button>}
                   <Button variant="ghost" size="icon-sm" aria-label="Delete notification" onClick={() => delN(n.id)}><Trash2 className="h-4 w-4" /></Button>
                 </li>))}</ul></Card>}
