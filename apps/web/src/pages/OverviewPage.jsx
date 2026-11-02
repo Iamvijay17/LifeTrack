@@ -10,7 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/misc'
 import { QUICK, useQuick } from '@/features/quick/QuickActions'
-import { byPriority, isOpen } from '@/features/planner/TaskList'
 import { useHabits } from '@/features/habits/habitData'
 import { useTables } from '@/hooks/store'
 import { useSettings } from '@/hooks/useSettings'
@@ -23,7 +22,7 @@ import { dailyScore, averageScore } from '@lifetrack/core/score'
 import { goalPercent } from '@lifetrack/core/goals'
 import { summarize } from '@lifetrack/core/finance'
 import { ScoreCard } from '@/features/overview/ScoreCard'
-import { WIDGETS, isWidgetOn } from '@/features/overview/widgets'
+import { WIDGETS, isWidgetOn, dashboardData, relTime } from '@lifetrack/core/dashboard'
 import { Dialog } from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/form'
 import { monthKey } from '@/lib/dates'
@@ -44,14 +43,6 @@ function Ring({ percent }) {
   )
 }
 
-const rel = (iso) => {
-  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  if (mins < 1440) return `${Math.round(mins / 60)}h ago`
-  return `${Math.round(mins / 1440)}d ago`
-}
-
 export default function OverviewPage() {
   const today = useToday()
   const { displayName } = useAuth()
@@ -65,46 +56,14 @@ export default function OverviewPage() {
   const { habits, logs: habitLogs, stats: habitStats, loading: hLoading, error: hError } = useHabits(today, w)
   const [complete] = useAction((t) => setTaskStatus(t, 'done', today))
 
-  const calc = (date) => dailyProgress({ date, tasks: data.tasks, habits, habitLogs, sessions: data.study_sessions, workouts: data.workouts, health: data.health_logs.find((h) => h.log_date === date), settings })
-  const progress = useMemo(() => calc(today), [data, habits, habitLogs, settings, today]) // eslint-disable-line react-hooks/exhaustive-deps
-  const weekStart = startOfWeek(today, w)
-  const weekly = useMemo(() => eachDay(weekStart, addDays(weekStart, 6)).map((d) => ({ d, label: fmtDay(d, 'EEE'), pct: d > today ? null : calc(d).percent })), [data, habits, habitLogs, settings, today, weekStart]) // eslint-disable-line react-hooks/exhaustive-deps
+  const dash = useMemo(() => dashboardData({ tasks: data.tasks, studySessions: data.study_sessions, workouts: data.workouts, healthLogs: data.health_logs, transactions: data.transactions, applications: data.job_applications, history: data.application_history, interviews: data.interview_events, goals: data.goals, milestones: data.milestones, habits, habitLogs }, { settings, today }), [data, habits, habitLogs, settings, today])
+  const { progress, score, weekScores, weekAvg, activeGoals, month: monthSum, openToday, doneTodayTasks, topTasks: todays, health, studyMin, weekApps, spentToday, gym, todayWorkouts, streak, activity } = dash
+  const running = dash.timerRunning
+  const { habitsDue, habitsDone } = dash
+  const hasTasksToday = dash.hasTasksToday
+  const activityIcon = { task: CheckCircle2, study: BookOpen, workout: Dumbbell, money: Wallet, job: Briefcase, habit: Repeat }
 
-  const scoreFor = (date) => dailyScore({ date, tasks: data.tasks, habits, habitLogs, sessions: data.study_sessions, workouts: data.workouts, health: data.health_logs.find((h) => h.log_date === date) ?? null, applications: data.job_applications, interviews: data.interview_events, settings, tz })
-  const score = useMemo(() => scoreFor(today), [data, habits, habitLogs, settings, today]) // eslint-disable-line react-hooks/exhaustive-deps
-  const weekScores = useMemo(() => eachDay(weekStart, addDays(weekStart, 6)).map((d) => ({ d, label: fmtDay(d, 'EEE'), score: d > today ? null : scoreFor(d).score })), [data, habits, habitLogs, settings, today, weekStart]) // eslint-disable-line react-hooks/exhaustive-deps
-  const weekAvg = averageScore(weekScores.filter((x) => x.score != null).map((x) => ({ score: x.score }))).avg
-  const activeGoals = data.goals.filter((g) => g.status === 'active').map((g) => ({ g, p: goalPercent(g, data.milestones, data.study_sessions) })).sort((a, b) => (a.g.due_date ?? '9999').localeCompare(b.g.due_date ?? '9999')).slice(0, 4)
-  const monthSum = summarize(data.transactions, monthKey(today), settings.monthly_budget_paise)
-  const openToday = data.tasks.filter((t) => t.due_date === today && isOpen(t)).length
-  const doneTodayTasks = data.tasks.filter((t) => t.due_date === today && t.status === 'done').length
-
-  const todays = data.tasks.filter((t) => t.due_date === today && isOpen(t)).sort(byPriority).slice(0, 3)
-  const health = data.health_logs.find((h) => h.log_date === today)
-  const studyMin = countedMinutes(data.study_sessions.filter((s) => s.session_date === today))
-  const running = data.study_sessions.find((s) => s.status === 'running')
-  const weekApps = data.job_applications.filter((a) => a.applied_date && a.applied_date >= weekStart && a.applied_date <= addDays(weekStart, 6)).length
-  const spentToday = data.transactions.filter((t) => t.type === 'expense' && t.txn_date === today).reduce((a, t) => a + t.amount_paise, 0)
-  const habitsToday = habitStats.filter((s) => !s.habit.archived_at && (s.due || s.today))
-  const habitsDone = habitsToday.filter((s) => s.today?.status === 'done').length
-  const todayWorkouts = data.workouts.filter((x) => x.workout_date === today)
-  const planned = settings.workout_plan?.[String(new Date(today + 'T00:00:00Z').getUTCDay())]
-  const gym = todayWorkouts.some((x) => x.status === 'completed') ? 'Done' : todayWorkouts.some((x) => x.status === 'rest') || planned === 'rest' ? 'Rest day' : todayWorkouts.some((x) => x.status === 'skipped') ? 'Skipped' : planned ? 'Planned' : 'Not planned'
-  const streak = useMemo(() => activeDayStreak(activeDates({ habitLogs, tasks: data.tasks, sessions: data.study_sessions, workouts: data.workouts }, tz), today), [habitLogs, data, tz, today])
-
-  const activity = useMemo(() => {
-    const a = []
-    for (const t of data.tasks) if (t.status === 'done' && t.completed_at) a.push({ at: t.completed_at, icon: CheckCircle2, text: `Completed “${t.title}”` })
-    for (const s of data.study_sessions) if (s.status === 'completed' && s.ended_at) a.push({ at: s.ended_at, icon: BookOpen, text: `Studied ${fmtDuration(s.duration_seconds / 60)}${s.problems_solved ? ` · ${s.problems_solved} problems` : ''}` })
-    for (const x of data.workouts) if (x.status === 'completed') a.push({ at: x.created_at, icon: Dumbbell, text: `Workout: ${x.name}` })
-    for (const t of data.transactions) a.push({ at: t.created_at, icon: Wallet, text: `${t.type === 'income' ? 'Income' : t.type === 'savings' ? 'Saved' : 'Spent'} ${formatMoney(t.amount_paise, cur)} · ${t.category}` })
-    for (const h of data.application_history) { const app = data.job_applications.find((x) => x.id === h.application_id); if (app) a.push({ at: h.changed_at, icon: Briefcase, text: `${app.company}: ${h.from_status ? `${h.from_status} → ` : 'added as '}${h.to_status}` }) }
-    for (const l of habitLogs) if (l.status === 'done') { const hb = habits.find((x) => x.id === l.habit_id); if (hb) a.push({ at: l.updated_at ?? l.created_at, icon: Repeat, text: `Checked in: ${hb.name}` }) }
-    return a.sort((x, y) => y.at.localeCompare(x.at)).slice(0, 8)
-  }, [data, habitLogs, habits, cur])
-
-  const hour = Number(timeStrInTz(new Date(), tz).slice(0, 2))
-  const greeting = hour < 5 ? 'Still up' : hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : hour < 22 ? 'Good evening' : 'Good night'
+  const greeting = dash.greeting
 
   return (
     <>
@@ -125,7 +84,7 @@ export default function OverviewPage() {
           </div>}
           {on('priorities') && <div className="grid gap-4 lg:grid-cols-5">
             <Card className="lg:col-span-5"><CardHeader><CardTitle>Top priorities</CardTitle><span className="text-xs text-muted-foreground">{openToday} pending · {doneTodayTasks} completed today</span><Link to="/planner" className="text-xs text-secondary hover:underline">Planner</Link></CardHeader><CardContent className="space-y-1">
-              {todays.length === 0 ? <div className="py-4 text-center text-sm text-muted-foreground">{data.tasks.some((t) => t.due_date === today) ? 'All priorities done 🎉' : 'No tasks for today.'}<div className="mt-2"><Button size="sm" variant="outline" onClick={() => quick.open('task')}><Plus className="h-4 w-4" />Add task</Button></div></div>
+              {todays.length === 0 ? <div className="py-4 text-center text-sm text-muted-foreground">{hasTasksToday ? 'All priorities done 🎉' : 'No tasks for today.'}<div className="mt-2"><Button size="sm" variant="outline" onClick={() => quick.open('task')}><Plus className="h-4 w-4" />Add task</Button></div></div>
               : todays.map((t) => <button key={t.id} onClick={() => complete(t)} aria-label={`Complete ${t.title}`} className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-muted/40"><Circle className="h-5 w-5 shrink-0 text-muted-foreground" /><span className="truncate text-sm">{t.title}</span></button>)}
             </CardContent></Card>
           </div>}
@@ -138,7 +97,7 @@ export default function OverviewPage() {
             <StatCard icon={Footprints} label="Steps" value={(health?.steps ?? 0).toLocaleString('en-IN')} sub={settings.steps_goal ? `goal ${settings.steps_goal.toLocaleString('en-IN')}` : undefined} progress={settings.steps_goal ? ((health?.steps ?? 0) / settings.steps_goal) * 100 : null} />
             <StatCard icon={Briefcase} label="Applications" value={weekApps} sub="this week" />
             <StatCard icon={Wallet} label="Spent today" value={formatMoney(spentToday, cur)} />
-            <StatCard icon={Check} label="Habits" value={`${habitsDone}/${habitsToday.length}`} sub={habitsToday.length ? undefined : 'none due today'} progress={habitsToday.length ? (habitsDone / habitsToday.length) * 100 : null} tone="success" />
+            <StatCard icon={Check} label="Habits" value={`${habitsDone}/${habitsDue}`} sub={habitsDue ? undefined : 'none due today'} progress={habitsDue ? (habitsDone / habitsDue) * 100 : null} tone="success" />
           </div>}
 
           {(on('goals') || on('spending')) && <div className="grid gap-4 lg:grid-cols-2">
@@ -159,7 +118,7 @@ export default function OverviewPage() {
               </Chart>
             </CardContent></Card>}
             {on('activity') && <Card className={on('weekly') ? 'lg:col-span-2' : 'lg:col-span-5'}><CardHeader><CardTitle className="flex items-center gap-2"><Activity className="h-4 w-4" />Recent activity</CardTitle></CardHeader><CardContent>
-              {activity.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">Your activity will show up here.</p> : <ul className="space-y-2.5">{activity.map((a, i) => <li key={i} className="flex items-start gap-2.5 text-sm"><a.icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1 truncate">{a.text}</span><span className="shrink-0 text-xs text-muted-foreground">{rel(a.at)}</span></li>)}</ul>}
+              {activity.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">Your activity will show up here.</p> : <ul className="space-y-2.5">{activity.map((a, i) => { const Icon = activityIcon[a.kind]; return <li key={i} className="flex items-start gap-2.5 text-sm"><Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1 truncate">{a.text}</span><span className="shrink-0 text-xs text-muted-foreground">{relTime(a.at)}</span></li> })}</ul>}
             </CardContent></Card>}
           </div>}
 

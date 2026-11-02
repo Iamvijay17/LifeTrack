@@ -104,3 +104,15 @@ export function explainScore(result) {
   const skipped = result.categories.filter((c) => !c.applicable).map((c) => c.label)
   return `${parts.join(' + ')} = ${result.score}.${skipped.length ? ` ${skipped.join(', ')} had nothing planned or logged, so ${skipped.length > 1 ? 'their' : 'its'} weight was shared among the rest instead of counting as zero.` : ''}`
 }
+
+/** Validate user-entered score weights (string/number per category). Returns plain numbers or throws a friendly Error. */
+export function validateScoreWeights(w) {
+  const out = {}
+  for (const c of SCORE_CATEGORIES) {
+    const v = Number(w[c.key])
+    if (!Number.isFinite(v) || v < 0 || v > 100) throw new Error(`${c.label}: enter a weight between 0 and 100.`)
+    out[c.key] = v
+  }
+  if (Object.values(out).reduce((a, b) => a + b, 0) <= 0) throw new Error('At least one weight must be above zero.')
+  return out
+}

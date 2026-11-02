@@ -304,3 +304,34 @@ export function measurementFormToPayloads(v: z.output<typeof measurementFormSche
   if (!hasTape && weight_kg === '') throw new Error('Enter at least one measurement.')
   return { body: hasTape ? { measured_on, notes, ...tape } : null, weight: weight_kg === '' ? null : Number(weight_kg), date: measured_on }
 }
+
+// ----------------------------------------------------------------- settings
+const validTz = (tz: string) => { try { new Intl.DateTimeFormat('en', { timeZone: tz }); return true } catch { return false } }
+export const CURRENCY_CODES = ['INR', 'USD', 'EUR'] as const
+export const preferencesFormSchema = z.object({
+  timezone: z.string().refine(validTz, 'Unknown timezone'),
+  currency: z.enum(CURRENCY_CODES),
+  week_starts_on: z.coerce.number().refine((n) => n === 0 || n === 1),
+  daily_study_target_minutes: z.coerce.number({ invalid_type_error: 'Enter minutes' }).int().min(0).max(1440, 'Max 1440'),
+  monthly_budget: z.string().refine((v) => v.trim() === '' || parseMoney(v) !== null, 'Enter an amount like 30000'),
+  water_goal_ml: z.coerce.number().int().min(0).max(20000),
+  steps_goal: z.coerce.number().int().min(0).max(200000),
+})
+export type PreferencesForm = z.input<typeof preferencesFormSchema>
+export const preferencesToForm = (s: { timezone: string; currency: string; week_starts_on: number; daily_study_target_minutes: number; monthly_budget_paise: number; water_goal_ml: number; steps_goal: number }): PreferencesForm =>
+  ({ timezone: s.timezone, currency: s.currency as PreferencesForm['currency'], week_starts_on: String(s.week_starts_on) as unknown as number, daily_study_target_minutes: s.daily_study_target_minutes, monthly_budget: s.monthly_budget_paise ? paiseToInput(s.monthly_budget_paise) : '', water_goal_ml: s.water_goal_ml, steps_goal: s.steps_goal })
+export const preferencesToPayload = (v: z.output<typeof preferencesFormSchema>) => {
+  const { monthly_budget, ...rest } = v
+  return { ...rest, monthly_budget_paise: monthly_budget.trim() ? (parseMoney(monthly_budget) as number) : 0 }
+}
+
+export const focusPrefsFormSchema = z.object({
+  short_break: z.coerce.number().int('Short break: 1–60 minutes.').min(1, 'Short break: 1–60 minutes.').max(60, 'Short break: 1–60 minutes.'),
+  long_break: z.coerce.number().int('Long break: 1–120 minutes.').min(1, 'Long break: 1–120 minutes.').max(120, 'Long break: 1–120 minutes.'),
+  long_every: z.coerce.number().int('Long break every: 2–10 sessions.').min(2, 'Long break every: 2–10 sessions.').max(10, 'Long break every: 2–10 sessions.'),
+})
+
+export const displayNameSchema = z.string().trim().min(1, 'Enter a name up to 80 characters.').max(80, 'Enter a name up to 80 characters.')
+export const passwordChangeSchema = z.object({ a: z.string().min(8, 'Use at least 8 characters.'), b: z.string() }).refine((v) => v.a === v.b, { path: ['b'], message: 'Passwords do not match.' })
+/** The word a user must type to confirm permanent account deletion. */
+export const DELETE_CONFIRM_WORD = 'DELETE'
