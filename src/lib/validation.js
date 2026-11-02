@@ -21,3 +21,13 @@ export const moneyField = (message, { min = 1 } = {}) =>
       const p = parseMoney(v)
       return p !== null && p >= min
     }, message)
+
+/** A number typed into a field: 0 or more, at most `max`, with a labelled error. */
+export const nonNegativeNumber = (max, label) =>
+  z.coerce
+    .number({ invalid_type_error: `${label}: enter a number` })
+    .min(0, `${label} can’t be negative`)
+    .max(max, `${label} is too large`)
+
+/** Like nonNegativeNumber, but the field may be left blank ('' means "not provided"). */
+export const optionalNumber = (max, label) => z.union([z.literal(''), nonNegativeNumber(max, label)])

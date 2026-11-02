@@ -1,6 +1,6 @@
 # Architecture conventions
 
-Modules are migrated to this layout one at a time (done: **Planner**, **Notes & Journal**, **Learning**, **Habits**, **Finance**; the rest still live in `src/pages/`).
+Modules are migrated to this layout one at a time (done: **Planner**, **Notes & Journal**, **Learning**, **Habits**, **Finance**, **Jobs**, **Fitness**; the rest still live in `src/pages/`).
 
 ```
 src/
@@ -18,7 +18,7 @@ src/
 Rules of thumb
 
 - **Pure logic goes in `domain/`**, with a unit test. A page should read as: load data → derive with a domain function → render.
-- **Forms**: `useDialogForm` + a Zod schema built from `lib/validation.js` (`optionalDay`, `requiredDay`, `moneyField`). No `eslint-disable` for
+- **Forms**: `useDialogForm` + a Zod schema built from `lib/validation.js` (`optionalDay`, `requiredDay`, `moneyField`, `nonNegativeNumber`, `optionalNumber`). No `eslint-disable` for
   "reset when the dialog opens" — the hook already does it correctly.
 - **Delete flows**: `useConfirmedDelete(table, toast)` = confirm dialog + delete + toast + duplicate-submit protection.
 - **Writes** go through `hooks/store` (`insert/update/upsert/remove`) or a domain operation in `services/api.js`; UI never calls Supabase.
