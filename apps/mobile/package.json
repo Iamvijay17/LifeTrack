@@ -12,6 +12,7 @@
     "export": "expo export --platform android --platform ios"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
     "@lifetrack/constants": "workspace:*",
     "@lifetrack/core": "workspace:*",
     "@lifetrack/data": "workspace:*",
@@ -23,6 +24,7 @@
     "@tanstack/react-query": "^5.105.2",
     "expo": "~58.0.22",
     "expo-constants": "^58.0.14",
+    "expo-dev-client": "~58.0.18",
     "expo-linking": "^58.0.15",
     "expo-router": "^58.0.29",
     "expo-secure-store": "^58.0.2",
@@ -32,7 +34,7 @@
     "react-native": "^0.88.1",
     "react-native-safe-area-context": "^5.10.1",
     "react-native-screens": "^4.30.1",
-    "zustand": "^5.0.16"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/react": "~19.2.18",

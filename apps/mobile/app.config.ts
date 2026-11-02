@@ -14,8 +14,7 @@ const config: ExpoConfig = {
   backgroundColor: '#09090B',
   ios: { bundleIdentifier: IOS_BUNDLE_ID, supportsTablet: true, infoPlist: { ITSAppUsesNonExemptEncryption: false } },
   android: { package: ANDROID_PACKAGE, softwareKeyboardLayoutMode: 'resize' },
-  plugins: ['expo-router', 'expo-secure-store'],
-  experiments: { typedRoutes: true },
+  plugins: ['expo-router', 'expo-secure-store', 'expo-dev-client'],
   extra: {
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
