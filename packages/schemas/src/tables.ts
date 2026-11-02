@@ -107,6 +107,7 @@ const insertShapes = {
     kind: z.enum(REMINDER_KINDS).optional(), title: str(1, 160), remind_date: day, remind_time: time.optional(),
     repeat: z.enum(['none', 'daily', 'weekly', 'monthly']).optional(), active: z.boolean().optional(), last_fired_on: day.nullable().optional(),
   },
+  device_push_tokens: { token: z.string().regex(/^(Expo|Exponent)PushToken\[[^\]]+\]$/), platform: z.enum(['ios', 'android']), device_name: str(0, 80).optional(), last_seen_at: ts.optional() },
   notifications: {
     kind: z.enum([...REMINDER_KINDS, 'system']).optional(), title: str(1, 200), body: text().optional(), link: text().optional(),
     dedupe_key: text().nullable().optional(), read_at: ts.nullable().optional(),
