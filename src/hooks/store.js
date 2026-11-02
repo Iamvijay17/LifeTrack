@@ -18,16 +18,41 @@ function set(t, patch) {
   subs.get(t)?.forEach((f) => f())
 }
 
+// Every local cache write bumps a per-table version. A fetch that was started before a write may carry an older
+// snapshot, so if the version moved while it was in flight the result is discarded and the fetch is repeated.
+const versions = new Map()    // table -> number
+const dirty = new Set()       // tables that need one more fetch once the in-flight one finishes
+const ver = (t) => versions.get(t) ?? 0
+const bump = (t) => versions.set(t, ver(t) + 1)
+const MAX_ATTEMPTS = 3
+
 export function load(table, { force = false } = {}) {
   const cur = get(table)
-  if (!force && (cur.status === 'ready' || cur.status === 'loading')) return inflight.get(table) ?? Promise.resolve()
-  if (inflight.has(table)) return inflight.get(table)
+  if (inflight.has(table)) { if (force) dirty.add(table); return inflight.get(table) }
+  // An errored table is retried only on request (Try again), focus/reconnect or the safety-net sync — never in a render-driven loop.
+  if (!force && (cur.status === 'ready' || cur.status === 'error')) return Promise.resolve()
   const my = epoch
   if (cur.status !== 'ready') set(table, { status: 'loading', error: null })
-  const p = db.list(table)
-    .then((rows) => { if (my === epoch) set(table, { rows, status: 'ready', error: null }) })
-    .catch((e) => { if (my === epoch) set(table, { status: 'error', error: toAppError(e).message }) })
-    .finally(() => inflight.delete(table))
+  const run = async () => {
+    for (let attempt = 1; ; attempt++) {
+      const startVer = ver(table)
+      dirty.delete(table)
+      let rows
+      try { rows = await db.list(table) } catch (e) {
+        if (my !== epoch) return
+        // A failed background refresh keeps the data already on screen; only a failed first load is an error state.
+        if (get(table).status === 'ready') return
+        set(table, { status: 'error', error: toAppError(e).message }); return
+      }
+      if (my !== epoch) return
+      const stale = ver(table) !== startVer || dirty.has(table)
+      if (stale && attempt < MAX_ATTEMPTS) continue
+      set(table, { rows, status: 'ready', error: null })
+      if (stale) scheduleRefetch(table)
+      return
+    }
+  }
+  const p = run().finally(() => inflight.delete(table))
   inflight.set(table, p)
   return p
 }
@@ -35,8 +60,9 @@ export function load(table, { force = false } = {}) {
 export const refetch = (table) => load(table, { force: true })
 
 /** Re-pull every table that has been loaded (used on focus / reconnect / realtime reconnect). */
-export function refetchLoaded() {
-  return Promise.all([...state.keys()].filter((t) => get(t).status !== 'idle').map((t) => refetch(t)))
+export function refetchLoaded({ readyOnly = false } = {}) {
+  const wanted = (t) => (readyOnly ? get(t).status === 'ready' : get(t).status !== 'idle')
+  return Promise.all([...state.keys()].filter(wanted).map((t) => refetch(t)))
 }
 
 export function scheduleRefetch(table) {
@@ -46,7 +72,7 @@ export function scheduleRefetch(table) {
 
 export function resetStore() {
   epoch++
-  inflight.clear()
+  inflight.clear(); dirty.clear(); versions.clear()
   timers.forEach(clearTimeout)
   const keys = [...state.keys()]
   state.clear()
@@ -61,11 +87,47 @@ const upsertLocal = (table, rows) => {
     if (i >= 0) cur[i] = r
     else cur.push(r)
   }
+  bump(table)
   set(table, { rows: cur, status: 'ready' })
 }
 const removeLocal = (table, ids) => {
   const s = new Set(ids)
+  bump(table)
   set(table, { rows: get(table).rows.filter((r) => !s.has(r.id)) })
+}
+/** Replace the cached rows matching `drop` with `rows` (used by operations that rewrite a group of rows atomically). */
+export const patchGroup = (table, drop, rows) => {
+  const kept = get(table).rows.filter((r) => !drop(r))
+  bump(table)
+  set(table, { rows: [...kept, ...rows], status: 'ready' })
+}
+export const patch = (table, rows) => upsertLocal(table, rows)
+
+const sameFields = (a, b) => Object.keys(b).every((k) => JSON.stringify(a[k]) === JSON.stringify(b[k]))
+/**
+ * Apply a Realtime change straight to the cache instead of re-downloading the table.
+ * Echoes of this device's own writes are recognised (the cached row already has those values) and ignored.
+ * `payload` is absent for the local DEV adapter, which falls back to a refetch.
+ */
+export function applyChange(table, payload) {
+  if (get(table).status !== 'ready') return // not loaded (or still loading): the load itself will see the change
+  if (!payload?.eventType) return scheduleRefetch(table)
+  if (payload.eventType === 'DELETE') {
+    const id = payload.old?.id
+    if (!id) return scheduleRefetch(table)
+    if (get(table).rows.some((r) => r.id === id)) removeLocal(table, [id])
+    return
+  }
+  const row = payload.new
+  if (!row?.id) return scheduleRefetch(table)
+  const cached = get(table).rows.find((r) => r.id === row.id)
+  if (!cached && payload.eventType === 'UPDATE') return scheduleRefetch(table) // we never saw this row: get the full record
+  if (cached) {
+    if (cached.updated_at && row.updated_at && Date.parse(cached.updated_at) > Date.parse(row.updated_at)) return // older than what we hold
+    if (sameFields(cached, row)) return
+    return upsertLocal(table, [{ ...cached, ...row }]) // merge: unchanged large (TOAST) columns may be missing from the payload
+  }
+  upsertLocal(table, [row])
 }
 
 // ---------------------------------------------------------------- save status
@@ -147,26 +209,52 @@ export function useTables(...tables) {
 }
 
 // ------------------------------------------------------------------- realtime
+const MIN_SYNC_GAP = 5_000
+const POLL_MS = 90_000
 let unsub = null
 let pollTimer = null
+let connected = false
+let everConnected = false
+let lastSync = 0
+let stopFns = null
+
+/** Refetch everything loaded, at most once per MIN_SYNC_GAP unless forced (focus + visibility fire together on tab switch). */
+function syncAll({ force = false } = {}) {
+  const now = Date.now()
+  if (!force && now - lastSync < MIN_SYNC_GAP) return Promise.resolve()
+  lastSync = now
+  return refetchLoaded()
+}
+
 export function startSync(onStatus) {
   stopSync()
-  unsub = db.subscribe((table) => scheduleRefetch(table), (status) => {
+  unsub = db.subscribe((table, payload) => applyChange(table, payload), (status) => {
     onStatus?.(status)
-    if (status === 'SUBSCRIBED') refetchLoaded() // catch up on anything missed while disconnected
+    connected = status === 'SUBSCRIBED'
+    if (connected) {
+      // Catch up on anything missed while disconnected (and in the gap before the first subscription).
+      lastSync = Date.now()
+      if (everConnected) refetchLoaded(); else refetchLoaded({ readyOnly: true })
+      everConnected = true
+    }
   })
-  const onVisible = () => { if (document.visibilityState === 'visible') refetchLoaded() }
+  const onVisible = () => { if (document.visibilityState === 'visible') syncAll() }
+  const onOnline = () => syncAll({ force: true })
   window.addEventListener('visibilitychange', onVisible)
   window.addEventListener('focus', onVisible)
-  window.addEventListener('online', onVisible)
-  pollTimer = setInterval(() => { if (document.visibilityState === 'visible' && navigator.onLine) refetchLoaded() }, 90_000)
+  window.addEventListener('online', onOnline)
+  // Safety net only while Realtime is NOT delivering changes; when it is connected the poll would just re-download data.
+  pollTimer = setInterval(() => { if (!connected && document.visibilityState === 'visible' && navigator.onLine) syncAll({ force: true }) }, POLL_MS)
   stopFns = () => {
-    window.removeEventListener('visibilitychange', onVisible); window.removeEventListener('focus', onVisible); window.removeEventListener('online', onVisible)
+    window.removeEventListener('visibilitychange', onVisible); window.removeEventListener('focus', onVisible); window.removeEventListener('online', onOnline)
     clearInterval(pollTimer)
   }
 }
-let stopFns = null
-export function stopSync() { unsub?.(); unsub = null; stopFns?.(); stopFns = null }
+export function stopSync() { unsub?.(); unsub = null; stopFns?.(); stopFns = null; connected = false; everConnected = false }
+
+// ------------------------------------------------------------ server-side operations
+/** Runs a database function (atomic multi-row / counter operations) and tracks it in the save indicator. */
+export const rpc = (name, args) => tracked(() => db.rpc(name, args))
 
 /** Synchronous read of the cached rows (for read-modify-write helpers). */
 export const peek = (table) => get(table).rows

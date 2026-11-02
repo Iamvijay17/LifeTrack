@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { getUserId } from './session'
 import { toAppError } from './errors'
+import { ALL_TABLES } from './schema'
 
 // Stable paging order per table (application_history has changed_at, not created_at).
 const ORDER_COLUMN = { application_history: 'changed_at' }
@@ -28,7 +29,8 @@ export const supabaseAdapter = {
   }),
 
   insert: (table, rows) => guard(async () => {
-    const list = rows.map((r) => ({ ...r, user_id: getUserId() }))
+    // user_id is filled by the column default (auth.uid()) and enforced by RLS; the client never sets it.
+    const list = rows.map(({ user_id: _ignored, ...r }) => r)
     return check(await supabase.from(table).insert(list).select())
   }),
 
@@ -38,7 +40,7 @@ export const supabaseAdapter = {
   }),
 
   upsert: (table, rows, { onConflict = 'id', ignoreDuplicates = false } = {}) => guard(async () => {
-    const list = rows.map((r) => ({ ...r, user_id: getUserId() }))
+    const list = rows.map(({ user_id: _ignored, ...r }) => r)
     return check(await supabase.from(table).upsert(list, { onConflict, ignoreDuplicates }).select())
   }),
 
@@ -50,12 +52,23 @@ export const supabaseAdapter = {
     if (ids.length) check(await supabase.from(table).delete().in('id', ids).select('id'))
   }),
 
-  /** Realtime: one channel for all public tables. Row Level Security filters what this user receives. */
+  /** Calls a database function (security invoker, so RLS still applies). */
+  rpc: (name, args) => guard(async () => check(await supabase.rpc(name, args))),
+
+  /**
+   * Realtime: one channel, one binding per table. INSERT/UPDATE are filtered to this user's rows server-side.
+   * DELETE can't be filtered (the old row only carries its primary key), so it is subscribed unfiltered and carries ids only.
+   */
   subscribe: (onChange, onStatus) => {
-    const channel = supabase
-      .channel('lifetrack-changes')
-      .on('postgres_changes', { event: '*', schema: 'public' }, (p) => onChange(p.table))
-      .subscribe((status) => onStatus?.(status))
+    const uid = getUserId()
+    let channel = supabase.channel('lifetrack-changes')
+    for (const table of ALL_TABLES) {
+      channel = channel
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table, filter: `user_id=eq.${uid}` }, (p) => onChange(table, p))
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table, filter: `user_id=eq.${uid}` }, (p) => onChange(table, p))
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table }, (p) => onChange(table, p))
+    }
+    channel.subscribe((status) => onStatus?.(status))
     return () => { supabase.removeChannel(channel) }
   },
 }

@@ -24,9 +24,10 @@ alter table public.goals
   add column if not exists start_date date,
   add column if not exists manual_progress smallint not null default 0 check (manual_progress between 0 and 100),
   add column if not exists completed_at timestamptz;
+alter table public.goals drop constraint if exists goals_dates_ck;
 alter table public.goals add constraint goals_dates_ck check (start_date is null or due_date is null or due_date >= start_date);
 
-create table public.milestones (
+create table if not exists public.milestones (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   goal_id uuid not null references public.goals(id) on delete cascade,
@@ -38,11 +39,11 @@ create table public.milestones (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index milestones_goal_idx on public.milestones (goal_id, position);
-create index milestones_user_idx on public.milestones (user_id);
+create index if not exists milestones_goal_idx on public.milestones (goal_id, position);
+create index if not exists milestones_user_idx on public.milestones (user_id);
 
 -- ------------------------------------------------------------ focus_sessions
-create table public.focus_sessions (
+create table if not exists public.focus_sessions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   session_date date not null,
@@ -57,10 +58,10 @@ create table public.focus_sessions (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index focus_user_date_idx on public.focus_sessions (user_id, session_date);
+create index if not exists focus_user_date_idx on public.focus_sessions (user_id, session_date);
 
 -- --------------------------------------------------------------------- notes
-create table public.notes (
+create table if not exists public.notes (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   title text not null default '' check (char_length(title) <= 160),
@@ -74,11 +75,11 @@ create table public.notes (
   updated_at timestamptz not null default now(),
   constraint notes_not_empty check (char_length(title) > 0 or char_length(body) > 0)
 );
-create index notes_user_idx on public.notes (user_id, updated_at desc);
-create index notes_tags_idx on public.notes using gin (tags);
+create index if not exists notes_user_idx on public.notes (user_id, updated_at desc);
+create index if not exists notes_tags_idx on public.notes using gin (tags);
 
 -- ------------------------------------------------------------- savings_goals
-create table public.savings_goals (
+create table if not exists public.savings_goals (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   name text not null check (char_length(name) between 1 and 80),
@@ -90,7 +91,7 @@ create table public.savings_goals (
 );
 
 -- ----------------------------------------------------------------- reminders
-create table public.reminders (
+create table if not exists public.reminders (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   kind text not null default 'custom' check (kind in ('task','study','workout','habit','bill','custom')),
@@ -103,10 +104,10 @@ create table public.reminders (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index reminders_user_idx on public.reminders (user_id, remind_date);
+create index if not exists reminders_user_idx on public.reminders (user_id, remind_date);
 
 -- ------------------------------------------------------------- notifications
-create table public.notifications (
+create table if not exists public.notifications (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   kind text not null default 'custom' check (kind in ('task','study','workout','habit','bill','custom','system')),
@@ -118,18 +119,20 @@ create table public.notifications (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index notifications_user_idx on public.notifications (user_id, created_at desc);
-create unique index notifications_dedupe_uq on public.notifications (user_id, dedupe_key) where dedupe_key is not null;
+create index if not exists notifications_user_idx on public.notifications (user_id, created_at desc);
+create unique index if not exists notifications_dedupe_uq on public.notifications (user_id, dedupe_key) where dedupe_key is not null;
 
 -- ----------------------------------------------------------- triggers + RLS
 do $$
 declare t text;
 begin
   foreach t in array array['milestones','focus_sessions','notes','savings_goals','reminders','notifications'] loop
+    execute format('drop trigger if exists set_updated_at on public.%I', t);
     execute format('create trigger set_updated_at before update on public.%I for each row execute function public.set_updated_at()', t);
     execute format('alter table public.%I enable row level security', t);
     execute format('alter table public.%I force row level security', t);
     execute format('revoke all on public.%I from anon', t);
+    execute format('drop policy if exists "owner_all" on public.%I', t);
     execute format(
       'create policy "owner_all" on public.%I for all to authenticated
          using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()))', t);
@@ -160,5 +163,7 @@ begin
   end if;
   return new;
 end $$;
+drop trigger if exists milestones_owner on public.milestones;
 create trigger milestones_owner before insert or update on public.milestones for each row execute function public.check_same_owner();
+drop trigger if exists notes_owner on public.notes;
 create trigger notes_owner before insert or update on public.notes for each row execute function public.check_same_owner();
