@@ -8,14 +8,7 @@
     <meta name="theme-color" content="#09090B" />
     <meta name="description" content="LifeTrack - your personal life operating system" />
     <title>LifeTrack</title>
-    <script>
-      // Apply stored theme before first paint (non-sensitive preference only).
-      try {
-        var t = localStorage.getItem('lifetrack:theme') || 'dark';
-        var dark = t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
-        document.documentElement.classList.toggle('dark', dark);
-      } catch (e) {}
-    </script>
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

@@ -96,5 +96,7 @@ const local = {
   },
 }
 
-export const auth = isSupabaseConfigured ? sb : local
+// Written with literal env checks so production builds drop the local-only adapter (and its password store) entirely.
+const DEV_OK = !import.meta.env.PROD || import.meta.env.VITE_ALLOW_DEV_MODE === '1'
+export const auth = DEV_OK ? (isSupabaseConfigured ? sb : local) : sb
 export { setUserId }
