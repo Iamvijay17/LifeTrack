@@ -130,3 +130,11 @@ export function splitMeasurements(v) {
     empty: !hasTape && weight == null, // notes alone are not a measurement
   }
 }
+
+/** The dashboard's one-word gym status for today: Done / Rest day / Skipped / Planned / Not planned. */
+export function gymStatus(todays, planned) {
+  if (todays.some((x) => x.status === 'completed')) return 'Done'
+  if (todays.some((x) => x.status === 'rest') || planned === 'rest') return 'Rest day'
+  if (todays.some((x) => x.status === 'skipped')) return 'Skipped'
+  return planned ? 'Planned' : 'Not planned'
+}

@@ -1,6 +1,6 @@
 # Architecture conventions
 
-Modules are migrated to this layout one at a time (done: **Planner**, **Notes & Journal**, **Learning**, **Habits**, **Finance**, **Jobs**, **Fitness**, **Health**, **Goals**, **Focus**, **Notifications**; Overview, Analytics, Reports, Settings and Export remain in `src/pages/`).
+Modules are migrated to this layout one at a time (done: **Planner**, **Notes & Journal**, **Learning**, **Habits**, **Finance**, **Jobs**, **Fitness**, **Health**, **Goals**, **Focus**, **Notifications**, **Settings**, **Export**, **Analytics**, **Reports**, **Overview** — every page now lives under `src/features/`; `src/pages/` no longer exists).
 
 ```
 src/

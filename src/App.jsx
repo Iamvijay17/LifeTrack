@@ -10,7 +10,7 @@ import { FullScreenLoader, InitialAppLoader } from '@/components/loaders'
 import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from '@/features/auth/AuthPages'
 
 const page = (loader) => lazy(loader)
-const Overview = page(() => import('@/pages/OverviewPage'))
+const Overview = page(() => import('@/features/overview/OverviewPage'))
 const Planner = page(() => import('@/features/planner/PlannerPage'))
 const Learning = page(() => import('@/features/learning/LearningPage'))
 const Jobs = page(() => import('@/features/jobs/JobsPage'))
