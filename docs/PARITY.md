@@ -10,7 +10,7 @@ and every **deliberate** difference. Anything not listed as a difference is expe
 | `/` Dashboard | Dashboard tab | ✅ | Quick actions open the same forms in sheets; no global FAB. |
 | `/planner` | Planner tab | ✅ | Sectioned list; actions via a sheet instead of a hover menu. |
 | `/habits` | Habits tab | ✅ | Heatmap shows 20 weeks (web 26) to fit a phone; scrolls horizontally. |
-| `/focus` | More → Focus Timer | ✅ | Timer state is per device (as on web). End-of-timer signal is vibration only until Phase 5 (local notifications). |
+| `/focus` | More → Focus Timer | ✅ | Timer state is per device (as on web). The end of a timer also sends a local notification when the app is not open. |
 | `/learning` | More → Career & Learning | ✅ | — |
 | `/goals` | More → Goals & Milestones | ✅ | — |
 | `/jobs` | More → Job Switch | ✅ | Pipeline list with status filter chips instead of a drag-and-drop board; interviews as an agenda list instead of a month calendar. |
@@ -22,7 +22,7 @@ and every **deliberate** difference. Anything not listed as a difference is expe
 | `/settings` | More → Settings | ✅ | Includes in-app account deletion (App Store requirement). |
 | `/reports` | — | ⏸ not built | Planned as a light add-on (folded into Analytics). |
 | `/export` (JSON backup/restore, CSV) | — | ⏸ not built | Desktop-oriented; planned as a later add-on. |
-| `/notifications` (inbox) | — | ⏸ Phase 5 | Arrives with push notifications and deep links. |
+| `/notifications` (inbox, reminders, preferences) | More → Notifications & Reminders | ✅ | Adds a per-device **push** toggle (see `docs/NATIVE.md`). |
 | Global search (Ctrl+K) | — | ⏸ not built | Mobile uses per-screen search (Notes, Jobs, Finance). |
 | `/login` `/register` `/forgot-password` `/reset-password` | Sign-in, Sign-up, Forgot, Reset | ✅ | Mobile uses PKCE deep links (`lifetrack://…`). |
 

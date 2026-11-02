@@ -10,6 +10,8 @@ pnpm --filter @lifetrack/mobile start
 ```
 Native modules (SecureStore, dev client) need a **development build**, not Expo Go.
 
+See `docs/NATIVE.md` for push notifications, deep links, icons and the one-time backend setup.
+
 ## Builds (EAS) — you run these; they need your Expo login
 ```bash
 npm i -g eas-cli && eas login

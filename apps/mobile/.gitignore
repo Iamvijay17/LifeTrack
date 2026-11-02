@@ -4,3 +4,12 @@ expo-env.d.ts
 ios/
 android/
 .env*.local
+
+# Push / signing credentials: supplied through EAS secrets, never committed
+google-services.json
+GoogleService-Info.plist
+*.p8
+*.p12
+*.jks
+*.keystore
+*.mobileprovision
