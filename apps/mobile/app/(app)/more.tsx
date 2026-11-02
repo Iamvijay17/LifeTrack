@@ -22,6 +22,7 @@ export default function More() {
           </View>
         </Card>
       ))}
+      <Card onPress={() => router.push('/module/settings')}><Txt variant="heading">Settings</Txt><Txt variant="small" muted>Profile, preferences, score weights, account</Txt></Card>
       <Card onPress={() => router.push('/sync-check')}><Txt variant="heading">Account &amp; sync check</Txt><Txt variant="small" muted>{email}</Txt></Card>
       <Button title="Sign out" variant="ghost" onPress={() => { authService!.signOut().catch(() => {}) }} />
     </Screen>

@@ -28,6 +28,9 @@ export const QUICK_KINDS = [
   { kind: 'water', label: 'Log water' }, { kind: 'habit', label: 'Complete habit' }, { kind: 'application', label: 'Job application' },
 ]
 
+/** Colour tone for a 0–100 daily score (null = nothing planned yet). */
+export const scoreTone = (s) => (s == null ? 'primary' : s >= 75 ? 'success' : s >= 40 ? 'primary' : 'warning')
+
 export const greetingFor = (hour) => (hour < 5 ? 'Still up' : hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : hour < 22 ? 'Good evening' : 'Good night')
 export function relTime(iso, nowMs = Date.now()) {
   const mins = Math.round((nowMs - new Date(iso).getTime()) / 60000)

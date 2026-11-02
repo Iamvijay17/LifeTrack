@@ -5,11 +5,12 @@ import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/misc'
 import { explainScore } from '@lifetrack/core/score'
+import { scoreTone } from '@lifetrack/core/dashboard'
 
 export function ScoreCard({ result, weekAvg }) {
   const [open, setOpen] = useState(false)
   const s = result.score
-  const tone = s == null ? 'primary' : s >= 75 ? 'success' : s >= 40 ? 'primary' : 'warning'
+  const tone = scoreTone(s)
   return (
     <Card data-testid="score-card">
       <CardHeader><CardTitle>Daily score</CardTitle><button onClick={() => setOpen(true)} className="flex items-center gap-1 text-xs text-secondary hover:underline"><Info className="h-3.5 w-3.5" />How is this calculated?</button></CardHeader>

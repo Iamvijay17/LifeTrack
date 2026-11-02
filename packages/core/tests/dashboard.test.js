@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dashboardData, gymState, greetingFor, isWidgetOn, recentActivity, relTime, WIDGETS } from '../src/dashboard'
+import { dashboardData, scoreTone, gymState, greetingFor, isWidgetOn, recentActivity, relTime, WIDGETS } from '../src/dashboard'
 
 const TODAY = '2026-11-02' // Monday
 const NOW = Date.parse('2026-11-02T06:30:00Z') // 12:00 in Asia/Kolkata
@@ -87,3 +87,5 @@ describe('validateScoreWeights', () => {
     expect(validateScoreWeights({ ...ok, learning: 0 }).learning).toBe(0)
   })
 })
+
+describe('scoreTone', () => { it('thresholds', () => expect([null, 0, 39, 40, 74, 75, 100].map(scoreTone)).toEqual(['primary', 'warning', 'warning', 'primary', 'primary', 'success', 'success'])) })
