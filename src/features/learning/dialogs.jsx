@@ -16,7 +16,7 @@ const day = z.string().refine((v) => v === '' || isValidDay(v), 'Enter a valid d
 export function SessionDialog({ open, onOpenChange, session, goals, topics, today }) {
   const schema = z.object({
     target: z.string(), session_date: z.string().refine(isValidDay, 'Pick a date').refine((v) => v <= today, "You can't log study time in the future"),
-    minutes: z.coerce.number({ invalid_type_error: 'Enter minutes' }).min(0).max(1440, 'Max 24h per entry'),
+    minutes: z.coerce.number({ error: 'Enter minutes' }).min(0).max(1440, 'Max 24h per entry'),
     problems_solved: z.coerce.number().int().min(0), notes: z.string().max(1000),
   }).refine((v) => v.minutes > 0 || v.problems_solved > 0, { path: ['minutes'], message: 'Enter minutes studied or problems solved' })
   const blank = { target: '', session_date: today, minutes: '', problems_solved: 0, notes: '' }
@@ -49,7 +49,7 @@ export function SessionDialog({ open, onOpenChange, session, goals, topics, toda
 export function GoalDialog({ open, onOpenChange, goal, topics }) {
   const schema = z.object({
     title: z.string().trim().min(1, 'Name the goal').max(120), topic_id: z.string(),
-    target_hours: z.coerce.number({ invalid_type_error: 'Enter hours' }).min(0).max(5000), due_date: day,
+    target_hours: z.coerce.number({ error: 'Enter hours' }).min(0).max(5000), due_date: day,
     status: z.enum(['active', 'completed', 'archived']), notes: z.string().max(1000),
   })
   const blank = { title: '', topic_id: '', target_hours: 20, due_date: '', status: 'active', notes: '' }

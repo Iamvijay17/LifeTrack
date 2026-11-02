@@ -12,7 +12,7 @@ import { useAction } from '@/hooks/useAction'
 import * as store from '@/hooks/store'
 import { saveWorkout, saveHealth } from '@/services/api'
 
-const nonNeg = (max, label) => z.coerce.number({ invalid_type_error: `${label}: enter a number` }).min(0, `${label} can’t be negative`).max(max, `${label} is too large`)
+const nonNeg = (max, label) => z.coerce.number({ error: `${label}: enter a number` }).min(0, `${label} can’t be negative`).max(max, `${label} is too large`)
 const optNum = (max, label) => z.union([z.literal(''), nonNeg(max, label)])
 
 // ----------------------------------------------------------------- exercise
