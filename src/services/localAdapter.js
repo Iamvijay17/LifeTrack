@@ -23,15 +23,22 @@ const uuid = () =>
   })
 const clone = (v) => (v == null ? v : JSON.parse(JSON.stringify(v)))
 
-const bc = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('lifetrack-dev') : null
+// Created lazily so importing this module has no side effects (lets bundlers drop it from production builds).
+let bc
+const channel = () => {
+  if (bc === undefined) {
+    bc = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('lifetrack-dev') : null
+    bc?.addEventListener('message', (e) => {
+      if (e.data.uid === getUserId()) localListeners.forEach((cb) => cb(e.data.table))
+    })
+  }
+  return bc
+}
 const localListeners = new Set()
 const notify = (table) => {
-  bc?.postMessage({ table, uid: getUserId() }) // other tabs
+  channel()?.postMessage({ table, uid: getUserId() }) // other tabs
   queueMicrotask(() => localListeners.forEach((cb) => cb(table))) // this tab (Supabase Realtime also echoes your own changes)
 }
-bc?.addEventListener('message', (e) => {
-  if (e.data.uid === getUserId()) localListeners.forEach((cb) => cb(e.data.table))
-})
 
 const dup = () => new AppError('That record already exists.', { code: '23505' })
 
@@ -189,6 +196,7 @@ export const localAdapter = {
   },
 
   subscribe(onChange, onStatus) {
+    channel() // start listening for other tabs
     localListeners.add(onChange)
     onStatus?.('SUBSCRIBED')
     return () => localListeners.delete(onChange)

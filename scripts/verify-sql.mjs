@@ -185,12 +185,107 @@ check(
   ).rows[0].n === 0,
 )
 
+// ---- 0004: every foreign key is indexed; every parent link is same-owner guarded
+{
+  const { rows: fks } = await db.query(`
+    select c.conrelid::regclass::text as tbl, a.attname as col
+    from pg_constraint c
+    join pg_attribute a on a.attrelid = c.conrelid and a.attnum = c.conkey[1]
+    where c.contype = 'f' and c.connamespace = 'public'::regnamespace and array_length(c.conkey, 1) = 1`)
+  const { rows: idx } = await db.query(`
+    select i.indrelid::regclass::text as tbl, a.attname as col
+    from pg_index i join pg_attribute a on a.attrelid = i.indrelid and a.attnum = i.indkey[0]
+    where i.indrelid::regclass::text like 'public.%' or i.indrelid::regclass::text not like '%.%'`)
+  const covered = new Set(idx.map((r) => `${r.tbl.replace('public.', '')}.${r.col}`))
+  const missing = fks.map((f) => `${f.tbl.replace('public.', '')}.${f.col}`).filter((k) => !covered.has(k))
+  check(`every foreign-key column has an index (${fks.length} checked)`, missing.length === 0, missing.join(', '))
+}
+
+// Parents owned by A, used as targets for B's attempts to attach to them.
+const mk = async (user, sql) => (await asUser(user, () => db.query(sql))).rows[0].id
+const topicA = await mk(A, `insert into learning_topics(group_name,name) values ('G','Topic A') returning id`)
+const habitA = await mk(A, `insert into habits(name) values ('HabitA') returning id`)
+const routineA = await mk(A, `insert into routines(name) values ('RoutineA') returning id`)
+const workoutA = await mk(A, `insert into workouts(workout_date) values ('2026-01-01') returning id`)
+const exerciseA = await mk(A, `insert into exercises(name) values ('ExA') returning id`)
+const taskA = await mk(A, `insert into tasks(title) values ('TaskA') returning id`)
+const parents = {
+  goal: goalA,
+  topic: topicA,
+  habit: habitA,
+  routine: routineA,
+  workout: workoutA,
+  exercise: exerciseA,
+  task: taskA,
+  app: appId,
+}
+const attach = {
+  'goals.topic_id': (u, p) => `insert into goals(title,topic_id) values ('x','${p.topic}')`,
+  'habit_logs.habit_id': (u, p) => `insert into habit_logs(habit_id,log_date) values ('${p.habit}','2026-02-01')`,
+  'study_sessions.goal_id': (u, p) =>
+    `insert into study_sessions(session_date,duration_seconds,goal_id) values ('2026-02-01',60,'${p.goal}')`,
+  'study_sessions.topic_id': (u, p) =>
+    `insert into study_sessions(session_date,duration_seconds,topic_id) values ('2026-02-01',60,'${p.topic}')`,
+  'application_history.application_id': (u, p) => `insert into application_history(application_id,to_status) values ('${p.app}','applied')`,
+  'interview_events.application_id': (u, p) => `insert into interview_events(application_id,scheduled_at) values ('${p.app}', now())`,
+  'workouts.routine_id': (u, p) => `insert into workouts(workout_date,routine_id) values ('2026-02-01','${p.routine}')`,
+  'exercise_logs.workout_id': (u, p) => `insert into exercise_logs(workout_id,exercise_name) values ('${p.workout}','Squat')`,
+  'exercise_logs.exercise_id': (u, p) =>
+    `insert into exercise_logs(workout_id,exercise_id,exercise_name) values ('${p.ownWorkout}','${p.exercise}','Squat')`,
+  'milestones.goal_id': (u, p) => `insert into milestones(goal_id,title) values ('${p.goal}','m')`,
+  'focus_sessions.task_id': (u, p) =>
+    `insert into focus_sessions(session_date,planned_minutes,task_id) values ('2026-02-01',25,'${p.task}')`,
+  'focus_sessions.topic_id': (u, p) =>
+    `insert into focus_sessions(session_date,planned_minutes,topic_id) values ('2026-02-01',25,'${p.topic}')`,
+  'notes.goal_id': (u, p) => `insert into notes(title,goal_id) values ('n','${p.goal}')`,
+  'notes.task_id': (u, p) => `insert into notes(title,task_id) values ('n','${p.task}')`,
+}
+// B's own parents (so a "foreign" link is the only thing wrong with the row)
+const own = {
+  goal: await mk(B, `insert into goals(title) values ('B goal') returning id`),
+  topic: await mk(B, `insert into learning_topics(group_name,name) values ('G','Topic B') returning id`),
+  habit: await mk(B, `insert into habits(name) values ('HabitB') returning id`),
+  routine: await mk(B, `insert into routines(name) values ('RoutineB') returning id`),
+  workout: await mk(B, `insert into workouts(workout_date) values ('2026-01-01') returning id`),
+  exercise: await mk(B, `insert into exercises(name) values ('ExB') returning id`),
+  task: await mk(B, `insert into tasks(title) values ('TaskB') returning id`),
+  app: await mk(B, `insert into job_applications(company,job_title) values ('BCo','Dev') returning id`),
+}
+for (const [link, sqlFor] of Object.entries(attach)) {
+  const foreignErr = await expectErr(asUser(B, () => db.query(sqlFor(B, { ...parents, ownWorkout: own.workout }))))
+  check(
+    `cannot attach to another user's parent: ${link}`,
+    !!foreignErr && /23503|does not refer|violates|row-level/i.test(foreignErr + ''),
+    foreignErr ?? 'insert succeeded',
+  )
+  const okErr = await expectErr(asUser(B, () => db.query(sqlFor(B, { ...own, ownWorkout: own.workout }))))
+  check(`can attach to own parent: ${link}`, okErr === null, okErr ?? '')
+}
+// updates are guarded too: re-pointing an existing child at a foreign parent must fail
+const ownNote = await mk(B, `insert into notes(title) values ('mine') returning id`)
+check(
+  "updating a link to another user's parent is rejected",
+  !!(await expectErr(asUser(B, () => db.query(`update notes set goal_id='${goalA}' where id='${ownNote}'`)))),
+)
+check(
+  'updating unrelated columns on a linked row still works',
+  (await expectErr(asUser(B, () => db.query(`update notes set title='renamed' where id='${ownNote}'`)))) === null,
+)
+check(
+  'clearing a link (NULL) is allowed',
+  (await expectErr(asUser(B, () => db.query(`update notes set goal_id=null where id='${ownNote}'`)))) === null,
+)
+
+const bTasksBefore = (await db.query(`select count(*)::int n from tasks where user_id=$1`, [B])).rows[0].n
 await asUser(A, () => db.query(`select delete_my_account()`))
 check(
   'delete_my_account cascades all owned rows',
   (await db.query(`select (select count(*) from tasks where user_id=$1)::int n`, [A])).rows[0].n === 0,
 )
-check('other user data untouched by deletion', (await db.query(`select count(*)::int n from tasks where user_id=$1`, [B])).rows[0].n === 1)
+check(
+  'other user data untouched by deletion',
+  bTasksBefore > 0 && (await db.query(`select count(*)::int n from tasks where user_id=$1`, [B])).rows[0].n === bTasksBefore,
+)
 
 console.log(failed ? `\n${failed} check(s) FAILED` : '\nAll SQL checks passed')
 process.exit(failed ? 1 : 0)

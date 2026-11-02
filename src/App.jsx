@@ -1,6 +1,8 @@
 import { Suspense, lazy } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { Toaster } from 'sonner'
+import { isMisconfigured } from '@/lib/backend'
+import { ConfigError } from '@/components/shared/ConfigError'
 import { AuthProvider, useAuth } from '@/hooks/useAuth'
 import { ConfirmProvider } from '@/components/shared/Confirm'
 import { AppShell } from '@/components/layout/AppShell'
@@ -34,6 +36,7 @@ function Protected({ children }) {
 }
 
 export default function App() {
+  if (isMisconfigured) return <ConfigError />
   return (
     <AuthProvider>
       <ConfirmProvider>

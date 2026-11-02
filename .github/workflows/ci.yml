@@ -24,6 +24,8 @@ jobs:
       - run: npm test
       - run: npm run test:sql # applies every migration to a real Postgres (PGlite) and checks RLS, triggers and constraints
       - run: npm run build
+        env: { VITE_LOCAL_MODE: 'true' } # CI has no Supabase project; the bundle check below covers the real variants
+      - run: npm run verify:bundles
       - uses: actions/upload-artifact@v4
         with: { name: dist, path: dist, retention-days: 7 }
 

@@ -30,8 +30,11 @@ cp .env.example .env.local
 6. **Database → Replication** (Realtime): migration 0002 already adds all tables to `supabase_realtime`.
    Verify the tables show as enabled.
 
-Without these env vars the app runs in **DEV mode** (orange banner): data stays in that browser only and is
+Without these env vars `npm run dev` runs in **DEV mode** (orange banner): data stays in that browser only and is
 **not** synced. That mode exists purely for development and tests.
+
+**Production builds without these variables refuse to run**: they show a "not connected to a database" screen and do not
+include the in-browser backend at all (set `VITE_LOCAL_MODE=true` only for the hermetic E2E build).
 
 ## 3. Run
 

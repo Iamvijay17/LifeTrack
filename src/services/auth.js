@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { AppError, toAppError } from './errors'
 import { localAdapter } from './localAdapter'
 import { setUserId } from './session'
@@ -137,5 +137,18 @@ const local = {
   },
 }
 
-export const auth = isSupabaseConfigured ? sb : local
+const unavailableAuth = {
+  getSession: async () => null,
+  onChange: () => () => {},
+  ...Object.fromEntries(
+    ['signUp', 'signIn', 'signOut', 'sendPasswordReset', 'updatePassword', 'updateDisplayName', 'deleteAccount'].map((k) => [
+      k,
+      async () => {
+        throw new AppError('LifeTrack is not connected to a database (missing Supabase configuration).')
+      },
+    ]),
+  ),
+}
+
+export const auth = __BACKEND__ === 'supabase' ? sb : __BACKEND__ === 'local' ? local : unavailableAuth
 export { setUserId }

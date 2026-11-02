@@ -1,4 +1,5 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { PageLoader } from '@/components/loaders/PageLoader'
 import { messageForPath } from '@/components/loaders/messages'
 import { Outlet, useLocation } from 'react-router-dom'
@@ -83,9 +84,11 @@ export function AppShell() {
           </div>
         </header>
         <main id="main" ref={main} tabIndex={-1} className="mx-auto w-full max-w-6xl px-4 pb-28 pt-5 outline-none md:px-6 md:pb-10">
-          <Suspense fallback={<PageLoader message={messageForPath(pathname)} />}>
-            <Outlet />
-          </Suspense>
+          <ErrorBoundary variant="section" resetKey={pathname}>
+            <Suspense fallback={<PageLoader message={messageForPath(pathname)} />}>
+              <Outlet />
+            </Suspense>
+          </ErrorBoundary>
         </main>
       </div>
       <MobileNav />
