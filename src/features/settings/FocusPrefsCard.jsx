@@ -6,7 +6,7 @@ import { useAction } from '@/hooks/useAction'
 import { useRecordForm } from '@/hooks/useRecordForm'
 import { useSettings } from '@/hooks/useSettings'
 
-const whole = (min, max, message) => z.coerce.number({ invalid_type_error: message }).int(message).min(min, message).max(max, message)
+const whole = (min, max, message) => z.coerce.number({ error: message }).int(message).min(min, message).max(max, message)
 const schema = z.object({
   short_break: whole(1, 60, 'Short break: 1–60 minutes.'),
   long_break: whole(1, 120, 'Long break: 1–120 minutes.'),

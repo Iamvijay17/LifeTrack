@@ -20,7 +20,7 @@ const schema = z.object({
   timezone: z.string().refine(validTimezone, 'Unknown timezone'),
   currency: z.enum(['INR', 'USD', 'EUR']),
   week_starts_on: z.coerce.number().refine((n) => n === 0 || n === 1),
-  daily_study_target_minutes: z.coerce.number({ invalid_type_error: 'Enter minutes' }).int().min(0).max(1440, 'Max 1440'),
+  daily_study_target_minutes: z.coerce.number({ error: 'Enter minutes' }).int().min(0).max(1440, 'Max 1440'),
   monthly_budget: z.string().refine((v) => v.trim() === '' || parseMoney(v) !== null, 'Enter an amount like 30000'),
   water_goal_ml: z.coerce.number().int().min(0).max(20000),
   steps_goal: z.coerce.number().int().min(0).max(200000),

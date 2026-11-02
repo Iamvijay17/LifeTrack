@@ -14,7 +14,7 @@ export function SessionDialog({ open, onOpenChange, session, goals, topics, toda
     .object({
       target: z.string(),
       session_date: requiredDay().refine((v) => v <= today, "You can't log study time in the future"),
-      minutes: z.coerce.number({ invalid_type_error: 'Enter minutes' }).min(0).max(1440, 'Max 24h per entry'),
+      minutes: z.coerce.number({ error: 'Enter minutes' }).min(0).max(1440, 'Max 24h per entry'),
       problems_solved: z.coerce.number().int().min(0),
       notes: z.string().max(1000),
     })

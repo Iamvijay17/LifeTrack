@@ -14,9 +14,9 @@ export async function buildExport() {
 }
 
 const envelope = z.object({
-  app: z.literal('lifetrack', { errorMap: () => ({ message: 'This is not a LifeTrack backup file.' }) }),
+  app: z.literal('lifetrack', { error: 'This is not a LifeTrack backup file.' }),
   version: z.number().int().max(BACKUP_VERSION, 'This backup was made by a newer version of LifeTrack.'),
-  tables: z.record(z.array(z.object({ id: z.string().min(1) }).passthrough())),
+  tables: z.record(z.string(), z.array(z.object({ id: z.string().min(1) }).passthrough())),
 })
 
 export function parseBackup(text) {

@@ -9,7 +9,7 @@ import { useSettings } from '@/hooks/useSettings'
 
 const range = (label) =>
   z.coerce
-    .number({ invalid_type_error: `${label}: enter a weight between 0 and 100.` })
+    .number({ error: `${label}: enter a weight between 0 and 100.` })
     .min(0, `${label}: enter a weight between 0 and 100.`)
     .max(100, `${label}: enter a weight between 0 and 100.`)
 const schema = z

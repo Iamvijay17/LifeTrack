@@ -39,7 +39,9 @@ async function measure(label, env, runs = 5) {
           const b = await r.body()
           js += b.length
           jsGz += gzipSync(b).length
-        } catch {}
+        } catch {
+          // a response without a readable body (redirect, aborted) simply is not counted
+        }
       }
     })
     await page.addInitScript(() => {

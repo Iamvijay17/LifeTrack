@@ -10,7 +10,7 @@ import * as store from '@/hooks/store'
 const schema = z.object({
   title: z.string().trim().min(1, 'Name the goal').max(120),
   topic_id: z.string(),
-  target_hours: z.coerce.number({ invalid_type_error: 'Enter hours' }).min(0).max(5000),
+  target_hours: z.coerce.number({ error: 'Enter hours' }).min(0).max(5000),
   due_date: optionalDay,
   status: z.enum(['active', 'completed', 'archived']),
   notes: z.string().max(1000),

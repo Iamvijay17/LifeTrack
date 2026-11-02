@@ -15,8 +15,8 @@ const schema = z
     period: z.enum(['daily', 'weekly', 'monthly', 'yearly']),
     start_date: optionalDay,
     due_date: optionalDay,
-    target_hours: z.coerce.number({ invalid_type_error: 'Enter hours' }).min(0).max(5000),
-    manual_progress: z.coerce.number({ invalid_type_error: 'Enter 0–100' }).int().min(0).max(100),
+    target_hours: z.coerce.number({ error: 'Enter hours' }).min(0).max(5000),
+    manual_progress: z.coerce.number({ error: 'Enter 0–100' }).int().min(0).max(100),
   })
   .refine((v) => !v.start_date || !v.due_date || v.due_date >= v.start_date, {
     path: ['due_date'],

@@ -25,7 +25,7 @@ export const moneyField = (message, { min = 1 } = {}) =>
 /** A number typed into a field: 0 or more, at most `max`, with a labelled error. */
 export const nonNegativeNumber = (max, label) =>
   z.coerce
-    .number({ invalid_type_error: `${label}: enter a number` })
+    .number({ error: `${label}: enter a number` })
     .min(0, `${label} can’t be negative`)
     .max(max, `${label} is too large`)
 
