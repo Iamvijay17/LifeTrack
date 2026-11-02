@@ -12,6 +12,7 @@
     "sql:build": "node scripts/build-setup-sql.mjs"
   },
   "devDependencies": {
+    "typescript": "^5.9.0",
     "@electric-sql/pglite": "^0.5.14"
   }
 }
