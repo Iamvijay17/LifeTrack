@@ -7,7 +7,7 @@ import { useTheme } from '../providers/ThemeProvider'
 export function Screen({ children, scroll = true, edges = ['top', 'left', 'right'] as const, style }: { children: ReactNode; scroll?: boolean; edges?: readonly ('top' | 'bottom' | 'left' | 'right')[]; style?: ViewStyle }) {
   const { colors, spacing } = useTheme()
   const inner = scroll
-    ? <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, flexGrow: 1 }}>{children}</ScrollView>
+    ? <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, flexGrow: 1 }}>{children}</ScrollView>
     : <View style={{ flex: 1, padding: spacing.lg, gap: spacing.md }}>{children}</View>
   return (
     <SafeAreaView edges={[...edges]} style={[{ flex: 1, backgroundColor: colors.background }, style]}>
@@ -33,13 +33,15 @@ export function Button({ title, onPress, loading, variant = 'primary', disabled 
   )
 }
 
-export function Field({ label, error, ...input }: { label: string; error?: string } & TextInputProps) {
+/** Ref type for a Field's input (use with `inputRef` to move focus with the return key). */
+export type InputRef = React.ComponentRef<typeof TextInput>
+export function Field({ label, error, inputRef, ...input }: { label: string; error?: string; inputRef?: React.Ref<InputRef> } & TextInputProps) {
   const { colors, radius } = useTheme()
   const [focus, setFocus] = useState(false)
   return (
     <View style={{ gap: 6 }}>
       <Text style={{ color: colors.foreground, fontWeight: '500' }}>{label}</Text>
-      <TextInput accessibilityLabel={label} placeholderTextColor={colors.mutedForeground} onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}
+      <TextInput ref={inputRef} accessibilityLabel={label} placeholderTextColor={colors.mutedForeground} onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}
         style={{ minHeight: 48, borderRadius: radius.lg, borderWidth: 1, borderColor: error ? colors.danger : focus ? colors.primary : colors.border, backgroundColor: colors.card, color: colors.foreground, paddingHorizontal: 12, fontSize: 16 }} {...input} />
       {error ? <Text accessibilityLiveRegion="polite" style={{ color: colors.danger, fontSize: 13 }}>{error}</Text> : null}
     </View>

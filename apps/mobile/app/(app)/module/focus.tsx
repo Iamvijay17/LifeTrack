@@ -6,6 +6,7 @@ import { fmtDay, fmtDuration, timeStrInTz } from '@lifetrack/utils'
 import { completedCount, dailyFocus, fmtClock, focusMinutes, nextBreak, PRESETS, weekRange } from '@lifetrack/core/focus'
 import { FOCUS_MODE_LABEL, focusMinutesFor, focusSessionName, isValidFocusMinutes, parseFocusTarget } from '@lifetrack/core/focusTimer'
 import { api, store } from '../../../src/data/client'
+import { haptics } from '../../../src/lib/haptics'
 import { useTables } from '../../../src/hooks/useTables'
 import { useSettings } from '../../../src/hooks/useSettings'
 import { useToday } from '../../../src/hooks/useToday'
@@ -53,6 +54,7 @@ export default function Focus() {
   const timer = useFocusTimer({
     onFinish: async (t, completed) => {
       Vibration.vibrate([0, 300, 150, 300])
+      haptics.success()
       if (t.mode === 'focus') {
         await save({ plannedMinutes: t.plannedMinutes, actualSeconds: t.plannedMinutes * 60, completed, taskId: t.taskId, topicId: t.topicId, label: t.label, date: today })
         setMode(nextBreak(doneToday + 1, prefs.long_every) as Mode)

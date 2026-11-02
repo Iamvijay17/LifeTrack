@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Switch, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { habitHeatmap, habitStats, habitSummary, isScheduledOn, pctText, scheduleLabel } from '@lifetrack/core/habits'
 import { api, store } from '../../../src/data/client'
+import { haptics } from '../../../src/lib/haptics'
 import { useTables } from '../../../src/hooks/useTables'
 import { useSettings } from '../../../src/hooks/useSettings'
 import { useToday } from '../../../src/hooks/useToday'
@@ -23,7 +24,7 @@ function HabitRow({ s, date, onMenu }: { s: any; date: string; onMenu: (s: any) 
   const off = log && !done
   const [setStatus, pending] = useAction((st: string | null) => api.setHabitStatus(habit.id, date, st))
   const last = useRef(0)
-  const tap = () => { const n = Date.now(); if (n - last.current < 600) return; last.current = n; setStatus(done ? null : 'done') } // ignore accidental double taps
+  const tap = () => { const n = Date.now(); if (n - last.current < 600) return; last.current = n; if (!done) haptics.success(); setStatus(done ? null : 'done') } // ignore accidental double taps
   return (
     <Card>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, opacity: habit.archived_at ? 0.6 : 1 }}>

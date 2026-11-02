@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from 'expo-router'
 import { signUpSchema } from '@lifetrack/schemas'
 import { toAppError } from '@lifetrack/data'
 import { authService } from '../../src/lib/supabase'
-import { Button, Field, Screen, Txt } from '../../src/ui'
+import { Button, Field, Screen, Txt, type InputRef } from '../../src/ui'
 import { useTheme } from '../../src/providers/ThemeProvider'
 
 export default function SignUp() {
@@ -13,6 +13,7 @@ export default function SignUp() {
   const [formError, setFormError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
+  const emailRef = useRef<InputRef>(null), pwRef = useRef<InputRef>(null), confirmRef = useRef<InputRef>(null)
 
   const submit = async () => {
     setFormError(''); setNotice('')
@@ -28,10 +29,10 @@ export default function SignUp() {
   return (
     <Screen>
       <Txt variant="title">Create account</Txt>
-      <Field label="Name" value={v.name} onChangeText={set('name')} error={errors.name} autoComplete="name" textContentType="name" />
-      <Field label="Email" value={v.email} onChangeText={set('email')} error={errors.email} autoCapitalize="none" autoComplete="email" keyboardType="email-address" textContentType="emailAddress" />
-      <Field label="Password" value={v.password} onChangeText={set('password')} error={errors.password} secureTextEntry autoComplete="new-password" textContentType="newPassword" />
-      <Field label="Confirm password" value={v.confirm} onChangeText={set('confirm')} error={errors.confirm} secureTextEntry autoComplete="new-password" onSubmitEditing={submit} />
+      <Field label="Name" value={v.name} onChangeText={set('name')} error={errors.name} autoComplete="name" textContentType="name" returnKeyType="next" onSubmitEditing={() => emailRef.current?.focus()} blurOnSubmit={false} />
+      <Field inputRef={emailRef} label="Email" value={v.email} onChangeText={set('email')} error={errors.email} autoCapitalize="none" autoComplete="email" keyboardType="email-address" textContentType="emailAddress" returnKeyType="next" onSubmitEditing={() => pwRef.current?.focus()} blurOnSubmit={false} />
+      <Field inputRef={pwRef} label="Password" value={v.password} onChangeText={set('password')} error={errors.password} secureTextEntry autoComplete="new-password" textContentType="newPassword" returnKeyType="next" onSubmitEditing={() => confirmRef.current?.focus()} blurOnSubmit={false} />
+      <Field inputRef={confirmRef} label="Confirm password" value={v.confirm} onChangeText={set('confirm')} error={errors.confirm} secureTextEntry autoComplete="new-password" returnKeyType="go" onSubmitEditing={submit} />
       {formError ? <Txt style={{ color: colors.danger }}>{formError}</Txt> : null}
       {notice ? <Txt style={{ color: colors.success }}>{notice}</Txt> : null}
       <Button title="Create account" onPress={submit} loading={busy} />

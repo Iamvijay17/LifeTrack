@@ -19,7 +19,7 @@ export function Sheet({ visible, title, onClose, children, footer }: { visible: 
               <Text style={{ color: colors.mutedForeground, fontSize: 16 }}>Cancel</Text>
             </Pressable>
           </View>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, gap: 14 }}>{children}</ScrollView>
+          <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} contentContainerStyle={{ padding: 16, gap: 14 }}>{children}</ScrollView>
           {footer ? <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>{footer}</View> : null}
         </View>
       </KeyboardAvoidingView>

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { fmtDay } from '@lifetrack/utils'
 import { groupTasksForDay, taskFlags } from '@lifetrack/core/tasks'
 import { api, store } from '../../../src/data/client'
+import { haptics } from '../../../src/lib/haptics'
 import { useTables } from '../../../src/hooks/useTables'
 import { useToday } from '../../../src/hooks/useToday'
 import { useAction } from '../../../src/hooks/useAction'
@@ -24,7 +25,7 @@ function TaskRow({ task, today, showDue, onMenu }: { task: any; today: string; s
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, opacity: pending ? 0.6 : 1 }}>
       <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: done, busy: pending }} accessibilityLabel={done ? `Mark ${task.title} as not done` : `Complete ${task.title}`}
-        disabled={pending} onPress={() => setStatus(done ? 'pending' : 'done')} hitSlop={8}
+        disabled={pending} onPress={() => { if (!done) haptics.success(); setStatus(done ? 'pending' : 'done') }} hitSlop={8}
         style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
         <View style={{ width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: done ? colors.success : colors.mutedForeground, backgroundColor: done ? colors.success : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ color: done ? colors.primaryForeground : colors.mutedForeground, fontSize: 14, fontWeight: '700' }}>{mark}</Text>
