@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="LifeTrack">
+  <defs><linearGradient id="g3" x1="420" y1="100" x2="90" y2="440" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#A78BFA"/><stop offset=".5" stop-color="#7C3AED"/><stop offset="1" stop-color="#5B21B6"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="#09090B"/>
+  <g transform="translate(0 -4)">
+  <g fill="none" stroke="url(#g3)" stroke-width="40" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M406 262A150 150 0 1 1 292 126"/>
+    <path d="M185 275L235 325L400 160"/>
+    <path d="M342 160H400V218"/>
+  </g></g>
+</svg>
