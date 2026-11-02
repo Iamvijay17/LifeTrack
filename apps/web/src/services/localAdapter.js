@@ -3,7 +3,7 @@
 // emulates the pieces of the database the app relies on (defaults, unique constraints, status-history trigger,
 // cross-tab "realtime"). Production = Supabase.
 import { getUserId } from './session'
-import { DEFAULTS, UNIQUES } from './schema'
+import { DEFAULTS, UNIQUES } from '@lifetrack/constants/schema'
 import { AppError } from './errors'
 
 const key = () => `lifetrack-dev:db:${getUserId()}`

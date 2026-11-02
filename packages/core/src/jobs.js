@@ -1,4 +1,4 @@
-import { dateStrInTz } from '@/lib/dates'
+import { dateStrInTz } from '@lifetrack/utils'
 
 export const JOB_STATUSES = ['interested', 'preparing', 'applied', 'assessment', 'interview', 'selected', 'offer', 'rejected', 'withdrawn']
 export const STATUS_LABEL = { ...Object.fromEntries(JOB_STATUSES.map((s) => [s, s[0].toUpperCase() + s.slice(1)])), interested: 'Wishlist' }

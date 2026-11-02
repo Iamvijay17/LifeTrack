@@ -14,7 +14,7 @@ import { WeeklyApplicationsChart, SalaryChart } from '@/features/analytics/JobCh
 import { useTables } from '@/hooks/store'
 import { useSettings } from '@/hooks/useSettings'
 import { useToday } from '@/hooks/useToday'
-import { dueFollowups, funnel, JOB_STATUSES, STATUS_LABEL } from '@/domain/jobs'
+import { dueFollowups, funnel, JOB_STATUSES, STATUS_LABEL } from '@lifetrack/core/jobs'
 import { addDays, startOfWeek } from '@/lib/dates'
 
 export default function JobsPage() {

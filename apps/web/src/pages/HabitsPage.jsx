@@ -18,7 +18,7 @@ import { useToday } from '@/hooks/useToday'
 import { useAction } from '@/hooks/useAction'
 import * as store from '@/hooks/store'
 import { setHabitStatus } from '@/services/api'
-import { isScheduled } from '@/domain/streaks'
+import { isScheduled } from '@lifetrack/core/streaks'
 import { addDays, eachDay } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 

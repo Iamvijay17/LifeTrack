@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useTables } from '@/hooks/store'
-import { streaks, completion, isDueToday } from '@/domain/streaks'
+import { streaks, completion, isDueToday } from '@lifetrack/core/streaks'
 
 /** Habits + logs + derived stats, shared by the Habits page, Overview and Quick-add. */
 export function useHabits(today, weekStartsOn = 1) {

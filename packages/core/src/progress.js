@@ -1,4 +1,4 @@
-import { weekday, dateStrInTz } from '@/lib/dates'
+import { weekday, dateStrInTz } from '@lifetrack/utils'
 import { isScheduled } from './streaks'
 import { countedMinutes } from './learning'
 

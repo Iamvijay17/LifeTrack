@@ -1,4 +1,4 @@
-import { addDays, addMonths, monthEnd } from '@/lib/dates'
+import { addDays, addMonths, monthEnd } from '@lifetrack/utils'
 
 export const REMINDER_KINDS = [
   { value: 'task', label: 'Task' }, { value: 'study', label: 'Study' }, { value: 'workout', label: 'Workout' },

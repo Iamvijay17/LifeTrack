@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Bell } from 'lucide-react'
 import { useTable } from '@/hooks/store'
 import { markAllRead, markNotificationRead } from '@/services/api'
-import { unreadCount } from '@/domain/reminders'
+import { unreadCount } from '@lifetrack/core/reminders'
 import { useAction } from '@/hooks/useAction'
 import { cn } from '@/lib/utils'
 

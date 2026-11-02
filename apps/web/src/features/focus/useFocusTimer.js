@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { remainingSeconds } from '@/domain/focus'
+import { remainingSeconds } from '@lifetrack/core/focus'
 
 const KEY = 'lifetrack:focus-timer'
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) } catch { return null } }

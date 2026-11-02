@@ -1,4 +1,4 @@
-import { addDays, addMonths, weekday, monthEnd } from '@/lib/dates'
+import { addDays, addMonths, weekday, monthEnd } from '@lifetrack/utils'
 
 export const RECURRENCES = [
   { value: 'none', label: 'Does not repeat' }, { value: 'daily', label: 'Every day' },

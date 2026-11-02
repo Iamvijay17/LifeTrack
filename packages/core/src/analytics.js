@@ -1,4 +1,4 @@
-import { addDays, diffDays, eachDay, fmtDay, monthKey, startOfWeek, monthStart } from '@/lib/dates'
+import { addDays, diffDays, eachDay, fmtDay, monthKey, startOfWeek, monthStart } from '@lifetrack/utils'
 
 /** Group dated values into day / week / month buckets depending on the range length. */
 export function bucketize(items, getDate, getValue, from, to, weekStartsOn = 1) {

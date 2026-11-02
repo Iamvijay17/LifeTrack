@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/shared/states'
 import { useTable } from '@/hooks/store'
 import { useAction } from '@/hooks/useAction'
 import * as store from '@/hooks/store'
-import { CONFLICT_KEYS } from '@/services/schema'
+import { CONFLICT_KEYS } from '@lifetrack/constants/schema'
 import { fmtDay } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 

@@ -1,10 +1,10 @@
 // Domain operations that span more than one row. UI components call these (never the adapters directly).
 import * as store from '@/hooks/store'
-import { nextOccurrence, nextDueDate } from '@/domain/recurrence'
-import { dueReminders, afterFire, KIND_LINK } from '@/domain/reminders'
-import { MIN_RECORD_SECONDS } from '@/domain/focus'
-import { DEFAULT_TOPICS, DEFAULT_EXERCISES } from '@/domain/defaults'
-import { CONFLICT_KEYS } from './schema'
+import { nextOccurrence, nextDueDate } from '@lifetrack/core/recurrence'
+import { dueReminders, afterFire, KIND_LINK } from '@lifetrack/core/reminders'
+import { MIN_RECORD_SECONDS } from '@lifetrack/core/focus'
+import { DEFAULT_TOPICS, DEFAULT_EXERCISES } from '@lifetrack/constants/defaults'
+import { CONFLICT_KEYS } from '@lifetrack/constants/schema'
 import { uid } from '@/lib/utils'
 import { AppError } from './errors'
 

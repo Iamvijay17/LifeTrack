@@ -17,7 +17,7 @@ import * as store from '@/hooks/store'
 import { useSettings } from '@/hooks/useSettings'
 import { useToday } from '@/hooks/useToday'
 import { useAction } from '@/hooks/useAction'
-import { countedMinutes, counted, goalProgress, problemsSolved, topicTotals } from '@/domain/learning'
+import { countedMinutes, counted, goalProgress, problemsSolved, topicTotals } from '@lifetrack/core/learning'
 import { addDays, eachDay, fmtDay, fmtDuration, startOfWeek } from '@/lib/dates'
 
 export default function LearningPage() {

@@ -8,7 +8,7 @@ import { useConfirm } from '@/components/shared/Confirm'
 import { useNow } from '@/hooks/useNow'
 import { useAction } from '@/hooks/useAction'
 import { startStudy, stopStudy, discardStudy } from '@/services/api'
-import { elapsedSeconds, MAX_REASONABLE_TIMER_SECONDS } from '@/domain/learning'
+import { elapsedSeconds, MAX_REASONABLE_TIMER_SECONDS } from '@lifetrack/core/learning'
 import { fmtDuration } from '@/lib/dates'
 
 const clock = (s) => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return [h, m, x].map((n) => String(n).padStart(2, '0')).join(':') }

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { db } from './db'
 import * as store from '@/hooks/store'
-import { ALL_TABLES, CONFLICT_KEYS, TABLES } from './schema'
+import { ALL_TABLES, CONFLICT_KEYS, TABLES } from '@lifetrack/constants/schema'
 import { AppError } from './errors'
 
 export const BACKUP_VERSION = 1

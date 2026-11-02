@@ -1,14 +1,14 @@
 import '@testing-library/jest-dom/vitest'
 import { describe, it, expect } from 'vitest'
-import { dailyScore, normalizeWeights, averageScore, explainScore, DEFAULT_WEIGHTS } from '@/domain/score'
-import { nextRemindDate, dueReminders, afterFire } from '@/domain/reminders'
-import { focusMinutes, dailyFocus, nextBreak, fmtClock, remainingSeconds, completedCount } from '@/domain/focus'
-import { goalPercent, isOverdue } from '@/domain/goals'
-import { buildReport } from '@/domain/report'
+import { dailyScore, normalizeWeights, averageScore, explainScore, DEFAULT_WEIGHTS } from '@lifetrack/core/score'
+import { nextRemindDate, dueReminders, afterFire } from '@lifetrack/core/reminders'
+import { focusMinutes, dailyFocus, nextBreak, fmtClock, remainingSeconds, completedCount } from '@lifetrack/core/focus'
+import { goalPercent, isOverdue } from '@lifetrack/core/goals'
+import { buildReport } from '@lifetrack/core/report'
 import { parseBlocks } from '@/lib/markdown'
 import { searchAll } from '@/components/layout/GlobalSearch'
 import { parseTags } from '@/features/notes/NoteDialog'
-import { STATUS_LABEL, funnel } from '@/domain/jobs'
+import { STATUS_LABEL, funnel } from '@lifetrack/core/jobs'
 
 const D = '2026-11-02' // a Monday
 const settings = { daily_study_target_minutes: 60, water_goal_ml: 2000, steps_goal: 10000, workout_plan: {}, timezone: 'Asia/Kolkata', score_weights: DEFAULT_WEIGHTS }

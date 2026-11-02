@@ -1,4 +1,4 @@
-import { addDays, eachDay } from '@/lib/dates'
+import { addDays, eachDay } from '@lifetrack/utils'
 
 export const PRESETS = [{ minutes: 25, label: '25 min' }, { minutes: 50, label: '50 min' }]
 export const MIN_RECORD_SECONDS = 60 // shorter attempts are not worth recording

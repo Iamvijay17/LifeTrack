@@ -12,7 +12,7 @@ import { buildExport, importBackup, parseBackup, summarizeBackup } from '@/servi
 import { download, toCsv, tableToCsv, EXPORTABLE } from '@/services/csv'
 import * as store from '@/hooks/store'
 import { db } from '@/services/db'
-import { TABLES } from '@/services/schema'
+import { TABLES } from '@lifetrack/constants/schema'
 
 function Section({ title, desc, children }) {
   return <Card><CardHeader className="flex-col items-start gap-0.5"><CardTitle>{title}</CardTitle>{desc && <p className="text-xs text-muted-foreground">{desc}</p>}</CardHeader><CardContent className="space-y-4">{children}</CardContent></Card>

@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { dateStrInTz, addDays, startOfWeek, weekday, zonedToIso, fmtDuration, monthEnd, eachDay } from '@/lib/dates'
 import { parseMoney, formatMoney, paiseToInput, lpaToPaise } from '@/lib/money'
-import { sleepMinutes } from '@/domain/sleep'
-import { streaks, completion, isDueToday, activeDayStreak, isScheduled } from '@/domain/streaks'
-import { dailyProgress } from '@/domain/progress'
-import { goalProgress, countedMinutes, problemsSolved } from '@/domain/learning'
-import { summarize, categoryBreakdown } from '@/domain/finance'
-import { funnel } from '@/domain/jobs'
-import { nextOccurrence, nextDueDate } from '@/domain/recurrence'
+import { sleepMinutes } from '@lifetrack/core/sleep'
+import { streaks, completion, isDueToday, activeDayStreak, isScheduled } from '@lifetrack/core/streaks'
+import { dailyProgress } from '@lifetrack/core/progress'
+import { goalProgress, countedMinutes, problemsSolved } from '@lifetrack/core/learning'
+import { summarize, categoryBreakdown } from '@lifetrack/core/finance'
+import { funnel } from '@lifetrack/core/jobs'
+import { nextOccurrence, nextDueDate } from '@lifetrack/core/recurrence'
 
 describe('dates (Asia/Kolkata)', () => {
   it('uses IST for the calendar day, not UTC', () => {

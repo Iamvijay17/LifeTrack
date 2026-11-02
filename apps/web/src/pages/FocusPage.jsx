@@ -17,7 +17,7 @@ import { useToday } from '@/hooks/useToday'
 import { useAction } from '@/hooks/useAction'
 import { recordFocus } from '@/services/api'
 import { useFocusTimer } from '@/features/focus/useFocusTimer'
-import { completedCount, dailyFocus, fmtClock, focusMinutes, nextBreak, PRESETS, weekRange } from '@/domain/focus'
+import { completedCount, dailyFocus, fmtClock, focusMinutes, nextBreak, PRESETS, weekRange } from '@lifetrack/core/focus'
 import { fmtDay, fmtDuration, timeStrInTz } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 

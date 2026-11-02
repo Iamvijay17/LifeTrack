@@ -6,7 +6,7 @@
 //  2. The score is the weighted average of the APPLICABLE categories only — their weights are re-normalised, so a rest
 //     day, a day with no job-search plan, or missing sleep data is never counted as a zero.
 //  3. null (shown as "—") means nothing at all was applicable; a number is never invented.
-import { weekday } from '@/lib/dates'
+import { weekday } from '@lifetrack/utils'
 import { countedMinutes } from './learning'
 import { habitDay } from './progress'
 

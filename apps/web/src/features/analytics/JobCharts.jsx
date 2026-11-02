@@ -1,7 +1,7 @@
 import { Bar, BarChart, CartesianGrid, Line, LineChart, Tooltip } from 'recharts'
 import { Chart, C, grid, tooltip, xAxis, yAxis } from '@/components/shared/charts'
 import { addDays, fmtDay, startOfWeek } from '@/lib/dates'
-import { salaryProgression } from '@/domain/jobs'
+import { salaryProgression } from '@lifetrack/core/jobs'
 
 export function weeklyApplications(apps, today, weekStartsOn, weeks = 8) {
   const start = startOfWeek(today, weekStartsOn)

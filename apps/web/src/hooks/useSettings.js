@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useTable, upsert } from './store'
-import { DEFAULTS } from '@/services/schema'
+import { DEFAULTS } from '@lifetrack/constants/schema'
 import { useAuth } from './useAuth'
 
 export function useSettings() {

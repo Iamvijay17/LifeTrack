@@ -1,4 +1,4 @@
-import { timeToMinutes } from '@/lib/dates'
+import { timeToMinutes } from '@lifetrack/utils'
 
 /** Minutes slept between bedtime and wake time, correctly handling overnight sleep (23:30 -> 06:30 = 7h). */
 export function sleepMinutes(bedtime, wake) {

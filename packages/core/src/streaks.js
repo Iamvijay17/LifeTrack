@@ -1,4 +1,4 @@
-import { addDays, diffDays, eachDay, startOfWeek, weekday } from '@/lib/dates'
+import { addDays, diffDays, eachDay, startOfWeek, weekday } from '@lifetrack/utils'
 
 
 /** Is the habit expected on this calendar day? (weekly habits are expected "some days" — handled separately) */

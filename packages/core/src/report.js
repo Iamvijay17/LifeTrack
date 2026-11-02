@@ -1,5 +1,5 @@
 // Report builder: pure functions over already-loaded records. No AI, no estimation — only sums, counts and averages.
-import { addDays, eachDay, monthStart, weekday } from '@/lib/dates'
+import { addDays, eachDay, monthStart, weekday } from '@lifetrack/utils'
 import { countedMinutes } from './learning'
 import { dailyScore, averageScore } from './score'
 import { completion } from './streaks'

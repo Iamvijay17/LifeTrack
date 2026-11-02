@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/misc'
-import { explainScore } from '@/domain/score'
+import { explainScore } from '@lifetrack/core/score'
 
 export function ScoreCard({ result, weekAvg }) {
   const [open, setOpen] = useState(false)

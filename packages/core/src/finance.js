@@ -1,4 +1,4 @@
-import { monthKey, eachDay, addMonths, monthStart } from '@/lib/dates'
+import { monthKey, eachDay, addMonths, monthStart } from '@lifetrack/utils'
 
 export const EXPENSE_CATEGORIES = ['Food', 'Travel', 'Shopping', 'Bills', 'Subscriptions', 'Health', 'Entertainment', 'Other']
 export const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Interest', 'Gift', 'Other']

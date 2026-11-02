@@ -17,7 +17,7 @@ import { useSettings } from '@/hooks/useSettings'
 import { useToday } from '@/hooks/useToday'
 import { useAction } from '@/hooks/useAction'
 import { markAllRead, markNotificationRead } from '@/services/api'
-import { REMINDER_KINDS, REPEATS, unreadCount } from '@/domain/reminders'
+import { REMINDER_KINDS, REPEATS, unreadCount } from '@lifetrack/core/reminders'
 import { fmtDay } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
