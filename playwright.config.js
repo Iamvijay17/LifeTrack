@@ -16,6 +16,9 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:4173',
     trace: 'retain-on-failure',
+    // An active service worker answers chunk requests from its precache, which bypasses page.route() and makes the "slow chunk" loader tests
+    // pass or fail depending on whether the worker has taken control yet. Only the PWA spec needs it.
+    serviceWorkers: 'block',
     launchOptions: { executablePath, args: ['--no-sandbox'] },
   },
   projects: [

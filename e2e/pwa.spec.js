@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test'
 
+test.use({ serviceWorkers: 'allow' })
+
 test('PWA: manifest is valid and installable assets exist; service worker registers', async ({ page, request }) => {
   await page.goto('/login')
   const href = await page.locator('link[rel=manifest]').getAttribute('href')
