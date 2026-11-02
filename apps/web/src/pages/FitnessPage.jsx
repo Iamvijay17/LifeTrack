@@ -17,16 +17,9 @@ import * as store from '@/hooks/store'
 import { useSettings } from '@/hooks/useSettings'
 import { useToday } from '@/hooks/useToday'
 import { useAction } from '@/hooks/useAction'
-import { addDays, eachDay, fmtDay, startOfWeek, weekday } from '@/lib/dates'
+import { fmtDay, weekday } from '@/lib/dates'
+import { DAY_NAMES, exerciseGroups, fitnessWeek, measurementLine, offDayWorkout, planFor, sortedHistory, summarizeSets, todayHeadline, volume, weightHistory, workoutMeta } from '@lifetrack/core/fitness'
 import { cn } from '@/lib/utils'
-
-const volume = (sets) => sets.reduce((a, s) => a + s.reps * Number(s.weight_kg), 0)
-const summarizeSets = (sets) => {
-  const by = new Map()
-  for (const s of [...sets].sort((a, b) => a.order_index - b.order_index || a.set_number - b.set_number)) by.set(s.exercise_name, [...(by.get(s.exercise_name) ?? []), s])
-  return [...by.entries()].map(([name, ss]) => ({ name, text: ss.map((s) => `${s.reps}×${Number(s.weight_kg)}kg`).join(', ') }))
-}
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 export default function FitnessPage() {
   const today = useToday()
@@ -44,31 +37,19 @@ export default function FitnessPage() {
   const [delR] = useAction((id) => store.remove('routines', id), { success: 'Routine deleted' })
   const [delE] = useAction((id) => store.remove('exercises', id), { success: 'Exercise removed' })
   const [delM] = useAction((id) => store.remove('body_measurements', id), { success: 'Entry deleted' })
-  const [setOff] = useAction((status, date) => store.insert('workouts', { workout_date: date, status, name: status === 'rest' ? 'Rest day' : 'Skipped', kind: 'other' }), { success: 'Saved' })
+  const [setOff] = useAction((status, date) => store.insert('workouts', offDayWorkout(status, date)), { success: 'Saved' })
   const [setPlan, planning] = useAction((dow, value) => saveSettings({ workout_plan: { ...settings.workout_plan, [dow]: value || null } }), { success: 'Plan updated' })
 
   const routines = data.routines.filter((r) => !r.archived_at)
   const plan = settings.workout_plan ?? {}
-  const weekStart = startOfWeek(today, w)
-  const weekDays = eachDay(weekStart, addDays(weekStart, 6))
-  const setsByWorkout = useMemo(() => { const m = new Map(); for (const s of data.exercise_logs) m.set(s.workout_id, [...(m.get(s.workout_id) ?? []), s]); return m }, [data.exercise_logs])
-  const completed = data.workouts.filter((x) => x.status === 'completed')
-  const planLabel = (d) => { const p = plan[String(weekday(d))]; return p === 'rest' ? 'Rest' : p ? routines.find((r) => r.id === p)?.name ?? 'Routine removed' : null }
-
-  const weekStats = useMemo(() => {
-    const inWeek = completed.filter((x) => x.workout_date >= weekStart && x.workout_date <= addDays(weekStart, 6))
-    const plannedDays = weekDays.filter((d) => { const p = plan[String(weekday(d))]; return p && p !== 'rest' })
-    const hitDays = plannedDays.filter((d) => completed.some((x) => x.workout_date === d))
-    return { count: inWeek.length, planned: plannedDays.length, hit: hitDays.length, minutes: inWeek.reduce((a, x) => a + (x.duration_minutes ?? 0), 0), cardio: inWeek.reduce((a, x) => a + (x.cardio_minutes ?? 0), 0), vol: inWeek.reduce((a, x) => a + volume(setsByWorkout.get(x.id) ?? []), 0) }
-  }, [completed, weekStart, plan, setsByWorkout]) // eslint-disable-line react-hooks/exhaustive-deps
-  const weeks = useMemo(() => Array.from({ length: 8 }, (_, i) => { const ws = addDays(weekStart, -(7 - i) * 7), we = addDays(ws, 6); const ins = completed.filter((x) => x.workout_date >= ws && x.workout_date <= we); return { label: fmtDay(ws, 'd MMM'), workouts: ins.length, volume: Math.round(ins.reduce((a, x) => a + volume(setsByWorkout.get(x.id) ?? []), 0)) } }), [completed, weekStart, setsByWorkout])
-  const weights = data.health_logs.filter((h) => h.weight_kg != null).sort((a, b) => a.log_date.localeCompare(b.log_date))
-  const weightData = weights.slice(-40).map((h) => ({ label: fmtDay(h.log_date, 'd MMM'), kg: Number(h.weight_kg) }))
+  const fw = useMemo(() => fitnessWeek({ workouts: data.workouts, logs: data.exercise_logs, plan, today, weekStartsOn: w }), [data.workouts, data.exercise_logs, plan, today, w])
+  const { weekDays, byWorkout: setsByWorkout, completed, weeks, stats: weekStats } = fw
+  const planLabel = (d) => planFor(d, plan, routines)
+  const { weights, series: weightData } = useMemo(() => weightHistory(data.health_logs), [data.health_logs])
   const todayDone = data.workouts.filter((x) => x.workout_date === today)
   const planToday = planLabel(today)
-  const history = [...data.workouts].sort((a, b) => (b.workout_date + b.created_at).localeCompare(a.workout_date + a.created_at))
-  const lib = [...data.exercises].sort((a, b) => a.name.localeCompare(b.name))
-  const muscleGroups = [...new Set(lib.map((e) => e.muscle_group || 'Other'))]
+  const history = sortedHistory(data.workouts)
+  const { lib, groups: libGroups } = exerciseGroups(data.exercises)
 
   return (
     <>
@@ -103,7 +84,7 @@ export default function FitnessPage() {
               <div className="space-y-4 lg:col-span-2">
                 <Card><CardContent className="space-y-3">
                   <p className="text-xs font-medium text-muted-foreground">Today</p>
-                  <p className="text-lg font-semibold">{todayDone.some((x) => x.status === 'completed') ? 'Workout done 💪' : todayDone[0]?.status === 'rest' ? 'Rest day' : todayDone[0]?.status === 'skipped' ? 'Skipped' : planToday ? (planToday === 'Rest' ? 'Rest day planned' : planToday) : 'Nothing planned'}</p>
+                  <p className="text-lg font-semibold">{todayHeadline(todayDone, planToday)}</p>
                   {!todayDone.length && <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => setWDlg({ open: true, workout: null, date: today, routineId: null })}><Dumbbell className="h-4 w-4" />Log workout</Button><Button size="sm" variant="outline" onClick={() => setOff('rest', today)}><Moon className="h-4 w-4" />Rest day</Button><Button size="sm" variant="ghost" onClick={() => setOff('skipped', today)}>Skip</Button></div>}
                   {todayDone.some((x) => x.status !== 'completed') && <Button size="sm" variant="ghost" onClick={() => todayDone.filter((x) => x.status !== 'completed').forEach((x) => store.remove('workouts', x.id))}>Undo</Button>}
                 </CardContent></Card>
@@ -127,7 +108,7 @@ export default function FitnessPage() {
               <li key={x.id}><div className="flex items-center gap-3 px-4 py-3">
                 <button className="min-w-0 flex-1 text-left" onClick={() => setOpenId(open ? null : x.id)} aria-expanded={open}>
                   <p className="flex items-center gap-2 truncate text-sm font-medium">{x.name}{x.status !== 'completed' && <Badge>{x.status === 'rest' ? 'Rest day' : 'Skipped'}</Badge>}<ChevronDown className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform', open && 'rotate-180')} /></p>
-                  <p className="text-xs text-muted-foreground">{fmtDay(x.workout_date)}{x.duration_minutes ? ` · ${x.duration_minutes} min` : ''}{sets.length ? ` · ${sets.length} sets · ${Math.round(volume(sets)).toLocaleString('en-IN')} kg` : ''}{x.cardio_minutes ? ` · cardio ${x.cardio_minutes} min${x.cardio_distance_km ? ` / ${x.cardio_distance_km} km` : ''}` : ''}</p>
+                  <p className="text-xs text-muted-foreground">{workoutMeta(x, sets)}</p>
                 </button>
                 <Menu label="Workout actions" items={[{ label: 'Edit', icon: Pencil, hidden: x.status !== 'completed', onClick: () => setWDlg({ open: true, workout: x, date: x.workout_date }) }, { label: 'Delete', icon: Trash2, danger: true, onClick: async () => { if (await confirm({ title: 'Delete this workout?', description: `${x.name} · ${fmtDay(x.workout_date)}. Its sets are deleted too.` })) delW(x.id) } }]} />
               </div>
@@ -135,8 +116,8 @@ export default function FitnessPage() {
 
           {tab === 'library' && (<div className="space-y-4">
             <div className="flex justify-end"><Button variant="outline" size="sm" onClick={() => setEDlg(true)}><Plus className="h-4 w-4" />New exercise</Button></div>
-            {muscleGroups.map((g) => (<section key={g}><h3 className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">{g}</h3>
-              <div className="flex flex-wrap gap-2">{lib.filter((e) => (e.muscle_group || 'Other') === g).map((e) => (
+            {libGroups.map(({ group: g, items }) => (<section key={g}><h3 className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">{g}</h3>
+              <div className="flex flex-wrap gap-2">{items.map((e) => (
                 <span key={e.id} className="group inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 text-sm">{e.name}{e.equipment && <span className="text-xs text-muted-foreground">· {e.equipment}</span>}
                   <button aria-label={`Remove ${e.name}`} className="hidden text-muted-foreground hover:text-danger group-hover:inline focus:inline" onClick={async () => { if (await confirm({ title: `Remove ${e.name} from the library?`, description: 'Past workouts keep the exercise name.' })) delE(e.id) }}><Trash2 className="h-3 w-3" /></button></span>))}</div></section>))}
           </div>)}
@@ -146,7 +127,7 @@ export default function FitnessPage() {
               <Chart height={220} empty={weightData.length < 2} emptyText="Log weight on two or more days to see a trend."><LineChart data={weightData}>{grid()}{xAxis({ dataKey: 'label' })}{yAxis({ domain: ['dataMin - 1', 'dataMax + 1'] })}{tooltip({ formatter: (v) => [`${v} kg`, 'Weight'] })}<Line dataKey="kg" stroke={C.primary} strokeWidth={2} dot={{ r: 2 }} /></LineChart></Chart></CardContent></Card>
             <Card><CardHeader><CardTitle>Measurements</CardTitle></CardHeader><CardContent className="p-0 pt-2">
               {data.body_measurements.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">No measurements yet.</p> : <ul className="divide-y divide-border">{[...data.body_measurements].sort((a, b) => b.measured_on.localeCompare(a.measured_on)).map((m) => (
-                <li key={m.id} className="flex items-center justify-between gap-2 px-4 py-2.5 text-sm"><div><p className="font-medium">{fmtDay(m.measured_on, 'd MMM yyyy')}</p><p className="text-xs text-muted-foreground">{[['Chest', m.chest_cm], ['Waist', m.waist_cm], ['Hips', m.hips_cm], ['Arm', m.arm_cm], ['Thigh', m.thigh_cm], ['BF%', m.body_fat_pct]].filter(([, v]) => v != null).map(([k, v]) => `${k} ${v}`).join(' · ')}</p></div>
+                <li key={m.id} className="flex items-center justify-between gap-2 px-4 py-2.5 text-sm"><div><p className="font-medium">{fmtDay(m.measured_on, 'd MMM yyyy')}</p><p className="text-xs text-muted-foreground">{measurementLine(m)}</p></div>
                   <Button variant="ghost" size="icon-sm" aria-label="Delete measurement" onClick={async () => { if (await confirm({ title: 'Delete this entry?' })) delM(m.id) }}><Trash2 className="h-4 w-4" /></Button></li>))}</ul>}
             </CardContent></Card>
           </div>)}

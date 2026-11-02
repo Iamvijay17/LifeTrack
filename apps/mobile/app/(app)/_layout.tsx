@@ -31,6 +31,7 @@ export default function AppLayout() {
         <Tabs.Screen name="module/health" options={{ href: null }} />
         <Tabs.Screen name="module/notes" options={{ href: null }} />
         <Tabs.Screen name="module/jobs" options={{ href: null }} />
+        <Tabs.Screen name="module/fitness" options={{ href: null }} />
         <Tabs.Screen name="sync-check" options={{ href: null }} />
       </Tabs>
     </>

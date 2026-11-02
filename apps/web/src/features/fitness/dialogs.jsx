@@ -1,25 +1,21 @@
 import { useEffect } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { blankExercise, blankMeasurement, blankRoutine, blankWorkout, exerciseFormSchema, measurementFormSchema, measurementFormToPayloads, routineFormSchema, workoutFormSchema, workoutFormToPayload, workoutToForm } from '@lifetrack/schemas'
+import { exercisesFromSets, routineToExercises, workoutRows } from '@lifetrack/core/fitness'
 import { Plus, Trash2 } from 'lucide-react'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Select, Textarea } from '@/components/ui/form'
 import { MUSCLE_GROUPS } from '@lifetrack/constants/defaults'
-import { isValidDay } from '@/lib/dates'
 import { useAction } from '@/hooks/useAction'
 import * as store from '@/hooks/store'
 import { saveWorkout, saveHealth } from '@/services/api'
 
-const nonNeg = (max, label) => z.coerce.number({ invalid_type_error: `${label}: enter a number` }).min(0, `${label} can’t be negative`).max(max, `${label} is too large`)
-const optNum = (max, label) => z.union([z.literal(''), nonNeg(max, label)])
-
 // ----------------------------------------------------------------- exercise
 export function ExerciseDialog({ open, onOpenChange }) {
-  const schema = z.object({ name: z.string().trim().min(1, 'Name the exercise').max(80), muscle_group: z.string(), equipment: z.string().max(60) })
-  const { register, handleSubmit, reset, formState: { errors } } = useForm({ resolver: zodResolver(schema), defaultValues: { name: '', muscle_group: 'Chest', equipment: '' } })
-  useEffect(() => { if (open) reset({ name: '', muscle_group: 'Chest', equipment: '' }) }, [open, reset])
+  const { register, handleSubmit, reset, formState: { errors } } = useForm({ resolver: zodResolver(exerciseFormSchema), defaultValues: blankExercise() })
+  useEffect(() => { if (open) reset(blankExercise()) }, [open, reset])
   const [save, pending] = useAction(async (v) => { await store.insert('exercises', v); onOpenChange(false) }, { success: 'Exercise added' })
   return (
     <FormDialog open={open} onOpenChange={onOpenChange} title="New exercise" pending={pending} onSubmit={handleSubmit(save)}>
@@ -34,11 +30,8 @@ export function ExerciseDialog({ open, onOpenChange }) {
 
 // ------------------------------------------------------------------ routine
 export function RoutineDialog({ open, onOpenChange, routine, library }) {
-  const schema = z.object({
-    name: z.string().trim().min(1, 'Name the routine').max(80), notes: z.string().max(1000),
-    exercises: z.array(z.object({ name: z.string().trim().min(1, 'Exercise name'), sets: nonNeg(20, 'Sets'), reps: nonNeg(1000, 'Reps'), weight_kg: nonNeg(1000, 'Weight') })).min(1, 'Add at least one exercise'),
-  })
-  const blank = { name: '', notes: '', exercises: [{ name: '', sets: 3, reps: 10, weight_kg: 0 }] }
+  const schema = routineFormSchema
+  const blank = blankRoutine()
   const { register, control, handleSubmit, reset, formState: { errors } } = useForm({ resolver: zodResolver(schema), defaultValues: blank })
   const { fields, append, remove } = useFieldArray({ control, name: 'exercises' })
   useEffect(() => { if (open) reset(routine ? { name: routine.name, notes: routine.notes ?? '', exercises: routine.exercises } : blank) },
@@ -89,22 +82,14 @@ function Sets({ control, register, index, errors }) {
 }
 
 export function WorkoutDialog({ open, onOpenChange, workout, sets = [], routines, library, today, date, routineId }) {
-  const schema = z.object({
-    workout_date: z.string().refine(isValidDay, 'Pick a date'), routine_id: z.string(), name: z.string().trim().min(1, 'Name the workout').max(80),
-    kind: z.enum(['strength', 'cardio', 'mixed', 'other']), duration_minutes: optNum(1440, 'Duration'), cardio_minutes: optNum(1440, 'Cardio minutes'), cardio_distance_km: optNum(1000, 'Distance'), notes: z.string().max(2000),
-    exercises: z.array(z.object({ name: z.string().trim().min(1, 'Exercise name'), sets: z.array(z.object({ reps: nonNeg(1000, 'Reps'), weight: nonNeg(1000, 'Weight') })) })),
-  })
-  const blank = { workout_date: date ?? today, routine_id: '', name: 'Workout', kind: 'strength', duration_minutes: '', cardio_minutes: '', cardio_distance_km: '', notes: '', exercises: [] }
+  const schema = workoutFormSchema
+  const blank = blankWorkout(date ?? today)
   const { register, control, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm({ resolver: zodResolver(schema), defaultValues: blank })
   const { fields, append, remove } = useFieldArray({ control, name: 'exercises' })
-  const fromSets = () => {
-    const by = new Map()
-    for (const s of [...sets].sort((a, b) => a.order_index - b.order_index || a.set_number - b.set_number)) by.set(s.exercise_name, [...(by.get(s.exercise_name) ?? []), { reps: s.reps, weight: Number(s.weight_kg) }])
-    return [...by.entries()].map(([name, ss]) => ({ name, sets: ss }))
-  }
+  const fromSets = () => exercisesFromSets(sets)
   useEffect(() => {
     if (!open) return
-    reset(workout ? { workout_date: workout.workout_date, routine_id: workout.routine_id ?? '', name: workout.name, kind: workout.kind, duration_minutes: workout.duration_minutes ?? '', cardio_minutes: workout.cardio_minutes ?? '', cardio_distance_km: workout.cardio_distance_km ?? '', notes: workout.notes ?? '', exercises: fromSets() } : { ...blank, workout_date: date ?? today })
+    reset(workout ? workoutToForm(workout, fromSets()) : { ...blank, workout_date: date ?? today })
     if (!workout && routineId) pickRoutine(routineId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, workout?.id, date, routineId])
@@ -113,12 +98,11 @@ export function WorkoutDialog({ open, onOpenChange, workout, sets = [], routines
     const r = routines.find((x) => x.id === id)
     if (!r) return
     setValue('name', r.name)
-    setValue('exercises', r.exercises.map((e) => ({ name: e.name, sets: Array.from({ length: Math.max(1, Number(e.sets) || 1) }, () => ({ reps: Number(e.reps) || 0, weight: Number(e.weight_kg) || 0 })) })))
+    setValue('exercises', routineToExercises(r))
   }
   const [save, pending] = useAction(async (v) => {
-    const n = (x) => (x === '' ? null : Number(x))
-    const row = { workout_date: v.workout_date, routine_id: v.routine_id || null, name: v.name, kind: v.kind, status: 'completed', duration_minutes: n(v.duration_minutes), cardio_minutes: n(v.cardio_minutes), cardio_distance_km: n(v.cardio_distance_km), notes: v.notes }
-    const rows = v.exercises.flatMap((e, oi) => e.sets.map((s, si) => ({ exercise_name: e.name, exercise_id: library.find((l) => l.name.toLowerCase() === e.name.toLowerCase())?.id ?? null, order_index: oi, set_number: si + 1, reps: s.reps, weight_kg: s.weight })))
+    const row = workoutFormToPayload(v)
+    const rows = workoutRows(v.exercises, library)
     await saveWorkout(row, rows, workout)
     onOpenChange(false)
   }, { success: workout ? 'Workout updated' : 'Workout logged' })
@@ -155,18 +139,14 @@ export function WorkoutDialog({ open, onOpenChange, workout, sets = [], routines
 
 // -------------------------------------------------------------- measurements
 export function MeasurementDialog({ open, onOpenChange, today }) {
-  const o = (max, l) => optNum(max, l)
-  const schema = z.object({ measured_on: z.string().refine(isValidDay, 'Pick a date'), weight_kg: z.union([z.literal(''), z.coerce.number().min(20).max(500)]), chest_cm: o(300, 'Chest'), waist_cm: o(300, 'Waist'), hips_cm: o(300, 'Hips'), arm_cm: o(150, 'Arm'), thigh_cm: o(200, 'Thigh'), body_fat_pct: o(80, 'Body fat'), notes: z.string().max(500) })
-  const blank = { measured_on: today, weight_kg: '', chest_cm: '', waist_cm: '', hips_cm: '', arm_cm: '', thigh_cm: '', body_fat_pct: '', notes: '' }
+  const schema = measurementFormSchema
+  const blank = blankMeasurement(today)
   const { register, handleSubmit, reset, formState: { errors } } = useForm({ resolver: zodResolver(schema), defaultValues: blank })
   useEffect(() => { if (open) reset({ ...blank, measured_on: today }) }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
   const [save, pending] = useAction(async (v) => {
-    const n = (x) => (x === '' ? null : Number(x))
-    const { weight_kg, ...rest } = v
-    const body = Object.fromEntries(Object.entries(rest).map(([k, x]) => [k, k === 'measured_on' || k === 'notes' ? x : n(x)]))
-    if (Object.entries(body).every(([k, x]) => k === 'measured_on' || k === 'notes' || x == null) && weight_kg === '') throw new Error('Enter at least one measurement.')
-    if (Object.entries(body).some(([k, x]) => k.endsWith('_cm') || k === 'body_fat_pct' ? x != null : false)) await store.upsert('body_measurements', body, { onConflict: 'user_id,measured_on' })
-    if (weight_kg !== '') await saveHealth(v.measured_on, { weight_kg: Number(weight_kg) })
+    const { body, weight, date: d } = measurementFormToPayloads(v)
+    if (body) await store.upsert('body_measurements', body, { onConflict: 'user_id,measured_on' })
+    if (weight != null) await saveHealth(d, { weight_kg: weight })
     onOpenChange(false)
   }, { success: 'Measurements saved' })
   const f = (name, label) => <Field label={label} error={errors[name]?.message}><Input type="number" inputMode="decimal" step="0.1" {...register(name)} /></Field>
