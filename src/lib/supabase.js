@@ -11,5 +11,5 @@ export const isSupabaseConfigured = Boolean(url && key && !url.includes('YOUR-PR
 
 // Frontend uses ONLY the anon/publishable key. Authorisation is enforced by Row Level Security.
 export const supabase = isSupabaseConfigured
-  ? createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } })
+  ? createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' } })
   : null
