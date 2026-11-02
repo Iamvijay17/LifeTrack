@@ -2,6 +2,8 @@ import { supabase } from '@/lib/supabase'
 import { getUserId } from './session'
 import { toAppError } from './errors'
 
+// Stable paging order per table (application_history has changed_at, not created_at).
+const ORDER_COLUMN = { application_history: 'changed_at' }
 const PAGE = 1000 // PostgREST returns at most 1000 rows per request: page through everything.
 
 const check = ({ data, error }) => {
@@ -18,7 +20,7 @@ export const supabaseAdapter = {
   list: (table) => guard(async () => {
     const rows = []
     for (let from = 0; ; from += PAGE) {
-      const data = check(await supabase.from(table).select('*').order('created_at', { ascending: true }).order('id').range(from, from + PAGE - 1))
+      const data = check(await supabase.from(table).select('*').order(ORDER_COLUMN[table] ?? 'created_at', { ascending: true }).order('id').range(from, from + PAGE - 1))
       rows.push(...data)
       if (data.length < PAGE) break
     }
