@@ -1,41 +1,13 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
-import { AppError, toAppError } from './errors'
+import { createSupabaseAuth } from '@lifetrack/data'
+import { AppError } from './errors'
 import { localAdapter } from './localAdapter'
 import { setUserId } from './session'
 
-// ------------------------------------------------------------------ Supabase
-const sb = {
-  async getSession() {
-    const { data, error } = await supabase.auth.getSession()
-    if (error) throw toAppError(error)
-    return data.session
-  },
-  onChange(cb) {
-    const { data } = supabase.auth.onAuthStateChange((event, session) => cb(event, session))
-    return () => data.subscription.unsubscribe()
-  },
-  async signUp(email, password, displayName) {
-    const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: displayName }, emailRedirectTo: window.location.origin } })
-    if (error) throw toAppError(error)
-    return { needsConfirmation: !data.session }
-  },
-  async signIn(email, password) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) throw new AppError(/invalid login/i.test(error.message) ? 'Incorrect email or password.' : toAppError(error).message)
-  },
-  async signOut() { const { error } = await supabase.auth.signOut(); if (error) throw toAppError(error) },
-  async sendPasswordReset(email) {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` })
-    if (error) throw toAppError(error)
-  },
-  async updatePassword(password) { const { error } = await supabase.auth.updateUser({ password }); if (error) throw toAppError(error) },
-  async updateDisplayName(name) { const { error } = await supabase.auth.updateUser({ data: { display_name: name } }); if (error) throw toAppError(error) },
-  async deleteAccount() {
-    const { error } = await supabase.rpc('delete_my_account')
-    if (error) throw toAppError(error)
-    await supabase.auth.signOut().catch(() => {})
-  },
-}
+// ------------------------------------------------------------------ Supabase (shared implementation)
+const sb = isSupabaseConfigured
+  ? createSupabaseAuth(supabase, { signUp: () => window.location.origin, passwordReset: () => `${window.location.origin}/reset-password` })
+  : null
 
 // ----------------------------------------------------------------- Local DEV
 const USERS = 'lifetrack-dev:users'

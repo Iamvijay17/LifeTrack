@@ -1,6 +1,6 @@
-import { isSupabaseConfigured } from '@/lib/supabase'
-import { supabaseAdapter } from './supabaseAdapter'
+import { createSupabaseAdapter } from '@lifetrack/data'
+import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { localAdapter } from './localAdapter'
 
-export const db = isSupabaseConfigured ? supabaseAdapter : localAdapter
+export const db = isSupabaseConfigured ? createSupabaseAdapter(supabase) : localAdapter
 export const isDevMode = !isSupabaseConfigured

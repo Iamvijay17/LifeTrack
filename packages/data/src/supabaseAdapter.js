@@ -1,4 +1,3 @@
-import { supabase } from '@/lib/supabase'
 import { getUserId } from './session'
 import { toAppError } from './errors'
 
@@ -14,7 +13,8 @@ const guard = async (fn) => {
   try { return await fn() } catch (e) { throw toAppError(e) }
 }
 
-export const supabaseAdapter = {
+/** Data adapter over a Supabase client. The client is injected so web and mobile can configure it differently. */
+export const createSupabaseAdapter = (supabase) => ({
   name: 'supabase',
 
   list: (table) => guard(async () => {
@@ -58,4 +58,4 @@ export const supabaseAdapter = {
       .subscribe((status) => onStatus?.(status))
     return () => { supabase.removeChannel(channel) }
   },
-}
+})
