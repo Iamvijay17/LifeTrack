@@ -7,7 +7,7 @@ import { auth } from '@/services/auth'
 
 export function ProfileMenu() {
   const { displayName, user } = useAuth()
-  const { settings, save } = useSettings()
+  const { save } = useSettings()
   const nav = useNavigate()
   const dark = document.documentElement.classList.contains('dark')
   const initial = (displayName || user?.email || '?').trim()[0]?.toUpperCase()

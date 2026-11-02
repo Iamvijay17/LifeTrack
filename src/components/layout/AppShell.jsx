@@ -28,7 +28,7 @@ export function AppShell() {
   useReminderRunner()
 
   // First sign-in on any device: create default topics / exercise library once (idempotent via unique keys).
-  const { settings, row, loading } = useSettings()
+  const { row, loading } = useSettings()
   const seeding = useRef(false)
   useEffect(() => {
     if (loading || seeding.current || (row && row.defaults_seeded)) return

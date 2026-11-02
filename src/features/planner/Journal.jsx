@@ -18,7 +18,7 @@ export function Journal({ date }) {
   const entry = rows.find((r) => r.entry_date === date)
   const [form, setForm] = useState({ mood: null, content: '', wins: '' })
   const dirty = form.mood !== (entry?.mood ?? null) || form.content !== (entry?.content ?? '') || form.wins !== (entry?.wins ?? '')
-  useEffect(() => { setForm({ mood: entry?.mood ?? null, content: entry?.content ?? '', wins: entry?.wins ?? '' }) }, [date, entry?.id, entry?.updated_at])
+  useEffect(() => { setForm({ mood: entry?.mood ?? null, content: entry?.content ?? '', wins: entry?.wins ?? '' }) }, [date, entry?.id, entry?.updated_at, entry?.content, entry?.mood, entry?.wins])
 
   const [save, pending] = useAction(() => store.upsert('journal_entries', { entry_date: date, ...form }, { onConflict: CONFLICT_KEYS.journal_entries }), { success: 'Journal saved' })
   const [clear] = useAction(() => store.remove('journal_entries', entry.id), { success: 'Entry deleted' })

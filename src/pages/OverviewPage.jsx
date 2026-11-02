@@ -29,9 +29,8 @@ import { Switch } from '@/components/ui/form'
 import { monthKey } from '@/lib/dates'
 import { activeDayStreak } from '@/domain/streaks'
 import { countedMinutes } from '@/domain/learning'
-import { addDays, dateStrInTz, eachDay, fmtDay, fmtDuration, startOfWeek, timeStrInTz } from '@/lib/dates'
+import { addDays, eachDay, fmtDay, fmtDuration, startOfWeek, timeStrInTz } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
-import { cn } from '@/lib/utils'
 
 function Ring({ percent }) {
   const r = 52, c = 2 * Math.PI * r
@@ -68,7 +67,6 @@ export default function OverviewPage() {
   const calc = (date) => dailyProgress({ date, tasks: data.tasks, habits, habitLogs, sessions: data.study_sessions, workouts: data.workouts, health: data.health_logs.find((h) => h.log_date === date), settings })
   const progress = useMemo(() => calc(today), [data, habits, habitLogs, settings, today]) // eslint-disable-line react-hooks/exhaustive-deps
   const weekStart = startOfWeek(today, w)
-  const weekly = useMemo(() => eachDay(weekStart, addDays(weekStart, 6)).map((d) => ({ d, label: fmtDay(d, 'EEE'), pct: d > today ? null : calc(d).percent })), [data, habits, habitLogs, settings, today, weekStart]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const scoreFor = (date) => dailyScore({ date, tasks: data.tasks, habits, habitLogs, sessions: data.study_sessions, workouts: data.workouts, health: data.health_logs.find((h) => h.log_date === date) ?? null, applications: data.job_applications, interviews: data.interview_events, settings, tz })
   const score = useMemo(() => scoreFor(today), [data, habits, habitLogs, settings, today]) // eslint-disable-line react-hooks/exhaustive-deps

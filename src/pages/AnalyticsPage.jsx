@@ -15,8 +15,8 @@ import { avg, bucketize, rangeFor } from '@/domain/analytics'
 import { counted, countedMinutes, goalProgress, problemsSolved } from '@/domain/learning'
 import { funnel, salaryProgression } from '@/domain/jobs'
 import { completion, streaks } from '@/domain/streaks'
-import { categoryBreakdown, summarize } from '@/domain/finance'
-import { addDays, eachDay, fmtDay, fmtDuration, inRange, monthKey, weekday } from '@/lib/dates'
+import { categoryBreakdown } from '@/domain/finance'
+import { addDays, eachDay, fmtDay, fmtDuration, inRange, weekday } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
 
 const pctText = (r) => (r == null ? '—' : `${Math.round(r * 100)}%`)

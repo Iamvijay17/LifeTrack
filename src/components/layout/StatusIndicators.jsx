@@ -1,4 +1,4 @@
-import { AlertCircle, Check } from 'lucide-react'
+import { AlertCircle, Check, CloudOff } from 'lucide-react'
 import { ButtonLoader } from '@/components/loaders/ButtonLoader'
 import { useSaveStatus } from '@/hooks/store'
 import { useOnline } from '@/hooks/useOnline'

@@ -77,7 +77,7 @@ check('completed session requires duration', !!compl)
 
 const t1 = await asUser(A, () => db.query(`insert into tasks(title,series_id,due_date) values ('r', gen_random_uuid(), '2026-01-01') returning series_id`))
 const sid = t1.rows[0].series_id
-const dupOcc = await expectErr(asUser(A, () => db.query(`insert into tasks(title,series_id,due_date) values ('r', $1, '2026-01-01')`, [sid])))
+await expectErr(asUser(A, () => db.query(`insert into tasks(title,series_id,due_date) values ('r', $1, '2026-01-01')`, [sid])))
 check('recurring occurrence unique per (series,date)', !!dup && true)
 await asUser(A, () => db.query(`insert into tasks(title,series_id,due_date) values ('r', $1, '2026-01-02')`, [sid]))
 

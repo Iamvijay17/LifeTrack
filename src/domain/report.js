@@ -10,7 +10,7 @@ import { focusMinutes } from './focus'
 const avg = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null)
 
 /** The first date on which the user recorded anything — days before it are not scored (no history ≠ a bad day). */
-export function firstActivityDate(d, tz) {
+export function firstActivityDate(d) {
   const dates = [
     ...d.tasks.map((t) => t.due_date), ...d.study_sessions.map((s) => s.session_date), ...d.workouts.map((w) => w.workout_date),
     ...d.health_logs.map((h) => h.log_date), ...d.habit_logs.map((l) => l.log_date), ...d.job_applications.map((a) => a.applied_date),
@@ -22,7 +22,7 @@ export function firstActivityDate(d, tz) {
 export function buildReport(d, from, to, { today, settings, weekStartsOn = 1 }) {
   const tz = settings.timezone
   const last = to > today ? today : to
-  const first = firstActivityDate(d, tz)
+  const first = firstActivityDate(d)
   const days = from <= last ? eachDay(from, last) : []
   const scoreDays = first ? days.filter((x) => x >= first) : []
 

@@ -1,4 +1,4 @@
-import { Bar, BarChart, CartesianGrid, Line, LineChart, Tooltip } from 'recharts'
+import { Bar, BarChart, Line, LineChart } from 'recharts'
 import { Chart, C, grid, tooltip, xAxis, yAxis } from '@/components/shared/charts'
 import { addDays, fmtDay, startOfWeek } from '@/lib/dates'
 import { salaryProgression } from '@/domain/jobs'

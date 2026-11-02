@@ -8,9 +8,8 @@ import { Dialog } from '@/components/ui/dialog'
 import { Progress } from '@/components/ui/misc'
 import { SectionLoader } from '@/components/loaders/SectionLoader'
 import { useAction } from '@/hooks/useAction'
-import { useConfirm } from '@/components/shared/Confirm'
 import { buildExport, importBackup, parseBackup, summarizeBackup } from '@/services/backup'
-import { download, toCsv, tableToCsv, EXPORTABLE } from '@/services/csv'
+import { download, tableToCsv, EXPORTABLE } from '@/services/csv'
 import * as store from '@/hooks/store'
 import { db } from '@/services/db'
 import { TABLES } from '@/services/schema'
@@ -20,7 +19,6 @@ function Section({ title, desc, children }) {
 }
 
 function BackupCard() {
-  const confirm = useConfirm()
   const file = useRef(null)
   const [pending, setPending] = useState(null) // parsed backup awaiting confirmation
   const [prog, setProg] = useState(null)

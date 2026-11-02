@@ -1,0 +1,8 @@
+[
+  { "id": "GHSA-mrhx-c7xc-m3w5", "package": "zod", "reviewBy": "2027-01-31",
+    "reason": "Memory exhaustion on oversized constrained collections. LifeTrack validates short form fields and a user-chosen backup file client-side only; fix needs zod 4 (major). Upgrade planned." },
+  { "id": "GHSA-wrjc-x8rr-h8h6", "package": "react-router", "reviewBy": "2027-01-31",
+    "reason": "Open redirect via backslash in Link/navigate. All navigation targets are internal constants; none come from user input. Fix needs react-router 7 (major). Upgrade planned." },
+  { "id": "GHSA-337j-9hxr-rhxg", "package": "react-router", "reviewBy": "2027-01-31",
+    "reason": "deserializeErrors() in SSR hydration. LifeTrack is a client-only SPA with no SSR. Fix needs react-router 7 (major). Upgrade planned." }
+]

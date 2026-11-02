@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils'
 const scheduleLabel = (h) => h.frequency === 'daily' ? 'Every day' : h.frequency === 'weekly' ? `${h.weekly_target}× / week` : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].filter((_, i) => h.days_of_week.includes(i)).join(' · ')
 const pctText = (r) => (r == null ? '—' : `${Math.round(r * 100)}%`)
 
-function HabitRow({ s, date, today, onEdit }) {
+function HabitRow({ s, date, onEdit }) {
   const confirm = useConfirm()
   const { habit } = s
   const log = s.logs.find((l) => l.log_date === date)
@@ -120,7 +120,7 @@ export default function HabitsPage() {
             <DateNav date={day} onChange={setDate} today={today} />
             <label className="flex items-center gap-2 text-xs text-muted-foreground"><input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} className="accent-[rgb(var(--primary))]" />Show archived</label>
           </div>
-          <ul className="grid gap-2 md:grid-cols-2">{visible.map((s) => <HabitRow key={s.habit.id} s={s} date={day} today={today} onEdit={(h) => setDialog({ open: true, habit: h })} />)}</ul>
+          <ul className="grid gap-2 md:grid-cols-2">{visible.map((s) => <HabitRow key={s.habit.id} s={s} date={day} onEdit={(h) => setDialog({ open: true, habit: h })} />)}</ul>
           <Card>
             <CardHeader><CardTitle>Consistency</CardTitle>
               <Select aria-label="Heatmap habit" className="h-8 w-44 md:h-8" value={focus} onChange={(e) => setFocus(e.target.value)}><option value="all">All habits</option>{active.map((s) => <option key={s.habit.id} value={s.habit.id}>{s.habit.name}</option>)}</Select>
