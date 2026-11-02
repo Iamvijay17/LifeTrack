@@ -30,4 +30,4 @@ export function Heatmap({ levels, titles, today, weeks = 26, weekStartsOn = 1, o
     </div>
   )
 }
-export const levelFor = (ratio) => (ratio <= 0 ? 0 : ratio <= 0.25 ? 1 : ratio <= 0.5 ? 2 : ratio < 1 ? 3 : 4)
+export { levelFor } from '@lifetrack/core/habits'

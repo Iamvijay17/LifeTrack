@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/misc'
 import { Menu } from '@/components/ui/menu'
 import { cn } from '@/lib/utils'
 import { fmtDay } from '@/lib/dates'
+import { byPriority, isOpen } from '@lifetrack/core/tasks'
 import { setTaskStatus } from '@/services/api'
 import * as store from '@/hooks/store'
 import { useAction } from '@/hooks/useAction'
@@ -58,6 +59,4 @@ export function TaskSection({ title, tasks, today, onEdit, showDue, hint, empty 
   )
 }
 
-const RANK = { high: 0, medium: 1, low: 2 }
-export const byPriority = (a, b) => RANK[a.priority] - RANK[b.priority] || a.created_at.localeCompare(b.created_at)
-export const isOpen = (t) => t.status === 'pending' || t.status === 'in_progress'
+export { byPriority, isOpen }

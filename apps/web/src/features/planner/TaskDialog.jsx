@@ -1,42 +1,27 @@
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { Field, Input, Select, Textarea } from '@/components/ui/form'
 import { TASK_CATEGORIES, PRIORITIES } from '@lifetrack/constants/defaults'
 import { RECURRENCES } from '@lifetrack/core/recurrence'
-import { isValidDay } from '@/lib/dates'
+import { taskFormSchema as schema, blankTask, taskToForm, taskFormToPayload } from '@lifetrack/schemas'
 import { useAction } from '@/hooks/useAction'
 import { createTask } from '@/services/api'
 import * as store from '@/hooks/store'
 
-const day = z.string().refine((v) => v === '' || isValidDay(v), 'Enter a valid date')
-const schema = z.object({
-  title: z.string().trim().min(1, 'Give the task a title').max(200, 'Keep it under 200 characters'),
-  notes: z.string().max(2000),
-  category: z.enum(TASK_CATEGORIES),
-  priority: z.enum(['low', 'medium', 'high']),
-  due_date: day,
-  recurrence: z.enum(['none', 'daily', 'weekdays', 'weekly', 'monthly']),
-  recurrence_until: day,
-}).superRefine((v, ctx) => {
-  if (v.recurrence !== 'none' && !v.due_date) ctx.addIssue({ code: 'custom', path: ['due_date'], message: 'Repeating tasks need a due date' })
-  if (v.recurrence_until && v.due_date && v.recurrence_until < v.due_date) ctx.addIssue({ code: 'custom', path: ['recurrence_until'], message: 'End date must be after the due date' })
-})
-
 export function TaskDialog({ open, onOpenChange, task, defaultDate = '' }) {
-  const blank = { title: '', notes: '', category: 'Personal', priority: 'medium', due_date: defaultDate, recurrence: 'none', recurrence_until: '' }
+  const blank = blankTask(defaultDate)
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm({ resolver: zodResolver(schema), defaultValues: blank })
   useEffect(() => {
     if (!open) return
-    reset(task ? { title: task.title, notes: task.notes ?? '', category: task.category, priority: task.priority, due_date: task.due_date ?? '', recurrence: task.recurrence, recurrence_until: task.recurrence_until ?? '' } : blank)
+    reset(task ? taskToForm(task) : blank)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, task?.id, defaultDate])
   const recurrence = watch('recurrence')
 
   const [save, pending] = useAction(async (v) => {
-    const data = { ...v, due_date: v.due_date || null, recurrence_until: v.recurrence === 'none' ? null : v.recurrence_until || null }
+    const data = taskFormToPayload(v)
     if (task) await store.update('tasks', task.id, data)
     else await createTask(data)
     onOpenChange(false)

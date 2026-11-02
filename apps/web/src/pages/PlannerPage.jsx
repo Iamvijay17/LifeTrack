@@ -8,7 +8,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { useTables } from '@/hooks/store'
 import { useToday } from '@/hooks/useToday'
 import { TaskDialog } from '@/features/planner/TaskDialog'
-import { TaskSection, byPriority, isOpen } from '@/features/planner/TaskList'
+import { TaskSection } from '@/features/planner/TaskList'
+import { groupTasksForDay } from '@lifetrack/core/tasks'
 import { CalendarCheck } from 'lucide-react'
 
 export default function PlannerPage() {
@@ -18,20 +19,7 @@ export default function PlannerPage() {
   const [dialog, setDialog] = useState({ open: false, task: null })
   const { data, loading, error, refetch } = useTables('tasks')
 
-  const g = useMemo(() => {
-    const tasks = data.tasks
-    const forDay = tasks.filter((t) => t.due_date === day)
-    const open = forDay.filter(isOpen).sort(byPriority)
-    return {
-      priorities: open.slice(0, 3),
-      pending: open.slice(3),
-      done: forDay.filter((t) => t.status === 'done'),
-      off: forDay.filter((t) => t.status === 'skipped' || t.status === 'cancelled'),
-      overdue: day === today ? tasks.filter((t) => isOpen(t) && t.due_date && t.due_date < today).sort((a, b) => a.due_date.localeCompare(b.due_date)) : [],
-      someday: tasks.filter((t) => isOpen(t) && !t.due_date).sort(byPriority),
-      count: forDay.length,
-    }
-  }, [data.tasks, day, today])
+  const g = useMemo(() => groupTasksForDay(data.tasks, day, today), [data.tasks, day, today])
 
   const edit = (task) => setDialog({ open: true, task })
   return (

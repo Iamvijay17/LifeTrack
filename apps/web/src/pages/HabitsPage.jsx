@@ -3,7 +3,7 @@ import { Archive, Check, Flame, Moon, Pencil, Plus, SkipForward, Trash2, Trophy,
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate, EmptyState } from '@/components/shared/states'
 import { DateNav } from '@/components/shared/DateNav'
-import { Heatmap, levelFor } from '@/components/shared/Heatmap'
+import { Heatmap } from '@/components/shared/Heatmap'
 import { StatCard } from '@/components/shared/StatCard'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,12 +18,9 @@ import { useToday } from '@/hooks/useToday'
 import { useAction } from '@/hooks/useAction'
 import * as store from '@/hooks/store'
 import { setHabitStatus } from '@/services/api'
-import { isScheduled } from '@lifetrack/core/streaks'
-import { addDays, eachDay } from '@/lib/dates'
+import { habitHeatmap, habitSummary, isScheduledOn, pctText, scheduleLabel } from '@lifetrack/core/habits'
 import { cn } from '@/lib/utils'
 
-const scheduleLabel = (h) => h.frequency === 'daily' ? 'Every day' : h.frequency === 'weekly' ? `${h.weekly_target}× / week` : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].filter((_, i) => h.days_of_week.includes(i)).join(' · ')
-const pctText = (r) => (r == null ? '—' : `${Math.round(r * 100)}%`)
 
 function HabitRow({ s, date, today, onEdit }) {
   const confirm = useConfirm()
@@ -36,7 +33,7 @@ function HabitRow({ s, date, today, onEdit }) {
   const tap = () => { const n = Date.now(); if (n - lastTap.current < 600) return; lastTap.current = n; setStatus(done ? null : 'done') } // ignore accidental double taps
   const done = log?.status === 'done'
   const off = log && !done
-  const scheduled = habit.frequency === 'weekly' || isScheduled(habit, date)
+  const scheduled = isScheduledOn(habit, date)
   return (
     <li className={cn('flex items-center gap-3 rounded-lg border border-border bg-card p-3', habit.archived_at && 'opacity-60')}>
       <button type="button" disabled={pending || !!habit.archived_at} onClick={tap} aria-pressed={done} aria-label={`${done ? 'Undo' : 'Complete'} ${habit.name}`}
@@ -79,28 +76,8 @@ export default function HabitsPage() {
   const [showArchived, setShowArchived] = useState(false)
 
   const visible = stats.filter((s) => showArchived || !s.habit.archived_at)
-  const active = stats.filter((s) => !s.habit.archived_at)
-  const doneToday = active.filter((s) => s.logs.some((l) => l.log_date === day && l.status === 'done')).length
-  const best = active.reduce((m, s) => Math.max(m, s.longest), 0)
-  const bestCurrent = active.reduce((m, s) => Math.max(m, s.current), 0)
-  const avg30 = (() => { const r = active.map((s) => s.rate30).filter((x) => x != null); return r.length ? r.reduce((a, b) => a + b, 0) / r.length : null })()
-
-  const { levels, titles } = useMemo(() => {
-    const levels = new Map(), titles = new Map()
-    const from = addDays(today, -26 * 7 - 7)
-    const subset = focus === 'all' ? active : active.filter((s) => s.habit.id === focus)
-    for (const d of eachDay(from, today)) {
-      let done = 0, planned = 0
-      for (const s of subset) {
-        const l = s.logs.find((x) => x.log_date === d)
-        if (l?.status === 'skipped' || l?.status === 'rest') continue
-        const sched = s.habit.frequency === 'weekly' ? l?.status === 'done' : isScheduled(s.habit, d)
-        if (l?.status === 'done') { done++; planned++ } else if (sched) planned++
-      }
-      if (planned) { levels.set(d, levelFor(done / planned)); titles.set(d, `${done}/${planned} done`) }
-    }
-    return { levels, titles }
-  }, [active, focus, today])
+  const { active, doneToday, longest: best, bestCurrent, avg30 } = habitSummary(stats, day)
+  const { levels, titles } = useMemo(() => habitHeatmap(active, focus, today), [active, focus, today])
 
   return (
     <>

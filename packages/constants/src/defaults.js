@@ -21,3 +21,7 @@ export const MUSCLE_GROUPS = ['Chest', 'Back', 'Legs', 'Shoulders', 'Biceps', 'T
 export const TASK_CATEGORIES = ['Learning', 'Job Search', 'Gym', 'Health', 'Personal', 'Finance']
 export const PRIORITIES = [{ value: 'high', label: 'High' }, { value: 'medium', label: 'Medium' }, { value: 'low', label: 'Low' }]
 export const APPLICATION_SOURCES = ['LinkedIn', 'Naukri', 'Indeed', 'Company site', 'Referral', 'Recruiter', 'Other']
+
+export const HABIT_COLORS = ['#8B5CF6', '#22C55E', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899', '#14B8A6']
+/** Weekday picker order (Mon first) with the Postgres/JS day number (0 = Sun). */
+export const WEEKDAY_OPTIONS = [['Mon', 1], ['Tue', 2], ['Wed', 3], ['Thu', 4], ['Fri', 5], ['Sat', 6], ['Sun', 0]]
