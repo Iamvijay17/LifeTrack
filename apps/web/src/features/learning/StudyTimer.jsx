@@ -8,10 +8,10 @@ import { useConfirm } from '@/components/shared/Confirm'
 import { useNow } from '@/hooks/useNow'
 import { useAction } from '@/hooks/useAction'
 import { startStudy, stopStudy, discardStudy } from '@/services/api'
-import { elapsedSeconds, MAX_REASONABLE_TIMER_SECONDS } from '@lifetrack/core/learning'
+import { elapsedSeconds, fmtHms, MAX_REASONABLE_TIMER_SECONDS, parseStudyTarget } from '@lifetrack/core/learning'
 import { fmtDuration } from '@/lib/dates'
 
-const clock = (s) => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return [h, m, x].map((n) => String(n).padStart(2, '0')).join(':') }
+const clock = fmtHms
 
 export function TargetSelect({ goals, topics, value, onChange }) {
   return (
@@ -24,11 +24,7 @@ export function TargetSelect({ goals, topics, value, onChange }) {
     </Select>
   )
 }
-export const parseTarget = (v, goals) => {
-  if (v.startsWith('g:')) { const g = goals.find((x) => x.id === v.slice(2)); return { goal_id: g?.id ?? null, topic_id: g?.topic_id ?? null } }
-  if (v.startsWith('t:')) return { goal_id: null, topic_id: v.slice(2) }
-  return { goal_id: null, topic_id: null }
-}
+export const parseTarget = parseStudyTarget
 
 export function StudyTimer({ running, goals, topics, today }) {
   const confirm = useConfirm()

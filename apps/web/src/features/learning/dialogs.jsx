@@ -1,35 +1,29 @@
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { blankLearningGoal, blankSession, blankTopic, learningGoalFormSchema, learningGoalToForm, learningGoalToPayload, sessionFormSchema, sessionFormToPayload, sessionToForm, topicFormSchema, topicToForm, topicToPayload } from '@lifetrack/schemas'
+import { parseRevisionDates } from '@lifetrack/core/learning'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { Field, Input, Select, Textarea } from '@/components/ui/form'
 import { TargetSelect, parseTarget } from './StudyTimer'
 import { TOPIC_GROUPS } from '@lifetrack/constants/defaults'
-import { isValidDay } from '@/lib/dates'
 import { useAction } from '@/hooks/useAction'
 import * as store from '@/hooks/store'
 
-const day = z.string().refine((v) => v === '' || isValidDay(v), 'Enter a valid date')
-
 // ------------------------------------------------------------- manual session
 export function SessionDialog({ open, onOpenChange, session, goals, topics, today }) {
-  const schema = z.object({
-    target: z.string(), session_date: z.string().refine(isValidDay, 'Pick a date').refine((v) => v <= today, "You can't log study time in the future"),
-    minutes: z.coerce.number({ invalid_type_error: 'Enter minutes' }).min(0).max(1440, 'Max 24h per entry'),
-    problems_solved: z.coerce.number().int().min(0), notes: z.string().max(1000),
-  }).refine((v) => v.minutes > 0 || v.problems_solved > 0, { path: ['minutes'], message: 'Enter minutes studied or problems solved' })
-  const blank = { target: '', session_date: today, minutes: '', problems_solved: 0, notes: '' }
+  const schema = sessionFormSchema(today)
+  const blank = blankSession(today)
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm({ resolver: zodResolver(schema), defaultValues: blank })
   useEffect(() => {
     if (!open) return
-    reset(session ? { target: session.goal_id ? `g:${session.goal_id}` : session.topic_id ? `t:${session.topic_id}` : '', session_date: session.session_date, minutes: Math.round((session.duration_seconds ?? 0) / 60), problems_solved: session.problems_solved, notes: session.notes ?? '' } : { ...blank, session_date: today })
+    reset(session ? sessionToForm(session) : { ...blank, session_date: today })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, session?.id])
   const [save, pending] = useAction(async (v) => {
-    const row = { ...parseTarget(v.target, goals), session_date: v.session_date, duration_seconds: Math.round(v.minutes * 60), problems_solved: v.problems_solved, notes: v.notes, status: 'completed', source: 'manual' }
-    if (session) { delete row.source; await store.update('study_sessions', session.id, row) }
-    else await store.insert('study_sessions', { ...row, started_at: new Date().toISOString(), ended_at: new Date().toISOString() })
+    const row = sessionFormToPayload(v, parseTarget(v.target, goals), !!session)
+    if (session) await store.update('study_sessions', session.id, row)
+    else await store.insert('study_sessions', row)
     onOpenChange(false)
   }, { success: session ? 'Session updated' : 'Session logged' })
   return (
@@ -47,19 +41,14 @@ export function SessionDialog({ open, onOpenChange, session, goals, topics, toda
 
 // ----------------------------------------------------------------------- goal
 export function GoalDialog({ open, onOpenChange, goal, topics }) {
-  const schema = z.object({
-    title: z.string().trim().min(1, 'Name the goal').max(120), topic_id: z.string(),
-    target_hours: z.coerce.number({ invalid_type_error: 'Enter hours' }).min(0).max(5000), due_date: day,
-    status: z.enum(['active', 'completed', 'archived']), notes: z.string().max(1000),
-  })
-  const blank = { title: '', topic_id: '', target_hours: 20, due_date: '', status: 'active', notes: '' }
+  const schema = learningGoalFormSchema
+  const blank = blankLearningGoal()
   const { register, handleSubmit, reset, formState: { errors } } = useForm({ resolver: zodResolver(schema), defaultValues: blank })
-  useEffect(() => { if (open) reset(goal ? { title: goal.title, topic_id: goal.topic_id ?? '', target_hours: goal.target_minutes / 60, due_date: goal.due_date ?? '', status: goal.status, notes: goal.notes ?? '' } : blank) },
+  useEffect(() => { if (open) reset(goal ? learningGoalToForm(goal) : blank) },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [open, goal?.id])
   const [save, pending] = useAction(async (v) => {
-    const topic = topics.find((t) => t.id === v.topic_id)
-    const row = { title: v.title, topic_id: v.topic_id || null, category: topic?.group_name ?? 'Learning', target_minutes: Math.round(v.target_hours * 60), due_date: v.due_date || null, status: v.status, notes: v.notes }
+    const row = learningGoalToPayload(v, topics)
     if (goal) await store.update('goals', goal.id, row); else await store.insert('goals', row)
     onOpenChange(false)
   }, { success: goal ? 'Goal updated' : 'Goal created' })
@@ -79,17 +68,14 @@ export function GoalDialog({ open, onOpenChange, goal, topics }) {
 
 // ---------------------------------------------------------------------- topic
 export function TopicDialog({ open, onOpenChange, topic, groups = TOPIC_GROUPS, today }) {
-  const schema = z.object({ group_name: z.string().trim().min(1, 'Pick a category'), name: z.string().trim().min(1, 'Name the topic').max(80), notes: z.string().max(5000), revision_dates: z.string() })
-  const blank = { group_name: groups[0] ?? 'Frontend', name: '', notes: '', revision_dates: '' }
+  const schema = topicFormSchema
+  const blank = blankTopic(groups[0] ?? 'Frontend')
   const { register, handleSubmit, reset, formState: { errors } } = useForm({ resolver: zodResolver(schema), defaultValues: blank })
-  useEffect(() => { if (open) reset(topic ? { group_name: topic.group_name, name: topic.name, notes: topic.notes ?? '', revision_dates: (topic.revision_dates ?? []).join(', ') } : blank) },
+  useEffect(() => { if (open) reset(topic ? topicToForm(topic) : blank) },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [open, topic?.id])
   const [save, pending] = useAction(async (v) => {
-    const dates = v.revision_dates.split(/[\s,]+/).filter(Boolean)
-    const bad = dates.find((d) => !isValidDay(d))
-    if (bad) throw new Error(`"${bad}" isn't a valid date. Use YYYY-MM-DD, separated by commas.`)
-    const row = { group_name: v.group_name, name: v.name, notes: v.notes, revision_dates: [...new Set(dates)].sort() }
+    const row = topicToPayload(v, parseRevisionDates(v.revision_dates))
     if (topic) await store.update('learning_topics', topic.id, row); else await store.insert('learning_topics', row)
     onOpenChange(false)
   }, { success: 'Topic saved' })

@@ -17,8 +17,8 @@ import * as store from '@/hooks/store'
 import { useSettings } from '@/hooks/useSettings'
 import { useToday } from '@/hooks/useToday'
 import { useAction } from '@/hooks/useAction'
-import { countedMinutes, counted, goalProgress, problemsSolved, topicTotals } from '@lifetrack/core/learning'
-import { addDays, eachDay, fmtDay, fmtDuration, startOfWeek } from '@/lib/dates'
+import { goalProgress, isGoalOverdue, sessionName, studyOverview, topicRevision, topicTotals } from '@lifetrack/core/learning'
+import { fmtDay, fmtDuration } from '@/lib/dates'
 
 export default function LearningPage() {
   const today = useToday()
@@ -35,16 +35,12 @@ export default function LearningPage() {
 
   const topics = data.learning_topics.filter((t) => !t.archived)
   const sessions = data.study_sessions
-  const running = sessions.find((s) => s.status === 'running')
-  const done = useMemo(() => counted(sessions), [sessions])
-  const weekStart = startOfWeek(today, settings.week_starts_on)
-  const week = useMemo(() => eachDay(weekStart, addDays(weekStart, 6)).map((d) => ({ d, label: fmtDay(d, 'EEE'), hours: Math.round((countedMinutes(done.filter((s) => s.session_date === d)) / 60) * 100) / 100 })), [done, weekStart])
-  const todayMin = countedMinutes(done.filter((s) => s.session_date === today))
-  const weekMin = countedMinutes(done.filter((s) => s.session_date >= weekStart && s.session_date <= addDays(weekStart, 6)))
+  const o = useMemo(() => studyOverview(sessions, data.goals, today, settings.week_starts_on), [sessions, data.goals, today, settings.week_starts_on])
+  const { running, todayMin, weekMin, history } = o
+  const week = useMemo(() => o.week.map((w) => ({ ...w, label: fmtDay(w.d, 'EEE') })), [o.week])
   const totals = useMemo(() => topicTotals(topics, sessions), [topics, sessions])
   const groups = [...new Set(topics.map((t) => t.group_name))]
-  const history = [...done].sort((a, b) => (b.session_date + b.created_at).localeCompare(a.session_date + a.created_at))
-  const nameOf = (s) => data.goals.find((g) => g.id === s.goal_id)?.title ?? topics.find((t) => t.id === s.topic_id)?.name ?? 'General study'
+  const nameOf = (s) => sessionName(s, data.goals, topics)
   const target = settings.daily_study_target_minutes
 
   return (
@@ -55,9 +51,9 @@ export default function LearningPage() {
         <div className="space-y-5">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatCard icon={Clock} label="Today" value={fmtDuration(todayMin)} sub={target ? `target ${fmtDuration(target)}` : 'no daily target set'} progress={target ? Math.min(100, (todayMin / target) * 100) : null} tone="success" />
-            <StatCard icon={BookOpen} label="This week" value={fmtDuration(weekMin)} sub={`${week.filter((w) => w.hours > 0).length} active days`} />
-            <StatCard icon={Code2} label="DSA problems" value={problemsSolved(sessions)} sub="all time" />
-            <StatCard icon={Target} label="Active goals" value={data.goals.filter((g) => g.status === 'active').length} sub={`${data.goals.filter((g) => g.status === 'completed').length} completed`} />
+            <StatCard icon={BookOpen} label="This week" value={fmtDuration(weekMin)} sub={`${o.activeDays} active days`} />
+            <StatCard icon={Code2} label="DSA problems" value={o.problems} sub="all time" />
+            <StatCard icon={Target} label="Active goals" value={o.activeGoals} sub={`${o.completedGoals} completed`} />
           </div>
           <Segmented value={tab} onChange={setTab} options={[{ value: 'overview', label: 'Overview' }, { value: 'goals', label: 'Goals' }, { value: 'topics', label: 'Topics' }, { value: 'sessions', label: 'Sessions' }]} />
 
@@ -75,7 +71,7 @@ export default function LearningPage() {
           {tab === 'goals' && (data.goals.length === 0 ? (
             <EmptyState icon={Target} title="No goals yet" description="Set a target in hours, then log sessions against it to see real progress." action={<Button onClick={() => setGoalDlg({ open: true, goal: null })}>Create a goal</Button>} />
           ) : (
-            <div className="grid gap-3 md:grid-cols-2">{data.goals.map((g) => { const p = goalProgress(g, sessions); const overdue = g.due_date && g.due_date < today && g.status === 'active'; return (
+            <div className="grid gap-3 md:grid-cols-2">{data.goals.map((g) => { const p = goalProgress(g, sessions); const overdue = isGoalOverdue(g, today); return (
               <Card key={g.id}><CardContent className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0"><p className="truncate text-sm font-medium">{g.title}</p><div className="mt-1 flex flex-wrap gap-1.5"><Badge tone="primary">{g.category}</Badge>{g.status !== 'active' && <Badge tone={g.status === 'completed' ? 'success' : 'neutral'}>{g.status}</Badge>}{g.due_date && <Badge tone={overdue ? 'danger' : 'neutral'}><CalendarClock className="h-3 w-3" />{fmtDay(g.due_date, 'd MMM')}</Badge>}</div></div>
@@ -92,8 +88,7 @@ export default function LearningPage() {
             {groups.map((grp) => (
               <section key={grp}><h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{grp}</h3>
                 <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">{totals.filter((t) => t.topic.group_name === grp).map(({ topic, minutes, problems }) => {
-                  const next = (topic.revision_dates ?? []).filter((d) => d >= today).sort()[0]
-                  const due = (topic.revision_dates ?? []).includes(today)
+                  const { next, due } = topicRevision(topic, today)
                   return (<Card key={topic.id}><CardContent className="space-y-1.5 p-3">
                     <div className="flex items-center justify-between"><p className="truncate text-sm font-medium">{topic.name}</p>
                       <Menu label={`Actions for ${topic.name}`} items={[{ label: 'Edit notes & revisions', icon: Pencil, onClick: () => setTopicDlg({ open: true, topic }) }, { label: 'Delete', icon: Trash2, danger: true, onClick: async () => { if (await confirm({ title: `Delete ${topic.name}?`, description: 'Past sessions stay, but lose their topic link.' })) delTopic(topic.id) } }]} /></div>

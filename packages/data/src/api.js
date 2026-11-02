@@ -63,7 +63,11 @@ export function createApi(store) {
     if (store.peek('study_sessions').some((s) => s.status === 'running')) throw new AppError('A study timer is already running.')
     return store.insert('study_sessions', { status: 'running', source: 'timer', session_date: today, started_at: nowIso(), goal_id, topic_id })
   }
-  /** `minutes` lets you correct a forgotten timer downwards; it can never exceed the real elapsed time. */
+  /**
+   * `minutes` lets you correct a forgotten timer downwards; it can never exceed the real elapsed time.
+   * @param {any} session the running study_sessions row
+   * @param {{ problems_solved?: number, notes?: string, minutes?: number }} [opts]
+   */
   function stopStudy(session, { problems_solved = 0, notes = '', minutes } = {}) {
     const ended = new Date()
     const elapsed = Math.max(0, Math.round((ended.getTime() - new Date(session.started_at).getTime()) / 1000))
@@ -121,7 +125,9 @@ export function createApi(store) {
   }
 
   // ------------------------------------------------------------ focus sessions
-  /** Records a finished (or stopped-early) focus block. Blocks shorter than a minute are discarded as accidental. */
+  /** Records a finished (or stopped-early) focus block. Blocks shorter than a minute are discarded as accidental.
+   * @param {{ plannedMinutes: number, actualSeconds: number, completed: boolean, taskId?: string | null, topicId?: string | null, label?: string, date: string }} input
+   */
   async function recordFocus({ plannedMinutes, actualSeconds, completed, taskId = null, topicId = null, label = '', date }) {
     if (actualSeconds < MIN_RECORD_SECONDS && !completed) return null
     return store.insert('focus_sessions', {

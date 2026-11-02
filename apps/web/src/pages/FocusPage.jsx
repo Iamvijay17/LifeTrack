@@ -18,10 +18,11 @@ import { useAction } from '@/hooks/useAction'
 import { recordFocus } from '@/services/api'
 import { useFocusTimer } from '@/features/focus/useFocusTimer'
 import { completedCount, dailyFocus, fmtClock, focusMinutes, nextBreak, PRESETS, weekRange } from '@lifetrack/core/focus'
+import { FOCUS_MODE_LABEL, focusMinutesFor, focusSessionName, isValidFocusMinutes, parseFocusTarget } from '@lifetrack/core/focusTimer'
 import { fmtDay, fmtDuration, timeStrInTz } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
-const MODE_LABEL = { focus: 'Focus', short_break: 'Short break', long_break: 'Long break' }
+const MODE_LABEL = FOCUS_MODE_LABEL
 
 function beep() {
   try {
@@ -70,8 +71,8 @@ export default function FocusPage() {
     },
   })
 
-  const minutes = mode === 'focus' ? (preset === 'custom' ? Number(custom) : Number(preset)) : mode === 'short_break' ? prefs.short_break : prefs.long_break
-  const validMinutes = Number.isInteger(minutes) && minutes >= 1 && minutes <= 240
+  const minutes = focusMinutesFor(mode, preset, custom, prefs)
+  const validMinutes = isValidFocusMinutes(minutes)
 
   useEffect(() => {
     document.title = timer.timer ? `${fmtClock(timer.left)} · ${MODE_LABEL[timer.timer.mode]} — LifeTrack` : 'LifeTrack'
@@ -80,8 +81,7 @@ export default function FocusPage() {
 
   const begin = () => {
     if (!validMinutes) return toast.error('Choose a duration between 1 and 240 minutes.')
-    const [kind, id] = target.split(':')
-    timer.start({ mode, plannedMinutes: minutes, taskId: kind === 'task' ? id : null, topicId: kind === 'topic' ? id : null, label })
+    timer.start({ mode, plannedMinutes: minutes, ...parseFocusTarget(target), label })
   }
   const [stopEarly] = useAction(async () => {
     const t = timer.timer
@@ -96,7 +96,7 @@ export default function FocusPage() {
   const week = useMemo(() => dailyFocus(data.focus_sessions, from, to).map((d) => ({ ...d, label: fmtDay(d.date, 'EEE') })), [data.focus_sessions, from, to])
   const weekTotal = week.reduce((a, d) => a + d.minutes, 0)
   const openTasks = data.tasks.filter((t) => t.status === 'pending' || t.status === 'in_progress')
-  const nameOf = (s) => data.tasks.find((t) => t.id === s.task_id)?.title ?? data.learning_topics.find((t) => t.id === s.topic_id)?.name ?? s.label ?? 'Focus'
+  const nameOf = (s) => focusSessionName(s, data.tasks, data.learning_topics)
   const active = timer.timer
   const shownMode = active?.mode ?? mode
   const total = (active?.plannedMinutes ?? (validMinutes ? minutes : 25)) * 60

@@ -14,7 +14,7 @@ import { useTables } from '@/hooks/store'
 import * as store from '@/hooks/store'
 import { useToday } from '@/hooks/useToday'
 import { useAction } from '@/hooks/useAction'
-import { goalPercent, isOverdue, daysLeft, PERIODS } from '@lifetrack/core/goals'
+import { daysLeft, daysLeftLabel, goalList, goalSourceLabel, goalsSummary, isOverdue, orderedMilestones, periodLabel, PERIODS } from '@lifetrack/core/goals'
 import { setGoalStatus, toggleMilestone } from '@/services/api'
 import { isValidDay, fmtDay } from '@/lib/dates'
 import { cn } from '@/lib/utils'
@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils'
 function Milestones({ goal, milestones }) {
   const [title, setTitle] = useState('')
   const [due, setDue] = useState('')
-  const mine = milestones.filter((m) => m.goal_id === goal.id).sort((a, b) => a.position - b.position || a.created_at.localeCompare(b.created_at))
+  const mine = orderedMilestones(goal.id, milestones)
   const [add, adding] = useAction(async () => {
     const t = title.trim()
     if (!t) throw new Error('Name the milestone first.')
@@ -61,13 +61,8 @@ export default function GoalsPage() {
   const [setStatus] = useAction(setGoalStatus)
   const [del] = useAction((id) => store.remove('goals', id), { success: 'Goal deleted' })
 
-  const rows = useMemo(() => data.goals.map((g) => ({ g, p: goalPercent(g, data.milestones, data.study_sessions) })), [data])
-  const shown = rows.filter(({ g }) => (tab === 'active' ? g.status === 'active' : g.status !== 'active') && (!period || g.period === period))
-    .sort((a, b) => (a.g.due_date ?? '9999').localeCompare(b.g.due_date ?? '9999'))
-  const active = rows.filter((r) => r.g.status === 'active')
-  const completed = rows.filter((r) => r.g.status === 'completed')
-  const avg = active.length ? Math.round(active.reduce((a, r) => a + r.p.percent, 0) / active.length) : null
-  const closed = completed.length + rows.filter((r) => r.g.status === 'archived').length
+  const shown = useMemo(() => goalList(data.goals, data.milestones, data.study_sessions, { tab, period }), [data, tab, period])
+  const sum = useMemo(() => goalsSummary(data.goals, data.milestones, data.study_sessions, today), [data, today])
 
   return (
     <>
@@ -75,10 +70,10 @@ export default function GoalsPage() {
       <DataGate loading={loading} error={error} onRetry={refetch}>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard icon={Target} label="Active" value={active.length} sub={`${active.filter((r) => isOverdue(r.g, today)).length} overdue`} />
-            <StatCard icon={CheckCircle2} label="Completed" value={completed.length} sub={closed ? `${Math.round((completed.length / closed) * 100)}% of closed goals` : undefined} tone="success" />
-            <StatCard icon={Target} label="Average progress" value={avg == null ? '—' : `${avg}%`} progress={avg} />
-            <StatCard icon={Target} label="Milestones done" value={`${data.milestones.filter((m) => m.done).length}/${data.milestones.length}`} />
+            <StatCard icon={Target} label="Active" value={sum.active} sub={`${sum.overdue} overdue`} />
+            <StatCard icon={CheckCircle2} label="Completed" value={sum.completed} sub={sum.completedShare != null ? `${sum.completedShare}% of closed goals` : undefined} tone="success" />
+            <StatCard icon={Target} label="Average progress" value={sum.avgProgress == null ? '—' : `${sum.avgProgress}%`} progress={sum.avgProgress} />
+            <StatCard icon={Target} label="Milestones done" value={`${sum.milestonesDone}/${sum.milestonesTotal}`} />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Segmented value={tab} onChange={setTab} options={[{ value: 'active', label: 'Active' }, { value: 'history', label: 'History' }]} />
@@ -93,7 +88,7 @@ export default function GoalsPage() {
                 <Card key={g.id} data-testid="goal-card"><CardContent className="p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0"><h3 className="truncate text-sm font-semibold">{g.title}</h3>
-                      <div className="mt-1 flex flex-wrap items-center gap-1.5"><Badge tone="primary">{PERIODS.find((x) => x.value === g.period)?.label}</Badge><Badge>{g.category}</Badge>{g.status !== 'active' && <Badge tone={g.status === 'completed' ? 'success' : 'neutral'}>{g.status}</Badge>}{over && <Badge tone="danger">Overdue</Badge>}</div></div>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5"><Badge tone="primary">{periodLabel(g.period)}</Badge><Badge>{g.category}</Badge>{g.status !== 'active' && <Badge tone={g.status === 'completed' ? 'success' : 'neutral'}>{g.status}</Badge>}{over && <Badge tone="danger">Overdue</Badge>}</div></div>
                     <Menu label={`Actions for ${g.title}`} items={[
                       { label: 'Edit', icon: Pencil, onClick: () => setDlg({ open: true, goal: g }) },
                       { label: 'Mark completed', icon: CheckCircle2, hidden: g.status === 'completed', onClick: () => setStatus(g, 'completed') },
@@ -103,9 +98,9 @@ export default function GoalsPage() {
                     ]} />
                   </div>
                   {g.notes && <p className="mt-2 line-clamp-2 text-[13px] text-muted-foreground">{g.notes}</p>}
-                  <div className="mt-3 space-y-1.5"><div className="flex justify-between text-xs"><span className="text-muted-foreground">{p.source === 'milestones' ? `${p.done}/${p.total} milestones` : p.source === 'study' ? 'Study time' : p.source === 'completed' ? 'Completed' : 'Manual progress'}</span><span className="font-medium tabular-nums">{p.percent}%</span></div>
+                  <div className="mt-3 space-y-1.5"><div className="flex justify-between text-xs"><span className="text-muted-foreground">{goalSourceLabel(p)}</span><span className="font-medium tabular-nums">{p.percent}%</span></div>
                     <Progress value={p.percent} tone={p.percent >= 100 ? 'success' : over ? 'danger' : 'primary'} label={`${g.title} progress`} /></div>
-                  <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground"><span>{g.start_date ? `${fmtDay(g.start_date, 'd MMM')} → ` : ''}{g.due_date ? fmtDay(g.due_date, 'd MMM yyyy') : 'No target date'}</span>{g.status === 'active' && left != null && <span>{left < 0 ? `${-left}d overdue` : left === 0 ? 'Due today' : `${left}d left`}</span>}</div>
+                  <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground"><span>{g.start_date ? `${fmtDay(g.start_date, 'd MMM')} → ` : ''}{g.due_date ? fmtDay(g.due_date, 'd MMM yyyy') : 'No target date'}</span>{g.status === 'active' && left != null && <span>{daysLeftLabel(left)}</span>}</div>
                   <button onClick={() => setOpen((o) => ({ ...o, [g.id]: !o[g.id] }))} aria-expanded={!!open[g.id]} className="mt-3 flex w-full items-center justify-between text-xs font-medium text-secondary">
                     Milestones ({ms.filter((m) => m.done).length}/{ms.length}){open[g.id] ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>
                   {open[g.id] && <Milestones goal={g} milestones={data.milestones} />}
