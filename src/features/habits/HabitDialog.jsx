@@ -1,11 +1,10 @@
-import { useEffect } from 'react'
-import { useForm, Controller } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { Controller } from 'react-hook-form'
 import { z } from 'zod'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { Field, Input, Select } from '@/components/ui/form'
-import { isValidDay } from '@/lib/dates'
+import { requiredDay } from '@/lib/validation'
 import { useAction } from '@/hooks/useAction'
+import { useDialogForm } from '@/hooks/useDialogForm'
 import * as store from '@/hooks/store'
 import { cn } from '@/lib/utils'
 
@@ -27,40 +26,28 @@ const schema = z
     frequency: z.enum(['daily', 'weekly', 'custom']),
     days_of_week: z.array(z.number()),
     weekly_target: z.coerce.number().int().min(1, 'At least 1').max(7, 'At most 7'),
-    start_date: z.string().refine(isValidDay, 'Pick a start date'),
+    start_date: requiredDay('Pick a start date'),
   })
   .refine((v) => v.frequency !== 'custom' || v.days_of_week.length > 0, { path: ['days_of_week'], message: 'Pick at least one day' })
 
 export function HabitDialog({ open, onOpenChange, habit, today }) {
   const blank = { name: '', description: '', color: COLORS[0], frequency: 'daily', days_of_week: [], weekly_target: 3, start_date: today }
+  const fromHabit = (h) => ({
+    name: h.name,
+    description: h.description ?? '',
+    color: h.color,
+    frequency: h.frequency,
+    days_of_week: h.days_of_week ?? [],
+    weekly_target: h.weekly_target,
+    start_date: h.start_date,
+  })
   const {
     register,
     control,
     handleSubmit,
-    reset,
     watch,
     formState: { errors },
-  } = useForm({ resolver: zodResolver(schema), defaultValues: blank })
-  useEffect(
-    () => {
-      if (open)
-        reset(
-          habit
-            ? {
-                name: habit.name,
-                description: habit.description ?? '',
-                color: habit.color,
-                frequency: habit.frequency,
-                days_of_week: habit.days_of_week ?? [],
-                weekly_target: habit.weekly_target,
-                start_date: habit.start_date,
-              }
-            : { ...blank, start_date: today },
-        )
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [open, habit?.id],
-  )
+  } = useDialogForm({ open, schema, recordKey: habit?.id, valuesFor: () => (habit ? fromHabit(habit) : blank) })
   const frequency = watch('frequency')
   const [save, pending] = useAction(
     async (v) => {

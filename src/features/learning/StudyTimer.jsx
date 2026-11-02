@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { AlertTriangle, Pause, Play, Trash2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Field, Input, Select, Textarea } from '@/components/ui/form'
+import { Field, Input, Textarea } from '@/components/ui/form'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { useConfirm } from '@/components/shared/Confirm'
 import { useNow } from '@/hooks/useNow'
 import { useAction } from '@/hooks/useAction'
 import { startStudy, stopStudy, discardStudy } from '@/services/api'
-import { elapsedSeconds, MAX_REASONABLE_TIMER_SECONDS } from '@/domain/learning'
+import { elapsedSeconds, MAX_REASONABLE_TIMER_SECONDS, parseTarget } from '@/domain/learning'
+import { TargetSelect } from './TargetSelect'
 import { fmtDuration } from '@/lib/dates'
 
 const clock = (s) => {
@@ -16,44 +17,6 @@ const clock = (s) => {
     m = Math.floor((s % 3600) / 60),
     x = s % 60
   return [h, m, x].map((n) => String(n).padStart(2, '0')).join(':')
-}
-
-export function TargetSelect({ goals, topics, value, onChange }) {
-  return (
-    <Select value={value} onChange={(e) => onChange(e.target.value)} aria-label="What are you studying?">
-      <option value="">No specific goal / topic</option>
-      {goals.filter((g) => g.status === 'active').length > 0 && (
-        <optgroup label="Goals">
-          {goals
-            .filter((g) => g.status === 'active')
-            .map((g) => (
-              <option key={g.id} value={`g:${g.id}`}>
-                {g.title}
-              </option>
-            ))}
-        </optgroup>
-      )}
-      {[...new Set(topics.map((t) => t.group_name))].map((grp) => (
-        <optgroup key={grp} label={grp}>
-          {topics
-            .filter((t) => t.group_name === grp && !t.archived)
-            .map((t) => (
-              <option key={t.id} value={`t:${t.id}`}>
-                {t.name}
-              </option>
-            ))}
-        </optgroup>
-      ))}
-    </Select>
-  )
-}
-export const parseTarget = (v, goals) => {
-  if (v.startsWith('g:')) {
-    const g = goals.find((x) => x.id === v.slice(2))
-    return { goal_id: g?.id ?? null, topic_id: g?.topic_id ?? null }
-  }
-  if (v.startsWith('t:')) return { goal_id: null, topic_id: v.slice(2) }
-  return { goal_id: null, topic_id: null }
 }
 
 export function StudyTimer({ running, goals, topics, today }) {
