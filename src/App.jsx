@@ -18,6 +18,12 @@ const Health = page(() => import('@/pages/HealthPage'))
 const Finance = page(() => import('@/pages/FinancePage'))
 const Habits = page(() => import('@/pages/HabitsPage'))
 const Analytics = page(() => import('@/pages/AnalyticsPage'))
+const Focus = page(() => import('@/pages/FocusPage'))
+const Notes = page(() => import('@/pages/NotesPage'))
+const Goals = page(() => import('@/pages/GoalsPage'))
+const Reports = page(() => import('@/pages/ReportsPage'))
+const Notifications = page(() => import('@/pages/NotificationsPage'))
+const ExportPage = page(() => import('@/pages/ExportPage'))
 const Settings = page(() => import('@/pages/SettingsPage'))
 
 function Protected({ children }) {
@@ -48,6 +54,12 @@ export default function App() {
               <Route path="finance" element={<Finance />} />
               <Route path="habits" element={<Habits />} />
               <Route path="analytics" element={<Analytics />} />
+              <Route path="focus" element={<Focus />} />
+              <Route path="notes" element={<Notes />} />
+              <Route path="goals" element={<Goals />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="notifications" element={<Notifications />} />
+              <Route path="export" element={<ExportPage />} />
               <Route path="settings" element={<Settings />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

@@ -7,7 +7,7 @@ heatmap, analytics, JSON/CSV export + restore. React + Vite + Tailwind, Supabase
 **Start here → [docs/QUICKSTART.md](docs/QUICKSTART.md)** (details: [docs/SETUP.md](docs/SETUP.md))
 
 ## Status / honest limitations
-- **Verified here:** unit tests (43), SQL/RLS tests on real Postgres (18 checks), Playwright E2E on desktop + mobile profile (29).
+- **Verified here:** unit tests (68), SQL/RLS tests on real Postgres (incl. every user-owned table), Playwright E2E on desktop + mobile profile (42).
 - **Not verified here (no Supabase project was available in the build environment):** the live Supabase client path
   (auth emails, Realtime delivery, PostgREST paging) and true two-device sync. A `cloud-sync` Playwright test is provided;
   run it once your project is configured. Until then, treat cloud sync as implemented-but-unproven.
@@ -18,3 +18,7 @@ heatmap, analytics, JSON/CSV export + restore. React + Vite + Tailwind, Supabase
 - Jobs "interview rate" and habit streaks are computed from current data/schedule; changing a habit schedule re-judges missed days against the new schedule.
 - Backup restore merges by id (never deletes). Account deletion calls the `delete_my_account()` RPC.
 - DEV-mode local auth is for development only and is not secure.
+- Reminders become notifications while LifeTrack is open on any device (one notification per reminder per day, de-duplicated by the database). There is no background/push server, so a closed app cannot notify you.
+- A running Pomodoro timer is a per-device convenience (stored in the browser); finished focus blocks are saved to your account.
+- Savings-goal "add funds" is read-modify-write like water intake.
+- Existing projects: run `supabase/migrations/0003_focus_notes_goals_reminders.sql` once (`setup-all.sql` already includes it; regenerate with `npm run sql:build`).

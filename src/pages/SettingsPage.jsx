@@ -1,25 +1,24 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { AlertTriangle, Download, FileJson, LogOut, Trash2, Upload } from 'lucide-react'
+import { LogOut, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate } from '@/components/shared/states'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, Input, Select } from '@/components/ui/form'
 import { Dialog } from '@/components/ui/dialog'
-import { Segmented, Progress } from '@/components/ui/misc'
+import { Segmented } from '@/components/ui/misc'
 import { useSettings } from '@/hooks/useSettings'
 import { useAuth } from '@/hooks/useAuth'
 import { useAction } from '@/hooks/useAction'
-import { useConfirm } from '@/components/shared/Confirm'
 import { applyTheme } from '@/hooks/useTheme'
 import { auth } from '@/services/auth'
-import { buildExport, importBackup, parseBackup, summarizeBackup } from '@/services/backup'
-import { download, toCsv, TX_COLUMNS, JOB_COLUMNS } from '@/services/csv'
+import { SCORE_CATEGORIES, normalizeWeights } from '@/domain/score'
 import * as store from '@/hooks/store'
-import { db, isDevMode } from '@/services/db'
+import { isDevMode } from '@/services/db'
 import { TIMEZONES, todayStr } from '@/lib/dates'
 import { CURRENCIES, parseMoney, paiseToInput } from '@/lib/money'
 
@@ -91,48 +90,8 @@ function PreferencesCard() {
   )
 }
 
-function DataCard() {
-  const confirm = useConfirm()
-  const file = useRef(null)
-  const [pending, setPending] = useState(null) // parsed backup awaiting confirmation
-  const [prog, setProg] = useState(null)
-  const [exportAll, exporting] = useAction(async () => {
-    const data = await buildExport()
-    download(`lifetrack-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data, null, 2), 'application/json')
-  }, { success: 'Backup downloaded' })
-  const [csv, csving] = useAction(async (which) => {
-    const rows = await db.list(which === 'tx' ? 'transactions' : 'job_applications')
-    if (!rows.length) throw new Error('Nothing to export yet.')
-    download(which === 'tx' ? 'lifetrack-transactions.csv' : 'lifetrack-applications.csv', toCsv(rows, which === 'tx' ? TX_COLUMNS : JOB_COLUMNS))
-  })
-  const [pick] = useAction(async (f) => { setPending({ ...parseBackup(await f.text()), name: f.name }) })
-  const [restore, restoring] = useAction(async () => {
-    setProg({ done: 0, total: 1 })
-    try { await importBackup(pending, (done, total) => setProg({ done, total })) } finally { setProg(null) }
-    setPending(null)
-  }, { success: 'Backup restored' })
-  return (
-    <Section title="Your data" desc="Export everything any time. Restoring merges into this account and never deletes existing data.">
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={exportAll} loading={exporting}><FileJson className="h-4 w-4" />Export JSON backup</Button>
-        <Button variant="outline" onClick={() => csv('tx')} loading={csving}><Download className="h-4 w-4" />Transactions CSV</Button>
-        <Button variant="outline" onClick={() => csv('jobs')} loading={csving}><Download className="h-4 w-4" />Applications CSV</Button>
-        <Button variant="outline" onClick={() => file.current?.click()}><Upload className="h-4 w-4" />Restore from JSON…</Button>
-        <input ref={file} type="file" accept="application/json,.json" hidden data-testid="import-file" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) pick(f) }} />
-      </div>
-      <Dialog open={!!pending} onOpenChange={(o) => !o && !restoring && setPending(null)} title="Restore backup?" description={pending && `${pending.name} · exported ${new Date(pending.exported_at).toLocaleString()}`}
-        footer={<><Button variant="outline" disabled={restoring} onClick={() => setPending(null)}>Cancel</Button><Button onClick={restore} loading={restoring}>Restore</Button></>}>
-        {pending && <div className="space-y-3 text-sm"><ul className="grid grid-cols-2 gap-x-4 gap-y-1">{summarizeBackup(pending).map((s) => <li key={s.table} className="flex justify-between"><span className="text-muted-foreground">{s.table}</span><b>{s.count}</b></li>)}</ul>
-          {prog && <Progress value={(prog.done / prog.total) * 100} label="Import progress" />}
-          <p className="text-xs text-muted-foreground">Records are merged by ID into your account. Existing data is kept.</p></div>}
-      </Dialog>
-    </Section>
-  )
-}
-
 function AccountCard() {
   const { user } = useAuth()
-  const confirm = useConfirm()
   const [pw, setPw] = useState({ a: '', b: '' })
   const [changePw, changing] = useAction(async () => {
     if (pw.a.length < 8) throw new Error('Use at least 8 characters.')
@@ -161,13 +120,58 @@ function AccountCard() {
   )
 }
 
+function ScoreCard() {
+  const { settings, row, save } = useSettings()
+  const [w, setW] = useState(() => normalizeWeights(settings.score_weights))
+  useEffect(() => setW(normalizeWeights(settings.score_weights)), [row?.updated_at]) // eslint-disable-line react-hooks/exhaustive-deps
+  const total = SCORE_CATEGORIES.reduce((a, c) => a + (Number(w[c.key]) || 0), 0)
+  const dirty = SCORE_CATEGORIES.some((c) => Number(w[c.key]) !== normalizeWeights(settings.score_weights)[c.key])
+  const [submit, pending] = useAction(async () => {
+    for (const c of SCORE_CATEGORIES) { const v = Number(w[c.key]); if (!Number.isFinite(v) || v < 0 || v > 100) throw new Error(`${c.label}: enter a weight between 0 and 100.`) }
+    if (total <= 0) throw new Error('At least one weight must be above zero.')
+    await save({ score_weights: Object.fromEntries(SCORE_CATEGORIES.map((c) => [c.key, Number(w[c.key])])) })
+  }, { success: 'Score weights saved' })
+  return (
+    <Section title="Daily score weights" desc="Categories with nothing planned or logged that day are skipped and the remaining weights are re-balanced, so rest days are never penalised.">
+      <div className="grid gap-3 sm:grid-cols-3">{SCORE_CATEGORIES.map((c) => (
+        <Field key={c.key} label={c.label} hint={`${total > 0 ? Math.round(((Number(w[c.key]) || 0) / total) * 100) : 0}% of the total`}><Input type="number" min={0} max={100} inputMode="numeric" value={w[c.key]} onChange={(e) => setW({ ...w, [c.key]: e.target.value })} /></Field>))}</div>
+      <div className="flex gap-2"><Button onClick={() => submit()} loading={pending} disabled={!dirty}>Save weights</Button><Button variant="ghost" disabled={pending} onClick={() => setW({ learning: 25, career: 25, fitness: 20, habits: 15, health: 15 })}>Reset to default</Button></div>
+    </Section>
+  )
+}
+
+function FocusCard() {
+  const { settings, row, save } = useSettings()
+  const f = settings.focus_prefs
+  const [v, setV] = useState({ short_break: f.short_break, long_break: f.long_break, long_every: f.long_every })
+  useEffect(() => setV({ short_break: f.short_break, long_break: f.long_break, long_every: f.long_every }), [row?.updated_at]) // eslint-disable-line react-hooks/exhaustive-deps
+  const [submit, pending] = useAction(async () => {
+    const n = Object.fromEntries(Object.entries(v).map(([k, x]) => [k, Number(x)]))
+    if (!Number.isInteger(n.short_break) || n.short_break < 1 || n.short_break > 60) throw new Error('Short break: 1–60 minutes.')
+    if (!Number.isInteger(n.long_break) || n.long_break < 1 || n.long_break > 120) throw new Error('Long break: 1–120 minutes.')
+    if (!Number.isInteger(n.long_every) || n.long_every < 2 || n.long_every > 10) throw new Error('Long break every: 2–10 sessions.')
+    await save({ focus_prefs: n })
+  }, { success: 'Focus settings saved' })
+  const dirty = Object.keys(v).some((k) => Number(v[k]) !== f[k])
+  return (
+    <Section title="Focus mode" desc="Break lengths for the Pomodoro timer.">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="Short break (min)"><Input type="number" inputMode="numeric" value={v.short_break} onChange={(e) => setV({ ...v, short_break: e.target.value })} /></Field>
+        <Field label="Long break (min)"><Input type="number" inputMode="numeric" value={v.long_break} onChange={(e) => setV({ ...v, long_break: e.target.value })} /></Field>
+        <Field label="Long break every (sessions)"><Input type="number" inputMode="numeric" value={v.long_every} onChange={(e) => setV({ ...v, long_every: e.target.value })} /></Field>
+      </div>
+      <Button onClick={() => submit()} loading={pending} disabled={!dirty}>Save</Button>
+    </Section>
+  )
+}
+
 export default function SettingsPage() {
   const { loading, error } = useSettings()
   return (
     <>
       <PageHeader title="Settings" description={isDevMode ? 'DEV mode: stored in this browser only.' : 'Synced to your account.'} />
       <DataGate loading={loading} error={error} cards={0}>
-        <div className="mx-auto max-w-2xl space-y-4"><ProfileCard /><PreferencesCard /><DataCard /><AccountCard /></div>
+        <div className="mx-auto max-w-2xl space-y-4"><ProfileCard /><PreferencesCard /><ScoreCard /><FocusCard /><Section title="Your data" desc="Exports, backup and restore live on their own page."><Link to="/export" className="text-sm text-secondary hover:underline">Open Data Export →</Link></Section><AccountCard /></div>
       </DataGate>
     </>
   )

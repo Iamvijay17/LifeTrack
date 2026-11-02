@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { MoreHorizontal } from 'lucide-react'
-import { NAV, MOBILE_PRIMARY } from '@/lib/nav'
+import { NAV, NAV_GROUPS, MOBILE_PRIMARY } from '@/lib/nav'
 import { Dialog } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
 export function MobileNav() {
   const [more, setMore] = useState(false)
   const primary = NAV.filter((n) => MOBILE_PRIMARY.includes(n.to))
-  const rest = NAV.filter((n) => !MOBILE_PRIMARY.includes(n.to))
   const item = (isActive) => cn('flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium', isActive ? 'text-secondary' : 'text-muted-foreground')
   return (
     <>
@@ -21,12 +20,22 @@ export function MobileNav() {
         <button onClick={() => setMore(true)} className={item(false)} aria-label="More pages"><MoreHorizontal className="h-5 w-5" />More</button>
       </nav>
       <Dialog open={more} onOpenChange={setMore} title="All pages">
-        <div className="grid grid-cols-3 gap-2">
-          {rest.map(({ to, label, short, icon: Icon }) => (
-            <NavLink key={to} to={to} onClick={() => setMore(false)} className={({ isActive }) => cn('flex flex-col items-center gap-1.5 rounded-lg border border-border p-3 text-xs font-medium', isActive ? 'border-primary/50 bg-primary/10 text-secondary' : 'text-muted-foreground')}>
-              <Icon className="h-5 w-5" />{short ?? label}
-            </NavLink>
-          ))}
+        <div className="space-y-4">
+          {NAV_GROUPS.map((g) => {
+            const items = g.items.filter((n) => !MOBILE_PRIMARY.includes(n.to))
+            if (!items.length) return null
+            return (
+              <section key={g.title}>
+                <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{g.title}</h3>
+                <div className="grid grid-cols-3 gap-2">
+                  {items.map(({ to, label, short, icon: Icon }) => (
+                    <NavLink key={to} to={to} onClick={() => setMore(false)} className={({ isActive }) => cn('flex flex-col items-center gap-1.5 rounded-lg border border-border p-3 text-center text-xs font-medium', isActive ? 'border-primary/50 bg-primary/10 text-secondary' : 'text-muted-foreground')}>
+                      <Icon className="h-5 w-5" />{short ?? label}
+                    </NavLink>
+                  ))}
+                </div>
+              </section>)
+          })}
         </div>
       </Dialog>
     </>

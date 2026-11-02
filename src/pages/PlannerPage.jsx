@@ -5,19 +5,16 @@ import { DataGate, EmptyState } from '@/components/shared/states'
 import { DateNav } from '@/components/shared/DateNav'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Segmented } from '@/components/ui/misc'
 import { useTables } from '@/hooks/store'
 import { useToday } from '@/hooks/useToday'
 import { TaskDialog } from '@/features/planner/TaskDialog'
 import { TaskSection, byPriority, isOpen } from '@/features/planner/TaskList'
-import { Journal } from '@/features/planner/Journal'
 import { CalendarCheck } from 'lucide-react'
 
 export default function PlannerPage() {
   const today = useToday()
   const [date, setDate] = useState(null)
   const day = date ?? today
-  const [tab, setTab] = useState('tasks')
   const [dialog, setDialog] = useState({ open: false, task: null })
   const { data, loading, error, refetch } = useTables('tasks')
 
@@ -41,11 +38,11 @@ export default function PlannerPage() {
     <>
       <PageHeader title="Daily Planner" description="Plan the day, finish what matters." actions={<Button onClick={() => setDialog({ open: true, task: null })}><Plus className="h-4 w-4" />New task</Button>} />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <Segmented value={tab} onChange={setTab} options={[{ value: 'tasks', label: 'Tasks' }, { value: 'journal', label: 'Journal' }]} />
+        <p className="text-sm text-muted-foreground">Looking for your journal? It lives in Notes &amp; Journal.</p>
         <DateNav date={day} onChange={setDate} today={today} />
       </div>
       <DataGate loading={loading} error={error} onRetry={refetch} cards={0}>
-        {tab === 'journal' ? <Journal date={day} /> : (
+        {(
           <div className="grid gap-4 lg:grid-cols-3">
             <Card className="lg:col-span-2"><CardContent className="space-y-5">
               {g.count === 0 && g.overdue.length === 0 ? (

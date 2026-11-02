@@ -31,7 +31,7 @@ function violatesUnique(table, rows, row, selfId) {
 }
 
 // Columns whose database default is now()
-const NOW_COLUMNS = { application_history: ['changed_at'], study_sessions: ['started_at'] }
+const NOW_COLUMNS = { application_history: ['changed_at'], study_sessions: ['started_at'], focus_sessions: ['started_at'] }
 
 // Strictly increasing timestamps keep ordering deterministic for rows written in the same millisecond.
 let lastTs = 0
@@ -120,9 +120,9 @@ export const localAdapter = {
     const set = new Set(ids)
     db[table] = (db[table] ?? []).filter((r) => !set.has(r.id))
     // emulate ON DELETE CASCADE / SET NULL
-    const cascade = { habits: [['habit_logs', 'habit_id']], job_applications: [['application_history', 'application_id'], ['interview_events', 'application_id']], workouts: [['exercise_logs', 'workout_id']] }
+    const cascade = { habits: [['habit_logs', 'habit_id']], job_applications: [['application_history', 'application_id'], ['interview_events', 'application_id']], workouts: [['exercise_logs', 'workout_id']], goals: [['milestones', 'goal_id']] }
     for (const [child, col] of cascade[table] ?? []) db[child] = (db[child] ?? []).filter((r) => !set.has(r[col]))
-    const setNull = { goals: [['study_sessions', 'goal_id']], learning_topics: [['study_sessions', 'topic_id'], ['goals', 'topic_id']], routines: [['workouts', 'routine_id']] }
+    const setNull = { goals: [['study_sessions', 'goal_id'], ['notes', 'goal_id']], tasks: [['notes', 'task_id'], ['focus_sessions', 'task_id']], learning_topics: [['study_sessions', 'topic_id'], ['goals', 'topic_id'], ['focus_sessions', 'topic_id']], routines: [['workouts', 'routine_id']] }
     for (const [child, col] of setNull[table] ?? []) db[child] = (db[child] ?? []).map((r) => (set.has(r[col]) ? { ...r, [col]: null } : r))
     write(db); notify(table)
   },

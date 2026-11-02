@@ -71,3 +71,10 @@
   }
   @media (prefers-reduced-motion: reduce) { .skeleton::after { animation: none; } }
 }
+
+@media print {
+  aside, header, nav[aria-label="Mobile"], .print\:hidden { display: none !important; }
+  body { background: #fff !important; color: #000 !important; }
+  #main { max-width: none !important; padding: 0 !important; }
+  [data-radix-popper-content-wrapper] { display: none !important; }
+}

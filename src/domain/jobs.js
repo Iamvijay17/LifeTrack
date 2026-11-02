@@ -1,10 +1,10 @@
 import { dateStrInTz } from '@/lib/dates'
 
-export const JOB_STATUSES = ['interested', 'preparing', 'applied', 'assessment', 'interview', 'selected', 'rejected', 'withdrawn']
-export const STATUS_LABEL = Object.fromEntries(JOB_STATUSES.map((s) => [s, s[0].toUpperCase() + s.slice(1)]))
+export const JOB_STATUSES = ['interested', 'preparing', 'applied', 'assessment', 'interview', 'selected', 'offer', 'rejected', 'withdrawn']
+export const STATUS_LABEL = { ...Object.fromEntries(JOB_STATUSES.map((s) => [s, s[0].toUpperCase() + s.slice(1)])), interested: 'Wishlist' }
 export const OPEN_STATUSES = ['interested', 'preparing', 'applied', 'assessment', 'interview']
-const APPLIED_OR_BEYOND = ['applied', 'assessment', 'interview', 'selected']
-const INTERVIEW_OR_BEYOND = ['interview', 'selected']
+const APPLIED_OR_BEYOND = ['applied', 'assessment', 'interview', 'selected', 'offer']
+const INTERVIEW_OR_BEYOND = ['interview', 'selected', 'offer']
 
 /** Statuses an application has EVER been in, from its immutable history (plus its current status). */
 export function everStatuses(app, history) {
@@ -24,7 +24,7 @@ export function funnel(apps, history, events, from, to) {
   const applied = cohort.filter((a) => reached(a, APPLIED_OR_BEYOND) || a.applied_date).length
   const interviews = cohort.filter((a) => reached(a, INTERVIEW_OR_BEYOND) || evApps.has(a.id)).length
   const rejections = cohort.filter((a) => everStatuses(a, history).has('rejected')).length
-  const offers = cohort.filter((a) => everStatuses(a, history).has('selected')).length
+  const offers = cohort.filter((a) => { const e = everStatuses(a, history); return e.has('selected') || e.has('offer') }).length
   return { applied, interviews, rejections, offers, conversion: applied ? interviews / applied : null }
 }
 

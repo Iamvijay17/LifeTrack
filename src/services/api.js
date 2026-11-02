@@ -1,6 +1,8 @@
 // Domain operations that span more than one row. UI components call these (never the adapters directly).
 import * as store from '@/hooks/store'
 import { nextOccurrence, nextDueDate } from '@/domain/recurrence'
+import { dueReminders, afterFire, KIND_LINK } from '@/domain/reminders'
+import { MIN_RECORD_SECONDS } from '@/domain/focus'
 import { DEFAULT_TOPICS, DEFAULT_EXERCISES } from '@/domain/defaults'
 import { CONFLICT_KEYS } from './schema'
 import { uid } from '@/lib/utils'
@@ -103,4 +105,49 @@ export async function seedDefaults() {
   await store.upsert('exercises', DEFAULT_EXERCISES.map(([name, muscle_group, equipment]) => ({ name, muscle_group, equipment })), { onConflict: CONFLICT_KEYS.exercises, ignoreDuplicates: true })
   await store.upsert('user_settings', { defaults_seeded: true }, { onConflict: 'user_id' })
   await Promise.all([store.refetch('learning_topics'), store.refetch('exercises')])
+}
+
+// -------------------------------------------------------------------- goals
+export async function setGoalStatus(goal, status) {
+  return store.update('goals', goal.id, { status, completed_at: status === 'completed' ? nowIso() : null })
+}
+export async function toggleMilestone(m) {
+  return store.update('milestones', m.id, { done: !m.done, completed_at: m.done ? null : nowIso() })
+}
+
+// ------------------------------------------------------------ focus sessions
+/** Records a finished (or stopped-early) focus block. Blocks shorter than a minute are discarded as accidental. */
+export async function recordFocus({ plannedMinutes, actualSeconds, completed, taskId = null, topicId = null, label = '', date }) {
+  if (actualSeconds < MIN_RECORD_SECONDS && !completed) return null
+  return store.insert('focus_sessions', {
+    session_date: date, kind: 'focus', planned_minutes: plannedMinutes, actual_seconds: Math.min(actualSeconds, plannedMinutes * 60 + 5),
+    completed, task_id: taskId, topic_id: topicId, label: label.slice(0, 120),
+  })
+}
+
+// ------------------------------------------------------------- reminders
+/**
+ * Turns due reminders into notifications. Safe to run from several devices at once: the notification's dedupe_key is
+ * unique per user, so only the first insert wins (the loser gets 23505 and is ignored).
+ * Reminders fire while LifeTrack is open on any device — there is no background server push in this build.
+ */
+export async function fireDueReminders(today, nowTime, prefs = {}) {
+  await store.load('reminders')
+  let fired = 0
+  for (const r of dueReminders(store.peek('reminders'), today, nowTime)) {
+    if (prefs[r.kind] !== false) {
+      try {
+        await store.insert('notifications', { kind: r.kind, title: r.title, link: KIND_LINK[r.kind] ?? '', dedupe_key: `reminder:${r.id}:${today}` })
+        fired++
+      } catch (e) { if (e.code !== '23505') throw e }
+    }
+    await store.update('reminders', r.id, afterFire(r, today))
+  }
+  return fired
+}
+export const markNotificationRead = (n) => (n.read_at ? Promise.resolve(n) : store.update('notifications', n.id, { read_at: nowIso() }))
+export async function markAllRead() {
+  const unread = store.peek('notifications').filter((n) => !n.read_at)
+  await Promise.all(unread.map((n) => store.update('notifications', n.id, { read_at: nowIso() })))
+  return unread.length
 }

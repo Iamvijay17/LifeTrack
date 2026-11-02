@@ -6,6 +6,7 @@ import { DataGate, EmptyState } from '@/components/shared/states'
 import { StatCard } from '@/components/shared/StatCard'
 import { Chart, C, PALETTE, grid, tooltip, xAxis, yAxis } from '@/components/shared/charts'
 import { TransactionDialog } from '@/features/finance/TransactionDialog'
+import { SavingsGoals } from '@/features/finance/SavingsGoals'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,7 +19,7 @@ import * as store from '@/hooks/store'
 import { useSettings } from '@/hooks/useSettings'
 import { useToday } from '@/hooks/useToday'
 import { useAction } from '@/hooks/useAction'
-import { CATEGORIES_BY_TYPE, categoryBreakdown, dailySeries, monthlySeries, summarize } from '@/domain/finance'
+import { PAYMENT_METHODS, categoryBreakdown, dailySeries, monthlySeries, summarize } from '@/domain/finance'
 import { addMonths, fmtDay, monthEnd, monthKey, monthStart } from '@/lib/dates'
 import { formatMoney as fm, parseMoney, paiseToInput } from '@/lib/money'
 import { CONFLICT_KEYS } from '@/services/schema'
@@ -40,7 +41,7 @@ export default function FinancePage() {
   const [dlg, setDlg] = useState({ open: false, txn: null, type: 'expense' })
   const [budgetOpen, setBudgetOpen] = useState(false)
   const [budgetInput, setBudgetInput] = useState('')
-  const [f, setF] = useState({ type: '', category: '', q: '', from: '', to: '' })
+  const [f, setF] = useState({ type: '', category: '', method: '', q: '', from: '', to: '' })
 
   const overall = data.budgets.find((b) => b.month === m && b.category === '')
   const budget = overall ? overall.amount_paise : settings.monthly_budget_paise
@@ -52,7 +53,7 @@ export default function FinancePage() {
 
   const filtered = useMemo(() => {
     const q = f.q.trim().toLowerCase()
-    return monthTx.filter((t) => (!f.type || t.type === f.type) && (!f.category || t.category === f.category) && (!f.from || t.txn_date >= f.from) && (!f.to || t.txn_date <= f.to) && (!q || `${t.note} ${t.category}`.toLowerCase().includes(q)))
+    return monthTx.filter((t) => (!f.type || t.type === f.type) && (!f.category || t.category === f.category) && (!f.method || t.payment_method === f.method) && (!f.from || t.txn_date >= f.from) && (!f.to || t.txn_date <= f.to) && (!q || `${t.note} ${t.category} ${t.payment_method}`.toLowerCase().includes(q)))
       .sort((a, b) => (b.txn_date + b.created_at).localeCompare(a.txn_date + a.created_at))
   }, [monthTx, f])
   const [del] = useAction((id) => store.remove('transactions', id), { success: 'Transaction deleted' })
@@ -103,11 +104,14 @@ export default function FinancePage() {
             </div>
           </div>
 
+          <SavingsGoals money={money} today={today} />
+
           <Card><CardHeader className="flex-wrap"><CardTitle>Transactions</CardTitle>
             <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
               <div className="relative min-w-32 max-w-48 flex-1"><Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="h-9 pl-8" placeholder="Search" aria-label="Search transactions" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} /></div>
               <Select aria-label="Type" className="w-28" value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })}><option value="">All types</option><option value="expense">Expense</option><option value="income">Income</option><option value="savings">Savings</option></Select>
               <Select aria-label="Category" className="w-36" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })}><option value="">All categories</option>{allCats.map((c) => <option key={c}>{c}</option>)}</Select>
+              <Select aria-label="Payment method" className="w-36" value={f.method} onChange={(e) => setF({ ...f, method: e.target.value })}><option value="">All methods</option>{PAYMENT_METHODS.map((m) => <option key={m}>{m}</option>)}</Select>
               <Input type="date" aria-label="From date" className="w-36" value={f.from} min={m} max={monthEnd(m)} onChange={(e) => setF({ ...f, from: e.target.value })} />
               <Input type="date" aria-label="To date" className="w-36" value={f.to} min={m} max={monthEnd(m)} onChange={(e) => setF({ ...f, to: e.target.value })} />
             </div></CardHeader>
@@ -116,7 +120,7 @@ export default function FinancePage() {
               : filtered.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">No transactions match these filters.</p>
               : <ul className="divide-y divide-border">{filtered.map((t) => (
                 <li key={t.id} className="flex items-center gap-3 px-4 py-2.5">
-                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{t.note || t.category}</p><p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">{fmtDay(t.txn_date, 'EEE, d MMM')}<Badge tone={TYPE_TONE[t.type]}>{t.category}</Badge></p></div>
+                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{t.note || t.category}</p><p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">{fmtDay(t.txn_date, 'EEE, d MMM')}<Badge tone={TYPE_TONE[t.type]}>{t.category}</Badge>{t.payment_method && t.payment_method !== 'Other' && <span>· {t.payment_method}</span>}</p></div>
                   <span className={cn('text-sm font-semibold tabular-nums', t.type === 'income' ? 'text-success' : t.type === 'expense' ? 'text-foreground' : 'text-secondary')}>{t.type === 'income' ? '+' : t.type === 'expense' ? '−' : ''}{money(t.amount_paise)}</span>
                   <Menu label="Transaction actions" items={[{ label: 'Edit', icon: Pencil, onClick: () => setDlg({ open: true, txn: t, type: t.type }) }, { label: 'Delete', icon: Trash2, danger: true, onClick: async () => { if (await confirm({ title: 'Delete this transaction?', description: `${money(t.amount_paise)} · ${t.category}` })) del(t.id) } }]} />
                 </li>))}</ul>}
