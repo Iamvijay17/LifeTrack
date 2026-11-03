@@ -7,6 +7,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { PageSkeleton } from '@/components/shared/states'
 import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from '@/features/auth/AuthPages'
 import { Logo } from '@/components/layout/Logo'
+import LegalPage from '@/features/legal/LegalPage'
 
 const page = (loader) => lazy(loader)
 const Overview = page(() => import('@/pages/OverviewPage'))
@@ -44,6 +45,8 @@ export default function App() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/privacy" element={<LegalPage doc="privacy" />} />
+            <Route path="/terms" element={<LegalPage doc="terms" />} />
             <Route element={<Protected><AppShell /></Protected>}>
               <Route index element={<Overview />} />
               <Route path="planner" element={<Planner />} />

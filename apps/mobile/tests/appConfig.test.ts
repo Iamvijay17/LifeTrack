@@ -22,14 +22,14 @@ describe('app.config.ts', () => {
     vi.stubEnv('EAS_BUILD_PROFILE', 'preview')
     await expect(load()).resolves.toBeTruthy()
   })
-  it.each(['EAS_PROJECT_ID', 'EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_ANON_KEY'])('a production build fails without %s', async (missing) => {
-    const all: Record<string, string> = { EAS_PROJECT_ID: 'p', EXPO_PUBLIC_SUPABASE_URL: 'https://x.supabase.co', EXPO_PUBLIC_SUPABASE_ANON_KEY: 'anon' }
+  it.each(['EAS_PROJECT_ID', 'EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_ANON_KEY', 'EXPO_PUBLIC_WEB_URL'])('a production build fails without %s', async (missing) => {
+    const all: Record<string, string> = { EAS_PROJECT_ID: 'p', EXPO_PUBLIC_SUPABASE_URL: 'https://x.supabase.co', EXPO_PUBLIC_SUPABASE_ANON_KEY: 'anon', EXPO_PUBLIC_WEB_URL: 'https://app.example.com' }
     vi.stubEnv('EAS_BUILD_PROFILE', 'production')
     for (const [k, v] of Object.entries(all)) vi.stubEnv(k, k === missing ? '' : v)
     await expect(load()).rejects.toThrow(missing)
   })
   it('a production build succeeds with everything set, and refuses a secret key in the public slot', async () => {
-    vi.stubEnv('EAS_BUILD_PROFILE', 'production'); vi.stubEnv('EAS_PROJECT_ID', 'p'); vi.stubEnv('EXPO_PUBLIC_SUPABASE_URL', 'https://x.supabase.co'); vi.stubEnv('EXPO_PUBLIC_SUPABASE_ANON_KEY', 'anon')
+    vi.stubEnv('EAS_BUILD_PROFILE', 'production'); vi.stubEnv('EAS_PROJECT_ID', 'p'); vi.stubEnv('EXPO_PUBLIC_SUPABASE_URL', 'https://x.supabase.co'); vi.stubEnv('EXPO_PUBLIC_SUPABASE_ANON_KEY', 'anon'); vi.stubEnv('EXPO_PUBLIC_WEB_URL', 'https://app.example.com')
     await expect(load()).resolves.toBeTruthy()
     vi.stubEnv('EXPO_PUBLIC_SUPABASE_ANON_KEY', 'sb_secret_abcdef')
     await expect(load()).rejects.toThrow(/secret key/)

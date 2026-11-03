@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { Logo } from '@/components/layout/Logo'
 import { Banners } from '@/components/layout/StatusIndicators'
 
@@ -11,6 +12,7 @@ export function AuthLayout({ title, subtitle, children, footer }) {
         {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
         <div className="mt-6">{children}</div>
         {footer && <div className="mt-6 text-center text-sm text-muted-foreground">{footer}</div>}
+        <p className="mt-4 text-center text-xs text-muted-foreground"><Link className="hover:underline" to="/privacy">Privacy</Link> · <Link className="hover:underline" to="/terms">Terms</Link></p>
       </div>
     </div>
   )

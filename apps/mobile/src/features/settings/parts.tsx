@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Text, View } from 'react-native'
+import { Linking, Text, View } from 'react-native'
 import { TIMEZONES, todayStr } from '@lifetrack/utils'
 import { SCORE_CATEGORIES, normalizeWeights, validateScoreWeights } from '@lifetrack/core/score'
 import { DELETE_CONFIRM_WORD, displayNameSchema, focusPrefsFormSchema, passwordChangeSchema, preferencesFormSchema, preferencesToForm, preferencesToPayload } from '@lifetrack/schemas'
 import { CURRENCIES } from '@lifetrack/utils'
+
 import { store } from '../../data/client'
 import { authService } from '../../lib/supabase'
 import { signOutCleanly } from '../../lib/signOut'
@@ -16,6 +17,9 @@ import { Sheet } from '../../ui/Sheet'
 import { ChipGroup, Segmented, SelectField } from '../../ui/controls'
 import { Button, Card, Field, Txt } from '../../ui'
 import { useTable } from '../../data/useTable'
+
+// Public site that hosts /privacy and /terms (stores require a public URL). PUBLIC value, inlined at build time.
+const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL?.replace(/\/+$/, '')
 
 export function Section({ title, desc, children }: { title: string; desc?: string; children: ReactNode }) {
   return <Card><Txt variant="heading">{title}</Txt>{desc ? <Txt variant="small" muted>{desc}</Txt> : null}<View style={{ gap: 12, marginTop: 6 }}>{children}</View></Card>
@@ -136,6 +140,10 @@ export function AccountSection() {
       <Button title="Change password" variant="ghost" onPress={changePw} loading={changing} disabled={!pw.a} />
       <View style={{ height: 1, backgroundColor: colors.border }} />
       <Button title="Sign out" variant="ghost" onPress={() => { signOutCleanly().catch(() => {}) }} />
+      {WEB_URL ? <>
+        <Button title="Privacy policy" variant="ghost" onPress={() => { Linking.openURL(`${WEB_URL}/privacy`).catch(() => {}) }} />
+        <Button title="Terms of service" variant="ghost" onPress={() => { Linking.openURL(`${WEB_URL}/terms`).catch(() => {}) }} />
+      </> : null}
       <Button title="Delete account…" variant="danger" onPress={() => { setTyped(''); setOpen(true) }} />
       <Sheet visible={open} title="Delete your account?" onClose={() => { if (!deleting) setOpen(false) }} footer={<Button title="Delete everything" variant="danger" onPress={del} loading={deleting} disabled={typed !== DELETE_CONFIRM_WORD} />}>
         <Text style={{ color: colors.foreground }}>This permanently deletes your account and ALL of your data on every device. This cannot be undone.</Text>

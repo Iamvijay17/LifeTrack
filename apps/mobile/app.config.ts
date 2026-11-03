@@ -8,7 +8,7 @@ const DARK = '#09090B'
 
 // A production build without the EAS project id would ship an app that can never obtain push tokens. Fail the build instead.
 if (process.env.EAS_BUILD_PROFILE === 'production') {
-  for (const name of ['EAS_PROJECT_ID', 'EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_ANON_KEY']) {
+  for (const name of ['EAS_PROJECT_ID', 'EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_ANON_KEY', 'EXPO_PUBLIC_WEB_URL']) {
     if (!process.env[name]) throw new Error(`${name} is not set for the production build (see docs/NATIVE.md).`)
   }
   if (/service[_-]?role|sb_secret_/i.test(`${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`)) throw new Error('A secret key was supplied as the public Supabase key.')

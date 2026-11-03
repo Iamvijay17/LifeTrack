@@ -29,6 +29,9 @@ jobs:
           [ -n "$VITE_SUPABASE_URL" ] && [ -n "$VITE_SUPABASE_ANON_KEY" ] || { echo "::error::Set the variables VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY on the Environment (otherwise the app would ship in DEV mode)"; exit 1; }
           case "$VITE_SUPABASE_ANON_KEY" in sb_secret_*) echo "::error::That is a secret key, not the public one"; exit 1;; esac
       - uses: actions/checkout@v4
+      - name: Legal documents are finished (production only)
+        if: ${{ inputs.environment == 'production' }}
+        run: node scripts/check-legal-ready.mjs
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }

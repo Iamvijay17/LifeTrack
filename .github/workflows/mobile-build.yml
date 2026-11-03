@@ -42,6 +42,9 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      - name: Legal documents are finished (production only)
+        if: ${{ env.PROFILE == 'production' }}
+        run: node scripts/check-legal-ready.mjs
 
       # The same gates as the PR workflow, so a build never starts from a broken or leaky tree.
       - run: pnpm typecheck
