@@ -6,7 +6,7 @@ export function useZodForm<S extends z.ZodTypeAny>(schema: S, initial: z.input<S
   const [values, setValues] = useState<z.input<S>>(initial)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const set = useCallback(<K extends keyof z.input<S>>(key: K, value: z.input<S>[K]) => {
-    setValues((v: z.input<S>) => ({ ...v, [key]: value }))
+    setValues((v: z.input<S>) => ({ ...(v as object), [key]: value } as z.input<S>))
     setErrors((e) => { if (!(key as string in e)) return e; const { [key as string]: _drop, ...rest } = e; return rest })
   }, [])
   const reset = useCallback((next: z.input<S>) => { setValues(next); setErrors({}) }, [])

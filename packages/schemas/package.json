@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@lifetrack/utils": "workspace:*",
-    "zod": "^3.25.76"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.14",

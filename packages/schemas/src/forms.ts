@@ -49,7 +49,7 @@ export const habitToForm = (h: { name: string; description?: string | null; colo
 export const sessionFormSchema = (today: string) => z.object({
   target: z.string(),
   session_date: z.string().refine(isValidDay, 'Pick a date').refine((v) => v <= today, "You can't log study time in the future"),
-  minutes: z.coerce.number({ invalid_type_error: 'Enter minutes' }).min(0).max(1440, 'Max 24h per entry'),
+  minutes: z.coerce.number({ error: 'Enter minutes' }).min(0).max(1440, 'Max 24h per entry'),
   problems_solved: z.coerce.number().int().min(0),
   notes: z.string().max(1000),
 }).refine((v) => v.minutes > 0 || v.problems_solved > 0, { path: ['minutes'], message: 'Enter minutes studied or problems solved' })
@@ -68,7 +68,7 @@ export const sessionFormToPayload = (v: { session_date: string; minutes: number;
 export const learningGoalFormSchema = z.object({
   title: z.string().trim().min(1, 'Name the goal').max(120),
   topic_id: z.string(),
-  target_hours: z.coerce.number({ invalid_type_error: 'Enter hours' }).min(0).max(5000),
+  target_hours: z.coerce.number({ error: 'Enter hours' }).min(0).max(5000),
   due_date: day,
   status: z.enum(['active', 'completed', 'archived']),
   notes: z.string().max(1000),
@@ -105,8 +105,8 @@ export const goalFormSchema = z.object({
   period: z.enum(GOAL_PERIODS),
   start_date: day,
   due_date: day,
-  target_hours: z.coerce.number({ invalid_type_error: 'Enter hours' }).min(0).max(5000),
-  manual_progress: z.coerce.number({ invalid_type_error: 'Enter 0–100' }).int().min(0).max(100),
+  target_hours: z.coerce.number({ error: 'Enter hours' }).min(0).max(5000),
+  manual_progress: z.coerce.number({ error: 'Enter 0–100' }).int().min(0).max(100),
 }).refine((v) => !v.start_date || !v.due_date || v.due_date >= v.start_date, { path: ['due_date'], message: 'Target date must be on or after the start date' })
 export type GoalForm = z.input<typeof goalFormSchema>
 export const blankGoal = (today = '', period: GoalForm['period'] = 'monthly'): GoalForm => ({ title: '', notes: '', category: 'Personal', period, start_date: today, due_date: '', target_hours: 0, manual_progress: 0 })
@@ -254,7 +254,7 @@ export const interviewToPayload = (v: InterviewForm, tz: string) => {
 }
 
 // ------------------------------------------------------------------ fitness
-const nonNeg = (max: number, label: string) => z.coerce.number({ invalid_type_error: `${label}: enter a number` }).min(0, `${label} can’t be negative`).max(max, `${label} is too large`)
+const nonNeg = (max: number, label: string) => z.coerce.number({ error: `${label}: enter a number` }).min(0, `${label} can’t be negative`).max(max, `${label} is too large`)
 const optNum = (max: number, label: string) => z.union([z.literal(''), nonNeg(max, label)])
 
 export const exerciseFormSchema = z.object({ name: z.string().trim().min(1, 'Name the exercise').max(80), muscle_group: z.string(), equipment: z.string().max(60) })
@@ -312,7 +312,7 @@ export const preferencesFormSchema = z.object({
   timezone: z.string().refine(validTz, 'Unknown timezone'),
   currency: z.enum(CURRENCY_CODES),
   week_starts_on: z.coerce.number().refine((n) => n === 0 || n === 1),
-  daily_study_target_minutes: z.coerce.number({ invalid_type_error: 'Enter minutes' }).int().min(0).max(1440, 'Max 1440'),
+  daily_study_target_minutes: z.coerce.number({ error: 'Enter minutes' }).int().min(0).max(1440, 'Max 1440'),
   monthly_budget: z.string().refine((v) => v.trim() === '' || parseMoney(v) !== null, 'Enter an amount like 30000'),
   water_goal_ml: z.coerce.number().int().min(0).max(20000),
   steps_goal: z.coerce.number().int().min(0).max(200000),
