@@ -1,14 +1,19 @@
 import { addDays, addMonths, weekday, monthEnd } from '@/lib/dates'
 
 export const RECURRENCES = [
-  { value: 'none', label: 'Does not repeat' }, { value: 'daily', label: 'Every day' },
-  { value: 'weekdays', label: 'Weekdays (Mon–Fri)' }, { value: 'weekly', label: 'Every week' }, { value: 'monthly', label: 'Every month' },
+  { value: 'none', label: 'Does not repeat' },
+  { value: 'daily', label: 'Every day' },
+  { value: 'weekdays', label: 'Weekdays (Mon–Fri)' },
+  { value: 'weekly', label: 'Every week' },
+  { value: 'monthly', label: 'Every month' },
 ]
 
 export function nextDueDate(due, recurrence) {
   switch (recurrence) {
-    case 'daily': return addDays(due, 1)
-    case 'weekly': return addDays(due, 7)
+    case 'daily':
+      return addDays(due, 1)
+    case 'weekly':
+      return addDays(due, 7)
     case 'weekdays': {
       let n = addDays(due, 1)
       while ([0, 6].includes(weekday(n))) n = addDays(n, 1)
@@ -20,7 +25,8 @@ export function nextDueDate(due, recurrence) {
       const last = Number(monthEnd(first).slice(8))
       return first.slice(0, 8) + String(Math.min(day, last)).padStart(2, '0')
     }
-    default: return null
+    default:
+      return null
   }
 }
 

@@ -11,16 +11,32 @@ import * as store from '@/hooks/store'
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }), Toaster: () => null }))
 const { toast } = await import('sonner')
 
-beforeEach(() => { localStorage.clear(); setUserId('user-a'); store.resetStore(); vi.clearAllMocks() })
+beforeEach(() => {
+  localStorage.clear()
+  setUserId('user-a')
+  store.resetStore()
+  vi.clearAllMocks()
+})
 
-const Boom = ({ explode }) => { if (explode) throw new Error('bad row'); return <p>fine</p> }
+const Boom = ({ explode }) => {
+  if (explode) throw new Error('bad row')
+  return <p>fine</p>
+}
 
 describe('ErrorBoundary', () => {
   it('shows a recovery screen instead of a blank page, and recovers when the route changes', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    const { rerender } = render(<ErrorBoundary resetKey="/a"><Boom explode /></ErrorBoundary>)
+    const { rerender } = render(
+      <ErrorBoundary resetKey="/a">
+        <Boom explode />
+      </ErrorBoundary>,
+    )
     expect(screen.getByRole('alert')).toHaveTextContent(/something went wrong/i)
-    rerender(<ErrorBoundary resetKey="/b"><Boom explode={false} /></ErrorBoundary>)
+    rerender(
+      <ErrorBoundary resetKey="/b">
+        <Boom explode={false} />
+      </ErrorBoundary>,
+    )
     expect(screen.getByText('fine')).toBeInTheDocument()
   })
 })
@@ -28,14 +44,24 @@ describe('ErrorBoundary', () => {
 describe('useAction', () => {
   function Harness({ fn }) {
     const [run, pending] = useAction(fn, { success: 'Saved' })
-    return <button onClick={run} disabled={false}>{pending ? 'busy' : 'go'}</button>
+    return (
+      <button onClick={run} disabled={false}>
+        {pending ? 'busy' : 'go'}
+      </button>
+    )
   }
   it('ignores a second click while the first is running, then toasts success', async () => {
     let release
-    const fn = vi.fn(() => new Promise((r) => { release = r }))
+    const fn = vi.fn(
+      () =>
+        new Promise((r) => {
+          release = r
+        }),
+    )
     render(<Harness fn={fn} />)
     const btn = screen.getByRole('button')
-    await userEvent.click(btn); await userEvent.click(btn)
+    await userEvent.click(btn)
+    await userEvent.click(btn)
     expect(fn).toHaveBeenCalledTimes(1)
     await act(async () => release())
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Saved'))
@@ -68,7 +94,8 @@ describe('HabitDialog (useEntityForm)', () => {
     render(<Host habit={h} />)
     const name = await screen.findByLabelText('Name')
     await waitFor(() => expect(name).toHaveValue('Run'))
-    await userEvent.clear(name); await userEvent.type(name, 'Run 5k')
+    await userEvent.clear(name)
+    await userEvent.type(name, 'Run 5k')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(store.peek('habits')[0].name).toBe('Run 5k'))
     expect(store.peek('habits')).toHaveLength(1)

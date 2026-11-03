@@ -8,12 +8,17 @@ const executablePath = process.env.PW_CHROMIUM_PATH || (existsSync(sandboxChromi
 export default defineConfig({
   testDir: './e2e',
   timeout: 45_000,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 1 : 0,
   fullyParallel: false,
   workers: 1,
   reporter: [['list']],
   use: {
     baseURL: 'http://localhost:4173',
     trace: 'retain-on-failure',
+    // An active service worker answers chunk requests from its precache, which bypasses page.route() and makes the "slow chunk" loader tests
+    // pass or fail depending on whether the worker has taken control yet. Only the PWA spec needs it.
+    serviceWorkers: 'block',
     launchOptions: { executablePath, args: ['--no-sandbox'] },
   },
   projects: [
@@ -21,5 +26,12 @@ export default defineConfig({
     { name: 'mobile', use: { ...devices['Pixel 7'] }, testMatch: /responsive/ },
   ],
   // Builds in DEV mode (no Supabase env) so the suite is hermetic.
-  webServer: { command: 'VITE_ALLOW_DEV_MODE=1 npm run build && npm run preview', url: 'http://localhost:4173', reuseExistingServer: true, timeout: 180_000 },
+  webServer: {
+    command: 'npm run build && npm run preview',
+    // The hermetic suite runs against the in-browser local backend, which production builds refuse unless explicitly opted in.
+    env: { VITE_LOCAL_MODE: 'true' },
+    url: 'http://localhost:4173',
+    reuseExistingServer: true,
+    timeout: 180_000,
+  },
 })

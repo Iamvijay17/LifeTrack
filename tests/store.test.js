@@ -1,29 +1,51 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // A controllable fake database so the store's concurrency behaviour can be tested deterministically.
-const fake = vi.hoisted(() => ({ list: null, insert: null, rpc: null, subscribe: () => () => {}, update: null, upsert: null, remove: null, removeMany: null }))
+const fake = vi.hoisted(() => ({
+  list: null,
+  insert: null,
+  rpc: null,
+  subscribe: () => () => {},
+  update: null,
+  upsert: null,
+  remove: null,
+  removeMany: null,
+}))
 vi.mock('@/services/db', () => ({ db: fake, isDevMode: false }))
 
 const store = await import('@/hooks/store')
 
-const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b }); return { promise, resolve, reject } }
+const deferred = () => {
+  let resolve, reject
+  const promise = new Promise((a, b) => {
+    resolve = a
+    reject = b
+  })
+  return { promise, resolve, reject }
+}
 const rows = (...ids) => ids.map((id) => ({ id, updated_at: '2026-01-01T00:00:00Z' }))
 
-beforeEach(() => { store.resetStore(); vi.useRealTimers() })
+beforeEach(() => {
+  store.resetStore()
+  vi.useRealTimers()
+})
 
 describe('store: stale fetches', () => {
   it('discards a fetch that started before a local write and fetches again', async () => {
     const first = deferred()
     const calls = []
-    fake.list = vi.fn((t) => { calls.push(t); return calls.length === 1 ? first.promise : Promise.resolve([{ id: 'a', v: 2 }]) })
+    fake.list = vi.fn((t) => {
+      calls.push(t)
+      return calls.length === 1 ? first.promise : Promise.resolve([{ id: 'a', v: 2 }])
+    })
     fake.insert = vi.fn(async (t, r) => r.map((x) => ({ ...x, id: 'a', v: 2 })))
 
-    const loading = store.load('tasks')                       // fetch #1 starts (slow, will return the OLD snapshot)
-    await store.insert('tasks', { title: 'x' })               // write lands while it is in flight
-    first.resolve([])                                         // old snapshot without the new row arrives late
+    const loading = store.load('tasks') // fetch #1 starts (slow, will return the OLD snapshot)
+    await store.insert('tasks', { title: 'x' }) // write lands while it is in flight
+    first.resolve([]) // old snapshot without the new row arrives late
     await loading
 
-    expect(calls.length).toBe(2)                              // stale result was thrown away and re-fetched
+    expect(calls.length).toBe(2) // stale result was thrown away and re-fetched
     expect(store.peek('tasks')).toEqual([{ id: 'a', v: 2 }])
   })
 
@@ -32,7 +54,7 @@ describe('store: stale fetches', () => {
     let n = 0
     fake.list = vi.fn(() => (++n === 1 ? first.promise : Promise.resolve(rows('new'))))
     const p = store.load('notes')
-    store.refetch('notes')                                    // remote change arrives mid-flight
+    store.refetch('notes') // remote change arrives mid-flight
     first.resolve(rows('old'))
     await p
     expect(fake.list).toHaveBeenCalledTimes(2)
@@ -56,7 +78,11 @@ describe('store: stale fetches', () => {
 })
 
 describe('store: realtime changes are applied without refetching', () => {
-  beforeEach(async () => { fake.list = vi.fn().mockResolvedValue(rows('a', 'b')); await store.load('tasks'); fake.list.mockClear() })
+  beforeEach(async () => {
+    fake.list = vi.fn().mockResolvedValue(rows('a', 'b'))
+    await store.load('tasks')
+    fake.list.mockClear()
+  })
 
   it('INSERT adds a row', () => {
     store.applyChange('tasks', { eventType: 'INSERT', new: { id: 'c', updated_at: '2026-01-02T00:00:00Z' } })

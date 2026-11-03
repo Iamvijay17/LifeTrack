@@ -3,9 +3,20 @@ import AxeBuilder from '@axe-core/playwright'
 import { register } from './helpers'
 
 // Fails on serious/critical WCAG A/AA violations. (Colour-contrast is checked separately in the design review.)
-const scan = async (page) => (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).disableRules(['color-contrast']).analyze())
-  .violations.filter((v) => ['serious', 'critical'].includes(v.impact))
-const summary = (vs) => vs.map((v) => `${v.id}: ${v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(' | ')}`).join('\n')
+const scan = async (page) =>
+  (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).disableRules(['color-contrast']).analyze()).violations.filter((v) =>
+    ['serious', 'critical'].includes(v.impact),
+  )
+const summary = (vs) =>
+  vs
+    .map(
+      (v) =>
+        `${v.id}: ${v.nodes
+          .slice(0, 3)
+          .map((n) => n.target.join(' '))
+          .join(' | ')}`,
+    )
+    .join('\n')
 
 test('auth pages have no serious accessibility violations', async ({ page }) => {
   for (const path of ['/login', '/register', '/forgot-password']) {
@@ -18,7 +29,24 @@ test('auth pages have no serious accessibility violations', async ({ page }) => 
 
 test('main pages have no serious accessibility violations', async ({ page }) => {
   await register(page)
-  for (const path of ['/', '/planner', '/learning', '/jobs', '/fitness', '/health', '/finance', '/habits', '/analytics', '/focus', '/notes', '/goals', '/reports', '/notifications', '/export', '/settings']) {
+  for (const path of [
+    '/',
+    '/planner',
+    '/learning',
+    '/jobs',
+    '/fitness',
+    '/health',
+    '/finance',
+    '/habits',
+    '/analytics',
+    '/focus',
+    '/notes',
+    '/goals',
+    '/reports',
+    '/notifications',
+    '/export',
+    '/settings',
+  ]) {
     await page.goto(path)
     await page.locator('main').waitFor()
     await page.waitForLoadState('networkidle')

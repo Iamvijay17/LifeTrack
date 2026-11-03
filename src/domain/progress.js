@@ -7,7 +7,8 @@ const EXCLUDED_TASK = ['cancelled', 'skipped']
 /** Habits planned for `date` (skipped / rest-day logs are removed from the plan) and how many are done. */
 export function habitDay(habits, habitLogs, date) {
   const logFor = new Map(habitLogs.filter((l) => l.log_date === date).map((l) => [l.habit_id, l.status]))
-  let done = 0, total = 0
+  let done = 0,
+    total = 0
   for (const h of habits) {
     if (h.archived_at) continue
     const st = logFor.get(h.id)
@@ -28,11 +29,21 @@ export function habitDay(habits, habitLogs, date) {
  *  - workout only when the weekly plan has a workout today (rest days / skipped workouts are not planned)
  * Returns percent = null when nothing is planned, instead of inventing a number.
  */
-export function dailyProgress({ date, tasks = [], habits = [], habitLogs = [], sessions = [], workouts = [], health = null, settings = {} }) {
+export function dailyProgress({
+  date,
+  tasks = [],
+  habits = [],
+  habitLogs = [],
+  sessions = [],
+  workouts = [],
+  health = null,
+  settings = {},
+}) {
   const items = []
 
   const dayTasks = tasks.filter((t) => t.due_date === date && !EXCLUDED_TASK.includes(t.status))
-  if (dayTasks.length) items.push({ key: 'tasks', label: 'Tasks', done: dayTasks.filter((t) => t.status === 'done').length, total: dayTasks.length })
+  if (dayTasks.length)
+    items.push({ key: 'tasks', label: 'Tasks', done: dayTasks.filter((t) => t.status === 'done').length, total: dayTasks.length })
 
   const { done: hDone, total: hTotal } = habitDay(habits, habitLogs, date)
   if (hTotal) items.push({ key: 'habits', label: 'Habits', done: hDone, total: hTotal })
@@ -53,11 +64,23 @@ export function dailyProgress({ date, tasks = [], habits = [], habitLogs = [], s
 
   if ((settings.water_goal_ml ?? 0) > 0) {
     const ml = health?.water_ml ?? 0
-    items.push({ key: 'water', label: 'Water', done: Math.min(1, ml / settings.water_goal_ml), total: 1, detail: `${ml}/${settings.water_goal_ml} ml` })
+    items.push({
+      key: 'water',
+      label: 'Water',
+      done: Math.min(1, ml / settings.water_goal_ml),
+      total: 1,
+      detail: `${ml}/${settings.water_goal_ml} ml`,
+    })
   }
   if ((settings.steps_goal ?? 0) > 0) {
     const steps = health?.steps ?? 0
-    items.push({ key: 'steps', label: 'Steps', done: Math.min(1, steps / settings.steps_goal), total: 1, detail: `${steps}/${settings.steps_goal}` })
+    items.push({
+      key: 'steps',
+      label: 'Steps',
+      done: Math.min(1, steps / settings.steps_goal),
+      total: 1,
+      detail: `${steps}/${settings.steps_goal}`,
+    })
   }
 
   const total = items.reduce((a, i) => a + i.total, 0)

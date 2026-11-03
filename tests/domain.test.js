@@ -28,7 +28,9 @@ describe('dates (Asia/Kolkata)', () => {
     expect(zonedToIso('2026-03-11', '09:00', 'Asia/Kolkata')).toBe('2026-03-11T03:30:00.000Z')
   })
   it('formats durations', () => {
-    expect(fmtDuration(125)).toBe('2h 5m'); expect(fmtDuration(60)).toBe('1h'); expect(fmtDuration(45)).toBe('45m')
+    expect(fmtDuration(125)).toBe('2h 5m')
+    expect(fmtDuration(60)).toBe('1h')
+    expect(fmtDuration(45)).toBe('45m')
   })
 })
 
@@ -44,8 +46,10 @@ describe('money (integer paise)', () => {
     expect(parseMoney('0.1') + parseMoney('0.2')).toBe(30)
   })
   it('round-trips and formats', () => {
-    expect(paiseToInput(125050)).toBe('1250.50'); expect(paiseToInput(5000)).toBe('50')
-    expect(formatMoney(125050)).toContain('1,250.50'); expect(formatMoney(100000)).toContain('1,000')
+    expect(paiseToInput(125050)).toBe('1250.50')
+    expect(paiseToInput(5000)).toBe('50')
+    expect(formatMoney(125050)).toContain('1,250.50')
+    expect(formatMoney(100000)).toContain('1,000')
     expect(lpaToPaise('12.5')).toBe(125000000)
   })
 })
@@ -60,7 +64,15 @@ describe('sleep duration', () => {
   })
 })
 
-const habit = (o = {}) => ({ id: 'h', frequency: 'daily', days_of_week: [], weekly_target: 3, start_date: '2026-01-01', archived_at: null, ...o })
+const habit = (o = {}) => ({
+  id: 'h',
+  frequency: 'daily',
+  days_of_week: [],
+  weekly_target: 3,
+  start_date: '2026-01-01',
+  archived_at: null,
+  ...o,
+})
 const log = (d, status = 'done') => ({ habit_id: 'h', log_date: d, status })
 
 describe('habit streaks', () => {
@@ -72,7 +84,8 @@ describe('habit streaks', () => {
   it('a missed day breaks the current streak but keeps the longest', () => {
     const logs = ['2026-01-01', '2026-01-02', '2026-01-03', '2026-01-05'].map((d) => log(d))
     const s = streaks(habit(), logs, '2026-01-05')
-    expect(s.current).toBe(1); expect(s.longest).toBe(3)
+    expect(s.current).toBe(1)
+    expect(s.longest).toBe(3)
   })
   it('skipped / rest days are neutral', () => {
     const logs = [log('2026-01-01'), log('2026-01-02', 'rest'), log('2026-01-03', 'skipped'), log('2026-01-04')]
@@ -89,7 +102,8 @@ describe('habit streaks', () => {
     const h = habit({ frequency: 'weekly', weekly_target: 2, start_date: '2026-01-05' })
     const logs = ['2026-01-05', '2026-01-07', '2026-01-12', '2026-01-13', '2026-01-19'].map((d) => log(d))
     const s = streaks(h, logs, '2026-01-20') // current week has 1/2 so far: not broken yet
-    expect(s.current).toBe(2); expect(s.unit).toBe('wk')
+    expect(s.current).toBe(2)
+    expect(s.unit).toBe('wk')
   })
   it('editing a habit does not erase history (logs stay countable)', () => {
     const logs = ['2026-01-01', '2026-01-02'].map((d) => log(d))
@@ -119,15 +133,21 @@ describe('daily progress', () => {
   })
   it('counts only planned, non-cancelled tasks', () => {
     const tasks = [
-      { due_date: '2026-01-05', status: 'done' }, { due_date: '2026-01-05', status: 'pending' },
-      { due_date: '2026-01-05', status: 'cancelled' }, { due_date: '2026-01-05', status: 'skipped' }, { due_date: '2026-01-06', status: 'done' },
+      { due_date: '2026-01-05', status: 'done' },
+      { due_date: '2026-01-05', status: 'pending' },
+      { due_date: '2026-01-05', status: 'cancelled' },
+      { due_date: '2026-01-05', status: 'skipped' },
+      { due_date: '2026-01-06', status: 'done' },
     ]
     const p = dailyProgress({ ...base, tasks })
     expect(p).toMatchObject({ done: 1, total: 2, percent: 50 })
   })
   it('skipped habits are removed from the plan', () => {
     const habits = [habit({ id: 'a' }), habit({ id: 'b' })]
-    const habitLogs = [{ habit_id: 'a', log_date: '2026-01-05', status: 'done' }, { habit_id: 'b', log_date: '2026-01-05', status: 'skipped' }]
+    const habitLogs = [
+      { habit_id: 'a', log_date: '2026-01-05', status: 'done' },
+      { habit_id: 'b', log_date: '2026-01-05', status: 'skipped' },
+    ]
     expect(dailyProgress({ ...base, habits, habitLogs })).toMatchObject({ done: 1, total: 1, percent: 100 })
   })
   it('running timers never count as study time', () => {
@@ -182,7 +202,9 @@ describe('finance', () => {
     expect(s).toMatchObject({ income: 5000000, expense: 300000, savings: 1000000, net: 3700000, remaining: 700000 })
     expect(s.budgetUsed).toBeCloseTo(0.3)
   })
-  it('no budget -> no remaining', () => { expect(summarize(tx, '2026-01', 0).remaining).toBeNull() })
+  it('no budget -> no remaining', () => {
+    expect(summarize(tx, '2026-01', 0).remaining).toBeNull()
+  })
   it('category breakdown sorted and sums to 100%', () => {
     const b = categoryBreakdown(tx.filter((t) => t.txn_date.startsWith('2026-01')))
     expect(b[0]).toMatchObject({ category: 'Food', paise: 223450 })
@@ -198,7 +220,9 @@ describe('job funnel', () => {
     { id: '4', status: 'interested', applied_date: null },
   ]
   const history = [
-    { application_id: '2', to_status: 'applied' }, { application_id: '2', to_status: 'interview' }, { application_id: '2', to_status: 'rejected' },
+    { application_id: '2', to_status: 'applied' },
+    { application_id: '2', to_status: 'interview' },
+    { application_id: '2', to_status: 'rejected' },
   ]
   it('uses history so a rejected application still counts as having reached interview', () => {
     const f = funnel(apps, history, [], '2026-01-01', '2026-01-31')
@@ -241,7 +265,16 @@ describe('backup + csv', () => {
     expect(() => parseBackup(JSON.stringify({ ...ok, tables: { tasks: [{ title: 'no id' }] } }))).toThrow()
   })
   it('CSV escapes quotes/commas and neutralises spreadsheet formulas', () => {
-    const csv = toCsv([{ a: 'He said "hi", ok', b: '=SUM(A1)' }, { a: '-5', b: '@cmd' }], [{ header: 'A', value: (r) => r.a }, { header: 'B', value: (r) => r.b }])
+    const csv = toCsv(
+      [
+        { a: 'He said "hi", ok', b: '=SUM(A1)' },
+        { a: '-5', b: '@cmd' },
+      ],
+      [
+        { header: 'A', value: (r) => r.a },
+        { header: 'B', value: (r) => r.b },
+      ],
+    )
     expect(csv).toContain('"He said ""hi"", ok",\'=SUM(A1)')
     expect(csv).toContain("-5,'@cmd") // plain numbers are untouched
   })

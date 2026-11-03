@@ -13,7 +13,16 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let alive = true
-    auth.getSession().then((s) => { if (alive) { lastUser.current = s?.user?.id ?? null; setUserId(lastUser.current); setSession(s) } }).catch(() => alive && setSession(null))
+    auth
+      .getSession()
+      .then((s) => {
+        if (alive) {
+          lastUser.current = s?.user?.id ?? null
+          setUserId(lastUser.current)
+          setSession(s)
+        }
+      })
+      .catch(() => alive && setSession(null))
     const off = auth.onChange((event, s) => {
       const id = s?.user?.id ?? null
       const changed = id !== lastUser.current
@@ -24,20 +33,34 @@ export function AuthProvider({ children }) {
       // A silent token refresh keeps the same user: don't hand the whole tree a new session object every hour.
       setSession((prev) => (!changed && event === 'TOKEN_REFRESHED' && prev ? prev : s))
     })
-    return () => { alive = false; off() }
+    return () => {
+      alive = false
+      off()
+    }
   }, [])
 
   const userId = session?.user?.id
   useEffect(() => {
-    if (!userId) { stopSync(); return }
+    if (!userId) {
+      stopSync()
+      return
+    }
     startSync(setRealtime)
     return stopSync
   }, [userId])
 
-  const value = useMemo(() => ({
-    session, user: session?.user ?? null, loading: session === undefined, recovery, clearRecovery: () => setRecovery(false), realtime,
-    displayName: session?.user?.user_metadata?.display_name || session?.user?.email?.split('@')[0] || '',
-  }), [session, recovery, realtime])
+  const value = useMemo(
+    () => ({
+      session,
+      user: session?.user ?? null,
+      loading: session === undefined,
+      recovery,
+      clearRecovery: () => setRecovery(false),
+      realtime,
+      displayName: session?.user?.user_metadata?.display_name || session?.user?.email?.split('@')[0] || '',
+    }),
+    [session, recovery, realtime],
+  )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 

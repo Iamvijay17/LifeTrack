@@ -1,42 +1,62 @@
 name: CI
 on:
   push:
-    branches: [main]
+    branches: [main, 'claude/**']
   pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  test:
+  quality:
+    name: Lint, test, build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
+        with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm run lint
+      - run: npm run format:check
       - run: npm test
-      - run: npm run test:sql
+      - run: npm run test:sql # applies every migration to a real Postgres (PGlite) and checks RLS, triggers and constraints
       - run: npm run build
-        env:
-          VITE_ALLOW_DEV_MODE: '1'
+        env: { VITE_LOCAL_MODE: 'true' } # CI has no Supabase project; the bundle check below covers the real variants
+      - run: npm run verify:bundles
+      - uses: actions/upload-artifact@v4
+        with: { name: dist, path: dist, retention-days: 7 }
 
   e2e:
+    name: Playwright (desktop + mobile)
     runs-on: ubuntu-latest
-    needs: test
+    timeout-minutes: 25
+    needs: quality
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
+        with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test
+        env: { CI: 'true' }
       - uses: actions/upload-artifact@v4
         if: failure()
-        with:
-          name: playwright-report
-          path: |
-            playwright-report
-            test-results
+        with: { name: playwright-traces, path: test-results, retention-days: 7 }
+
+  security:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci --ignore-scripts
+      # Production dependencies: fail on any advisory not in .audit-allowlist.json (each entry needs a reason + review date).
+      - run: npm run audit:gate
+      # Dev/build tooling: reported, not blocking (advisories there never reach users).
+      - run: npm audit --include=dev --audit-level=high
+        continue-on-error: true

@@ -7,6 +7,7 @@ heatmap, analytics, JSON/CSV export + restore. React + Vite + Tailwind, Supabase
 **Start here → [docs/QUICKSTART.md](docs/QUICKSTART.md)** (details: [docs/SETUP.md](docs/SETUP.md))
 
 ## Status / honest limitations
+
 - **Verified here:** unit tests (68), SQL/RLS tests on real Postgres (incl. every user-owned table), Playwright E2E on desktop + mobile profile (42).
 - **Not verified here (no Supabase project was available in the build environment):** the live Supabase client path
   (auth emails, Realtime delivery, PostgREST paging) and true two-device sync. A `cloud-sync` Playwright test is provided;
@@ -21,4 +22,5 @@ heatmap, analytics, JSON/CSV export + restore. React + Vite + Tailwind, Supabase
 - Reminders become notifications while LifeTrack is open on any device (one notification per reminder per day, de-duplicated by the database). There is no background/push server, so a closed app cannot notify you.
 - A running Pomodoro timer is a per-device convenience (stored in the browser); finished focus blocks are saved to your account.
 - Savings-goal "add funds" is read-modify-write like water intake.
-- Existing projects: run any migrations you have not applied yet, in order (`0003_focus_notes_goals_reminders.sql`, then `0004_hardening.sql`: ownership guards, indexes and the atomic `add_water` / `replace_exercise_logs` functions the app now calls). `setup-all.sql` already includes them; regenerate with `npm run sql:build`. Migrations are safe to re-run.
+- Existing projects: run any migrations you have not applied yet, in order (`0003_focus_notes_goals_reminders.sql`, then `0004_hardening.sql`: ownership guards, indexes and the atomic `add_water` / `replace_exercise_logs` functions the app now calls; then `0005_history_owner_guard_and_user_indexes.sql`). `setup-all.sql` already includes them; regenerate with `npm run sql:build`. Migrations are safe to re-run.
+- Loading UI: `src/components/loaders/` (LifeTrack Progress Orbit). Pure CSS/SVG, transform+opacity only, honours `prefers-reduced-motion`, no percentages shown when progress is unknown. Verified in headless Chromium (desktop, 360px mobile, dark/light, reduced motion); **not** profiled on physical low-end phones.

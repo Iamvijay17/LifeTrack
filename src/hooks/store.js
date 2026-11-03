@@ -6,11 +6,11 @@ import { db } from '@/services/db'
 import { toAppError } from '@/services/errors'
 
 const EMPTY = Object.freeze({ rows: Object.freeze([]), status: 'idle', error: null })
-const state = new Map()       // table -> { rows, status: idle|loading|ready|error, error }
-const subs = new Map()        // table -> Set<fn>
-const inflight = new Map()    // table -> Promise
+const state = new Map() // table -> { rows, status: idle|loading|ready|error, error }
+const subs = new Map() // table -> Set<fn>
+const inflight = new Map() // table -> Promise
 const timers = new Map()
-let epoch = 0                 // bumps on sign-out so stale responses are dropped
+let epoch = 0 // bumps on sign-out so stale responses are dropped
 
 const get = (t) => state.get(t) ?? EMPTY
 function set(t, patch) {
@@ -20,15 +20,18 @@ function set(t, patch) {
 
 // Every local cache write bumps a per-table version. A fetch that was started before a write may carry an older
 // snapshot, so if the version moved while it was in flight the result is discarded and the fetch is repeated.
-const versions = new Map()    // table -> number
-const dirty = new Set()       // tables that need one more fetch once the in-flight one finishes
+const versions = new Map() // table -> number
+const dirty = new Set() // tables that need one more fetch once the in-flight one finishes
 const ver = (t) => versions.get(t) ?? 0
 const bump = (t) => versions.set(t, ver(t) + 1)
 const MAX_ATTEMPTS = 3
 
 export function load(table, { force = false } = {}) {
   const cur = get(table)
-  if (inflight.has(table)) { if (force) dirty.add(table); return inflight.get(table) }
+  if (inflight.has(table)) {
+    if (force) dirty.add(table)
+    return inflight.get(table)
+  }
   // An errored table is retried only on request (Try again), focus/reconnect or the safety-net sync — never in a render-driven loop.
   if (!force && (cur.status === 'ready' || cur.status === 'error')) return Promise.resolve()
   const my = epoch
@@ -38,11 +41,14 @@ export function load(table, { force = false } = {}) {
       const startVer = ver(table)
       dirty.delete(table)
       let rows
-      try { rows = await db.list(table) } catch (e) {
+      try {
+        rows = await db.list(table)
+      } catch (e) {
         if (my !== epoch) return
         // A failed background refresh keeps the data already on screen; only a failed first load is an error state.
         if (get(table).status === 'ready') return
-        set(table, { status: 'error', error: toAppError(e).message }); return
+        set(table, { status: 'error', error: toAppError(e).message })
+        return
       }
       if (my !== epoch) return
       const stale = ver(table) !== startVer || dirty.has(table)
@@ -67,12 +73,19 @@ export function refetchLoaded({ readyOnly = false } = {}) {
 
 export function scheduleRefetch(table) {
   clearTimeout(timers.get(table))
-  timers.set(table, setTimeout(() => { if (state.has(table)) refetch(table) }, 250))
+  timers.set(
+    table,
+    setTimeout(() => {
+      if (state.has(table)) refetch(table)
+    }, 250),
+  )
 }
 
 export function resetStore() {
   epoch++
-  inflight.clear(); dirty.clear(); versions.clear()
+  inflight.clear()
+  dirty.clear()
+  versions.clear()
   timers.forEach(clearTimeout)
   const keys = [...state.keys()]
   state.clear()
@@ -134,78 +147,134 @@ export function applyChange(table, payload) {
 const save = { pending: 0, status: 'idle', error: null, savedAt: null }
 const saveSubs = new Set()
 let saveSnap = { ...save }
-const emitSave = () => { saveSnap = { ...save }; saveSubs.forEach((f) => f()) }
+const emitSave = () => {
+  saveSnap = { ...save }
+  saveSubs.forEach((f) => f())
+}
 let savedTimer
 export async function tracked(fn) {
-  save.pending++; save.status = 'saving'; save.error = null; emitSave()
+  save.pending++
+  save.status = 'saving'
+  save.error = null
+  emitSave()
   try {
     const out = await fn()
     save.pending--
-    if (save.pending === 0) { save.status = 'saved'; save.savedAt = Date.now(); clearTimeout(savedTimer); savedTimer = setTimeout(() => { if (save.pending === 0 && save.status === 'saved') { save.status = 'idle'; emitSave() } }, 2500) }
+    if (save.pending === 0) {
+      save.status = 'saved'
+      save.savedAt = Date.now()
+      clearTimeout(savedTimer)
+      savedTimer = setTimeout(() => {
+        if (save.pending === 0 && save.status === 'saved') {
+          save.status = 'idle'
+          emitSave()
+        }
+      }, 2500)
+    }
     emitSave()
     return out
   } catch (e) {
     save.pending--
     const err = toAppError(e)
-    save.status = 'error'; save.error = err.message; emitSave()
+    save.status = 'error'
+    save.error = err.message
+    emitSave()
     throw err
   }
 }
-export const useSaveStatus = () => useSyncExternalStore((f) => { saveSubs.add(f); return () => saveSubs.delete(f) }, () => saveSnap)
+export const useSaveStatus = () =>
+  useSyncExternalStore(
+    (f) => {
+      saveSubs.add(f)
+      return () => saveSubs.delete(f)
+    },
+    () => saveSnap,
+  )
 if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', (e) => { if (save.pending > 0) { e.preventDefault(); e.returnValue = '' } })
+  window.addEventListener('beforeunload', (e) => {
+    if (save.pending > 0) {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+  })
 }
 
 // Tables that database triggers write to as a side effect of writing another table.
 const TRIGGER_TARGETS = { job_applications: ['application_history'] }
-const afterWrite = (table) => { for (const t of TRIGGER_TARGETS[table] ?? []) if (state.has(t)) scheduleRefetch(t) }
+const afterWrite = (table) => {
+  for (const t of TRIGGER_TARGETS[table] ?? []) if (state.has(t)) scheduleRefetch(t)
+}
 
 // ------------------------------------------------------------------ mutations
-export const insert = (table, rows) => tracked(async () => {
-  const out = await db.insert(table, Array.isArray(rows) ? rows : [rows])
-  upsertLocal(table, out); afterWrite(table)
-  return Array.isArray(rows) ? out : out[0]
-})
-export const update = (table, id, patch) => tracked(async () => {
-  const row = await db.update(table, id, patch)
-  upsertLocal(table, [row]); afterWrite(table)
-  return row
-})
-export const upsert = (table, rows, opts) => tracked(async () => {
-  const out = await db.upsert(table, Array.isArray(rows) ? rows : [rows], opts)
-  upsertLocal(table, out); afterWrite(table)
-  return Array.isArray(rows) ? out : out[0]
-})
-export const remove = (table, id) => tracked(async () => {
-  await db.remove(table, id)
-  removeLocal(table, [id])
-})
-export const removeMany = (table, ids) => tracked(async () => {
-  await db.removeMany(table, ids)
-  removeLocal(table, ids)
-})
+export const insert = (table, rows) =>
+  tracked(async () => {
+    const out = await db.insert(table, Array.isArray(rows) ? rows : [rows])
+    upsertLocal(table, out)
+    afterWrite(table)
+    return Array.isArray(rows) ? out : out[0]
+  })
+export const update = (table, id, patch) =>
+  tracked(async () => {
+    const row = await db.update(table, id, patch)
+    upsertLocal(table, [row])
+    afterWrite(table)
+    return row
+  })
+export const upsert = (table, rows, opts) =>
+  tracked(async () => {
+    const out = await db.upsert(table, Array.isArray(rows) ? rows : [rows], opts)
+    upsertLocal(table, out)
+    afterWrite(table)
+    return Array.isArray(rows) ? out : out[0]
+  })
+export const remove = (table, id) =>
+  tracked(async () => {
+    await db.remove(table, id)
+    removeLocal(table, [id])
+  })
+export const removeMany = (table, ids) =>
+  tracked(async () => {
+    await db.removeMany(table, ids)
+    removeLocal(table, ids)
+  })
 
 // ---------------------------------------------------------------------- hooks
 export function useTable(table) {
   const snap = useSyncExternalStore(
-    (f) => { let s = subs.get(table); if (!s) subs.set(table, (s = new Set())); s.add(f); return () => s.delete(f) },
+    (f) => {
+      let s = subs.get(table)
+      if (!s) subs.set(table, (s = new Set()))
+      s.add(f)
+      return () => s.delete(f)
+    },
     () => get(table),
   )
-  useEffect(() => { load(table) }, [table, snap.status])
-  return { rows: snap.rows, loading: snap.status === 'idle' || (snap.status === 'loading' && snap.rows.length === 0), error: snap.error, refetch: () => refetch(table) }
+  useEffect(() => {
+    load(table)
+  }, [table, snap.status])
+  return {
+    rows: snap.rows,
+    loading: snap.status === 'idle' || (snap.status === 'loading' && snap.rows.length === 0),
+    error: snap.error,
+    refetch: () => refetch(table),
+  }
 }
 
 /** Load several tables at once. `data[table]` is always an array. */
 export function useTables(...tables) {
   const parts = tables.map((t) => useTable(t)) // eslint-disable-line react-hooks/rules-of-hooks -- fixed list per call site
   const key = tables.join(',')
-  return useMemo(() => ({
-    data: Object.fromEntries(tables.map((t, i) => [t, parts[i].rows])),
-    loading: parts.some((p) => p.loading),
-    error: parts.find((p) => p.error)?.error ?? null,
-    refetch: () => Promise.all(parts.map((p) => p.refetch())),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [key, ...parts.map((p) => p.rows), ...parts.map((p) => p.loading), ...parts.map((p) => p.error)])
+  return useMemo(
+    () => ({
+      data: Object.fromEntries(tables.map((t, i) => [t, parts[i].rows])),
+      loading: parts.some((p) => p.loading),
+      error: parts.find((p) => p.error)?.error ?? null,
+      refetch: () => Promise.all(parts.map((p) => p.refetch())),
+    }),
+    // `tables` is a fixed list per call site and `parts` is derived from it; depending on each part's rows/loading/error keeps the memo exact.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [key, ...parts.map((p) => p.rows), ...parts.map((p) => p.loading), ...parts.map((p) => p.error)],
+  )
 }
 
 // ------------------------------------------------------------------- realtime
@@ -228,29 +297,46 @@ function syncAll({ force = false } = {}) {
 
 export function startSync(onStatus) {
   stopSync()
-  unsub = db.subscribe((table, payload) => applyChange(table, payload), (status) => {
-    onStatus?.(status)
-    connected = status === 'SUBSCRIBED'
-    if (connected) {
-      // Catch up on anything missed while disconnected (and in the gap before the first subscription).
-      lastSync = Date.now()
-      if (everConnected) refetchLoaded(); else refetchLoaded({ readyOnly: true })
-      everConnected = true
-    }
-  })
-  const onVisible = () => { if (document.visibilityState === 'visible') syncAll() }
+  unsub = db.subscribe(
+    (table, payload) => applyChange(table, payload),
+    (status) => {
+      onStatus?.(status)
+      connected = status === 'SUBSCRIBED'
+      if (connected) {
+        // Catch up on anything missed while disconnected (and in the gap before the first subscription).
+        lastSync = Date.now()
+        if (everConnected) refetchLoaded()
+        else refetchLoaded({ readyOnly: true })
+        everConnected = true
+      }
+    },
+  )
+  const onVisible = () => {
+    if (document.visibilityState === 'visible') syncAll()
+  }
   const onOnline = () => syncAll({ force: true })
   window.addEventListener('visibilitychange', onVisible)
   window.addEventListener('focus', onVisible)
   window.addEventListener('online', onOnline)
   // Safety net only while Realtime is NOT delivering changes; when it is connected the poll would just re-download data.
-  pollTimer = setInterval(() => { if (!connected && document.visibilityState === 'visible' && navigator.onLine) syncAll({ force: true }) }, POLL_MS)
+  pollTimer = setInterval(() => {
+    if (!connected && document.visibilityState === 'visible' && navigator.onLine) syncAll({ force: true })
+  }, POLL_MS)
   stopFns = () => {
-    window.removeEventListener('visibilitychange', onVisible); window.removeEventListener('focus', onVisible); window.removeEventListener('online', onOnline)
+    window.removeEventListener('visibilitychange', onVisible)
+    window.removeEventListener('focus', onVisible)
+    window.removeEventListener('online', onOnline)
     clearInterval(pollTimer)
   }
 }
-export function stopSync() { unsub?.(); unsub = null; stopFns?.(); stopFns = null; connected = false; everConnected = false }
+export function stopSync() {
+  unsub?.()
+  unsub = null
+  stopFns?.()
+  stopFns = null
+  connected = false
+  everConnected = false
+}
 
 // ------------------------------------------------------------ server-side operations
 /** Runs a database function (atomic multi-row / counter operations) and tracks it in the save indicator. */

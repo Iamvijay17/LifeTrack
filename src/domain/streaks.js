@@ -1,5 +1,4 @@
-import { addDays, diffDays, eachDay, startOfWeek, weekday } from '@/lib/dates'
-
+import { addDays, dateStrInTz, DEFAULT_TZ, diffDays, eachDay, startOfWeek, weekday } from '@/lib/dates'
 
 /** Is the habit expected on this calendar day? (weekly habits are expected "some days" — handled separately) */
 export function isScheduled(habit, date) {
@@ -55,10 +54,13 @@ export function streaks(habit, logs, today, weekStartsOn = 1) {
       if (ok) current++
       else if (w !== thisWeek) break
     }
-    let longest = 0, run = 0
+    let longest = 0,
+      run = 0
     for (let w = firstWeek; w <= thisWeek; w = addDays(w, 7)) {
-      if (weekDone(map, w) >= habit.weekly_target) { run++; longest = Math.max(longest, run) }
-      else if (w !== thisWeek) run = 0
+      if (weekDone(map, w) >= habit.weekly_target) {
+        run++
+        longest = Math.max(longest, run)
+      } else if (w !== thisWeek) run = 0
     }
     return { current, longest, unit: 'wk' }
   }
@@ -68,11 +70,14 @@ export function streaks(habit, logs, today, weekStartsOn = 1) {
     if (s === 'done') current++
     else if (s === 'miss') break
   }
-  let longest = 0, run = 0
+  let longest = 0,
+    run = 0
   for (let d = first; d <= today; d = addDays(d, 1)) {
     const s = dayState(habit, d, map, today)
-    if (s === 'done') { run++; longest = Math.max(longest, run) }
-    else if (s === 'miss') run = 0
+    if (s === 'done') {
+      run++
+      longest = Math.max(longest, run)
+    } else if (s === 'miss') run = 0
   }
   return { current, longest, unit: 'd' }
 }
@@ -81,7 +86,10 @@ export function streaks(habit, logs, today, weekStartsOn = 1) {
 export function completion(habit, logs, from, to, today, weekStartsOn = 1) {
   const map = buildLogMap(logs)
   const lo = from < habit.start_date ? habit.start_date : from
-  const hi = to > today ? today : to
+  let hi = to > today ? today : to
+  // An archived habit stops accruing "missed" days on the day it was archived (its earlier history still counts).
+  const archivedOn = habit.archived_at ? dateStrInTz(habit.archived_at, DEFAULT_TZ) : null
+  if (archivedOn && archivedOn < hi) hi = archivedOn
   if (lo > hi) return { done: 0, expected: 0, rate: null }
   if (habit.frequency === 'weekly') {
     let done = 0
@@ -96,11 +104,14 @@ export function completion(habit, logs, from, to, today, weekStartsOn = 1) {
     const expected = weeks * habit.weekly_target
     return { done: Math.min(done, expected), expected, rate: expected ? Math.min(1, done / expected) : null }
   }
-  let done = 0, expected = 0
+  let done = 0,
+    expected = 0
   for (const d of eachDay(lo, hi)) {
     const s = dayState(habit, d, map, today)
-    if (s === 'done') { done++; expected++ }
-    else if (s === 'miss') expected++
+    if (s === 'done') {
+      done++
+      expected++
+    } else if (s === 'miss') expected++
   }
   return { done, expected, rate: expected ? done / expected : null }
 }
@@ -119,7 +130,10 @@ export function activeDayStreak(activeDates, today) {
   const set = activeDates instanceof Set ? activeDates : new Set(activeDates)
   let d = set.has(today) ? today : addDays(today, -1)
   let n = 0
-  while (set.has(d)) { n++; d = addDays(d, -1) }
+  while (set.has(d)) {
+    n++
+    d = addDays(d, -1)
+  }
   return n
 }
 

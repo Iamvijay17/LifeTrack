@@ -13,7 +13,11 @@ export function useToday() {
     const id = setInterval(tick, 30_000)
     window.addEventListener('focus', tick)
     document.addEventListener('visibilitychange', tick)
-    return () => { clearInterval(id); window.removeEventListener('focus', tick); document.removeEventListener('visibilitychange', tick) }
+    return () => {
+      clearInterval(id)
+      window.removeEventListener('focus', tick)
+      document.removeEventListener('visibilitychange', tick)
+    }
   }, [tz])
   return today
 }

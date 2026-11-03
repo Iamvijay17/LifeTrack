@@ -1,5 +1,9 @@
 // Money is always an integer number of paise (1 INR = 100 paise). Never use floats for storage.
-export const CURRENCIES = { INR: { locale: 'en-IN', symbol: '₹' }, USD: { locale: 'en-US', symbol: '$' }, EUR: { locale: 'de-DE', symbol: '€' } }
+export const CURRENCIES = {
+  INR: { locale: 'en-IN', symbol: '₹' },
+  USD: { locale: 'en-US', symbol: '$' },
+  EUR: { locale: 'de-DE', symbol: '€' },
+}
 
 /** Parse a user-typed amount ("1,250.5") to integer paise using string math only. Returns null if invalid. */
 export function parseMoney(input) {
@@ -23,8 +27,11 @@ export function formatMoney(paise, currency = 'INR', { compact = false } = {}) {
   const value = (paise ?? 0) / 100
   const hasFraction = !compact && Math.abs(paise ?? 0) % 100 !== 0
   return new Intl.NumberFormat(cfg.locale, {
-    style: 'currency', currency, notation: compact ? 'compact' : 'standard',
-    minimumFractionDigits: hasFraction ? 2 : 0, maximumFractionDigits: compact ? 1 : 2,
+    style: 'currency',
+    currency,
+    notation: compact ? 'compact' : 'standard',
+    minimumFractionDigits: hasFraction ? 2 : 0,
+    maximumFractionDigits: compact ? 1 : 2,
   }).format(value)
 }
 
@@ -34,3 +41,6 @@ export const lpaToPaise = (lpa) => {
   return p == null ? null : p * 100000
 }
 export const paiseToLpa = (paise) => (paise == null ? null : paise / 100 / 100000)
+
+/** '12 LPA' for a stored package (paise per year), or null when there is none. */
+export const formatLpa = (paise) => (paise == null ? null : `${paiseToLpa(paise)} LPA`)

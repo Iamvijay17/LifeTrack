@@ -36,25 +36,53 @@ const mean = (items) => items.reduce((a, i) => a + i.fraction, 0) / items.length
 const isTaskPlanned = (t, date) => t.due_date === date && t.status !== 'cancelled' && t.status !== 'skipped'
 const frac = (done, target) => (target > 0 ? Math.max(0, Math.min(1, done / target)) : 0)
 
-export function dailyScore({ date, tasks = [], habits = [], habitLogs = [], sessions = [], workouts = [], health = null, applications = [], interviews = [], settings = {}, tz } = {}) {
+export function dailyScore({
+  date,
+  tasks = [],
+  habits = [],
+  habitLogs = [],
+  sessions = [],
+  workouts = [],
+  health = null,
+  applications = [],
+  interviews = [],
+  settings = {},
+  tz,
+} = {}) {
   const cats = Object.fromEntries(SCORE_CATEGORIES.map((c) => [c.key, []]))
   const tasksOf = (category) => tasks.filter((t) => isTaskPlanned(t, date) && t.category === category)
 
   // learning
   const target = settings.daily_study_target_minutes ?? 0
   const minutes = countedMinutes(sessions.filter((s) => s.session_date === date))
-  if (target > 0) cats.learning.push({ label: 'Study time', fraction: frac(minutes, target), detail: `${Math.round(minutes)} / ${target} min` })
+  if (target > 0)
+    cats.learning.push({ label: 'Study time', fraction: frac(minutes, target), detail: `${Math.round(minutes)} / ${target} min` })
   else if (minutes > 0) cats.learning.push({ label: 'Study time', fraction: 1, detail: `${Math.round(minutes)} min (no target set)` })
   const learnTasks = tasksOf('Learning')
-  if (learnTasks.length) cats.learning.push({ label: 'Learning tasks', fraction: learnTasks.filter((t) => t.status === 'done').length / learnTasks.length, detail: `${learnTasks.filter((t) => t.status === 'done').length} / ${learnTasks.length}` })
+  if (learnTasks.length)
+    cats.learning.push({
+      label: 'Learning tasks',
+      fraction: learnTasks.filter((t) => t.status === 'done').length / learnTasks.length,
+      detail: `${learnTasks.filter((t) => t.status === 'done').length} / ${learnTasks.length}`,
+    })
 
   // career
   const jobTasks = tasksOf('Job Search')
-  if (jobTasks.length) cats.career.push({ label: 'Job Search tasks', fraction: jobTasks.filter((t) => t.status === 'done').length / jobTasks.length, detail: `${jobTasks.filter((t) => t.status === 'done').length} / ${jobTasks.length}` })
+  if (jobTasks.length)
+    cats.career.push({
+      label: 'Job Search tasks',
+      fraction: jobTasks.filter((t) => t.status === 'done').length / jobTasks.length,
+      detail: `${jobTasks.filter((t) => t.status === 'done').length} / ${jobTasks.length}`,
+    })
   const sent = applications.filter((a) => a.applied_date === date).length
   if (sent) cats.career.push({ label: 'Applications sent', fraction: 1, detail: `${sent} today` })
   const dayInterviews = interviews.filter((e) => e.status !== 'cancelled' && e.scheduled_at && dateOf(e.scheduled_at, tz) === date)
-  if (dayInterviews.length) cats.career.push({ label: 'Interviews', fraction: dayInterviews.filter((e) => e.status === 'completed').length / dayInterviews.length, detail: `${dayInterviews.filter((e) => e.status === 'completed').length} / ${dayInterviews.length}` })
+  if (dayInterviews.length)
+    cats.career.push({
+      label: 'Interviews',
+      fraction: dayInterviews.filter((e) => e.status === 'completed').length / dayInterviews.length,
+      detail: `${dayInterviews.filter((e) => e.status === 'completed').length} / ${dayInterviews.length}`,
+    })
 
   // fitness
   const dayWorkouts = workouts.filter((w) => w.workout_date === date)
@@ -64,15 +92,26 @@ export function dailyScore({ date, tasks = [], habits = [], habitLogs = [], sess
   const workoutPlanned = !off && (didWorkout || (plan && plan !== 'rest'))
   if (workoutPlanned) cats.fitness.push({ label: 'Workout', fraction: didWorkout ? 1 : 0, detail: didWorkout ? 'done' : 'planned' })
   const steps = health?.steps ?? 0
-  if ((settings.steps_goal ?? 0) > 0 && (steps > 0 || workoutPlanned)) cats.fitness.push({ label: 'Steps', fraction: frac(steps, settings.steps_goal), detail: `${steps} / ${settings.steps_goal}` })
+  if ((settings.steps_goal ?? 0) > 0 && (steps > 0 || workoutPlanned))
+    cats.fitness.push({ label: 'Steps', fraction: frac(steps, settings.steps_goal), detail: `${steps} / ${settings.steps_goal}` })
 
   // habits
   const h = habitDay(habits, habitLogs, date)
   if (h.total) cats.habits.push({ label: 'Habits', fraction: h.done / h.total, detail: `${h.done} / ${h.total}` })
 
   // sleep & health: only once something was logged — an unlogged day is "unknown", not "bad"
-  if (health?.sleep_minutes != null) cats.health.push({ label: 'Sleep', fraction: frac(health.sleep_minutes, SLEEP_TARGET_MINUTES), detail: `${(health.sleep_minutes / 60).toFixed(1)} h` })
-  if (health && (settings.water_goal_ml ?? 0) > 0 && (health.water_ml > 0 || health.sleep_minutes != null)) cats.health.push({ label: 'Water', fraction: frac(health.water_ml ?? 0, settings.water_goal_ml), detail: `${health.water_ml ?? 0} / ${settings.water_goal_ml} ml` })
+  if (health?.sleep_minutes != null)
+    cats.health.push({
+      label: 'Sleep',
+      fraction: frac(health.sleep_minutes, SLEEP_TARGET_MINUTES),
+      detail: `${(health.sleep_minutes / 60).toFixed(1)} h`,
+    })
+  if (health && (settings.water_goal_ml ?? 0) > 0 && (health.water_ml > 0 || health.sleep_minutes != null))
+    cats.health.push({
+      label: 'Water',
+      fraction: frac(health.water_ml ?? 0, settings.water_goal_ml),
+      detail: `${health.water_ml ?? 0} / ${settings.water_goal_ml} ml`,
+    })
 
   const weights = normalizeWeights(settings.score_weights)
   const categories = SCORE_CATEGORIES.map((c) => {
@@ -83,24 +122,41 @@ export function dailyScore({ date, tasks = [], habits = [], habitLogs = [], sess
   const active = categories.filter((c) => c.applicable && c.weight > 0)
   const totalWeight = active.reduce((a, c) => a + c.weight, 0)
   for (const c of categories) c.effectiveWeight = c.applicable && c.weight > 0 && totalWeight ? (c.weight / totalWeight) * 100 : 0
-  const score = totalWeight ? Math.round(active.reduce((a, c) => a + c.fraction * c.weight, 0) / totalWeight * 100) : null
+  const score = totalWeight ? Math.round((active.reduce((a, c) => a + c.fraction * c.weight, 0) / totalWeight) * 100) : null
   return { date, score, categories }
 }
 
 function dateOf(iso, tz) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: tz || 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso))
+  return new Intl.DateTimeFormat('en-CA', { timeZone: tz || 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+    new Date(iso),
+  )
 }
 
 /** Average score over days that had a score. Returns { avg, days, scored }. */
 export function averageScore(daily) {
   const scored = daily.filter((d) => d.score != null)
-  return { avg: scored.length ? Math.round(scored.reduce((a, d) => a + d.score, 0) / scored.length) : null, days: daily.length, scored: scored.length }
+  return {
+    avg: scored.length ? Math.round(scored.reduce((a, d) => a + d.score, 0) / scored.length) : null,
+    days: daily.length,
+    scored: scored.length,
+  }
 }
 
 /** Plain-language explanation of how a score was reached. */
 export function explainScore(result) {
-  if (result.score == null) return 'Nothing was planned or recorded for this day, so there is no score yet. Add a task, habit or study session to start.'
-  const parts = result.categories.filter((c) => c.effectiveWeight > 0).map((c) => `${c.label} ${Math.round(c.fraction * 100)}% × ${Math.round(c.effectiveWeight)}%`)
+  if (result.score == null)
+    return 'Nothing was planned or recorded for this day, so there is no score yet. Add a task, habit or study session to start.'
+  const parts = result.categories
+    .filter((c) => c.effectiveWeight > 0)
+    .map((c) => `${c.label} ${Math.round(c.fraction * 100)}% × ${Math.round(c.effectiveWeight)}%`)
   const skipped = result.categories.filter((c) => !c.applicable).map((c) => c.label)
   return `${parts.join(' + ')} = ${result.score}.${skipped.length ? ` ${skipped.join(', ')} had nothing planned or logged, so ${skipped.length > 1 ? 'their' : 'its'} weight was shared among the rest instead of counting as zero.` : ''}`
+}
+
+/** Each category's share of the total weight as a whole percentage (0 when every weight is zero). */
+export function weightShares(weights) {
+  const total = SCORE_CATEGORIES.reduce((a, c) => a + (Number(weights?.[c.key]) || 0), 0)
+  return Object.fromEntries(
+    SCORE_CATEGORIES.map((c) => [c.key, total > 0 ? Math.round(((Number(weights?.[c.key]) || 0) / total) * 100) : 0]),
+  )
 }
