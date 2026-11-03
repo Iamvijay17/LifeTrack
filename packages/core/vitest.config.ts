@@ -6,7 +6,8 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**'],
-      exclude: ['src/testing/**'], // test doubles/contract suites are test infrastructure, not product code
+      // src/web/** are the selectors the web app's feature pages use; their tests live in apps/web/tests and are measured there.
+      exclude: ['src/testing/**', 'src/web/**'],
       reporter: ['text-summary', 'json-summary'],
       reportsDirectory: './coverage',
       // Ratchet: set just under the measured value so a regression fails. Raise it when coverage rises, never lower it to make a build pass.
