@@ -1,0 +1,54 @@
+name: Web release build (manual)
+
+# Provider-neutral. Builds the production web app against the chosen project, checks the bundle for secrets and publishes it as a
+# downloadable workflow artifact. The last step is a clearly marked placeholder where your hosting provider's deploy goes.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target GitHub Environment
+        type: choice
+        options: [staging, production]
+        default: staging
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ inputs.environment }}
+    env:
+      # PUBLIC values only (repository/Environment *variables*, not secrets). The anon key is designed to be public; RLS protects the data.
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+    steps:
+      - name: Guard rails
+        run: |
+          [ -n "$VITE_SUPABASE_URL" ] && [ -n "$VITE_SUPABASE_ANON_KEY" ] || { echo "::error::Set the variables VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY on the Environment (otherwise the app would ship in DEV mode)"; exit 1; }
+          case "$VITE_SUPABASE_ANON_KEY" in sb_secret_*) echo "::error::That is a secret key, not the public one"; exit 1;; esac
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm --filter @lifetrack/web test
+      - run: pnpm build
+      - name: No secrets in the built bundle
+        run: node scripts/check-no-secrets.mjs apps/web/dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist-${{ inputs.environment }}
+          path: apps/web/dist
+          retention-days: 30
+
+      # ---- PLACEHOLDER: deploy -------------------------------------------------------------------------------------------------
+      # Nothing is published yet. Add your host here, for example (pick one, add its token as an Environment secret):
+      #   Vercel:      npx vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN"   (apps/web/vercel.json already has the SPA rewrite)
+      #   Cloudflare:  npx wrangler pages deploy apps/web/dist --project-name lifetrack
+      #   Static host: rsync -az --delete apps/web/dist/ user@host:/var/www/lifetrack/
+      # Whatever you choose must serve /index.html for unknown paths (SPA) and must NOT cache sw.js aggressively.
+      - name: Deploy (not configured)
+        run: echo "Build is ready as the 'web-dist-${{ inputs.environment }}' artifact. Configure a deploy step above to publish it."

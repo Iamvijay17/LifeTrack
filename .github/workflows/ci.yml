@@ -31,6 +31,8 @@ jobs:
       - run: pnpm check:secrets
       - name: setup-all.sql matches the migrations
         run: pnpm check:sql-drift
+      - name: Migrations are additive (a destructive one needs a reviewed allow-destructive marker)
+        run: pnpm check:migrations
 
   unit:
     name: Unit and component tests (with coverage gates)
