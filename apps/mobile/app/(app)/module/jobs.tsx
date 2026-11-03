@@ -31,6 +31,7 @@ export default function Jobs() {
 
   const apps: any[] = data.job_applications
   const detail = apps.find((a) => a.id === openId) ?? null
+  const [limit, setLimit] = useState(40)
   const filtered: any[] = useMemo(() => filterApplications(apps, { q, status, source }), [apps, q, status, source])
   const sources = applicationSources(apps) as string[]
   const o: any = useMemo(() => jobsOverview(apps, data.application_history, data.interview_events, today, w), [apps, data.application_history, data.interview_events, today, w])
@@ -76,7 +77,7 @@ export default function Jobs() {
                   {sources.map((s) => <Chip key={s} label={s} selected={source === s} onPress={() => setSource(source === s ? '' : s)} />)}
                 </ScrollView>
               ) : null}
-              {filtered.length === 0 ? <EmptyState title="No matches" description="Try clearing the search or filters." /> : filtered.map((a) => {
+              {filtered.length === 0 ? <EmptyState title="No matches" description="Try clearing the search or filters." /> : filtered.slice(0, limit).map((a) => {
                 const overdue = a.followup_date && a.followup_date <= today && ['interested', 'preparing', 'applied', 'assessment', 'interview'].includes(a.status)
                 return (
                   <Card key={a.id} onPress={() => openApp(a)}>
@@ -92,6 +93,7 @@ export default function Jobs() {
                   </Card>
                 )
               })}
+              {filtered.length > limit ? <Button title={`Show more (${filtered.length - limit})`} variant="ghost" onPress={() => setLimit(limit + 40)} /> : null}
             </>)) : null}
 
           {view === 'interviews' ? (agenda.upcoming.length === 0 && agenda.past.length === 0

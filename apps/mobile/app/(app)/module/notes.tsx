@@ -31,6 +31,7 @@ export default function Notes() {
   const { data, loading, refreshing, error, refetch } = useTables('notes', 'goals', 'tasks')
   const categories = useMemo(() => noteCategories(data.notes), [data.notes])
   const tags = useMemo(() => noteTags(data.notes), [data.notes])
+  const [limit, setLimit] = useState(40) // render in pages: a few thousand notes must not mount at once
   const list: any[] = useMemo(() => filterNotes(data.notes, { q, category, tag }), [data.notes, q, category, tag])
   const [patch] = useAction((id: string, p: Record<string, unknown>) => store.update('notes', id, p))
   const [del] = useAction((id: string) => store.remove('notes', id))
@@ -62,7 +63,7 @@ export default function Notes() {
             {data.notes.length === 0
               ? <EmptyState title="No notes yet" description="Capture ideas, meeting notes and things you learn. Add tags and attach notes to goals or tasks." action={{ label: 'Write your first note', onPress: () => setForm({ open: true, note: null }) }} />
               : list.length === 0 ? <Txt muted style={{ textAlign: 'center' }}>No notes match your search.</Txt>
-              : list.map((n) => (
+              : list.slice(0, limit).map((n) => (
                 <Card key={n.id} onPress={() => setView(n)}>
                   <Text numberOfLines={1} style={{ color: colors.foreground, fontWeight: '600', fontSize: 16 }}>{n.pinned ? '📌 ' : ''}{n.title || 'Untitled'}</Text>
                   <Text numberOfLines={3} style={{ color: colors.mutedForeground }}>{notePreview(n.body) || ' '}</Text>
@@ -73,6 +74,7 @@ export default function Notes() {
                   <Txt variant="small" muted>{fmtDay(n.updated_at.slice(0, 10), 'd MMM yyyy')}{goalName(n.goal_id) ? ` · Goal: ${goalName(n.goal_id)}` : ''}{taskName(n.task_id) ? ` · Task: ${taskName(n.task_id)}` : ''}</Txt>
                 </Card>
               ))}
+            {list.length > limit ? <Button title={`Show more (${list.length - limit})`} variant="ghost" onPress={() => setLimit(limit + 40)} /> : null}
           </DataGate>
         )}
       </ScrollView>
