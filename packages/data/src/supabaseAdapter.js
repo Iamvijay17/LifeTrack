@@ -42,6 +42,9 @@ export const createSupabaseAdapter = (supabase) => ({
     return check(await supabase.from(table).upsert(list, { onConflict, ignoreDuplicates }).select())
   }),
 
+  /** Calls one of the atomic counter functions (see atomic.js) and returns the updated row. */
+  rpc: (fn, args) => guard(async () => check(await supabase.rpc(fn, args))),
+
   remove: (table, id) => guard(async () => {
     check(await supabase.from(table).delete().eq('id', id).select('id'))
   }),

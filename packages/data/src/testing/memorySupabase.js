@@ -120,6 +120,23 @@ export function createMemorySupabase({ currentUser = getUserId } = {}) {
   return {
     tables,
     from: (t) => new Query(t),
+    /** The atomic counter functions of migration 0006 (single-threaded here, so trivially atomic). */
+    rpc: async (fn, args) => {
+      const uid = currentUser()
+      if (fn === 'add_water') {
+        const cur = rows('health_logs').find((r) => r.user_id === uid && r.log_date === args.p_date)
+        const q = cur ? new Query('health_logs').update({ water_ml: Math.max(0, cur.water_ml + args.p_ml) }).eq('id', cur.id).select().single()
+          : new Query('health_logs').insert({ log_date: args.p_date, water_ml: Math.max(0, args.p_ml) }).select().single()
+        return q
+      }
+      if (fn === 'add_savings') {
+        if (!Number.isInteger(args.p_paise) || args.p_paise <= 0) return { data: null, error: err('P0001', 'Enter an amount greater than 0.') }
+        const cur = rows('savings_goals').find((r) => r.user_id === uid && r.id === args.p_goal)
+        if (!cur) return { data: null, error: err('P0001', 'Savings goal not found.') }
+        return new Query('savings_goals').update({ saved_paise: cur.saved_paise + args.p_paise }).eq('id', cur.id).select().single()
+      }
+      return { data: null, error: err('42883', `function ${fn} does not exist`) }
+    },
     channel: () => {
       const ch = { handlers: [], active: false, uid: currentUser(), on(_type, _filter, cb) { ch.handlers.push(cb); return ch }, subscribe(status) { ch.active = true; channels.add(ch); Promise.resolve().then(() => status?.('SUBSCRIBED')); return ch } }
       return ch

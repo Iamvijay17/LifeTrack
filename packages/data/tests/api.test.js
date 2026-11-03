@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApi } from '../src/api'
+import { ATOMIC_OPS } from '../src/atomic'
 import { createMemorySupabase } from '../src/testing/memorySupabase'
 import { createSupabaseAdapter } from '../src/supabaseAdapter'
 import { withSchemaValidation } from '../src/validatingAdapter'
@@ -23,6 +24,7 @@ function makeStore(adapter) {
     insert: async (t, input) => { const out = await adapter.insert(t, Array.isArray(input) ? input : [input]); merge(t, out); return one(input, out) },
     update: async (t, id, patch) => { const r = await adapter.update(t, id, patch); merge(t, [r]); return r },
     upsert: async (t, input, o) => { const out = await adapter.upsert(t, Array.isArray(input) ? input : [input], o); merge(t, out); return one(input, out) },
+    atomic: async (fn, args) => { const r = await adapter.rpc(fn, args); merge(ATOMIC_OPS[fn], [r]); return r },
     remove: async (t, id) => { await adapter.remove(t, id); drop(t, [id]) },
     removeMany: async (t, ids) => { await adapter.removeMany(t, ids); drop(t, ids) },
   }
@@ -107,12 +109,12 @@ describe('study timer', () => {
     expect((await api.discardStudy(third)).status).toBe('discarded')
     vi.useRealTimers()
   })
-  it('a second device starting a timer gets a friendly error from the database rule', async () => {
+  it('a second device starting a timer is refused by the database and told why', async () => {
     await api.startStudy({}, TODAY)
     const otherDevice = makeStore(withSchemaValidation(createSupabaseAdapter(client), { insertSchemas, updateSchemas }))
     const e = await createApi(otherDevice).startStudy({}, TODAY).catch((x) => x) // its cache is empty, so only the database can stop it
     expect(e.code).toBe('23505')
-    expect(e.message).toBe('That record already exists.')
+    expect(e.message).toMatch(/already running/)
   })
 })
 
@@ -135,6 +137,17 @@ describe('workouts', () => {
     await api.saveWorkout({ ...w, kind: 'cardio', cardio_minutes: 30 }, [], undefined)
     expect(db('workouts')).toHaveLength(1)
     expect(db('exercise_logs')).toHaveLength(0)
+  })
+})
+
+describe('study timer across devices', () => {
+  it('a timer started on another device (not yet in this cache) gives a clear message and refreshes the cache', async () => {
+    await store.load('study_sessions') // cache is empty ...
+    await createApi(makeStore(createSupabaseAdapter(client))).startStudy({}, TODAY) // ... because "another device" writes straight to the database
+    expect(store.peek('study_sessions')).toHaveLength(0)
+    await expect(api.startStudy({}, TODAY)).rejects.toThrow(/already running.*another device/i)
+    expect(store.peek('study_sessions')).toHaveLength(1) // the running timer is now visible
+    expect(db('study_sessions')).toHaveLength(1)
   })
 })
 

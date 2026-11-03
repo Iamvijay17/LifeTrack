@@ -2,6 +2,7 @@
 // (a) filled from the database, (b) updated from confirmed write responses, and (c) invalidated by
 // Realtime events, window focus, reconnects and a slow safety-net poll. Nothing here is persisted locally.
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
+import { ATOMIC_OPS } from '@lifetrack/data'
 import { db } from '@/services/db'
 import { toAppError } from '@/services/errors'
 
@@ -113,6 +114,12 @@ export const upsert = (table, rows, opts) => tracked(async () => {
   const out = await db.upsert(table, Array.isArray(rows) ? rows : [rows], opts)
   upsertLocal(table, out); afterWrite(table)
   return Array.isArray(rows) ? out : out[0]
+})
+/** Runs an atomic counter function (see ATOMIC_OPS) and patches the cache with the row it returns. */
+export const atomic = (fn, args) => tracked(async () => {
+  const row = await db.rpc(fn, args)
+  upsertLocal(ATOMIC_OPS[fn], [row])
+  return row
 })
 export const remove = (table, id) => tracked(async () => {
   await db.remove(table, id)

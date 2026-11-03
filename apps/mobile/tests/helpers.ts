@@ -31,6 +31,20 @@ export function fakeDb() {
         rows(t).push(row); return { ...row }
       })
     },
+    async rpc(fn, args: any) { // the atomic counters of migration 0006
+      if (fn === 'add_water') {
+        const ex = rows('health_logs').find((x) => x.log_date === args.p_date)
+        if (ex) { ex.water_ml = Math.max(0, ex.water_ml + args.p_ml); return { ...ex } }
+        const row = { ...(DEFAULTS as any).health_logs, id: newId(), user_id: 'u1', log_date: args.p_date, water_ml: Math.max(0, args.p_ml) } as any
+        rows('health_logs').push(row); return { ...row }
+      }
+      if (fn === 'add_savings') {
+        const ex = rows('savings_goals').find((x) => x.id === args.p_goal)
+        if (!ex) throw new Error('Savings goal not found.')
+        ex.saved_paise += args.p_paise; return { ...ex }
+      }
+      throw new Error(`unknown function ${fn}`)
+    },
     async remove(t, id) { tables[t] = rows(t).filter((x) => x.id !== id) },
     async removeMany(t, ids) { tables[t] = rows(t).filter((x) => !ids.includes(x.id)) },
   }

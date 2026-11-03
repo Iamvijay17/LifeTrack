@@ -9,7 +9,7 @@ import { AppError } from './errors'
 
 /**
  * Domain operations that span more than one row. `store` is the app's cache/mutation layer and must provide
- * insert, update, upsert, remove, removeMany, peek, load and refetch (web: hooks/store.js; mobile: TanStack Query adapter).
+ * insert, update, upsert, atomic, remove, removeMany, peek, load and refetch (web: hooks/store.js; mobile: TanStack Query adapter).
  */
 export function createApi(store) {
 
@@ -61,7 +61,11 @@ export function createApi(store) {
   // ------------------------------------------------------------ study sessions
   async function startStudy({ goal_id = null, topic_id = null }, today) {
     if (store.peek('study_sessions').some((s) => s.status === 'running')) throw new AppError('A study timer is already running.')
-    return store.insert('study_sessions', { status: 'running', source: 'timer', session_date: today, started_at: nowIso(), goal_id, topic_id })
+    try { return await store.insert('study_sessions', { status: 'running', source: 'timer', session_date: today, started_at: nowIso(), goal_id, topic_id }) }
+    catch (e) { // another device started one first: the database's one-running-timer index refuses the second
+      if (e?.code === '23505') { await store.refetch('study_sessions').catch(() => {}); throw new AppError('A study timer is already running (it may have been started on another device).', { code: '23505' }) }
+      throw e
+    }
   }
   /**
    * `minutes` lets you correct a forgotten timer downwards; it can never exceed the real elapsed time.
@@ -96,8 +100,7 @@ export function createApi(store) {
   // ------------------------------------------------------------------- health
   const saveHealth = (date, patch) => store.upsert('health_logs', { log_date: date, ...patch }, { onConflict: CONFLICT_KEYS.health_logs })
   function addWater(date, ml) {
-    const cur = store.peek('health_logs').find((h) => h.log_date === date)?.water_ml ?? 0
-    return saveHealth(date, { water_ml: Math.max(0, cur + ml) })
+    return store.atomic('add_water', { p_date: date, p_ml: ml }) // added inside the database: concurrent taps/devices all count
   }
 
   // ---------------------------------------------------------------- job board
@@ -112,11 +115,10 @@ export function createApi(store) {
   function setMonthBudget(month, paise) {
     return store.upsert('budgets', { month, category: '', amount_paise: paise }, { onConflict: CONFLICT_KEYS.budgets })
   }
-  /** Adds to a savings goal using the freshest cached value so two quick additions on one device don't overwrite each other. */
+  /** Adds to a savings goal inside the database (add_savings), so additions from several devices never overwrite each other. */
   async function addSavingsFunds(goal, paise) {
     if (!Number.isInteger(paise) || paise <= 0) throw new AppError('Enter an amount greater than 0.')
-    const fresh = store.peek('savings_goals').find((g) => g.id === goal.id) ?? goal
-    return store.update('savings_goals', goal.id, { saved_paise: fresh.saved_paise + paise })
+    return store.atomic('add_savings', { p_goal: goal.id, p_paise: paise })
   }
 
   // ------------------------------------------------------------------ seeding

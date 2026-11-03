@@ -14,6 +14,7 @@ const setup = () => {
     upsert: vi.fn(async (t, rows) => rows.map((r: any, i: number) => ({ id: 'u' + i, ...r }))),
     remove: vi.fn(async (t, id) => { tables[t] = tables[t].filter((x) => x.id !== id) }),
     removeMany: vi.fn(async (t, ids) => { tables[t] = tables[t].filter((x) => !ids.includes(x.id)) }),
+    rpc: vi.fn(async () => ({ id: 'r' })),
   }
   return { qc, db, store: createQueryStore(db, qc), tables }
 }
@@ -24,6 +25,19 @@ describe('query store (createApi contract)', () => {
     await store.load('tasks'); await store.load('tasks')
     expect(db.list).toHaveBeenCalledTimes(1)
     expect(store.peek('tasks')).toHaveLength(1)
+  })
+  it('atomic counters patch the owning table from the row the database returns, and failures leave the cache alone', async () => {
+    const { store, db } = setup()
+    ;(db.rpc as any).mockResolvedValueOnce({ id: 'w1', log_date: '2026-11-02', water_ml: 750 })
+    await store.atomic('add_water', { p_date: '2026-11-02', p_ml: 250 })
+    expect(store.peek('health_logs')).toEqual([{ id: 'w1', log_date: '2026-11-02', water_ml: 750 }])
+    ;(db.rpc as any).mockResolvedValueOnce({ id: 'w1', log_date: '2026-11-02', water_ml: 1000 })
+    await store.atomic('add_water', { p_date: '2026-11-02', p_ml: 250 })
+    expect(store.peek('health_logs')).toHaveLength(1)
+    expect(store.peek('health_logs')[0].water_ml).toBe(1000)
+    ;(db.rpc as any).mockRejectedValueOnce(new Error('offline'))
+    await expect(store.atomic('add_savings', { p_goal: 'g', p_paise: 5 })).rejects.toThrow('offline')
+    expect(store.peek('savings_goals')).toEqual([])
   })
   it('patches the cache from confirmed write responses only', async () => {
     const { store, qc, db } = setup()

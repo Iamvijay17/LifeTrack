@@ -19,6 +19,27 @@ export function adapterContract(t, label, setup) {
   beforeEach(async () => { const s = await setup(); adapter = s.adapter; as = s.as; await s.reset(); as(A) })
 
   describe(`adapter contract: ${label}`, () => {
+    it('rpc add_water: creates the day, accumulates, never goes below zero, one row per day', async () => {
+      const first = await adapter.rpc('add_water', { p_date: '2026-11-02', p_ml: 250 })
+      expect(first).toMatchObject({ log_date: '2026-11-02', water_ml: 250, user_id: A })
+      expect((await adapter.rpc('add_water', { p_date: '2026-11-02', p_ml: 500 })).water_ml).toBe(750)
+      expect((await adapter.rpc('add_water', { p_date: '2026-11-02', p_ml: -5000 })).water_ml).toBe(0)
+      expect((await adapter.list('health_logs')).filter((r) => r.log_date === '2026-11-02')).toHaveLength(1)
+    })
+    it('rpc add_water is per user', async () => {
+      await adapter.rpc('add_water', { p_date: '2026-11-02', p_ml: 300 })
+      as(B)
+      expect((await adapter.rpc('add_water', { p_date: '2026-11-02', p_ml: 100 })).water_ml).toBe(100)
+    })
+    it('rpc add_savings: adds, rejects non-positive amounts, and cannot touch another user\'s goal', async () => {
+      const [g] = await adapter.insert('savings_goals', [{ name: 'Fund', target_paise: 100000, saved_paise: 1000 }])
+      expect((await adapter.rpc('add_savings', { p_goal: g.id, p_paise: 2500 })).saved_paise).toBe(3500)
+      for (const bad of [0, -1]) await failsWith(expect, adapter.rpc('add_savings', { p_goal: g.id, p_paise: bad }))
+      as(B)
+      await failsWith(expect, adapter.rpc('add_savings', { p_goal: g.id, p_paise: 100 }))
+      as(A)
+      expect((await adapter.list('savings_goals'))[0].saved_paise).toBe(3500)
+    })
     it('insert stamps id, owner and timestamps, applies column defaults, and returns the rows', async () => {
       const [row] = await adapter.insert('tasks', [task('Write report')])
       expect(isUuid(row.id)).toBe(true)

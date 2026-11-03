@@ -37,6 +37,9 @@ Without these env vars the app runs in **DEV mode** (orange banner): data stays 
 | `pnpm build` / `pnpm preview` | production build / serve it on :4173 |
 | `pnpm test` | unit + component-level logic tests (Vitest) |
 | `pnpm test:sql` | applies the migrations to an in-memory Postgres and proves RLS isolation, history trigger, constraints |
+| `pnpm test:rls` | table-driven RLS suite over every user-owned table and every cross-table foreign key (fails if a new table/FK has no isolation test) |
+| `pnpm test:pg` | concurrency tests on a throwaway **real** PostgreSQL server (needs a local PostgreSQL install; skipped if absent) |
+| `pnpm check:secrets` | fails if a service-role/secret key appears in client sources or build output |
 | `pnpm test:e2e` | Playwright (desktop + Pixel 7). Uses DEV mode, hermetic |
 | `E2E_CLOUD=1 pnpm test:e2e -- cloud-sync` | **real** two-device sync test (build with Supabase env first) |
 

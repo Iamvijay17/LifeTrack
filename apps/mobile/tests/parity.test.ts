@@ -7,6 +7,7 @@ import { createQueryStore, type DbAdapter } from '../src/data/queryStore'
 
 /** A read-only database holding the golden account. */
 const seeded = (): DbAdapter => ({
+  rpc: async () => { throw new Error('read-only') },
   list: async (t) => structuredClone((TABLES as Record<string, any[]>)[t] ?? []),
   insert: async () => { throw new Error('read-only') }, update: async () => { throw new Error('read-only') }, upsert: async () => { throw new Error('read-only') },
   remove: async () => { throw new Error('read-only') }, removeMany: async () => { throw new Error('read-only') },

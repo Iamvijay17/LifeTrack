@@ -1,4 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query'
+import { ATOMIC_OPS } from '@lifetrack/data'
 
 // Cache/mutation layer for mobile: implements the store contract that @lifetrack/data's createApi() expects
 // (insert, update, upsert, remove, removeMany, peek, load, refetch) on top of TanStack Query.
@@ -12,6 +13,7 @@ export interface DbAdapter {
   upsert(table: string, rows: Record<string, unknown>[], opts?: { onConflict?: string; ignoreDuplicates?: boolean }): Promise<Row[]>
   remove(table: string, id: string): Promise<void>
   removeMany(table: string, ids: string[]): Promise<void>
+  rpc(fn: string, args: Record<string, unknown>): Promise<Row>
 }
 
 export const tableKey = (table: string) => ['table', table] as const
@@ -56,6 +58,12 @@ export function createQueryStore(db: DbAdapter, qc: QueryClient) {
       const out = await db.upsert(t, Array.isArray(input) ? input : [input], opts)
       merge(t, out); afterWrite(t)
       return one(input, out)
+    },
+    async atomic(fn: string, args: Record<string, unknown>) {
+      const op = ATOMIC_OPS[fn as keyof typeof ATOMIC_OPS]
+      const row = await db.rpc(fn, args)
+      merge(op, [row])
+      return row
     },
     async remove(t: string, id: string) { await db.remove(t, id); drop(t, [id]) },
     async removeMany(t: string, ids: string[]) { await db.removeMany(t, ids); drop(t, ids) },

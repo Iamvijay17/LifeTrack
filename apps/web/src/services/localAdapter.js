@@ -113,6 +113,23 @@ export const localAdapter = {
     return clone(out)
   },
 
+  /** Local equivalents of the database's atomic counter functions (migration 0006). */
+  async rpc(fn, args) {
+    if (fn === 'add_water') return (await this.upsertAdd('health_logs', { log_date: args.p_date }, 'water_ml', args.p_ml, 0))
+    if (fn === 'add_savings') {
+      if (!Number.isInteger(args.p_paise) || args.p_paise <= 0) throw new AppError('Enter an amount greater than 0.')
+      const cur = (read().savings_goals ?? []).find((g) => g.id === args.p_goal)
+      if (!cur) throw new AppError('Savings goal not found.')
+      return this.update('savings_goals', cur.id, { saved_paise: cur.saved_paise + args.p_paise })
+    }
+    throw new AppError(`Unknown operation ${fn}`)
+  },
+  async upsertAdd(table, key, col, delta, min) {
+    const cur = (read()[table] ?? []).find((r) => Object.entries(key).every(([k, v]) => r[k] === v))
+    const [row] = await this.upsert(table, [{ ...key, [col]: Math.max(min, (cur?.[col] ?? 0) + delta) }], { onConflict: Object.keys(key).join(',') })
+    return row
+  },
+
   async remove(table, id) { return this.removeMany(table, [id]) },
 
   async removeMany(table, ids) {
