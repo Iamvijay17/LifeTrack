@@ -28,12 +28,12 @@ jobs:
         run: |
           [ -n "$VITE_SUPABASE_URL" ] && [ -n "$VITE_SUPABASE_ANON_KEY" ] || { echo "::error::Set the variables VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY on the Environment (otherwise the app would ship in DEV mode)"; exit 1; }
           case "$VITE_SUPABASE_ANON_KEY" in sb_secret_*) echo "::error::That is a secret key, not the public one"; exit 1;; esac
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Legal documents are finished (production only)
         if: ${{ inputs.environment == 'production' }}
         run: node scripts/check-legal-ready.mjs
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v7
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
@@ -41,7 +41,7 @@ jobs:
       - run: pnpm build
       - name: No secrets in the built bundle
         run: node scripts/check-no-secrets.mjs apps/web/dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: web-dist-${{ inputs.environment }}
           path: apps/web/dist
