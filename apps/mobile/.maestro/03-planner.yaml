@@ -1,0 +1,20 @@
+# Add a task, complete it, reopen it. Starts signed in.
+appId: com.aatralex.lifetrack
+name: Planner - add and complete a task
+tags: [smoke, planner]
+env:
+  TASK: "Maestro task"
+---
+- launchApp
+- runFlow: helpers/sign-in.yaml
+- tapOn: "Planner"
+- tapOn: "＋ New"
+- tapOn: "Title"
+- inputText: ${TASK}
+- hideKeyboard
+- tapOn: "Add task"
+- assertVisible: "Complete ${TASK}"
+- tapOn: "Complete ${TASK}"
+- assertVisible: "Mark ${TASK} as not done"
+- tapOn: "Mark ${TASK} as not done"
+- assertVisible: "Complete ${TASK}"

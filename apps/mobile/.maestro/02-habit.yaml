@@ -1,0 +1,35 @@
+# Create a habit, check in, undo, delete (with the native confirmation). Starts signed in.
+appId: com.aatralex.lifetrack
+name: Habits - create, check in, undo, delete
+tags: [smoke, habits]
+env:
+  HABIT: "Maestro habit"
+---
+- launchApp
+- runFlow: helpers/sign-in.yaml
+- tapOn: "Habits"
+- tapOn: "＋ New"
+# the form refuses an empty name
+- tapOn: "Create habit"
+- assertVisible: "Name"
+- tapOn: "Name"
+- inputText: ${HABIT}
+- hideKeyboard
+- tapOn: "Create habit"
+- assertVisible: "Complete ${HABIT}"
+- tapOn: "Complete ${HABIT}"
+- assertVisible: "Undo ${HABIT}"
+- tapOn: "Undo ${HABIT}"
+- assertVisible: "Complete ${HABIT}"
+- tapOn: "Options for ${HABIT}"
+- tapOn: "Delete"
+- assertVisible: "Delete \"${HABIT}\"?"
+# cancelling keeps it
+- tapOn: "Cancel"
+- assertVisible: "Complete ${HABIT}"
+- tapOn: "Options for ${HABIT}"
+- tapOn: "Delete"
+- tapOn:
+    text: "Delete"
+    index: 1
+- assertNotVisible: "Complete ${HABIT}"
