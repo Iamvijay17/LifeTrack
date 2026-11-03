@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -7,37 +6,8 @@ import { AuthLayout } from './AuthLayout'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/form'
 import { auth } from '@/services/auth'
-import { toAppError } from '@/services/errors'
+import { Err, Note, NewPasswordFields, email, newPasswordPair, password, passwordsMatch, useSubmit } from './authForm'
 import { useAuth } from '@/hooks/useAuth'
-
-const email = z.string().trim().toLowerCase().min(1, 'Enter your email').email('Enter a valid email')
-const password = z.string().min(8, 'Use at least 8 characters').max(72, 'Too long')
-
-function useSubmit(fn) {
-  const [error, setError] = useState(null)
-  const [notice, setNotice] = useState(null)
-  const submit = async (values) => {
-    setError(null)
-    try {
-      await fn(values, setNotice)
-    } catch (e) {
-      setError(toAppError(e).message)
-    }
-  }
-  return { error, notice, submit }
-}
-const Err = ({ children }) =>
-  children ? (
-    <p role="alert" className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
-      {children}
-    </p>
-  ) : null
-const Note = ({ children }) =>
-  children ? (
-    <p role="status" className="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">
-      {children}
-    </p>
-  ) : null
 
 export function LoginPage() {
   const { session } = useAuth()
@@ -90,9 +60,9 @@ export function LoginPage() {
 export function RegisterPage() {
   const { session } = useAuth()
   const nav = useNavigate()
-  const schema = z
-    .object({ name: z.string().trim().min(1, 'Enter your name').max(80), email, password, confirm: z.string() })
-    .refine((v) => v.password === v.confirm, { path: ['confirm'], message: 'Passwords do not match' })
+  const schema = passwordsMatch(
+    z.object({ name: z.string().trim().min(1, 'Enter your name').max(80), email, password, confirm: z.string() }),
+  )
   const {
     register,
     handleSubmit,
@@ -126,12 +96,7 @@ export function RegisterPage() {
         <Field label="Email" error={errors.email?.message}>
           <Input type="email" autoComplete="email" inputMode="email" {...register('email')} />
         </Field>
-        <Field label="Password" error={errors.password?.message} hint="At least 8 characters">
-          <Input type="password" autoComplete="new-password" {...register('password')} />
-        </Field>
-        <Field label="Confirm password" error={errors.confirm?.message}>
-          <Input type="password" autoComplete="new-password" {...register('confirm')} />
-        </Field>
+        <NewPasswordFields register={register} errors={errors} hint="At least 8 characters" />
         <Button type="submit" className="w-full" loading={isSubmitting}>
           Create account
         </Button>
@@ -177,14 +142,11 @@ export function ForgotPasswordPage() {
 export function ResetPasswordPage() {
   const { session, recovery, clearRecovery, loading } = useAuth()
   const nav = useNavigate()
-  const schema = z
-    .object({ password, confirm: z.string() })
-    .refine((v) => v.password === v.confirm, { path: ['confirm'], message: 'Passwords do not match' })
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm({ resolver: zodResolver(schema) })
+  } = useForm({ resolver: zodResolver(newPasswordPair) })
   const { error, submit } = useSubmit(async (v) => {
     await auth.updatePassword(v.password)
     clearRecovery()
@@ -206,12 +168,7 @@ export function ResetPasswordPage() {
     <AuthLayout title="Choose a new password" subtitle={recovery ? undefined : 'You are signed in. Set a new password below.'}>
       <form onSubmit={handleSubmit(submit)} noValidate className="space-y-4">
         <Err>{error}</Err>
-        <Field label="New password" error={errors.password?.message}>
-          <Input type="password" autoComplete="new-password" {...register('password')} />
-        </Field>
-        <Field label="Confirm password" error={errors.confirm?.message}>
-          <Input type="password" autoComplete="new-password" {...register('confirm')} />
-        </Field>
+        <NewPasswordFields register={register} errors={errors} passwordLabel="New password" />
         <Button type="submit" className="w-full" loading={isSubmitting}>
           Update password
         </Button>
