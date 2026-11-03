@@ -704,3 +704,76 @@ create trigger fk_owner before insert or update on public.application_history
 create index if not exists app_history_user_idx   on public.application_history (user_id, changed_at);
 create index if not exists routines_user_idx      on public.routines (user_id);
 create index if not exists savings_goals_user_idx on public.savings_goals (user_id);
+
+
+-- ===== 0006_push_tokens.sql =====
+-- Push notification device tokens. ADDITIVE: one new table and two functions; no existing data is touched.
+-- Clients never write this table directly: they call register_push_token / unregister_push_token (security definer),
+-- so a token can be re-assigned when a different user signs in on the same phone, without opening an RLS hole.
+
+create table public.device_push_tokens (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  token text not null unique check (token ~ '^(Expo|Exponent)PushToken\[[^\]]+\]$'),
+  platform text not null check (platform in ('ios','android')),
+  device_name text not null default '' check (char_length(device_name) <= 80),
+  last_seen_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index device_push_tokens_user_idx on public.device_push_tokens (user_id);
+
+create trigger set_updated_at before update on public.device_push_tokens
+  for each row execute function public.set_updated_at();
+
+alter table public.device_push_tokens enable row level security;
+alter table public.device_push_tokens force row level security;
+revoke all on public.device_push_tokens from anon;
+-- Read and delete your own tokens only. No insert/update policy => direct writes are denied.
+create policy "owner_select" on public.device_push_tokens for select to authenticated using (user_id = (select auth.uid()));
+create policy "owner_delete" on public.device_push_tokens for delete to authenticated using (user_id = (select auth.uid()));
+revoke insert, update on public.device_push_tokens from authenticated;
+
+create or replace function public.register_push_token(p_token text, p_platform text, p_device_name text default '')
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if auth.uid() is null then raise exception 'not authenticated'; end if;
+  insert into public.device_push_tokens (user_id, token, platform, device_name)
+  values (auth.uid(), p_token, p_platform, left(coalesce(p_device_name, ''), 80))
+  on conflict (token) do update
+    set user_id = auth.uid(), platform = excluded.platform, device_name = excluded.device_name, last_seen_at = now();
+end $$;
+
+create or replace function public.unregister_push_token(p_token text)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if auth.uid() is null then raise exception 'not authenticated'; end if;
+  delete from public.device_push_tokens where token = p_token and user_id = auth.uid();
+end $$;
+
+revoke all on function public.register_push_token(text, text, text) from public, anon;
+revoke all on function public.unregister_push_token(text) from public, anon;
+grant execute on function public.register_push_token(text, text, text) to authenticated;
+grant execute on function public.unregister_push_token(text) to authenticated;
+
+
+-- ===== 0007_savings_atomic.sql =====
+-- 0007: atomic savings deposits.
+-- The client used to read the cached total, add to it and write it back, so two devices (or two quick taps in flight) could each write a
+-- stale total and silently lose a deposit. This function adds inside the database in ONE statement, so concurrent deposits accumulate.
+-- (add_water, the same fix for water intake, already exists in 0004_hardening.sql.)
+-- SECURITY INVOKER: row-level security still applies, so a user can only touch their own goals. Additive: no existing data or table is changed.
+
+create or replace function public.add_savings(p_goal uuid, p_paise bigint)
+returns public.savings_goals
+language plpgsql security invoker set search_path = '' as $$
+declare r public.savings_goals;
+begin
+  if p_paise is null or p_paise <= 0 then raise exception 'Enter an amount greater than 0.'; end if;
+  update public.savings_goals set saved_paise = saved_paise + p_paise where id = p_goal returning * into r;
+  if not found then raise exception 'Savings goal not found.'; end if;
+  return r;
+end $$;
+
+revoke all on function public.add_savings(uuid, bigint) from public, anon;
+grant execute on function public.add_savings(uuid, bigint) to authenticated;

@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "@lifetrack/utils": "../_shared/dates.ts",
+    "date-fns": "npm:date-fns@4.4.0",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.118.0"
+  }
+}

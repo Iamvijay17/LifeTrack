@@ -340,7 +340,32 @@ check(
   )),
 )
 
+// ---- push tokens (migration 0006)
+const T1 = 'ExponentPushToken[aaaaaaaaaaaaaaaaaaaaaa]', T2 = 'ExpoPushToken[bbbbbbbbbbbbbbbbbbbbbb]'
+await asUser(A, () => db.query(`select register_push_token($1,'ios','Vijay iPhone')`, [T1]))
+check('push tokens: owner can read own token', (await asUser(A, () => db.query(`select 1 from device_push_tokens`))).rows.length === 1)
+check("push tokens: other users cannot read A's tokens", (await asUser(B, () => db.query(`select 1 from device_push_tokens`))).rows.length === 0)
+check('push tokens: direct insert is denied (must use the RPC)', !!(await expectErr(asUser(A, () => db.query(`insert into device_push_tokens(token,platform) values ($1,'android')`, [T2])))))
+check('push tokens: direct update is denied', !!(await expectErr(asUser(A, () => db.query(`update device_push_tokens set user_id=$1`, [B])))))
+check("push tokens: B cannot delete A's tokens", (await asUser(B, () => db.query(`delete from device_push_tokens`))).affectedRows === 0)
+await asUser(B, () => db.query(`select unregister_push_token($1)`, [T1]))
+check("push tokens: B cannot unregister A's token", (await asUser(A, () => db.query(`select 1 from device_push_tokens`))).rows.length === 1)
+await asUser(A, () => db.query(`select register_push_token($1,'ios','Renamed')`, [T1]))
+check('push tokens: re-registering the same token is idempotent (one row, updated name)', (await asUser(A, () => db.query(`select device_name from device_push_tokens`))).rows.map((r) => r.device_name).join() === 'Renamed')
+await asUser(B, () => db.query(`select register_push_token($1,'android','Shared phone')`, [T1]))
+check('push tokens: a token signed in by another user moves to them', (await asUser(B, () => db.query(`select 1 from device_push_tokens`))).rows.length === 1 && (await asUser(A, () => db.query(`select 1 from device_push_tokens`))).rows.length === 0)
+check('push tokens: invalid token format rejected', !!(await expectErr(asUser(A, () => db.query(`select register_push_token('not-a-token','ios','x')`)))))
+check('push tokens: invalid platform rejected', !!(await expectErr(asUser(A, () => db.query(`select register_push_token($1,'windows','x')`, [T2])))))
+await db.exec('set role anon;')
+const anonCall = await expectErr(db.query(`select register_push_token($1,'ios','x')`, [T2]))
+await db.exec('reset role;')
+check('push tokens: anon cannot register', !!anonCall)
+await asUser(B, () => db.query(`select unregister_push_token($1)`, [T1]))
+check('push tokens: owner can unregister', (await asUser(B, () => db.query(`select 1 from device_push_tokens`))).rows.length === 0)
+await asUser(A, () => db.query(`select register_push_token($1,'ios','will be deleted with the account')`, [T2]))
+
 await asUser(A, () => db.query(`select delete_my_account()`))
+check('delete_my_account also removes push tokens', (await db.query(`select count(*)::int n from device_push_tokens where user_id=$1`, [A])).rows[0].n === 0)
 check(
   'delete_my_account cascades all owned rows',
   (await db.query(`select (select count(*) from tasks where user_id=$1)::int n`, [A])).rows[0].n === 0,

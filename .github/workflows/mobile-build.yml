@@ -1,0 +1,61 @@
+name: Mobile build (EAS)
+
+# DORMANT until you opt in: set the repository variable EAS_ENABLED=true (after `eas init`, see docs/NATIVE.md) and add the
+# EXPO_TOKEN secret. Builds are manual or tag-triggered; nothing is submitted to a store from here.
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: EAS build profile
+        type: choice
+        options: [preview, production]
+        default: preview
+      platform:
+        description: Platform
+        type: choice
+        options: [android, ios, all]
+        default: android
+  push:
+    tags: ['mobile-v*']   # tag builds use the preview profile; production is only ever started by hand
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: eas build
+    if: vars.EAS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # The 'production' Environment should have required reviewers (Settings > Environments) so a production build needs approval.
+    environment: ${{ (github.event_name == 'workflow_dispatch' && inputs.profile == 'production') && 'production' || 'preview' }}
+    env:
+      PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'preview' }}
+      PLATFORM: ${{ github.event_name == 'workflow_dispatch' && inputs.platform || 'android' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Legal documents are finished (production only)
+        if: ${{ env.PROFILE == 'production' }}
+        run: node scripts/check-legal-ready.mjs
+
+      # The same gates as the PR workflow, so a build never starts from a broken or leaky tree.
+      - run: pnpm typecheck
+      - run: pnpm check:secrets
+      - run: pnpm --filter @lifetrack/mobile test
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Start the EAS build (runs on Expo's servers; follow it from the link in the log)
+        working-directory: apps/mobile
+        run: eas build --non-interactive --no-wait --profile "$PROFILE" --platform "$PLATFORM"

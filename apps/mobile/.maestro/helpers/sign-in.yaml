@@ -1,0 +1,14 @@
+# Signs in if the sign-in screen is showing; does nothing when a session already exists.
+appId: com.aatralex.lifetrack
+---
+- runFlow:
+    when:
+      visible: "Welcome back"
+    commands:
+      - tapOn: "Email"
+      - inputText: ${E2E_EMAIL}
+      - tapOn: "Password"
+      - inputText: ${E2E_PASSWORD}
+      - hideKeyboard
+      - tapOn: "Sign in"
+- assertVisible: "Dashboard"

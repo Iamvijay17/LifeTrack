@@ -1,0 +1,15 @@
+# Takes the store screenshots from a demo account. Not part of the smoke suite (config.yaml only runs 0*.yaml).
+appId: com.aatralex.lifetrack
+name: Store screenshots
+---
+- launchApp
+- runFlow: ../helpers/sign-in.yaml
+- takeScreenshot: 01-dashboard
+- tapOn: "Planner"
+- takeScreenshot: 02-planner
+- tapOn: "Habits"
+- takeScreenshot: 03-habits
+- tapOn: "Finance"
+- takeScreenshot: 05-finance
+- tapOn: "More"
+- takeScreenshot: 09-more

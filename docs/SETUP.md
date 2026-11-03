@@ -3,7 +3,7 @@
 ## 1. Install
 
 ```bash
-npm install
+pnpm install
 cp .env.example .env.local
 ```
 
@@ -16,6 +16,8 @@ cp .env.example .env.local
    - `supabase/migrations/0003_focus_notes_goals_reminders.sql`
    - `supabase/migrations/0004_hardening.sql`
    - `supabase/migrations/0005_history_owner_guard_and_user_indexes.sql`
+   - `supabase/migrations/0006_push_tokens.sql`
+   - `supabase/migrations/0007_savings_atomic.sql`
 
    (or paste `supabase/setup-all.sql`, which contains all of them)
 
@@ -35,7 +37,7 @@ cp .env.example .env.local
 6. **Database → Replication** (Realtime): migration 0002 already adds all tables to `supabase_realtime`.
    Verify the tables show as enabled.
 
-Without these env vars `npm run dev` runs in **DEV mode** (orange banner): data stays in that browser only and is
+Without these env vars `pnpm dev` runs in **DEV mode** (orange banner): data stays in that browser only and is
 **not** synced. That mode exists purely for development and tests.
 
 **Production builds without these variables refuse to run**: they show a "not connected to a database" screen and do not
@@ -43,20 +45,27 @@ include the in-browser backend at all (set `VITE_LOCAL_MODE=true` only for the h
 
 ## 3. Run
 
-| Command                                      | What                                                                                                   |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `npm run dev`                                | dev server on :5173                                                                                    |
-| `npm run build` / `npm run preview`          | production build / serve it on :4173                                                                   |
-| `npm test`                                   | unit + component-level logic tests (Vitest)                                                            |
-| `npm run test:sql`                           | applies the migrations to an in-memory Postgres and proves RLS isolation, history trigger, constraints |
-| `npm run test:e2e`                           | Playwright (desktop + Pixel 7). Uses DEV mode, hermetic                                                |
-| `E2E_CLOUD=1 npm run test:e2e -- cloud-sync` | **real** two-device sync test (build with Supabase env first)                                          |
+| Command | What |
+|---|---|
+| `pnpm dev` | dev server on :5173 |
+| `pnpm build` / `pnpm preview` | production build / serve it on :4173 |
+| `pnpm test` | unit + component-level logic tests (Vitest) |
+| `pnpm test:sql` | applies the migrations to an in-memory Postgres and proves RLS isolation, history trigger, constraints |
+| `pnpm test:rls` | table-driven RLS suite over every user-owned table and every cross-table foreign key (fails if a new table/FK has no isolation test) |
+| `pnpm lint` / `pnpm format:check` | ESLint and Prettier for the web app |
+| `pnpm audit:gate` | fails on a new production-dependency advisory not in `.audit-allowlist.json` |
+| `pnpm verify:bundles` | proves production web bundles never contain the in-browser dev backend |
+| `pnpm test:pg` | concurrency tests on a throwaway **real** PostgreSQL server (needs a local PostgreSQL install; skipped if absent) |
+| Maestro flows (`apps/mobile/.maestro`) | device smoke tests: auth, habits, planner; see its README. A unit test keeps their texts in sync with the app |
+| API-level RLS (`supabase/tests/api`) | the same isolation checks through the real HTTP API with real JWTs. Needs `supabase start`; run by the *Backend* workflow, skipped locally unless `SUPABASE_URL` / `SUPABASE_ANON_KEY` are set |
+| `pnpm check:secrets` | fails if a service-role/secret key appears in client sources or build output |
+| `pnpm test:e2e` | Playwright (desktop + Pixel 7). Uses DEV mode, hermetic |
+| `E2E_CLOUD=1 pnpm test:e2e -- cloud-sync` | **real** two-device sync test (build with Supabase env first) |
 
 ## 4. Deploy (Vercel or Cloudflare Pages)
-
-- Build command `npm run build`, output `dist`, framework: Vite.
+- Vercel: Root Directory `apps/web`, install `pnpm install --frozen-lockfile`, build `pnpm build`, output `dist`, framework: Vite.
 - Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as environment variables **before** building (they are inlined at build time).
-- SPA fallback is configured: `vercel.json` (Vercel) / `public/_redirects` (Cloudflare Pages).
+- SPA fallback is configured: `vercel.json` (Vercel) / `apps/web/public/_redirects` (Cloudflare Pages).
 - HTTPS is required for PWA install and the service worker (both hosts provide it).
 
 ## 5. Use on Windows + Android
@@ -79,4 +88,4 @@ Android Chrome: _Add to Home screen_. No shared Wi-Fi needed; everything goes th
 
 ## Production safety
 
-A production build **refuses to run without Supabase credentials** (it shows a "LifeTrack isn't configured" screen) so data can never be silently stored only in one browser. The local DEV mode exists for `npm run dev`, unit tests and the e2e suite (which builds with `VITE_LOCAL_MODE=true`; `VITE_ALLOW_DEV_MODE=1` is accepted as an alias). Deploys on Vercel/Netlify also get security headers (CSP, frame, referrer, HSTS) from `vercel.json` / `public/_headers`; if you add another origin the app talks to, extend `connect-src`.
+A production build **refuses to run without Supabase credentials** (it shows a "LifeTrack isn't configured" screen) so data can never be silently stored only in one browser. The local DEV mode exists for `pnpm dev`, unit tests and the e2e suite (which builds with `VITE_LOCAL_MODE=true`; `VITE_ALLOW_DEV_MODE=1` is accepted as an alias). Deploys on Vercel/Netlify also get security headers (CSP, frame, referrer, HSTS) from `vercel.json` / `public/_headers`; if you add another origin the app talks to, extend `connect-src`.

@@ -1,11 +1,30 @@
 version: 2
 updates:
+  # JavaScript dependencies across the pnpm workspace (root, apps, packages, supabase/tests).
   - package-ecosystem: npm
-    directory: /
-    schedule: { interval: weekly }
-    open-pull-requests-limit: 5
+    directories: ['/', '/apps/*', '/packages/*', '/supabase/tests']
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 8
     groups:
-      minor-and-patch: { update-types: [minor, patch] }
+      # One PR for routine updates; majors always arrive separately so they get a real review.
+      minor-and-patch:
+        update-types: [minor, patch]
+        exclude-patterns: ['expo*', '@expo/*', 'react', 'react-dom', 'react-native*', 'react-test-renderer', '@react-native*', 'jest-expo', '@types/react']
+    ignore:
+      # These must move together with the Expo SDK (see `npx expo install --check`); upgrade them deliberately, never one at a time.
+      - dependency-name: 'expo*'
+      - dependency-name: '@expo/*'
+      - dependency-name: 'react-native*'
+      - dependency-name: '@react-native*'
+      - dependency-name: 'jest-expo'
+      - dependency-name: 'react-test-renderer'
+      - dependency-name: 'react'
+      - dependency-name: 'react-dom'
+      - dependency-name: '@types/react'
+
+  # Workflow actions (pinned by major tag today; see docs/CI.md about pinning to SHAs).
   - package-ecosystem: github-actions
     directory: /
-    schedule: { interval: weekly }
+    schedule: { interval: weekly, day: monday }
+    groups:
+      actions: { patterns: ['*'] }

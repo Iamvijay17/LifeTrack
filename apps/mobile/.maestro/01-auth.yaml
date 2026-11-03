@@ -1,0 +1,31 @@
+# Sign in: client-side validation, a wrong password, then a valid sign-in. Needs a confirmed test account (see README.md).
+appId: com.aatralex.lifetrack
+name: Auth - validation, wrong password, sign in, sign out
+tags: [smoke, auth]
+---
+- launchApp:
+    clearState: true
+- assertVisible: "Welcome back"
+# empty form is rejected before any request is made
+- tapOn: "Sign in"
+- assertVisible: "Welcome back"
+- tapOn: "Email"
+- inputText: ${E2E_EMAIL}
+- tapOn: "Password"
+- inputText: "definitely-not-the-password"
+- hideKeyboard
+- tapOn: "Sign in"
+- assertVisible: "Incorrect email or password."
+# correct credentials land on the dashboard
+- tapOn: "Password"
+- eraseText: 40
+- inputText: ${E2E_PASSWORD}
+- hideKeyboard
+- tapOn: "Sign in"
+- assertVisible: "Dashboard"
+# sign out from More returns to the sign-in screen
+- tapOn: "More"
+- scrollUntilVisible:
+    element: "Sign out"
+- tapOn: "Sign out"
+- assertVisible: "Welcome back"

@@ -1,0 +1,76 @@
+name: Backend (real Supabase stack)
+
+# Slower than the PR gate (starts the full local Supabase stack in Docker), so it runs nightly, on demand,
+# and on pull requests that touch the database, the data layer or this workflow.
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'supabase/**'
+      - 'packages/data/**'
+      - 'packages/schemas/**'
+      - 'apps/web/e2e/**'
+      - '.github/workflows/ci-backend.yml'
+
+concurrency:
+  group: ci-backend-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Migrations, RLS over HTTP, two-device sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - run: pnpm install --frozen-lockfile
+
+      - name: Start local Supabase (applies supabase/migrations)
+        run: supabase start
+
+      - name: Export the PUBLIC connection details (never the service-role key)
+        run: |
+          supabase status -o env > /tmp/sb.env
+          echo "SUPABASE_URL=$(grep '^API_URL=' /tmp/sb.env | cut -d= -f2- | tr -d '"')" >> "$GITHUB_ENV"
+          echo "SUPABASE_ANON_KEY=$(grep '^ANON_KEY=' /tmp/sb.env | cut -d= -f2- | tr -d '"')" >> "$GITHUB_ENV"
+          rm /tmp/sb.env
+
+      - name: RLS, atomic counters and push tokens through the real API
+        env:
+          REQUIRE_BACKEND: '1' # fail, don't skip, if the stack is not reachable
+        run: pnpm --filter @lifetrack/db-tests exec vitest run api
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter @lifetrack/web exec playwright install --with-deps chromium
+
+      - name: Two-device Realtime sync (cloud-sync spec; Playwright builds the app with the VITE_ values below)
+        env:
+          E2E_CLOUD: '1'
+          VITE_SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
+        run: pnpm --filter @lifetrack/web exec playwright test cloud-sync --project=desktop
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: backend-traces
+          path: apps/web/test-results
+          retention-days: 7
+
+      - name: Stack logs on failure
+        if: failure()
+        run: docker ps -a && supabase status || true
+
+      - name: Stop the stack
+        if: always()
+        run: supabase stop --no-backup

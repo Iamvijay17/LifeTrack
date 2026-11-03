@@ -1,26 +1,46 @@
 # LifeTrack — personal life OS
 
-Private, cloud-first productivity app: daily planner, learning tracker with server-side study timer, job-search
-board with immutable status history, gym & fitness, sleep/health, finance (INR, integer paise), habits with
-heatmap, analytics, JSON/CSV export + restore. React + Vite + Tailwind, Supabase (Postgres, Auth, RLS, Realtime), installable PWA.
+Private, cloud-first tracker for planning, habits, learning, job search, fitness, health, finance, notes, goals and reminders.
+One Supabase backend (Postgres, Auth, Row Level Security, Realtime) behind two apps:
 
-**Start here → [docs/QUICKSTART.md](docs/QUICKSTART.md)** (details: [docs/SETUP.md](docs/SETUP.md))
+| | Path | Stack |
+|---|---|---|
+| Web (PWA) | `apps/web` | React 18, Vite, Tailwind |
+| iOS + Android | `apps/mobile` | Expo SDK 58, Expo Router, React Native |
+| Shared logic | `packages/{core,data,schemas,types,constants,utils,design-tokens}` | domain rules, data layer, Zod schemas, tokens |
+| Backend | `supabase/{migrations,functions,tests}` | SQL migrations, `send-reminders` Edge Function, RLS tests |
 
-## Status / honest limitations
+Money is stored in integer paise, dates as `yyyy-MM-dd` strings in the user's time zone. There are no AI features.
 
-- **Verified here:** unit tests (68), SQL/RLS tests on real Postgres (incl. every user-owned table), Playwright E2E on desktop + mobile profile (42).
-- **Not verified here (no Supabase project was available in the build environment):** the live Supabase client path
-  (auth emails, Realtime delivery, PostgREST paging) and true two-device sync. A `cloud-sync` Playwright test is provided;
-  run it once your project is configured. Until then, treat cloud sync as implemented-but-unproven.
-- The Supabase Realtime path is a single `postgres_changes` channel + refetch; DELETE events carry only the primary key, so the app refetches instead of patching.
-- Online-only by design: no IndexedDB queue. Offline shows a banner and writes fail visibly (nothing is silently dropped). The PWA caches only the app shell.
-- Water/“add” style increments are read-modify-write; two devices adding at the same instant could lose one increment.
-- Study-timer duration uses the device clock at stop; large device clock skew would affect it (you can only correct the time downward).
-- Jobs "interview rate" and habit streaks are computed from current data/schedule; changing a habit schedule re-judges missed days against the new schedule.
-- Backup restore merges by id (never deletes). Account deletion calls the `delete_my_account()` RPC.
-- DEV-mode local auth is for development only and is not secure.
-- Reminders become notifications while LifeTrack is open on any device (one notification per reminder per day, de-duplicated by the database). There is no background/push server, so a closed app cannot notify you.
-- A running Pomodoro timer is a per-device convenience (stored in the browser); finished focus blocks are saved to your account.
-- Savings-goal "add funds" is read-modify-write like water intake.
-- Existing projects: run any migrations you have not applied yet, in order (`0003_focus_notes_goals_reminders.sql`, then `0004_hardening.sql`: ownership guards, indexes and the atomic `add_water` / `replace_exercise_logs` functions the app now calls; then `0005_history_owner_guard_and_user_indexes.sql`). `setup-all.sql` already includes them; regenerate with `npm run sql:build`. Migrations are safe to re-run.
-- Loading UI: `src/components/loaders/` (LifeTrack Progress Orbit). Pure CSS/SVG, transform+opacity only, honours `prefers-reduced-motion`, no percentages shown when progress is unknown. Verified in headless Chromium (desktop, 360px mobile, dark/light, reduced motion); **not** profiled on physical low-end phones.
+## Start here
+- Run it: [docs/QUICKSTART.md](docs/QUICKSTART.md) · [docs/SETUP.md](docs/SETUP.md)
+- Native apps and push: [docs/NATIVE.md](docs/NATIVE.md) · web/mobile feature parity: [docs/PARITY.md](docs/PARITY.md)
+- CI/CD: [docs/CI.md](docs/CI.md) · deploying: [docs/DEPLOY.md](docs/DEPLOY.md) · **releasing: [docs/RELEASE.md](docs/RELEASE.md)** · [docs/RELEASE_AUDIT.md](docs/RELEASE_AUDIT.md)
+- Privacy/terms drafts and store copy: [docs/legal](docs/legal), [docs/store](docs/store)
+
+`pnpm verify` runs the whole local quality gate (typecheck, lint and formatting, secrets scan, all tests with coverage thresholds, RLS suite, SQL and migration checks).
+
+## Honest status
+**Automated and passing locally:** unit/component tests across all packages, the RLS suite (every user-owned table and foreign key), real-PostgreSQL concurrency tests,
+Deno tests of the Edge Function, Playwright on desktop and a phone profile, and web and mobile production bundles.
+
+**Written but never run in a live environment** (they need accounts or infrastructure that were not available during development):
+the GitHub Actions workflows, the real-Supabase API/RLS tests and two-device sync (`ci-backend.yml`), EAS builds, Maestro device flows,
+push delivery on real iOS/Android devices. Treat each as implemented-but-unproven until its first green run (see `docs/RELEASE.md`).
+
+## Design limits
+- Online-first: no offline editing; offline shows a banner and writes fail visibly (nothing is silently dropped). The PWA caches only the app shell.
+- Realtime is one `postgres_changes` channel plus refetch; DELETE events carry only the primary key, so the app refetches.
+- Water and savings additions are atomic in the database (`add_water`, `add_savings`), so concurrent devices never lose an increment.
+- A running study/focus timer's duration uses the device clock at stop (you can only correct downward).
+- Streaks and interview rates are computed from current data; changing a habit's schedule re-judges past days against the new schedule.
+- Backup restore (web) merges by id and never deletes. Account deletion calls `delete_my_account()` and removes all data.
+- Reminders are pushed by a scheduled Edge Function (server) and, as a fallback, by open apps after a 2-minute grace; de-duplicated by the database.
+- Reports, Export/Import and global search exist on web only.
+- DEV-mode local auth (no Supabase env) is for development only and is not secure.
+
+## Existing Supabase projects
+Apply the migrations you have not applied yet, in order (`supabase/migrations`): `0004_hardening.sql` (ownership guards, indexes, atomic `add_water` / `replace_exercise_logs`), `0005_history_owner_guard_and_user_indexes.sql`, `0006_push_tokens.sql` (mobile push) and `0007_savings_atomic.sql` (`add_savings`). They are additive and safe to re-run; `supabase/setup-all.sql` contains them all and is regenerated with `pnpm sql:build`. See docs/DEPLOY.md.
+
+## Loading UI
+`apps/web/src/components/loaders/` (LifeTrack Progress Orbit): pure CSS/SVG, transform and opacity only, honours `prefers-reduced-motion`, no percentages when progress is unknown. Verified in headless Chromium (desktop, 360px mobile, dark/light, reduced motion); not profiled on physical low-end phones.

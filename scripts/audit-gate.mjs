@@ -1,4 +1,4 @@
-// Dependency security gate for CI. Fails when `npm audit` (production dependencies) reports an advisory of the chosen
+// Dependency security gate for CI. Fails when `pnpm audit` (production dependencies) reports an advisory of the chosen
 // severity that is not listed — with a reason and a review deadline — in .audit-allowlist.json. No extra dependency.
 // Usage: node scripts/audit-gate.mjs [--omit=dev] [--level=high|moderate|low]
 import { execSync } from 'node:child_process'
@@ -11,23 +11,20 @@ const min = order.indexOf(args.level ?? 'moderate')
 
 let raw
 try {
-  raw = execSync(`npm audit --omit=${omit} --json`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+  raw = execSync(`pnpm audit ${omit === 'dev' ? '--prod' : ''} --json`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64e6 })
 } catch (e) {
   raw = e.stdout
-} // npm audit exits non-zero when it finds anything
+} // pnpm audit exits non-zero when it finds anything
 const report = JSON.parse(raw)
 if (report.error) {
-  console.error('npm audit failed:', report.error.summary ?? JSON.stringify(report.error))
+  console.error('pnpm audit failed:', report.error.message ?? JSON.stringify(report.error))
   process.exit(2)
 }
 
 const advisories = new Map()
-for (const v of Object.values(report.vulnerabilities ?? {})) {
-  for (const via of v.via)
-    if (typeof via === 'object' && via.url) {
-      const id = via.url.split('/').pop()
-      advisories.set(id, { id, pkg: via.name, severity: via.severity, title: via.title, url: via.url })
-    }
+for (const a of Object.values(report.advisories ?? {})) {
+  const id = a.github_advisory_id ?? String(a.id)
+  advisories.set(id, { id, pkg: a.module_name, severity: a.severity, title: a.title, url: a.url })
 }
 
 const allow = existsSync('.audit-allowlist.json') ? JSON.parse(readFileSync('.audit-allowlist.json', 'utf8')) : []

@@ -1,0 +1,19 @@
+{
+  "name": "@lifetrack/db-tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Database security + schema tests that run on in-memory Postgres (PGlite). Real-Postgres pgTAP tests live in ./database.",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.14",
+    "@supabase/supabase-js": "^2.118.0",
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.1",
+    "typescript": "^5.9.0",
+    "vitest": "^5.0.5"
+  }
+}
