@@ -15,7 +15,11 @@
     "test:pg": "pnpm --filter @lifetrack/db-tests exec vitest run postgres",
     "check:secrets": "node scripts/check-no-secrets.mjs",
     "sql:build": "node scripts/build-setup-sql.mjs",
-    "test:coverage": "pnpm -r --if-present test:coverage"
+    "test:coverage": "pnpm -r --if-present test:coverage",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "check:sql-drift": "node scripts/build-setup-sql.mjs && git diff --exit-code -- supabase/setup-all.sql",
+    "test:rn": "pnpm --filter @lifetrack/mobile test:rn",
+    "verify": "pnpm typecheck && pnpm check:secrets && pnpm test:coverage && pnpm test:rn && pnpm test:rls && pnpm test:sql && pnpm check:sql-drift"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.14",

@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { hasPostgres, startCluster } from './cluster'
 
 // Concurrency needs several real connections, which the in-process PGlite used by the RLS suite cannot provide.
-describe.skipIf(!hasPostgres)('atomic increments on a real PostgreSQL server', () => {
+// CI sets REQUIRE_POSTGRES=1 so a runner without PostgreSQL fails loudly instead of silently skipping these tests.
+describe.skipIf(!hasPostgres && !process.env.REQUIRE_POSTGRES)('atomic increments on a real PostgreSQL server', () => {
   let pgc: Awaited<ReturnType<typeof startCluster>>
   let user: string
   beforeAll(async () => { pgc = await startCluster(); user = await pgc.newUser('c@example.com') }, 60_000)

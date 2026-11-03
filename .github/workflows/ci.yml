@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+# Cancel superseded runs of the same branch/PR.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+
+jobs:
+  static:
+    name: Typecheck, secrets, SQL drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm check:secrets
+      - name: setup-all.sql matches the migrations
+        run: pnpm check:sql-drift
+
+  unit:
+    name: Unit and component tests (with coverage gates)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: vitest with coverage thresholds
+        run: pnpm test:coverage
+      - name: React Native component tests (jest-expo)
+        run: pnpm test:rn
+
+  database:
+    name: RLS, SQL and real-PostgreSQL tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      REQUIRE_POSTGRES: '1' # fail, don't skip, if the runner has no PostgreSQL server binaries
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: PostgreSQL server binaries
+        run: |
+          ls /usr/lib/postgresql/*/bin/initdb || (sudo apt-get update && sudo apt-get install -y postgresql)
+      - name: RLS suite + concurrency tests
+        run: pnpm test:rls
+      - name: Legacy SQL verification script
+        run: pnpm test:sql
+
+  edge-function:
+    name: Edge Function (Deno)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - uses: denoland/setup-deno@v2
+        with: { deno-version: v2.x }
+      - run: pnpm install --frozen-lockfile
+      - name: Shared reminder code is in sync with the function's copy
+        run: node scripts/sync-function-core.mjs && git diff --exit-code -- supabase/functions/_shared
+      - name: Deno tests
+        working-directory: supabase/functions/send-reminders
+        run: deno test --config deno.json --allow-env --allow-net --allow-read index.test.ts
+
+  web:
+    name: Web build and Playwright e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: No secrets in the built bundle
+        run: node scripts/check-no-secrets.mjs apps/web/dist
+      - name: Install Playwright Chromium
+        run: pnpm --filter @lifetrack/web exec playwright install --with-deps chromium
+      - name: Playwright (hermetic dev backend)
+        run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: apps/web/test-results
+          retention-days: 7
+
+  mobile-bundle:
+    name: Mobile bundle (Android + iOS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: expo export (catches Metro/bundling breaks without a device)
+        run: pnpm --filter @lifetrack/mobile export
+      - name: No secrets in the mobile bundle
+        run: node scripts/check-no-secrets.mjs apps/mobile/dist
