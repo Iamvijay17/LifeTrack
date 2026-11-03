@@ -23,7 +23,7 @@ jwt_expiry = 3600
 enable_signup = true
 
 [auth.email]
-enable_signup = true
+enabled = true
 double_confirm_changes = true
 # Off for tests so sign-up returns a session immediately. Keep confirmation ON in the hosted project.
 enable_confirmations = false

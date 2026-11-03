@@ -69,7 +69,7 @@ jobs:
 
       - name: Stack logs on failure
         if: failure()
-        run: docker ps -a && supabase status || true
+        run: docker ps -a || true # never run `supabase status` here: it prints the stack's secret key into the log
 
       - name: Stop the stack
         if: always()

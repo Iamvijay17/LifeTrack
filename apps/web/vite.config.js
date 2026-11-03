@@ -47,7 +47,8 @@ export default defineConfig(({ command, mode }) => ({
     include: ['tests/**/*.test.{js,jsx}'],
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.{js,jsx}'],
+      allowExternal: true,
+      include: ['src/**/*.{js,jsx}', '../../packages/core/src/web/**/*.js'],
       reporter: ['text-summary', 'json-summary'],
       reportsDirectory: './coverage',
       // Only the unit-testable logic is gated. Screens/hooks are exercised by Playwright and (Checkpoint B) component tests.
