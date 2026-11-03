@@ -1,0 +1,9 @@
+# Changes to these paths request a review from the owner automatically.
+# Pair this with branch protection ("Require review from Code Owners") for it to be enforced.
+*                       @Iamvijay24
+/supabase/migrations/   @Iamvijay24
+/supabase/functions/    @Iamvijay24
+/.github/               @Iamvijay24
+/scripts/               @Iamvijay24
+/apps/mobile/app.config.ts  @Iamvijay24
+/apps/mobile/eas.json   @Iamvijay24
