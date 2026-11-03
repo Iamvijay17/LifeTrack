@@ -37,9 +37,9 @@ jobs:
       PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'preview' }}
       PLATFORM: ${{ github.event_name == 'workflow_dispatch' && inputs.platform || 'android' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v7
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - name: Legal documents are finished (production only)
@@ -51,7 +51,7 @@ jobs:
       - run: pnpm check:secrets
       - run: pnpm --filter @lifetrack/mobile test
 
-      - uses: expo/expo-github-action@v8
+      - uses: expo/expo-github-action@v9
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
