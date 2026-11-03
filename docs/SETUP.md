@@ -40,6 +40,7 @@ Without these env vars the app runs in **DEV mode** (orange banner): data stays 
 | `pnpm test:rls` | table-driven RLS suite over every user-owned table and every cross-table foreign key (fails if a new table/FK has no isolation test) |
 | `pnpm test:pg` | concurrency tests on a throwaway **real** PostgreSQL server (needs a local PostgreSQL install; skipped if absent) |
 | Maestro flows (`apps/mobile/.maestro`) | device smoke tests: auth, habits, planner; see its README. A unit test keeps their texts in sync with the app |
+| API-level RLS (`supabase/tests/api`) | the same isolation checks through the real HTTP API with real JWTs. Needs `supabase start`; run by the *Backend* workflow, skipped locally unless `SUPABASE_URL` / `SUPABASE_ANON_KEY` are set |
 | `pnpm check:secrets` | fails if a service-role/secret key appears in client sources or build output |
 | `pnpm test:e2e` | Playwright (desktop + Pixel 7). Uses DEV mode, hermetic |
 | `E2E_CLOUD=1 pnpm test:e2e -- cloud-sync` | **real** two-device sync test (build with Supabase env first) |

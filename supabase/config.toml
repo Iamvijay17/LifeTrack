@@ -1,0 +1,29 @@
+# Local Supabase stack for tests (`supabase start`). Not used for production: hosted projects are configured in the dashboard.
+project_id = "lifetrack"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[realtime]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://localhost:4173"
+additional_redirect_urls = ["http://localhost:4173", "lifetrack://auth-callback"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+# Off for tests so sign-up returns a session immediately. Keep confirmation ON in the hosted project.
+enable_confirmations = false
