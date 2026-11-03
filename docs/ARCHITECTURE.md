@@ -21,6 +21,7 @@ Rules of thumb
 - **Forms**: `useDialogForm` + a Zod schema built from `lib/validation.js` (`optionalDay`, `requiredDay`, `moneyField`, `nonNegativeNumber`, `optionalNumber`). No `eslint-disable` for
   "reset when the dialog opens" — the hook already does it correctly.
 - **Delete flows**: `useConfirmedDelete(table, toast)` = confirm dialog + delete + toast + duplicate-submit protection.
+- **Quick add** (`features/quick/`): `QuickActions.jsx` holds only the menu, buttons and context; the forms it opens live in `QuickDialogs.jsx` and load on first use (the shell is ~45 KB smaller). **Auth** (`features/auth/`): `authForm.jsx` has the shared schemas (`email`, `password`, `passwordsMatch`), `useSubmit` and the message/password components.
 - **Create/edit dialogs for a single row** can use `useEntityForm` (it wraps `useDialogForm` and saves through `services/api.js#saveRow`); dialogs with custom saves use `useDialogForm` directly.
 - **Realtime**: `hooks/store` applies Realtime row changes straight to the cache (`applyChange`) and discards fetches that started before a local write; multi-row/counter operations run as database functions (`add_water`, `replace_exercise_logs`, migration `0004_hardening.sql`) via `store.rpc`.
 - **Writes** go through `hooks/store` (`insert/update/upsert/remove`) or a domain operation in `services/api.js`; UI never calls Supabase.
