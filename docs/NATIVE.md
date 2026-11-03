@@ -79,10 +79,10 @@ Regenerate icons/splash from the brand mark: `cd apps/web && node scripts/genera
 
 ## Building with CI (EAS)
 
-`.github/workflows/mobile-build.yml` starts EAS builds from GitHub. It is **off until you enable it**:
+`.github/workflows/mobile-build.yml` starts EAS builds from GitHub. It needs your Expo account first (without `EXPO_TOKEN` it fails at its first step with a message saying so):
 
 1. Finish `eas init` (step 1 above) and create an Expo access token (expo.dev > Account settings > Access tokens).
-2. In GitHub: *Settings > Secrets and variables > Actions* — add the secret `EXPO_TOKEN` and the **variable** `EAS_ENABLED=true`.
+2. In GitHub: *Settings > Secrets and variables > Actions* — add the secret `EXPO_TOKEN`. (The old `EAS_ENABLED` variable is no longer used.)
 3. *Settings > Environments*: create `production` and add **required reviewers**, so a production build needs a human approval.
 4. Put the public values in EAS environment variables for each profile (`development`, `preview`, `production`):
    `EAS_PROJECT_ID`, `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` (never a service-role key), plus the `GOOGLE_SERVICES_JSON` file secret.
