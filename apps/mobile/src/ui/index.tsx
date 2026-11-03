@@ -26,7 +26,7 @@ export function Button({ title, onPress, loading, variant = 'primary', disabled 
   const bg = variant === 'primary' ? colors.primary : variant === 'danger' ? colors.danger : 'transparent'
   const fg = variant === 'ghost' ? colors.foreground : colors.primaryForeground
   return (
-    <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!(disabled || loading), busy: !!loading }} disabled={disabled || loading} onPress={onPress}
+    <Pressable accessibilityRole="button" accessibilityLabel={title} accessibilityState={{ disabled: !!(disabled || loading), busy: !!loading }} disabled={disabled || loading} onPress={onPress}
       style={({ pressed }) => [{ minHeight: 48, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: bg, opacity: disabled || loading ? 0.6 : pressed ? 0.85 : 1, borderWidth: variant === 'ghost' ? 1 : 0, borderColor: colors.border, paddingHorizontal: 16 }]}>
       {loading ? <ActivityIndicator color={fg} /> : <Text style={{ color: fg, fontWeight: '600', fontSize: 16 }}>{title}</Text>}
     </Pressable>
