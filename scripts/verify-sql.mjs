@@ -118,8 +118,10 @@ const t1 = await asUser(A, () =>
   db.query(`insert into tasks(title,series_id,due_date) values ('r', gen_random_uuid(), '2026-01-01') returning series_id`),
 )
 const sid = t1.rows[0].series_id
-await expectErr(asUser(A, () => db.query(`insert into tasks(title,series_id,due_date) values ('r', $1, '2026-01-01')`, [sid])))
-check('recurring occurrence unique per (series,date)', !!dup && true)
+const dupOcc = await expectErr(
+  asUser(A, () => db.query(`insert into tasks(title,series_id,due_date) values ('r', $1, '2026-01-01')`, [sid])),
+)
+check('recurring occurrence unique per (series,date)', !!dupOcc)
 await asUser(A, () => db.query(`insert into tasks(title,series_id,due_date) values ('r', $1, '2026-01-02')`, [sid]))
 
 const neg = await expectErr(
@@ -185,7 +187,7 @@ check(
   ).rows[0].n === 0,
 )
 
-// ---- 0004: every foreign key is indexed; every parent link is same-owner guarded
+// ---- 0004 + 0005: every foreign key is indexed; every parent link is same-owner guarded
 {
   const { rows: fks } = await db.query(`
     select c.conrelid::regclass::text as tbl, a.attname as col
@@ -255,7 +257,7 @@ for (const [link, sqlFor] of Object.entries(attach)) {
   const foreignErr = await expectErr(asUser(B, () => db.query(sqlFor(B, { ...parents, ownWorkout: own.workout }))))
   check(
     `cannot attach to another user's parent: ${link}`,
-    !!foreignErr && /23503|does not refer|violates|row-level/i.test(foreignErr + ''),
+    !!foreignErr && /23503|does not refer|does not belong|violates|row-level/i.test(foreignErr + ''),
     foreignErr ?? 'insert succeeded',
   )
   const okErr = await expectErr(asUser(B, () => db.query(sqlFor(B, { ...own, ownWorkout: own.workout }))))
@@ -277,6 +279,67 @@ check(
 )
 
 const bTasksBefore = (await db.query(`select count(*)::int n from tasks where user_id=$1`, [B])).rows[0].n
+
+// ---- hardening (0004): cross-user references, atomic operations
+const habitB = (await asUser(B, () => db.query(`insert into habits(name) values ('B habit') returning id`))).rows[0].id
+check(
+  "habit log cannot reference another user's habit",
+  !!(await expectErr(asUser(A, () => db.query(`insert into habit_logs(habit_id,log_date) values ($1,'2026-02-01')`, [habitB])))),
+)
+const goalB = (await asUser(B, () => db.query(`insert into goals(title) values ('B goal') returning id`))).rows[0].id
+check(
+  "study session cannot reference another user's goal",
+  !!(await expectErr(
+    asUser(A, () =>
+      db.query(`insert into study_sessions(session_date,status,duration_seconds,goal_id) values ('2026-02-01','completed',60,$1)`, [goalB]),
+    ),
+  )),
+)
+check(
+  'own references still accepted',
+  !(await expectErr(asUser(A, () => db.query(`insert into habit_logs(habit_id,log_date) values ($1,'2026-02-02')`, [h.rows[0].id])))),
+)
+await asUser(A, () => db.query(`select add_water('2026-03-01', 500)`))
+await asUser(A, () => db.query(`select add_water('2026-03-01', 750)`))
+check(
+  'add_water accumulates atomically',
+  (await asUser(A, () => db.query(`select water_ml from health_logs where log_date='2026-03-01'`))).rows[0].water_ml === 1250,
+)
+await asUser(A, () => db.query(`select add_water('2026-03-01', -5000)`))
+check(
+  'add_water never goes below zero',
+  (await asUser(A, () => db.query(`select water_ml from health_logs where log_date='2026-03-01'`))).rows[0].water_ml === 0,
+)
+const wk = (await asUser(A, () => db.query(`insert into workouts(workout_date,name) values ('2026-03-01','Push') returning id`))).rows[0].id
+await asUser(A, () =>
+  db.query(
+    `select * from replace_exercise_logs($1, '[{"exercise_name":"Bench","set_number":1,"reps":8,"weight_kg":60},{"exercise_name":"Bench","set_number":2,"reps":8,"weight_kg":60}]')`,
+    [wk],
+  ),
+)
+await asUser(A, () =>
+  db.query(`select * from replace_exercise_logs($1, '[{"exercise_name":"Squat","set_number":1,"reps":5,"weight_kg":100}]')`, [wk]),
+)
+const sets = (await asUser(A, () => db.query(`select exercise_name from exercise_logs where workout_id=$1`, [wk]))).rows
+check('replace_exercise_logs swaps all sets in one step', sets.length === 1 && sets[0].exercise_name === 'Squat')
+check(
+  "replace_exercise_logs refuses another user's workout",
+  !!(await expectErr(asUser(B, () => db.query(`select * from replace_exercise_logs($1,'[]')`, [wk])))),
+)
+check(
+  'anon cannot call add_water',
+  !!(await expectErr(
+    (async () => {
+      await db.exec(`set role anon`)
+      try {
+        await db.query(`select add_water('2026-03-01',1)`)
+      } finally {
+        await db.exec('reset role')
+      }
+    })(),
+  )),
+)
+
 await asUser(A, () => db.query(`select delete_my_account()`))
 check(
   'delete_my_account cascades all owned rows',

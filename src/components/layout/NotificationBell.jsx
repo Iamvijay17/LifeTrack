@@ -5,8 +5,8 @@ import { useTable } from '@/hooks/store'
 import { markAllRead, markNotificationRead } from '@/services/api'
 import { unreadCount } from '@/domain/reminders'
 import { useAction } from '@/hooks/useAction'
-import { relativeTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { relativeTime } from '@/lib/format'
 
 export function NotificationBell() {
   const { rows } = useTable('notifications')
@@ -55,7 +55,7 @@ export function NotificationBell() {
             <button
               disabled={!unread}
               onClick={() => readAll()}
-              className="text-xs text-secondary hover:underline disabled:opacity-40 disabled:no-underline"
+              className="text-xs text-secondary underline underline-offset-2 disabled:opacity-40 disabled:no-underline"
             >
               Mark all read
             </button>

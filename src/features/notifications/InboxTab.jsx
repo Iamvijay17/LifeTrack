@@ -23,7 +23,7 @@ function NotificationRow({ n, onRead, onDelete }) {
           <Badge>{n.kind}</Badge>
           {relativeTime(n.created_at)}
           {n.link && (
-            <Link to={n.link} onClick={() => onRead(n)} className="text-secondary hover:underline">
+            <Link to={n.link} onClick={() => onRead(n)} className="text-secondary underline underline-offset-2">
               Open
             </Link>
           )}

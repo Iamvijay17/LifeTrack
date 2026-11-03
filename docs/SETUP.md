@@ -13,6 +13,11 @@ cp .env.example .env.local
 2. **SQL Editor** → run, in order, the whole contents of:
    - `supabase/migrations/0001_schema.sql`
    - `supabase/migrations/0002_rls_realtime.sql`
+   - `supabase/migrations/0003_focus_notes_goals_reminders.sql`
+   - `supabase/migrations/0004_hardening.sql`
+   - `supabase/migrations/0005_history_owner_guard_and_user_indexes.sql`
+
+   (or paste `supabase/setup-all.sql`, which contains all of them)
 
    (Or with the CLI: `supabase link --project-ref <ref> && supabase db push`.)
 
@@ -71,3 +76,7 @@ Android Chrome: _Add to Home screen_. No shared Wi-Fi needed; everything goes th
 - Every write shows Saving… / Saved / Save failed. Forms stay open on failure so nothing typed is lost; a leave-page prompt appears while a save is in flight.
 - Dates are `yyyy-MM-dd` strings in your timezone setting (default Asia/Kolkata); money is integer paise.
 - Habit/streak logic judges history against the habit's _current_ schedule. Editing never rewrites logs.
+
+## Production safety
+
+A production build **refuses to run without Supabase credentials** (it shows a "LifeTrack isn't configured" screen) so data can never be silently stored only in one browser. The local DEV mode exists for `npm run dev`, unit tests and the e2e suite (which builds with `VITE_LOCAL_MODE=true`; `VITE_ALLOW_DEV_MODE=1` is accepted as an alias). Deploys on Vercel/Netlify also get security headers (CSP, frame, referrer, HSTS) from `vercel.json` / `public/_headers`; if you add another origin the app talks to, extend `connect-src`.

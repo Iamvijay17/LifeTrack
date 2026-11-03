@@ -37,13 +37,6 @@ describe('refetchLoaded', () => {
     await store.refetchLoaded()
     expect(calls()).toBe(2)
   })
-  it('skips tables fetched within maxAgeMs and re-pulls stale ones', async () => {
-    await store.refetchLoaded({ maxAgeMs: 15_000 })
-    expect(calls()).toBe(0)
-    vi.advanceTimersByTime(20_000)
-    await store.refetchLoaded({ maxAgeMs: 15_000 })
-    expect(calls()).toBe(2)
-  })
   it('never loads a table nobody asked for', async () => {
     vi.advanceTimersByTime(60_000)
     await store.refetchLoaded({ maxAgeMs: 1 })
@@ -52,12 +45,13 @@ describe('refetchLoaded', () => {
 })
 
 describe('startSync', () => {
-  it('a focus right after a load does not download again; one after a pause does', async () => {
+  it('a burst of focus/visibility events syncs once; a later one syncs again', async () => {
     store.startSync()
-    window.dispatchEvent(new Event('focus'))
+    for (const e of ['focus', 'visibilitychange', 'focus']) window.dispatchEvent(new Event(e))
     await vi.advanceTimersByTimeAsync(0)
-    expect(calls()).toBe(0)
-    await vi.advanceTimersByTimeAsync(20_000)
+    expect(calls()).toBe(2)
+    await vi.advanceTimersByTimeAsync(6_000)
+    mocks.list.mockClear()
     window.dispatchEvent(new Event('focus'))
     await vi.advanceTimersByTimeAsync(0)
     expect(calls()).toBe(2)
@@ -68,28 +62,43 @@ describe('startSync', () => {
     await vi.advanceTimersByTimeAsync(0)
     expect(calls()).toBe(2)
   })
-  it('polls every 90 s while Realtime is down, but only every 10 min once it is connected', async () => {
+  it('polls every 90 s while Realtime is down, and not at all while it is connected', async () => {
     store.startSync()
     await vi.advanceTimersByTimeAsync(90_000)
     expect(calls()).toBe(2)
-    mocks.list.mockClear()
     mocks.status('SUBSCRIBED')
     await vi.advanceTimersByTimeAsync(0)
     mocks.list.mockClear()
-    await vi.advanceTimersByTimeAsync(180_000)
+    await vi.advanceTimersByTimeAsync(600_000)
     expect(calls()).toBe(0)
-    await vi.advanceTimersByTimeAsync(560_000)
-    expect(calls()).toBeGreaterThan(0)
+    mocks.status('CLOSED')
+    await vi.advanceTimersByTimeAsync(90_000)
+    expect(calls()).toBe(2)
   })
-  it('a Realtime RE-connection re-pulls everything even if it was just loaded', async () => {
+  it('every (re)connection of Realtime catches up on loaded tables', async () => {
     store.startSync()
-    mocks.status('SUBSCRIBED') // first connection: tables are fresh, nothing to catch up
+    mocks.status('SUBSCRIBED') // first connection: covers the gap before the subscription existed
     await vi.advanceTimersByTimeAsync(0)
-    expect(calls()).toBe(0)
+    expect(calls()).toBe(2)
+    mocks.list.mockClear()
     mocks.status('CLOSED')
     mocks.status('SUBSCRIBED')
     await vi.advanceTimersByTimeAsync(0)
     expect(calls()).toBe(2)
+  })
+  it('a table whose first load failed is retried on RE-connection, not on the first connection', async () => {
+    mocks.list.mockImplementation((t) => (t === 'broken' ? Promise.reject(new Error('boom')) : Promise.resolve([])))
+    await store.load('broken')
+    mocks.list.mockClear()
+    store.startSync()
+    mocks.status('SUBSCRIBED')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(mocks.list.mock.calls.map((c) => c[0]).sort()).toEqual(['notes', 'tasks'])
+    mocks.list.mockClear()
+    mocks.status('CLOSED')
+    mocks.status('SUBSCRIBED')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(mocks.list.mock.calls.map((c) => c[0]).sort()).toEqual(['broken', 'notes', 'tasks'])
   })
   it('stops listening after stopSync', async () => {
     store.startSync()

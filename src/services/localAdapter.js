@@ -195,6 +195,38 @@ export const localAdapter = {
     notify(table)
   },
 
+  /** Emulates the SQL functions in supabase/migrations/0004_hardening.sql */
+  async rpc(name, args) {
+    if (name === 'add_water') {
+      const db = read()
+      const rows = (db.health_logs ??= [])
+      const i = rows.findIndex((r) => r.log_date === args.p_date)
+      let row
+      if (i >= 0) {
+        row = { ...rows[i], water_ml: Math.max(0, Math.min(20000, (rows[i].water_ml ?? 0) + args.p_ml)), updated_at: monotonicNow() }
+        rows[i] = row
+      } else {
+        row = buildRow('health_logs', { log_date: args.p_date, water_ml: Math.max(0, Math.min(20000, args.p_ml)) })
+        rows.push(row)
+      }
+      write(db)
+      notify('health_logs')
+      return clone(row)
+    }
+    if (name === 'replace_exercise_logs') {
+      const db = read()
+      if (!(db.workouts ?? []).some((w) => w.id === args.p_workout))
+        throw new AppError('That record could not be found.', { code: 'PGRST116' })
+      const kept = (db.exercise_logs ?? []).filter((r) => r.workout_id !== args.p_workout)
+      const fresh = args.p_sets.map((s) => buildRow('exercise_logs', { ...s, workout_id: args.p_workout }))
+      db.exercise_logs = [...kept, ...fresh]
+      write(db)
+      notify('exercise_logs')
+      return clone(fresh)
+    }
+    throw new AppError(`Unknown function ${name}`)
+  },
+
   subscribe(onChange, onStatus) {
     channel() // start listening for other tabs
     localListeners.add(onChange)

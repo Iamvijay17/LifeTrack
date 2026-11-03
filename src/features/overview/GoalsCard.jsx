@@ -12,7 +12,7 @@ export function GoalsCard({ rows }) {
           <Target className="h-4 w-4" />
           Goal progress
         </CardTitle>
-        <Link to="/goals" className="text-xs text-secondary hover:underline">
+        <Link to="/goals" className="text-xs text-secondary underline underline-offset-2">
           All goals
         </Link>
       </CardHeader>
@@ -20,7 +20,7 @@ export function GoalsCard({ rows }) {
         {rows.length === 0 ? (
           <p className="py-4 text-center text-sm text-muted-foreground">
             No active goals.{' '}
-            <Link to="/goals" className="text-secondary hover:underline">
+            <Link to="/goals" className="text-secondary underline underline-offset-2">
               Create one
             </Link>
           </p>

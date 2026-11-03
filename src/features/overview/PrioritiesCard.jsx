@@ -12,7 +12,7 @@ export function PrioritiesCard({ priorities, hasTasksToday, openTasks, doneTasks
         <span className="text-xs text-muted-foreground">
           {openTasks} pending · {doneTasks} completed today
         </span>
-        <Link to="/planner" className="text-xs text-secondary hover:underline">
+        <Link to="/planner" className="text-xs text-secondary underline underline-offset-2">
           Planner
         </Link>
       </CardHeader>

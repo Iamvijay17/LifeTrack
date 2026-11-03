@@ -13,7 +13,7 @@ export function SpendingCard({ sum, money }) {
           <Wallet className="h-4 w-4" />
           Spending this month
         </CardTitle>
-        <Link to="/finance" className="text-xs text-secondary hover:underline">
+        <Link to="/finance" className="text-xs text-secondary underline underline-offset-2">
           Finance
         </Link>
       </CardHeader>

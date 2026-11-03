@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Controller } from 'react-hook-form'
 import { z } from 'zod'
 import { FormDialog } from '@/components/shared/FormDialog'
@@ -6,10 +7,8 @@ import { Segmented } from '@/components/ui/misc'
 import { CATEGORIES_BY_TYPE, PAYMENT_METHODS } from '@/domain/finance'
 import { moneyField, requiredDay } from '@/lib/validation'
 import { parseMoney, paiseToInput, CURRENCIES } from '@/lib/money'
-import { useAction } from '@/hooks/useAction'
-import { useDialogForm } from '@/hooks/useDialogForm'
+import { useEntityForm } from '@/hooks/useEntityForm'
 import { useSettings } from '@/hooks/useSettings'
-import * as store from '@/hooks/store'
 
 const schema = z.object({
   type: z.enum(['expense', 'income', 'savings']),
@@ -19,6 +18,23 @@ const schema = z.object({
   payment_method: z.enum(PAYMENT_METHODS),
   note: z.string().max(300),
 })
+
+const ADD_NEW = '__add_new__'
+// Categories the user typed in are remembered per transaction type, in this browser only.
+const loadCustom = (type) => {
+  try {
+    return JSON.parse(localStorage.getItem(`lt_cats_${type}`) ?? '[]')
+  } catch {
+    return []
+  }
+}
+const saveCustom = (type, list) => {
+  try {
+    localStorage.setItem(`lt_cats_${type}`, JSON.stringify(list))
+  } catch {
+    // storage unavailable (private mode): the category still works for this transaction
+  }
+}
 
 export function TransactionDialog({ open, onOpenChange, txn, today, defaultType = 'expense' }) {
   const { settings } = useSettings()
@@ -41,35 +57,52 @@ export function TransactionDialog({ open, onOpenChange, txn, today, defaultType 
   const {
     register,
     control,
-    handleSubmit,
     watch,
     setValue,
     formState: { errors },
-  } = useDialogForm({ open, schema, recordKey: `${txn?.id ?? 'new'}|${defaultType}`, valuesFor: () => (txn ? fromTxn(txn) : blank) })
+    onSubmit,
+    pending,
+  } = useEntityForm({
+    open,
+    entity: txn,
+    schema,
+    blank,
+    table: 'transactions',
+    resetKeys: [defaultType],
+    fromEntity: fromTxn,
+    toRow: (v) => ({
+      type: v.type,
+      amount_paise: parseMoney(v.amount),
+      category: v.category,
+      txn_date: v.txn_date,
+      payment_method: v.payment_method,
+      note: v.note,
+    }),
+    success: txn ? 'Transaction updated' : 'Transaction added',
+    onDone: () => onOpenChange(false),
+  })
   const type = watch('type')
-  const [save, pending] = useAction(
-    async (v) => {
-      const row = {
-        type: v.type,
-        amount_paise: parseMoney(v.amount),
-        category: v.category,
-        txn_date: v.txn_date,
-        payment_method: v.payment_method,
-        note: v.note,
-      }
-      if (txn) await store.update('transactions', txn.id, row)
-      else await store.insert('transactions', row)
-      onOpenChange(false)
-    },
-    { success: txn ? 'Transaction updated' : 'Transaction added' },
-  )
+  const [adding, setAdding] = useState(false)
+  const [custom, setCustom] = useState('')
+  const [, bump] = useState(0) // re-read the remembered categories after saving a new one
+  const commitCustom = () => {
+    const name = custom.trim().slice(0, 40)
+    if (name) {
+      const list = loadCustom(type)
+      if (!list.includes(name) && !CATEGORIES_BY_TYPE[type].includes(name)) saveCustom(type, [...list, name])
+      setValue('category', name, { shouldValidate: true })
+    }
+    setAdding(false)
+    setCustom('')
+    bump((n) => n + 1)
+  }
   return (
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
       title={txn ? 'Edit transaction' : 'Add transaction'}
       pending={pending}
-      onSubmit={handleSubmit(save)}
+      onSubmit={onSubmit}
     >
       <Controller
         control={control}
@@ -105,11 +138,38 @@ export function TransactionDialog({ open, onOpenChange, txn, today, defaultType 
         name="category"
         render={({ field }) => (
           <Field label="Category" error={errors.category?.message}>
-            <Select value={field.value} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} ref={field.ref}>
-              {[...new Set([...CATEGORIES_BY_TYPE[type], field.value])].filter(Boolean).map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </Select>
+            {adding ? (
+              <div className="flex gap-2">
+                <Input
+                  autoFocus
+                  maxLength={40}
+                  placeholder="New category name"
+                  value={custom}
+                  onChange={(e) => setCustom(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      commitCustom()
+                    }
+                  }}
+                />
+                <button type="button" className="rounded-md border px-3 text-sm" onClick={commitCustom}>
+                  Add
+                </button>
+              </div>
+            ) : (
+              <Select
+                value={field.value}
+                onChange={(e) => (e.target.value === ADD_NEW ? setAdding(true) : field.onChange(e.target.value))}
+                onBlur={field.onBlur}
+                ref={field.ref}
+              >
+                {[...new Set([...CATEGORIES_BY_TYPE[type], ...loadCustom(type), field.value])].filter(Boolean).map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+                <option value={ADD_NEW}>+ Add new category…</option>
+              </Select>
+            )}
           </Field>
         )}
       />

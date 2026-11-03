@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import * as D from '@radix-ui/react-dialog'
 import { Search, CheckSquare, NotebookPen, Target, Briefcase, Repeat, Wallet, CornerDownLeft } from 'lucide-react'
 import { NAV } from '@/lib/nav'
-import { SectionLoader } from '@/components/loaders/SectionLoader'
 import { useTables } from '@/hooks/store'
 import { cn } from '@/lib/utils'
+import { SectionLoader } from '@/components/loaders/SectionLoader'
 
 const norm = (s) => String(s ?? '').toLowerCase()
 
@@ -60,12 +60,15 @@ export function searchAll(q, data, limit = 5) {
   return groups.map((g) => ({ ...g, items: g.items.slice(0, limit) })).filter((g) => g.items.length)
 }
 
-function Results({ q, onPick }) {
+function Results({ q, onPick, onActive }) {
   const { data, loading } = useTables('tasks', 'notes', 'goals', 'job_applications', 'habits', 'transactions')
   const groups = useMemo(() => searchAll(q, data), [q, data])
   const flat = groups.flatMap((g) => g.items)
   const [cursor, setCursor] = useState(0)
   useEffect(() => setCursor(0), [q])
+  useEffect(() => {
+    onActive?.(flat[cursor] ? `search-opt-${cursor}` : undefined)
+  }, [flat, cursor, onActive])
   useEffect(() => {
     const key = (e) => {
       if (e.key === 'ArrowDown') {
@@ -94,16 +97,19 @@ function Results({ q, onPick }) {
   if (!flat.length) return <p className="px-4 py-8 text-center text-sm text-muted-foreground">No results for “{q}”.</p>
   let idx = -1
   return (
-    <div role="listbox" aria-label="Search results" className="max-h-[50dvh] overflow-y-auto p-2">
+    <div id="search-results" role="listbox" aria-label="Search results" className="max-h-[50dvh] overflow-y-auto p-2">
       {groups.map((g) => (
-        <section key={g.title} className="mb-2">
-          <h3 className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{g.title}</h3>
+        <div key={g.title} role="group" aria-label={g.title} className="mb-2">
+          <div aria-hidden="true" className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {g.title}
+          </div>
           {g.items.map((it) => {
             idx++
             const mine = idx
             return (
               <button
                 key={g.title + it.id}
+                id={`search-opt-${mine}`}
                 role="option"
                 aria-selected={cursor === mine}
                 onMouseEnter={() => setCursor(mine)}
@@ -120,7 +126,7 @@ function Results({ q, onPick }) {
               </button>
             )
           })}
-        </section>
+        </div>
       ))}
     </div>
   )
@@ -131,6 +137,7 @@ export function GlobalSearch() {
   const [q, setQ] = useState('')
   const nav = useNavigate()
   const input = useRef(null)
+  const [activeId, setActiveId] = useState()
   useEffect(() => {
     const key = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -179,10 +186,15 @@ export function GlobalSearch() {
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search everything…"
                 aria-label="Search everything"
+                role="combobox"
+                aria-expanded={!!q.trim()}
+                aria-controls="search-results"
+                aria-autocomplete="list"
+                aria-activedescendant={activeId}
                 className="h-12 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />
             </div>
-            <Results q={q} onPick={pick} />
+            <Results q={q} onPick={pick} onActive={setActiveId} />
           </D.Content>
         </D.Portal>
       </D.Root>

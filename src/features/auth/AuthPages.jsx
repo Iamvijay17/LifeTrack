@@ -60,7 +60,7 @@ export function LoginPage() {
       footer={
         <>
           New here?{' '}
-          <Link className="text-secondary hover:underline" to="/register">
+          <Link className="text-secondary underline underline-offset-2" to="/register">
             Create an account
           </Link>
         </>
@@ -111,7 +111,7 @@ export function RegisterPage() {
       footer={
         <>
           Already registered?{' '}
-          <Link className="text-secondary hover:underline" to="/login">
+          <Link className="text-secondary underline underline-offset-2" to="/login">
             Sign in
           </Link>
         </>
@@ -155,7 +155,7 @@ export function ForgotPasswordPage() {
       title="Reset password"
       subtitle="We'll email you a link to choose a new password."
       footer={
-        <Link className="text-secondary hover:underline" to="/login">
+        <Link className="text-secondary underline underline-offset-2" to="/login">
           Back to sign in
         </Link>
       }
@@ -196,7 +196,7 @@ export function ResetPasswordPage() {
         title="Link expired"
         subtitle="This reset link is invalid or has expired."
         footer={
-          <Link className="text-secondary hover:underline" to="/forgot-password">
+          <Link className="text-secondary underline underline-offset-2" to="/forgot-password">
             Request a new link
           </Link>
         }
