@@ -76,3 +76,18 @@ Regenerate icons/splash from the brand mark: `cd apps/web && node scripts/genera
 - [ ] `npx uri-scheme open lifetrack://module/jobs --ios` (and `--android`) opens Jobs with working Back; same while signed out lands on Jobs after sign-in.
 - [ ] iOS swipe-back on module screens; Android hardware Back from a module returns to the tab; Back on a tab root exits.
 - [ ] Sheets/forms with the keyboard open on both platforms; Return moves Email → Password → Sign in.
+
+## Building with CI (EAS)
+
+`.github/workflows/mobile-build.yml` starts EAS builds from GitHub. It is **off until you enable it**:
+
+1. Finish `eas init` (step 1 above) and create an Expo access token (expo.dev > Account settings > Access tokens).
+2. In GitHub: *Settings > Secrets and variables > Actions* — add the secret `EXPO_TOKEN` and the **variable** `EAS_ENABLED=true`.
+3. *Settings > Environments*: create `production` and add **required reviewers**, so a production build needs a human approval.
+4. Put the public values in EAS environment variables for each profile (`development`, `preview`, `production`):
+   `EAS_PROJECT_ID`, `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` (never a service-role key), plus the `GOOGLE_SERVICES_JSON` file secret.
+5. Run *Actions > Mobile build (EAS) > Run workflow* (profile `preview` for testers, `production` for the stores), or push a tag `mobile-v1.0.0` for a preview build.
+
+Guards: a **production** build fails fast if `EAS_PROJECT_ID`, the Supabase URL or the anon key is missing, or if a secret-looking key was supplied as the public key (`app.config.ts`, covered by `tests/appConfig.test.ts`). The workflow also repeats typecheck, the secrets scan and the mobile tests first.
+
+Not included on purpose: store submission (`eas submit`) and over-the-air updates. `runtimeVersion` uses the `appVersion` policy so OTA can be added later without changing the native fingerprint rules; until `expo-updates` is installed (a native change that needs a new build), every release goes through a store build.

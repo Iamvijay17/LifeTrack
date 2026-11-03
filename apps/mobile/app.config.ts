@@ -6,11 +6,21 @@ const ANDROID_PACKAGE = process.env.APP_ANDROID_PACKAGE ?? 'com.aatralex.lifetra
 const BRAND = '#8B5CF6'
 const DARK = '#09090B'
 
+// A production build without the EAS project id would ship an app that can never obtain push tokens. Fail the build instead.
+if (process.env.EAS_BUILD_PROFILE === 'production') {
+  for (const name of ['EAS_PROJECT_ID', 'EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_ANON_KEY']) {
+    if (!process.env[name]) throw new Error(`${name} is not set for the production build (see docs/NATIVE.md).`)
+  }
+  if (/service[_-]?role|sb_secret_/i.test(`${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`)) throw new Error('A secret key was supplied as the public Supabase key.')
+}
+
 const config: ExpoConfig = {
   name: 'LifeTrack',
   slug: 'lifetrack',
   scheme: 'lifetrack',
   version: '1.0.0',
+  // Native-compatibility fingerprint. Over-the-air JS updates are NOT enabled (no expo-updates yet): every change ships through a store build.
+  runtimeVersion: { policy: 'appVersion' },
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
   backgroundColor: DARK,
