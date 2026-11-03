@@ -26,7 +26,7 @@ jobs:
       - run: npm run build
         env: { VITE_LOCAL_MODE: 'true' } # CI has no Supabase project; the bundle check below covers the real variants
       - run: npm run verify:bundles
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with: { name: dist, path: dist, retention-days: 7 }
 
   e2e:
@@ -42,7 +42,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test
         env: { CI: 'true' }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with: { name: playwright-traces, path: test-results, retention-days: 7 }
 
