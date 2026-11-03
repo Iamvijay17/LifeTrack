@@ -39,6 +39,14 @@ pick your host (examples in the workflow). The host must serve `/index.html` for
 ## Mobile
 See *Building with CI (EAS)* in NATIVE.md.
 
+## Downloads on the GitHub Releases page — *Publish a release*
+Run *Actions > Publish a release > Run workflow* with a version such as `v1.0.0`. It builds the web bundle (zip) and, if you tick **Android**, the
+preview APK through EAS, then creates a GitHub Release with the files attached so they can be downloaded at any time.
+- Needs the repository **variables** `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (public values) for the web bundle.
+- The Android option also needs the `EXPO_TOKEN` secret, `eas init`, and a keystore created once (docs/NATIVE.md). Free EAS builds can queue for a while; the job waits up to 90 minutes.
+- Leave **pre-release** ticked until the legal documents are finished (`node scripts/check-legal-ready.mjs`); a full release refuses to publish otherwise.
+- Installing an APK on a phone needs "install unknown apps" allowed; it is not a store release. iOS builds cannot be distributed this way (they need TestFlight/App Store).
+
 ## Suggested release order
 migrations (dry run, apply) -> Edge Function -> web -> mobile build. Migrations are additive and the apps tolerate the old schema, so a
 partial rollout is safe. Roll back application code by redeploying the previous build; roll back a migration only with a new forward migration.
