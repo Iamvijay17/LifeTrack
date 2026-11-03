@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main, master]
+    branches: [main, master, claude/tender-planck-szrekq] # the repository's default branch
 
 # Cancel superseded runs of the same branch/PR.
 concurrency:
