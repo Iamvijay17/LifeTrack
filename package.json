@@ -11,6 +11,8 @@
     "test": "pnpm -r --if-present test",
     "test:e2e": "pnpm --filter @lifetrack/web test:e2e",
     "test:sql": "node scripts/verify-sql.mjs",
+    "test:rls": "pnpm --filter @lifetrack/db-tests test",
+    "check:secrets": "node scripts/check-no-secrets.mjs",
     "sql:build": "node scripts/build-setup-sql.mjs",
     "test:coverage": "pnpm -r --if-present test:coverage"
   },
