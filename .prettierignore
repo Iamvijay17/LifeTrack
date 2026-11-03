@@ -6,3 +6,5 @@ package-lock.json
 supabase/setup-all.sql
 public
 dist-perf
+android
+ios

@@ -1,0 +1,6 @@
+{
+  "appId": "com.lifetrack.app",
+  "appName": "LifeTrack",
+  "webDir": "dist",
+  "backgroundColor": "#09090B"
+}

@@ -24,3 +24,11 @@ heatmap, analytics, JSON/CSV export + restore. React + Vite + Tailwind, Supabase
 - Savings-goal "add funds" is read-modify-write like water intake.
 - Existing projects: run any migrations you have not applied yet, in order (`0003_focus_notes_goals_reminders.sql`, then `0004_hardening.sql`: ownership guards, indexes and the atomic `add_water` / `replace_exercise_logs` functions the app now calls; then `0005_history_owner_guard_and_user_indexes.sql`). `setup-all.sql` already includes them; regenerate with `npm run sql:build`. Migrations are safe to re-run.
 - Loading UI: `src/components/loaders/` (LifeTrack Progress Orbit). Pure CSS/SVG, transform+opacity only, honours `prefers-reduced-motion`, no percentages shown when progress is unknown. Verified in headless Chromium (desktop, 360px mobile, dark/light, reduced motion); **not** profiled on physical low-end phones.
+
+## Android & iOS apps (Capacitor)
+
+The same web app is wrapped as native apps. Native projects live in `android/` and `ios/`.
+
+- Local: `npm run mobile:android` (needs Android Studio) / `npm run mobile:ios` (needs a Mac + Xcode).
+- GitHub: Actions → **Mobile builds** → Run workflow (or push a `v*` tag). Download the APK / .ipa from the run's **Artifacts**, or from the **Release** for tags. Add repo secrets `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` first.
+- The APK is a debug build (install on any Android phone). The .ipa is **unsigned**: it must be signed with your Apple Developer account (or sideloaded via AltStore/Sideloadly) before it installs. Play Store / App Store need signed release builds.
