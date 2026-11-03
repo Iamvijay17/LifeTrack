@@ -1,45 +1,47 @@
 import { Suspense, lazy } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { Toaster } from 'sonner'
+import { isMisconfigured } from '@/lib/backend'
+import { ConfigError } from '@/components/shared/ConfigError'
 import { AuthProvider, useAuth } from '@/hooks/useAuth'
 import { ConfirmProvider } from '@/components/shared/Confirm'
 import { AppShell } from '@/components/layout/AppShell'
-import { PageSkeleton } from '@/components/shared/states'
-import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from '@/features/auth/AuthPages'
-import { Logo } from '@/components/layout/Logo'
+import { FullScreenLoader, InitialAppLoader } from '@/components/loaders'
 import LegalPage from '@/features/legal/LegalPage'
+import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from '@/features/auth/AuthPages'
 
 const page = (loader) => lazy(loader)
-const Overview = page(() => import('@/pages/OverviewPage'))
-const Planner = page(() => import('@/pages/PlannerPage'))
-const Learning = page(() => import('@/pages/LearningPage'))
-const Jobs = page(() => import('@/pages/JobsPage'))
-const Fitness = page(() => import('@/pages/FitnessPage'))
-const Health = page(() => import('@/pages/HealthPage'))
-const Finance = page(() => import('@/pages/FinancePage'))
-const Habits = page(() => import('@/pages/HabitsPage'))
-const Analytics = page(() => import('@/pages/AnalyticsPage'))
-const Focus = page(() => import('@/pages/FocusPage'))
-const Notes = page(() => import('@/pages/NotesPage'))
-const Goals = page(() => import('@/pages/GoalsPage'))
-const Reports = page(() => import('@/pages/ReportsPage'))
-const Notifications = page(() => import('@/pages/NotificationsPage'))
-const ExportPage = page(() => import('@/pages/ExportPage'))
-const Settings = page(() => import('@/pages/SettingsPage'))
+const Overview = page(() => import('@/features/overview/OverviewPage'))
+const Planner = page(() => import('@/features/planner/PlannerPage'))
+const Learning = page(() => import('@/features/learning/LearningPage'))
+const Jobs = page(() => import('@/features/jobs/JobsPage'))
+const Fitness = page(() => import('@/features/fitness/FitnessPage'))
+const Health = page(() => import('@/features/health/HealthPage'))
+const Finance = page(() => import('@/features/finance/FinancePage'))
+const Habits = page(() => import('@/features/habits/HabitsPage'))
+const Analytics = page(() => import('@/features/analytics/AnalyticsPage'))
+const Focus = page(() => import('@/features/focus/FocusPage'))
+const Notes = page(() => import('@/features/notes/NotesPage'))
+const Goals = page(() => import('@/features/goals/GoalsPage'))
+const Reports = page(() => import('@/features/reports/ReportsPage'))
+const Notifications = page(() => import('@/features/notifications/NotificationsPage'))
+const ExportPage = page(() => import('@/features/export/ExportPage'))
+const Settings = page(() => import('@/features/settings/SettingsPage'))
 
 function Protected({ children }) {
   const { session, loading } = useAuth()
   const loc = useLocation()
-  if (loading) return <div className="grid min-h-dvh place-items-center"><Logo /></div>
+  if (loading) return <InitialAppLoader />
   if (!session) return <Navigate to="/login" replace state={{ from: loc.pathname }} />
   return children
 }
 
 export default function App() {
+  if (isMisconfigured) return <ConfigError />
   return (
     <AuthProvider>
       <ConfirmProvider>
-        <Suspense fallback={<div className="p-6"><PageSkeleton /></div>}>
+        <Suspense fallback={<FullScreenLoader message="Syncing your progress..." />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
@@ -47,7 +49,13 @@ export default function App() {
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/privacy" element={<LegalPage doc="privacy" />} />
             <Route path="/terms" element={<LegalPage doc="terms" />} />
-            <Route element={<Protected><AppShell /></Protected>}>
+            <Route
+              element={
+                <Protected>
+                  <AppShell />
+                </Protected>
+              }
+            >
               <Route index element={<Overview />} />
               <Route path="planner" element={<Planner />} />
               <Route path="learning" element={<Learning />} />
@@ -68,7 +76,11 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
-        <Toaster theme="system" position="top-center" toastOptions={{ classNames: { toast: '!bg-card !text-foreground !border-border' } }} />
+        <Toaster
+          theme="system"
+          position="top-center"
+          toastOptions={{ classNames: { toast: '!bg-card !text-foreground !border-border' } }}
+        />
       </ConfirmProvider>
     </AuthProvider>
   )

@@ -1,9 +1,12 @@
 import { defineConfig } from 'vitest/config'
+import { loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'node:path'
+import { resolveBackend } from './scripts/resolve-backend.js'
 
-export default defineConfig({
+export default defineConfig(({ command, mode }) => ({
+  define: { __BACKEND__: JSON.stringify(resolveBackend({ command, mode, env: loadEnv(mode, process.cwd(), 'VITE_') })) },
   plugins: [
     react(),
     VitePWA({
@@ -29,6 +32,8 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Only the Latin font subsets are precached; other scripts are fetched on demand.
+        globIgnores: ['**/*-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2'],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
     }),
@@ -49,4 +54,4 @@ export default defineConfig({
       thresholds: { 'src/services/**': { lines: 95, branches: 80 } },
     },
   },
-})
+}))

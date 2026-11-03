@@ -4,7 +4,9 @@ import { db } from '@/services/db'
 import { setUserId } from '@/services/session'
 
 // DEV mode only (no Supabase env in tests): a local stand-in for Supabase Auth that the whole e2e suite relies on.
-beforeEach(() => { localStorage.clear() })
+beforeEach(() => {
+  localStorage.clear()
+})
 
 describe('dev auth', () => {
   it('sign up creates and signs in an account; duplicates and bad input are rejected', async () => {
@@ -14,7 +16,8 @@ describe('dev auth', () => {
     await expect(auth.signUp('ann@example.com', 'secret123', 'Again')).rejects.toThrow(/already/i)
   })
   it('sign in checks the password (case-insensitive email) and sign out clears the session', async () => {
-    await auth.signUp('ann@example.com', 'secret123', 'Ann'); await auth.signOut()
+    await auth.signUp('ann@example.com', 'secret123', 'Ann')
+    await auth.signOut()
     expect(await auth.getSession()).toBeNull()
     await expect(auth.signIn('ann@example.com', 'wrong')).rejects.toThrow('Incorrect email or password.')
     await expect(auth.signIn('nobody@example.com', 'secret123')).rejects.toThrow('Incorrect email or password.')
@@ -32,7 +35,8 @@ describe('dev auth', () => {
     await auth.updateDisplayName('Annie')
     await auth.signOut()
     expect(seen).toEqual(expect.arrayContaining(['SIGNED_IN', 'USER_UPDATED', 'SIGNED_OUT']))
-    off(); const n = seen.length
+    off()
+    const n = seen.length
     await auth.signIn('ann@example.com', 'secret123')
     expect(seen).toHaveLength(n)
   })
@@ -40,8 +44,10 @@ describe('dev auth', () => {
     await expect(auth.updatePassword('x')).rejects.toThrow('Not signed in.')
     await expect(auth.updateDisplayName('x')).rejects.toThrow('Not signed in.')
     await auth.signUp('ann@example.com', 'secret123', 'Ann')
-    await auth.updateDisplayName('Annie'); expect((await auth.getSession()).user.user_metadata.display_name).toBe('Annie')
-    await auth.updatePassword('newsecret99'); await auth.signOut()
+    await auth.updateDisplayName('Annie')
+    expect((await auth.getSession()).user.user_metadata.display_name).toBe('Annie')
+    await auth.updatePassword('newsecret99')
+    await auth.signOut()
     await expect(auth.signIn('ann@example.com', 'secret123')).rejects.toThrow()
     await auth.signIn('ann@example.com', 'newsecret99')
   })
@@ -50,20 +56,24 @@ describe('dev auth', () => {
   })
   it('deleting the account removes the user and ALL their data, and leaves other accounts alone', async () => {
     await auth.signUp('ann@example.com', 'secret123', 'Ann')
-    const ann = (await auth.getSession()).user.id; setUserId(ann)
+    const ann = (await auth.getSession()).user.id
+    setUserId(ann)
     await db.insert('tasks', [{ title: 'ann task', due_date: '2026-11-02' }])
     await auth.signOut()
     await auth.signUp('bob@example.com', 'secret123', 'Bob')
-    const bob = (await auth.getSession()).user.id; setUserId(bob)
+    const bob = (await auth.getSession()).user.id
+    setUserId(bob)
     await db.insert('tasks', [{ title: 'bob task', due_date: '2026-11-02' }])
     await auth.deleteAccount()
     expect(await auth.getSession()).toBeNull()
     await expect(auth.signIn('bob@example.com', 'secret123')).rejects.toThrow()
-    await auth.signIn('ann@example.com', 'secret123'); setUserId(ann)
+    await auth.signIn('ann@example.com', 'secret123')
+    setUserId(ann)
     expect((await db.list('tasks')).map((t) => t.title)).toEqual(['ann task'])
     setUserId(bob)
     expect(await db.list('tasks')).toEqual([])
-    await auth.signOut(); await auth.deleteAccount() // deleting while signed out is a no-op
+    await auth.signOut()
+    await auth.deleteAccount() // deleting while signed out is a no-op
   })
   it('a corrupted session record is treated as signed out, not a crash', async () => {
     localStorage.setItem('lifetrack-dev:session', '{not json')

@@ -1,3 +1,5 @@
 let userId = null
 export const getUserId = () => userId
-export const setUserId = (id) => { userId = id }
+export const setUserId = (id) => {
+  userId = id
+}

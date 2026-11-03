@@ -12,9 +12,17 @@ const utc = (s: string): number => {
 }
 const fromUtc = (ms: number): string => new Date(ms).toISOString().slice(0, 10)
 
+// Building an Intl.DateTimeFormat is slow (~10x a format call); streak/score code calls this once per record, so reuse one per timezone.
+const dayFormatters = new Map<string, Intl.DateTimeFormat>()
+const dayFormatter = (tz: string): Intl.DateTimeFormat => {
+  let f = dayFormatters.get(tz)
+  if (!f) dayFormatters.set(tz, (f = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' })))
+  return f
+}
+
 export function dateStrInTz(input: Date | string | number = new Date(), tz: string = DEFAULT_TZ): string {
   const d = input instanceof Date ? input : new Date(input)
-  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d)
+  const parts = dayFormatter(tz).formatToParts(d)
   const get = (t: string): string => parts.find((p) => p.type === t)!.value
   return `${get('year')}-${get('month')}-${get('day')}`
 }
@@ -95,6 +103,15 @@ export function zonedToIso(day: string, time: string, tz: string = DEFAULT_TZ): 
 }
 
 export const TIMEZONES = [
-  'Asia/Kolkata', 'Asia/Dubai', 'Asia/Singapore', 'Asia/Tokyo', 'Europe/London', 'Europe/Berlin',
-  'America/New_York', 'America/Chicago', 'America/Los_Angeles', 'Australia/Sydney', 'UTC',
+  'Asia/Kolkata',
+  'Asia/Dubai',
+  'Asia/Singapore',
+  'Asia/Tokyo',
+  'Europe/London',
+  'Europe/Berlin',
+  'America/New_York',
+  'America/Chicago',
+  'America/Los_Angeles',
+  'Australia/Sydney',
+  'UTC',
 ]

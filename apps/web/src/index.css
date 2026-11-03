@@ -52,29 +52,190 @@
 }
 
 @layer base {
-  * { @apply border-border; }
-  html { color-scheme: light; -webkit-tap-highlight-color: transparent; }
-  html.dark { color-scheme: dark; }
-  body { @apply bg-background text-foreground font-sans antialiased; font-feature-settings: 'cv11', 'ss01'; }
-  :focus-visible { @apply outline-none ring-2 ring-primary/70 ring-offset-2 ring-offset-background; }
-  ::selection { background: rgb(var(--primary) / 0.35); }
-  input[type='date'], input[type='time'] { color-scheme: inherit; }
+  * {
+    @apply border-border;
+  }
+  html {
+    color-scheme: light;
+    -webkit-tap-highlight-color: transparent;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary/70 ring-offset-2 ring-offset-background;
+  }
+  ::selection {
+    background: rgb(var(--primary) / 0.35);
+  }
+  input[type='date'],
+  input[type='time'] {
+    color-scheme: inherit;
+  }
 }
 
 @layer utilities {
-  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-  .skeleton { @apply relative overflow-hidden rounded-md bg-muted/70; }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .skeleton {
+    @apply relative overflow-hidden rounded-md bg-muted/70;
+  }
   .skeleton::after {
-    content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
     background: linear-gradient(90deg, transparent, rgb(var(--foreground) / 0.06), transparent);
     animation: shimmer 1.4s infinite;
   }
-  @media (prefers-reduced-motion: reduce) { .skeleton::after { animation: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton::after {
+      animation: none;
+    }
+  }
 }
 
 @media print {
-  aside, header, nav[aria-label="Mobile"], .print\:hidden { display: none !important; }
-  body { background: #fff !important; color: #000 !important; }
-  #main { max-width: none !important; padding: 0 !important; }
-  [data-radix-popper-content-wrapper] { display: none !important; }
+  aside,
+  header,
+  nav[aria-label='Mobile'],
+  .print\:hidden {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  #main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  [data-radix-popper-content-wrapper] {
+    display: none !important;
+  }
+}
+
+/* ───────────────────────── LifeTrack Progress Orbit ─────────────────────────
+   Only transform / opacity / stroke-dashoffset are animated (compositor-friendly, no filters, no blur).
+   Palette: #7C3AED primary · #A78BFA secondary · #C4B5FD highlight (darkened on light theme for contrast). */
+.lt-orbit {
+  --lt-a: #7c3aed;
+  --lt-b: #a78bfa;
+  --lt-c: #c4b5fd;
+  display: block;
+  flex: none;
+}
+:root:not(.dark) .lt-orbit {
+  --lt-b: #8b5cf6;
+  --lt-c: #6d28d9;
+}
+.lt-orbit .lt-spin,
+.lt-orbit .lt-glow {
+  transform-box: view-box;
+  transform-origin: 60px 60px;
+}
+.lt-orbit .lt-glow {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.lt-spin-outer {
+  animation: lt-spin 10s linear infinite;
+  will-change: transform;
+}
+.lt-spin-inner {
+  animation: lt-spin 7s linear infinite reverse;
+  will-change: transform;
+}
+.lt-glow {
+  animation: lt-glow 2.6s ease-in-out infinite;
+}
+.lt-check {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: lt-draw 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.15s forwards;
+}
+.lt-check + .lt-check {
+  animation-delay: 0.75s;
+  animation-duration: 0.35s;
+}
+.lt-msg {
+  animation: lt-breathe 2.4s ease-in-out infinite;
+}
+/* Fade in only if loading takes longer than a blink, so fast loads never flash a loader. Space is always reserved. */
+.lt-delayed {
+  opacity: 0;
+  animation: lt-appear 0.25s ease-out 0.18s forwards;
+}
+
+@keyframes lt-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes lt-glow {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.06);
+  }
+}
+@keyframes lt-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes lt-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes lt-appear {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Boot screen shown by index.html before JavaScript has loaded */
+.lt-boot {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: rgb(var(--background));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lt-spin-outer,
+  .lt-spin-inner,
+  .lt-glow,
+  .lt-msg {
+    animation: none;
+    will-change: auto;
+  }
+  .lt-glow {
+    opacity: 0.55;
+  }
+  .lt-check {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .lt-delayed {
+    animation-duration: 0.01s;
+  }
 }

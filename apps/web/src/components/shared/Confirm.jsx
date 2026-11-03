@@ -8,13 +8,38 @@ const Ctx = createContext(() => Promise.resolve(false))
 export function ConfirmProvider({ children }) {
   const [req, setReq] = useState(null)
   const resolver = useRef(null)
-  const confirm = useCallback((opts) => new Promise((resolve) => { resolver.current = resolve; setReq(opts) }), [])
-  const close = (v) => { resolver.current?.(v); resolver.current = null; setReq(null) }
+  const confirm = useCallback(
+    (opts) =>
+      new Promise((resolve) => {
+        resolver.current = resolve
+        setReq(opts)
+      }),
+    [],
+  )
+  const close = (v) => {
+    resolver.current?.(v)
+    resolver.current = null
+    setReq(null)
+  }
   return (
     <Ctx.Provider value={confirm}>
       {children}
-      <Dialog open={!!req} onOpenChange={(o) => !o && close(false)} title={req?.title ?? ''} description={req?.description}
-        footer={<><Button variant="outline" onClick={() => close(false)}>Cancel</Button><Button variant={req?.destructive === false ? 'default' : 'destructive'} onClick={() => close(true)}>{req?.confirmLabel ?? 'Delete'}</Button></>}>
+      <Dialog
+        open={!!req}
+        onOpenChange={(o) => !o && close(false)}
+        title={req?.title ?? ''}
+        description={req?.description}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => close(false)}>
+              Cancel
+            </Button>
+            <Button variant={req?.destructive === false ? 'default' : 'destructive'} onClick={() => close(true)}>
+              {req?.confirmLabel ?? 'Delete'}
+            </Button>
+          </>
+        }
+      >
         <p className="sr-only">Please confirm</p>
       </Dialog>
     </Ctx.Provider>

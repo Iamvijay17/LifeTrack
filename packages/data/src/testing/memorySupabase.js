@@ -18,7 +18,19 @@ export function createMemorySupabase({ currentUser = getUserId } = {}) {
   const channels = new Set()
   let tick = 0
   const nowIso = () => new Date(Date.UTC(2026, 0, 1) + ++tick * 1000).toISOString()
-  const emit = (table, uidOfRow, eventType) => { for (const ch of channels) if (ch.active && ch.uid === uidOfRow) ch.handlers.forEach((h) => h({ table, eventType })) }
+  // Realtime: each binding is { filter: { event, table, filter: 'user_id=eq.<uid>' }, cb }. RLS decides who is told; payloads look like Supabase's.
+  const emit = (table, uidOfRow, eventType, row) => {
+    const payload = { eventType, schema: 'public', table, new: eventType === 'DELETE' ? {} : clone(row), old: eventType === 'INSERT' ? {} : { id: row?.id } }
+    for (const ch of channels) {
+      if (!ch.active || ch.uid !== uidOfRow) continue
+      for (const b of ch.bindings) {
+        const f = b.filter ?? {}
+        if ((f.table && f.table !== table) || (f.event && f.event !== '*' && f.event !== eventType)) continue
+        if (f.filter && eventType !== 'DELETE' && f.filter !== `user_id=eq.${uidOfRow}`) continue
+        b.cb(payload)
+      }
+    }
+  }
 
   const violatesUnique = (table, row, selfId) => {
     for (const u of UNIQUES[table] ?? []) {
@@ -66,7 +78,7 @@ export function createMemorySupabase({ currentUser = getUserId } = {}) {
         }
         for (const row of staged) { rows(t).push(row); if (t === 'job_applications') history(row, null, uid) }
         out = staged
-        staged.forEach(() => emit(t, uid, 'INSERT')); if (t === 'job_applications') emit('application_history', uid, 'INSERT')
+        staged.forEach((row) => emit(t, uid, 'INSERT', row)); if (t === 'job_applications') emit('application_history', uid, 'INSERT', {})
       } else if (this.op === 'update') {
         if (this.patch.user_id && this.patch.user_id !== uid) return { data: null, error: err('42501', 'new row violates row-level security policy for table "' + t + '"') }
         const targets = mine()
@@ -74,7 +86,7 @@ export function createMemorySupabase({ currentUser = getUserId } = {}) {
         for (const s of staged) if (violatesUnique(t, s, s.id)) return { data: null, error: err('23505', 'duplicate key value violates unique constraint') }
         staged.forEach((s, i) => { const idx = rows(t).findIndex((r) => r.id === s.id); if (t === 'job_applications') history(s, rows(t)[idx], uid); rows(t)[idx] = s })
         out = staged
-        if (staged.length) { emit(t, uid, 'UPDATE'); if (t === 'job_applications') emit('application_history', uid, 'INSERT') }
+        staged.forEach((row) => emit(t, uid, 'UPDATE', row)); if (staged.length && t === 'job_applications') emit('application_history', uid, 'INSERT', {})
       } else if (this.op === 'upsert') {
         const cols = (this.opts.onConflict ?? 'id').split(',')
         const result = []
@@ -86,11 +98,11 @@ export function createMemorySupabase({ currentUser = getUserId } = {}) {
             if (this.opts.ignoreDuplicates) continue
             const next = { ...rows(t)[idx], ...clone(input), id: rows(t)[idx].id, created_at: rows(t)[idx].created_at, user_id: uid, updated_at: nowIso() }
             if (violatesUnique(t, next, next.id)) return { data: null, error: err('23505', 'duplicate key value violates unique constraint') }
-            rows(t)[idx] = next; result.push(next); emit(t, uid, 'UPDATE')
+            rows(t)[idx] = next; result.push(next); emit(t, uid, 'UPDATE', next)
           } else {
             const row = build(t, cand, uid)
             if (violatesUnique(t, row, null)) return { data: null, error: err('23505', 'duplicate key value violates unique constraint') }
-            rows(t).push(row); result.push(row); emit(t, uid, 'INSERT')
+            rows(t).push(row); result.push(row); emit(t, uid, 'INSERT', row)
           }
         }
         out = result
@@ -100,7 +112,7 @@ export function createMemorySupabase({ currentUser = getUserId } = {}) {
         tables[t] = rows(t).filter((r) => !ids.has(r.id))
         for (const [child, col] of CASCADE[t] ?? []) tables[child] = rows(child).filter((r) => !ids.has(r[col]))
         out = targets
-        if (targets.length) emit(t, uid, 'DELETE')
+        targets.forEach((row) => emit(t, uid, 'DELETE', row))
       } else {
         out = mine()
         for (const { col, ascending } of [...this.sort].reverse()) out = [...out].sort((a, b) => (a[col] < b[col] ? -1 : a[col] > b[col] ? 1 : 0) * (ascending ? 1 : -1))
@@ -120,25 +132,35 @@ export function createMemorySupabase({ currentUser = getUserId } = {}) {
   return {
     tables,
     from: (t) => new Query(t),
-    /** The atomic counter functions of migration 0006 (single-threaded here, so trivially atomic). */
+    /** The database functions the app calls (add_water, add_savings, replace_exercise_logs). Single-threaded here, so trivially atomic. */
     rpc: async (fn, args) => {
       const uid = currentUser()
+      if (!uid) return { data: null, error: err('42501', 'permission denied for function ' + fn) }
+      const own = (t) => rows(t).filter((r) => r.user_id === uid)
       if (fn === 'add_water') {
-        const cur = rows('health_logs').find((r) => r.user_id === uid && r.log_date === args.p_date)
-        const q = cur ? new Query('health_logs').update({ water_ml: Math.max(0, cur.water_ml + args.p_ml) }).eq('id', cur.id).select().single()
-          : new Query('health_logs').insert({ log_date: args.p_date, water_ml: Math.max(0, args.p_ml) }).select().single()
-        return q
+        const cur = own('health_logs').find((r) => r.log_date === args.p_date)
+        const clamp = (n) => Math.max(0, Math.min(20000, n))
+        return cur
+          ? new Query('health_logs').update({ water_ml: clamp(cur.water_ml + args.p_ml) }).eq('id', cur.id).select().single()
+          : new Query('health_logs').insert({ log_date: args.p_date, water_ml: clamp(args.p_ml) }).select().single()
       }
       if (fn === 'add_savings') {
         if (!Number.isInteger(args.p_paise) || args.p_paise <= 0) return { data: null, error: err('P0001', 'Enter an amount greater than 0.') }
-        const cur = rows('savings_goals').find((r) => r.user_id === uid && r.id === args.p_goal)
+        const cur = own('savings_goals').find((r) => r.id === args.p_goal)
         if (!cur) return { data: null, error: err('P0001', 'Savings goal not found.') }
         return new Query('savings_goals').update({ saved_paise: cur.saved_paise + args.p_paise }).eq('id', cur.id).select().single()
+      }
+      if (fn === 'replace_exercise_logs') {
+        if (!own('workouts').some((w) => w.id === args.p_workout)) return { data: null, error: err('P0002', 'workout not found') }
+        tables.exercise_logs = rows('exercise_logs').filter((r) => r.workout_id !== args.p_workout)
+        const fresh = args.p_sets.map((x) => build('exercise_logs', { ...x, workout_id: args.p_workout }, uid))
+        fresh.forEach((r) => rows('exercise_logs').push(r))
+        return { data: clone(fresh), error: null }
       }
       return { data: null, error: err('42883', `function ${fn} does not exist`) }
     },
     channel: () => {
-      const ch = { handlers: [], active: false, uid: currentUser(), on(_type, _filter, cb) { ch.handlers.push(cb); return ch }, subscribe(status) { ch.active = true; channels.add(ch); Promise.resolve().then(() => status?.('SUBSCRIBED')); return ch } }
+      const ch = { bindings: [], active: false, uid: currentUser(), on(_type, filter, cb) { ch.bindings.push({ filter, cb }); return ch }, subscribe(status) { ch.active = true; channels.add(ch); Promise.resolve().then(() => status?.('SUBSCRIBED')); return ch } }
       return ch
     },
     removeChannel: (ch) => { ch.active = false; channels.delete(ch) },

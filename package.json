@@ -19,12 +19,24 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "check:sql-drift": "node scripts/build-setup-sql.mjs && git diff --exit-code -- supabase/setup-all.sql",
     "test:rn": "pnpm --filter @lifetrack/mobile test:rn",
-    "verify": "pnpm typecheck && pnpm check:secrets && pnpm test:coverage && pnpm test:rn && pnpm test:rls && pnpm test:sql && pnpm check:sql-drift && pnpm check:migrations",
-    "check:migrations": "node scripts/check-migration-safety.mjs"
+    "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm check:secrets && pnpm test:coverage && pnpm test:rn && pnpm test:rls && pnpm test:sql && pnpm check:sql-drift && pnpm check:migrations",
+    "check:migrations": "node scripts/check-migration-safety.mjs",
+    "lint": "pnpm --filter @lifetrack/web lint",
+    "lint:fix": "pnpm --filter @lifetrack/web lint:fix",
+    "format": "pnpm --filter @lifetrack/web format",
+    "format:check": "pnpm --filter @lifetrack/web format:check",
+    "audit:gate": "node scripts/audit-gate.mjs",
+    "verify:bundles": "pnpm --filter @lifetrack/web verify:bundles"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.14",
     "@vitest/coverage-v8": "5.0.5",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
+    "prettier": "^3.9.10"
   }
 }

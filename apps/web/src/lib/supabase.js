@@ -1,12 +1,14 @@
-import { createSupabaseClient, hasCredentials } from '@lifetrack/data'
+import { createSupabaseClient } from '@lifetrack/data'
+import { isSupabaseBackend } from './backend'
 
-const url = import.meta.env.VITE_SUPABASE_URL
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-/** True only when real project credentials are present. Otherwise the app runs in clearly-labelled DEV mode. */
-export const isSupabaseConfigured = hasCredentials(url, key)
+/** True only when real project credentials were present at build time. */
+export const isSupabaseConfigured = isSupabaseBackend
 
 // Frontend uses ONLY the anon/publishable key. Authorisation is enforced by Row Level Security.
-export const supabase = isSupabaseConfigured
-  ? createSupabaseClient({ url, anonKey: key, auth: { detectSessionInUrl: true } })
+export const supabase = isSupabaseBackend
+  ? createSupabaseClient({
+      url: import.meta.env.VITE_SUPABASE_URL,
+      anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+      auth: { detectSessionInUrl: true, flowType: 'pkce' },
+    })
   : null

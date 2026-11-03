@@ -3,7 +3,10 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { freshBackend, renderApp, signedInUser, db } from './helpers'
 
-beforeEach(async () => { await freshBackend(); await signedInUser() })
+beforeEach(async () => {
+  await freshBackend()
+  await signedInUser()
+})
 
 async function createHabit(name) {
   await userEvent.click(screen.getAllByRole('button', { name: /new habit|create a habit/i })[0])
@@ -82,7 +85,8 @@ describe('Habits page', () => {
     await screen.findByRole('button', { name: 'Complete Mine' })
     expect(await db.list('habits')).toHaveLength(1)
     const { auth } = await import('@/services/auth')
-    await auth.signOut(); await auth.signUp('bob@example.com', 'secret123', 'Bob')
+    await auth.signOut()
+    await auth.signUp('bob@example.com', 'secret123', 'Bob')
     expect(await db.list('habits')).toHaveLength(0)
   })
 })

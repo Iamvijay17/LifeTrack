@@ -7,7 +7,7 @@ Findings from the pre-release review of web, mobile, database and pipeline. Seve
 
 | # | Finding | Sev | Status |
 |---|---|---|---|
-| S1 | Cross-owner foreign keys: 11 child tables could reference another user's parent row (RLS checks only the row's own `user_id`). | High | **Fixed** earlier: migration `0005`, covered by a catalog test that fails for any new unguarded FK. |
+| S1 | Cross-owner foreign keys: 11 child tables could reference another user's parent row (RLS checks only the row's own `user_id`). | High | **Fixed**: same-owner triggers (`check_fk_owner`, migrations `0004`/`0005`), covered by a catalog test in `supabase/tests` that fails for any new unguarded FK. |
 | S2 | `zod` < 4.6.6 can exhaust memory on oversized collections (advisory, high). | High | **Fixed**: upgraded to 4.6.x; schemas, drift, backup and e2e suites pass. |
 | S3 | `react-router` < 7.18 open redirect via backslash and constructor injection in `deserializeErrors` (moderate). | Medium | **Fixed**: upgraded to 7.18.x. The app also only ever navigates to paths it builds itself. |
 | S4 | Remaining `pnpm audit` items: `glob`/`minimatch` (inside `@expo/cli`, a build-time tool) and `deepmerge` (inside jest). | Low | **Accepted**: dev/build tooling, never shipped in the app or run on user input. Re-check after the next Expo SDK upgrade. |

@@ -1,0 +1,148 @@
+import { useMemo, useState } from 'react'
+import { BookOpen, Clock, Code2, Plus, Target } from 'lucide-react'
+import { PageHeader } from '@/components/shared/PageHeader'
+import { DataGate } from '@/components/shared/states'
+import { StatCard } from '@/components/shared/StatCard'
+import { Button } from '@/components/ui/button'
+import { Segmented } from '@/components/ui/misc'
+import { useTables } from '@/hooks/store'
+import { useSettings } from '@/hooks/useSettings'
+import { useToday } from '@/hooks/useToday'
+import { counted, countedMinutes, historyOf, problemsSolved, topicGroups, topicTotals, weekSeries } from '@/domain/learning'
+import { addDays, eachDay, fmtDay, fmtDuration, startOfWeek } from '@/lib/dates'
+import { OverviewTab } from './OverviewTab'
+import { GoalsTab } from './GoalsTab'
+import { TopicsTab } from './TopicsTab'
+import { SessionsTab } from './SessionsTab'
+import { SessionDialog } from './SessionDialog'
+import { StudyGoalDialog } from './StudyGoalDialog'
+import { TopicDialog } from './TopicDialog'
+
+const TABS = [
+  { value: 'overview', label: 'Overview' },
+  { value: 'goals', label: 'Goals' },
+  { value: 'topics', label: 'Topics' },
+  { value: 'sessions', label: 'Sessions' },
+]
+const closed = { open: false }
+
+export default function LearningPage() {
+  const today = useToday()
+  const { settings } = useSettings()
+  const { data, loading, error, refetch } = useTables('study_sessions', 'goals', 'learning_topics')
+  const [tab, setTab] = useState('overview')
+  const [goalDlg, setGoalDlg] = useState({ ...closed, goal: null })
+  const [sessDlg, setSessDlg] = useState({ ...closed, session: null })
+  const [topicDlg, setTopicDlg] = useState({ ...closed, topic: null })
+
+  const topics = useMemo(() => data.learning_topics.filter((t) => !t.archived), [data.learning_topics])
+  const sessions = data.study_sessions
+  const running = sessions.find((s) => s.status === 'running')
+  const completed = useMemo(() => counted(sessions), [sessions])
+  const weekStart = startOfWeek(today, settings.week_starts_on)
+  const weekEnd = addDays(weekStart, 6)
+  const week = useMemo(
+    () => weekSeries(completed, weekStart, eachDay(weekStart, weekEnd), (d) => fmtDay(d, 'EEE')),
+    [completed, weekStart, weekEnd],
+  )
+  const todayMinutes = countedMinutes(completed.filter((s) => s.session_date === today))
+  const weekMinutes = countedMinutes(completed.filter((s) => s.session_date >= weekStart && s.session_date <= weekEnd))
+  const totals = useMemo(() => topicTotals(topics, sessions), [topics, sessions])
+  const history = useMemo(() => historyOf(completed), [completed])
+  const target = settings.daily_study_target_minutes
+
+  const newGoal = () => setGoalDlg({ open: true, goal: null })
+  return (
+    <>
+      <PageHeader
+        title="Career & Learning"
+        description="Track real study time, goals and DSA practice."
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setSessDlg({ open: true, session: null })}>
+              <Plus className="h-4 w-4" />
+              Log session
+            </Button>
+            <Button onClick={newGoal}>
+              <Target className="h-4 w-4" />
+              New goal
+            </Button>
+          </>
+        }
+      />
+      <DataGate loading={loading} error={error} onRetry={refetch}>
+        <div className="space-y-5">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatCard
+              icon={Clock}
+              label="Today"
+              value={fmtDuration(todayMinutes)}
+              sub={target ? `target ${fmtDuration(target)}` : 'no daily target set'}
+              progress={target ? Math.min(100, (todayMinutes / target) * 100) : null}
+              tone="success"
+            />
+            <StatCard
+              icon={BookOpen}
+              label="This week"
+              value={fmtDuration(weekMinutes)}
+              sub={`${week.filter((w) => w.hours > 0).length} active days`}
+            />
+            <StatCard icon={Code2} label="DSA problems" value={problemsSolved(sessions)} sub="all time" />
+            <StatCard
+              icon={Target}
+              label="Active goals"
+              value={data.goals.filter((g) => g.status === 'active').length}
+              sub={`${data.goals.filter((g) => g.status === 'completed').length} completed`}
+            />
+          </div>
+          <Segmented value={tab} onChange={setTab} options={TABS} />
+
+          {tab === 'overview' && (
+            <OverviewTab running={running} goals={data.goals} topics={topics} today={today} week={week} weekMinutes={weekMinutes} />
+          )}
+          {tab === 'goals' && (
+            <GoalsTab
+              goals={data.goals}
+              sessions={sessions}
+              today={today}
+              onCreate={newGoal}
+              onEdit={(goal) => setGoalDlg({ open: true, goal })}
+            />
+          )}
+          {tab === 'topics' && (
+            <TopicsTab
+              totals={totals}
+              today={today}
+              onCreate={() => setTopicDlg({ open: true, topic: null })}
+              onEdit={(topic) => setTopicDlg({ open: true, topic })}
+            />
+          )}
+          {tab === 'sessions' && (
+            <SessionsTab history={history} goals={data.goals} topics={topics} onEdit={(session) => setSessDlg({ open: true, session })} />
+          )}
+        </div>
+      </DataGate>
+      <StudyGoalDialog
+        open={goalDlg.open}
+        goal={goalDlg.goal}
+        topics={topics}
+        onOpenChange={(o) => setGoalDlg((d) => ({ ...d, open: o }))}
+      />
+      <SessionDialog
+        open={sessDlg.open}
+        session={sessDlg.session}
+        goals={data.goals}
+        topics={topics}
+        today={today}
+        onOpenChange={(o) => setSessDlg((d) => ({ ...d, open: o }))}
+      />
+      <TopicDialog
+        open={topicDlg.open}
+        topic={topicDlg.topic}
+        groups={topicGroups(topics)}
+        today={today}
+        onOpenChange={(o) => setTopicDlg((d) => ({ ...d, open: o }))}
+      />
+    </>
+  )
+}

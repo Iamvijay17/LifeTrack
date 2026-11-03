@@ -29,7 +29,7 @@ Tick the boxes in the release PR/issue as you go.
 1. Run **Database migrations (manual)** against `staging` as a dry run, then apply (docs/DEPLOY.md; first use needs `supabase migration repair`).
 2. Smoke-test staging with the web build and a dev client.
 3. Repeat on `production` (dry run, review, `apply` + `confirm = apply-production`).
-- [ ] After applying, `select * from supabase_migrations.schema_migrations` lists all migrations through `0006`
+- [ ] After applying, `select * from supabase_migrations.schema_migrations` lists all migrations through `0007`
 
 ## 4. Reminders (server)
 - [ ] `supabase secrets set CRON_SECRET=...` (and `EXPO_ACCESS_TOKEN` if enhanced push security is on)

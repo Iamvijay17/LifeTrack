@@ -50,12 +50,12 @@ describe('createSupabaseAuth', () => {
 })
 
 describe('createSupabaseAdapter', () => {
-  it('stamps user_id on insert and strips it from updates', async () => {
+  it('never sends user_id (the database fills it from the session) and strips it from updates', async () => {
     const q = { insert: vi.fn(() => q), select: vi.fn(() => Object.assign(Promise.resolve({ data: [{ id: 1 }], error: null }), { single: async () => ({ data: { id: 1 }, error: null }) })), update: vi.fn(() => q), eq: vi.fn(() => q) }
     const adapter = createSupabaseAdapter({ from: () => q })
     setUserId('user-1')
     await adapter.insert('tasks', [{ title: 'a', user_id: 'attacker' }])
-    expect(q.insert).toHaveBeenCalledWith([{ title: 'a', user_id: 'user-1' }])
+    expect(q.insert).toHaveBeenCalledWith([{ title: 'a' }])
     await adapter.update('tasks', 1, { title: 'b', user_id: 'attacker', id: 'x' })
     expect(q.update).toHaveBeenCalledWith({ title: 'b' })
   })

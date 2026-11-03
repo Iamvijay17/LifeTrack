@@ -76,7 +76,7 @@ export default function Notifications() {
                   <Switch accessibilityLabel={`${r.active ? 'Disable' : 'Enable'} ${r.title}`} value={r.active} onValueChange={() => { toggle(r) }} trackColor={{ true: colors.primary }} />
                   <Pressable accessibilityRole="button" accessibilityLabel={`Options for ${r.title}`} onPress={() => setMenu({ kind: 'reminder', item: r })} style={{ flex: 1, opacity: r.active ? 1 : 0.6, gap: 2 }}>
                     <Text numberOfLines={1} style={{ color: colors.foreground, fontWeight: '600', fontSize: 16 }}>{r.title}</Text>
-                    <Txt variant="small" muted>{kindLabel(r.kind)} · {fmtDay(r.remind_date, 'EEE, d MMM yyyy')} · {r.remind_time.slice(0, 5)}{r.repeat !== 'none' ? ` · ${repeatLabel(r.repeat).toLowerCase()}` : ''}{!r.active ? ' · done' : ''}</Txt>
+                    <Txt variant="small" muted>{kindLabel(r.kind)} · {fmtDay(r.remind_date, 'EEE, d MMM yyyy')} · {r.remind_time.slice(0, 5)}{r.repeat !== 'none' ? ` · ${(repeatLabel(r.repeat) ?? r.repeat).toLowerCase()}` : ''}{!r.active ? ' · done' : ''}</Txt>
                   </Pressable>
                 </View>
               </Card>

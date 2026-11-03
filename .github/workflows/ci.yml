@@ -28,6 +28,10 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      - name: Lint and formatting (web)
+        run: |
+          pnpm lint
+          pnpm format:check
       - run: pnpm check:secrets
       - name: setup-all.sql matches the migrations
         run: pnpm check:sql-drift
@@ -100,6 +104,8 @@ jobs:
       - run: pnpm build
       - name: No secrets in the built bundle
         run: node scripts/check-no-secrets.mjs apps/web/dist
+      - name: Production bundles never contain the in-browser dev backend
+        run: pnpm verify:bundles
       - name: Install Playwright Chromium
         run: pnpm --filter @lifetrack/web exec playwright install --with-deps chromium
       - name: Playwright (hermetic dev backend)
@@ -125,3 +131,19 @@ jobs:
         run: pnpm --filter @lifetrack/mobile export
       - name: No secrets in the mobile bundle
         run: node scripts/check-no-secrets.mjs apps/mobile/dist
+
+  security:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      # Production dependencies: fail on any advisory not in .audit-allowlist.json (each entry needs a reason + review date).
+      - run: pnpm audit:gate
+      # Dev/build tooling: reported, not blocking (advisories there never reach users).
+      - run: pnpm audit --audit-level=high
+        continue-on-error: true

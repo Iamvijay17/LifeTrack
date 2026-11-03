@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApi } from '../src/api'
-import { ATOMIC_OPS } from '../src/atomic'
 import { createMemorySupabase } from '../src/testing/memorySupabase'
 import { createSupabaseAdapter } from '../src/supabaseAdapter'
 import { withSchemaValidation } from '../src/validatingAdapter'
@@ -24,7 +23,9 @@ function makeStore(adapter) {
     insert: async (t, input) => { const out = await adapter.insert(t, Array.isArray(input) ? input : [input]); merge(t, out); return one(input, out) },
     update: async (t, id, patch) => { const r = await adapter.update(t, id, patch); merge(t, [r]); return r },
     upsert: async (t, input, o) => { const out = await adapter.upsert(t, Array.isArray(input) ? input : [input], o); merge(t, out); return one(input, out) },
-    atomic: async (fn, args) => { const r = await adapter.rpc(fn, args); merge(ATOMIC_OPS[fn], [r]); return r },
+    rpc: (fn, args) => adapter.rpc(fn, args),
+    patch: (t, incoming) => merge(t, incoming),
+    patchGroup: (t, dropFn, incoming) => cache.set(t, [...rows(t).filter((r) => !dropFn(r)), ...incoming]),
     remove: async (t, id) => { await adapter.remove(t, id); drop(t, [id]) },
     removeMany: async (t, ids) => { await adapter.removeMany(t, ids); drop(t, ids) },
   }

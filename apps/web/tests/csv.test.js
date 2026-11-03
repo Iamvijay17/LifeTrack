@@ -15,8 +15,9 @@ describe('CSV escaping', () => {
     expect([cell(null), cell(undefined), cell(0), cell(false)]).toEqual(['', '', '0', 'false'])
   })
   it('neutralises spreadsheet formula injection (= + - @ tab CR) but leaves real numbers alone', () => {
-    for (const evil of ['=HYPERLINK("http://evil","x")', '+cmd|calc', '-2+3', '@SUM(A1)', '\t=1', '\r=1']) expect(cell(evil).replace(/^"/, '')).toMatch(/^'/)
-    expect(cell('-5')).toBe('-5')       // a genuine negative number
+    for (const evil of ['=HYPERLINK("http://evil","x")', '+cmd|calc', '-2+3', '@SUM(A1)', '\t=1', '\r=1'])
+      expect(cell(evil).replace(/^"/, '')).toMatch(/^'/)
+    expect(cell('-5')).toBe('-5') // a genuine negative number
     expect(cell('+12')).toBe('+12')
     expect(cell('=1+1')).toBe("'=1+1")
   })
@@ -30,7 +31,20 @@ describe('module column sets', () => {
   it('transactions export exact decimal amounts; jobs export packages in LPA', () => {
     const tx = { txn_date: '2026-11-02', type: 'expense', category: 'Food', payment_method: 'UPI', amount_paise: 125050, note: 'Lunch' }
     expect(toCsv([tx], TX_COLUMNS).split('\r\n')[1]).toBe('2026-11-02,expense,Food,UPI,1250.50,Lunch')
-    const job = { company: 'Acme', job_title: 'Dev', status: 'applied', applied_date: '2026-11-02', location: 'Pune', salary_paise: 185000000, source: '', contact_person: '', followup_date: null, resume_version: '', jd_url: '', notes: '' }
+    const job = {
+      company: 'Acme',
+      job_title: 'Dev',
+      status: 'applied',
+      applied_date: '2026-11-02',
+      location: 'Pune',
+      salary_paise: 185000000,
+      source: '',
+      contact_person: '',
+      followup_date: null,
+      resume_version: '',
+      jd_url: '',
+      notes: '',
+    }
     expect(toCsv([job], JOB_COLUMNS).split('\r\n')[1]).toContain('18.5')
     expect(toCsv([{ ...job, salary_paise: null }], JOB_COLUMNS).split('\r\n')[1]).toContain(',,') // no package → empty cell
   })
@@ -42,7 +56,8 @@ describe('module column sets', () => {
 
 describe('tableToCsv (reads the real adapter)', () => {
   it('exports every column except the owner id, serialises JSON, and returns "" for an empty table', async () => {
-    localStorage.clear(); setUserId('u-csv')
+    localStorage.clear()
+    setUserId('u-csv')
     expect(await tableToCsv('routines')).toBe('')
     await db.insert('routines', [{ name: 'Push, day', exercises: [{ name: 'Bench', sets: 3 }] }])
     const csv = await tableToCsv('routines')
@@ -58,7 +73,13 @@ describe('download', () => {
   afterEach(() => vi.restoreAllMocks())
   it('adds a UTF-8 BOM for CSV (Excel) but not for JSON, and cleans up the link', async () => {
     const blobs = []
-    vi.stubGlobal('URL', { createObjectURL: (b) => { blobs.push(b); return 'blob:x' }, revokeObjectURL: vi.fn() })
+    vi.stubGlobal('URL', {
+      createObjectURL: (b) => {
+        blobs.push(b)
+        return 'blob:x'
+      },
+      revokeObjectURL: vi.fn(),
+    })
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
     download('a.csv', 'x,y')
     download('a.json', '{"a":1}', 'application/json')

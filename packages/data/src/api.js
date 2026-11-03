@@ -9,11 +9,16 @@ import { AppError } from './errors'
 
 /**
  * Domain operations that span more than one row. `store` is the app's cache/mutation layer and must provide
- * insert, update, upsert, atomic, remove, removeMany, peek, load and refetch (web: hooks/store.js; mobile: TanStack Query adapter).
+ * insert, update, upsert, remove, removeMany, rpc, patch, patchGroup, peek, load and refetch (web: hooks/store.js; mobile: TanStack Query adapter).
  */
 export function createApi(store) {
 
   const nowIso = () => new Date().toISOString()
+
+  // ------------------------------------------------------------ generic rows
+  /** Create (no `entity`) or update (with `entity`) a row. Forms call this instead of reaching into the store. */
+  const saveRow = (table, entity, values) => (entity ? store.update(table, entity.id, values) : store.insert(table, values))
+  const deleteRow = (table, id) => store.remove(table, id)
 
   // ------------------------------------------------------------------- tasks
   function createTask(input) {
@@ -91,16 +96,19 @@ export function createApi(store) {
       return w
     }
     const w = await store.update('workouts', existing.id, workout)
-    const old = store.peek('exercise_logs').filter((l) => l.workout_id === existing.id).map((l) => l.id)
-    if (sets.length) await store.insert('exercise_logs', sets.map((s) => ({ ...s, workout_id: existing.id })))
-    if (old.length) await store.removeMany('exercise_logs', old) // remove old sets only after the new ones are safely stored
+    // One database transaction swaps every set, so a failure or retry can never leave duplicate or missing sets.
+    const fresh = await store.rpc('replace_exercise_logs', { p_workout: existing.id, p_sets: sets })
+    store.patchGroup('exercise_logs', (l) => l.workout_id === existing.id, fresh ?? [])
     return w
   }
 
   // ------------------------------------------------------------------- health
   const saveHealth = (date, patch) => store.upsert('health_logs', { log_date: date, ...patch }, { onConflict: CONFLICT_KEYS.health_logs })
-  function addWater(date, ml) {
-    return store.atomic('add_water', { p_date: date, p_ml: ml }) // added inside the database: concurrent taps/devices all count
+  /** Atomic on the server (`water_ml = water_ml + ml`), so two devices adding water at once never lose an increment. */
+  async function addWater(date, ml) {
+    const row = await store.rpc('add_water', { p_date: date, p_ml: ml })
+    store.patch('health_logs', [row])
+    return row
   }
 
   // ---------------------------------------------------------------- job board
@@ -118,7 +126,9 @@ export function createApi(store) {
   /** Adds to a savings goal inside the database (add_savings), so additions from several devices never overwrite each other. */
   async function addSavingsFunds(goal, paise) {
     if (!Number.isInteger(paise) || paise <= 0) throw new AppError('Enter an amount greater than 0.')
-    return store.atomic('add_savings', { p_goal: goal.id, p_paise: paise })
+    const row = await store.rpc('add_savings', { p_goal: goal.id, p_paise: paise }) // atomic on the server
+    store.patch('savings_goals', [row])
+    return row
   }
 
   // ------------------------------------------------------------------ seeding
@@ -185,5 +195,5 @@ export function createApi(store) {
     return unread.length
   }
 
-  return { createTask, setTaskStatus, setHabitStatus, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, fireDueReminders, toggleReminder, clearReadNotifications, markNotificationRead, markAllRead }
+  return { saveRow, deleteRow, createTask, setTaskStatus, setHabitStatus, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, fireDueReminders, toggleReminder, clearReadNotifications, markNotificationRead, markAllRead }
 }

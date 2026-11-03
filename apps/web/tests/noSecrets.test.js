@@ -4,7 +4,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { scanText, scanDir } from '../../../scripts/check-no-secrets.mjs'
 
-const jwt = (role) => ['{"alg":"HS256"}', JSON.stringify({ role, iss: 'supabase' })].map((s) => Buffer.from(s).toString('base64url')).concat('c2lnbmF0dXJlMTIzNDU2').join('.')
+const jwt = (role) =>
+  ['{"alg":"HS256"}', JSON.stringify({ role, iss: 'supabase' })]
+    .map((s) => Buffer.from(s).toString('base64url'))
+    .concat('c2lnbmF0dXJlMTIzNDU2')
+    .join('.')
 
 describe('secret scanner', () => {
   it('flags service-role JWTs, sb_secret_ keys and assigned service keys', () => {

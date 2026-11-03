@@ -10,23 +10,27 @@ import { toAppError } from '@/services/errors'
 export function useAction(fn, { success, error: errMsg } = {}) {
   const lock = useRef(false)
   const [pending, setPending] = useState(false)
-  const run = useCallback(async (...args) => {
-    if (lock.current) return undefined
-    lock.current = true
-    setPending(true)
-    try {
-      const out = await fn(...args)
-      if (success) toast.success(typeof success === 'function' ? success(out) : success)
-      return out === undefined ? true : out
-    } catch (e) {
-      const err = toAppError(e)
-      toast.error(errMsg ? `${errMsg}: ${err.message}` : err.message)
-      return undefined
-    } finally {
-      lock.current = false
-      setPending(false)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fn])
+  const run = useCallback(
+    async (...args) => {
+      if (lock.current) return undefined
+      lock.current = true
+      setPending(true)
+      try {
+        const out = await fn(...args)
+        if (success) toast.success(typeof success === 'function' ? success(out) : success)
+        return out === undefined ? true : out
+      } catch (e) {
+        const err = toAppError(e)
+        toast.error(errMsg ? `${errMsg}: ${err.message}` : err.message)
+        return undefined
+      } finally {
+        lock.current = false
+        setPending(false)
+      }
+    },
+    // Callers pass a fresh closure each render, so `fn` already changes whenever `success`/`errMsg` could.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [fn],
+  )
   return [run, pending]
 }

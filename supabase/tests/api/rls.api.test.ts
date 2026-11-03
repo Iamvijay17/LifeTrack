@@ -54,7 +54,7 @@ describe.skipIf(!(URL && KEY) && !required)('RLS over the real API', () => {
     expect((await a.from('tasks').select('id').eq('id', mine.id)).data).toEqual([])
   })
 
-  it("a child row cannot point at someone else's parent (migration 0005)", async () => {
+  it("a child row cannot point at someone else's parent (0004_hardening)", async () => {
     const habit = (await a.from('habits').insert({ name: 'A habit' }).select().single()).data!
     const r = await b.from('habit_logs').insert({ habit_id: habit.id, log_date: '2026-11-02', status: 'done' }).select()
     expect(r.error?.message).toMatch(/does not belong to this user/)
@@ -67,7 +67,7 @@ describe.skipIf(!(URL && KEY) && !required)('RLS over the real API', () => {
     expect((await anon.rpc('add_water', { p_date: '2026-11-02', p_ml: 1 })).error).toBeTruthy()
   })
 
-  it('concurrent savings deposits over HTTP all count (migration 0006)', async () => {
+  it('concurrent savings deposits over HTTP all count (0004/0007)', async () => {
     const goal = (await a.from('savings_goals').insert({ name: 'Fund', target_paise: 100000000 }).select().single()).data!
     const results = await Promise.all(Array.from({ length: 15 }, () => a.rpc('add_savings', { p_goal: goal.id, p_paise: 1000 })))
     expect(results.map((r) => r.error)).toEqual(Array(15).fill(null))

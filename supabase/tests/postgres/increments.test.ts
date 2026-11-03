@@ -47,12 +47,12 @@ describe.skipIf(!hasPostgres && !process.env.REQUIRE_POSTGRES)('atomic increment
     expect((await pgc.admin.query(`select saved_paise from savings_goals where id = $1`, [goal])).rows[0].saved_paise).toBe('0')
   })
 
-  it('rejects non-positive deposits and amounts that break the table limits', async () => {
+  it('rejects non-positive deposits; water is clamped to the table limit instead of failing', async () => {
     const goal = (await pgc.admin.query(`insert into savings_goals(user_id, name, target_paise) values ($1,'G',1000) returning id`, [user])).rows[0].id
     const c = await pgc.session(user)
     try {
       await expect(c.query(`select add_savings($1, 0)`, [goal])).rejects.toThrow(/greater than 0/i)
-      await expect(c.query(`select add_water('2026-11-04', 99999)`)).rejects.toThrow(/violates check|between/i)
+      expect((await c.query(`select (add_water('2026-11-04', 99999)).water_ml as v`)).rows[0].v).toBe(20000)
     } finally { await c.end() }
   })
 

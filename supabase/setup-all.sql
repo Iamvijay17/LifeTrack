@@ -448,9 +448,10 @@ alter table public.goals
   add column if not exists start_date date,
   add column if not exists manual_progress smallint not null default 0 check (manual_progress between 0 and 100),
   add column if not exists completed_at timestamptz;
+alter table public.goals drop constraint if exists goals_dates_ck;
 alter table public.goals add constraint goals_dates_ck check (start_date is null or due_date is null or due_date >= start_date);
 
-create table public.milestones (
+create table if not exists public.milestones (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   goal_id uuid not null references public.goals(id) on delete cascade,
@@ -462,11 +463,11 @@ create table public.milestones (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index milestones_goal_idx on public.milestones (goal_id, position);
-create index milestones_user_idx on public.milestones (user_id);
+create index if not exists milestones_goal_idx on public.milestones (goal_id, position);
+create index if not exists milestones_user_idx on public.milestones (user_id);
 
 -- ------------------------------------------------------------ focus_sessions
-create table public.focus_sessions (
+create table if not exists public.focus_sessions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   session_date date not null,
@@ -481,10 +482,10 @@ create table public.focus_sessions (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index focus_user_date_idx on public.focus_sessions (user_id, session_date);
+create index if not exists focus_user_date_idx on public.focus_sessions (user_id, session_date);
 
 -- --------------------------------------------------------------------- notes
-create table public.notes (
+create table if not exists public.notes (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   title text not null default '' check (char_length(title) <= 160),
@@ -498,11 +499,11 @@ create table public.notes (
   updated_at timestamptz not null default now(),
   constraint notes_not_empty check (char_length(title) > 0 or char_length(body) > 0)
 );
-create index notes_user_idx on public.notes (user_id, updated_at desc);
-create index notes_tags_idx on public.notes using gin (tags);
+create index if not exists notes_user_idx on public.notes (user_id, updated_at desc);
+create index if not exists notes_tags_idx on public.notes using gin (tags);
 
 -- ------------------------------------------------------------- savings_goals
-create table public.savings_goals (
+create table if not exists public.savings_goals (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   name text not null check (char_length(name) between 1 and 80),
@@ -514,7 +515,7 @@ create table public.savings_goals (
 );
 
 -- ----------------------------------------------------------------- reminders
-create table public.reminders (
+create table if not exists public.reminders (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   kind text not null default 'custom' check (kind in ('task','study','workout','habit','bill','custom')),
@@ -527,10 +528,10 @@ create table public.reminders (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index reminders_user_idx on public.reminders (user_id, remind_date);
+create index if not exists reminders_user_idx on public.reminders (user_id, remind_date);
 
 -- ------------------------------------------------------------- notifications
-create table public.notifications (
+create table if not exists public.notifications (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   kind text not null default 'custom' check (kind in ('task','study','workout','habit','bill','custom','system')),
@@ -542,18 +543,20 @@ create table public.notifications (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index notifications_user_idx on public.notifications (user_id, created_at desc);
-create unique index notifications_dedupe_uq on public.notifications (user_id, dedupe_key) where dedupe_key is not null;
+create index if not exists notifications_user_idx on public.notifications (user_id, created_at desc);
+create unique index if not exists notifications_dedupe_uq on public.notifications (user_id, dedupe_key) where dedupe_key is not null;
 
 -- ----------------------------------------------------------- triggers + RLS
 do $$
 declare t text;
 begin
   foreach t in array array['milestones','focus_sessions','notes','savings_goals','reminders','notifications'] loop
+    execute format('drop trigger if exists set_updated_at on public.%I', t);
     execute format('create trigger set_updated_at before update on public.%I for each row execute function public.set_updated_at()', t);
     execute format('alter table public.%I enable row level security', t);
     execute format('alter table public.%I force row level security', t);
     execute format('revoke all on public.%I from anon', t);
+    execute format('drop policy if exists "owner_all" on public.%I', t);
     execute format(
       'create policy "owner_all" on public.%I for all to authenticated
          using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()))', t);
@@ -584,11 +587,126 @@ begin
   end if;
   return new;
 end $$;
+drop trigger if exists milestones_owner on public.milestones;
 create trigger milestones_owner before insert or update on public.milestones for each row execute function public.check_same_owner();
+drop trigger if exists notes_owner on public.notes;
 create trigger notes_owner before insert or update on public.notes for each row execute function public.check_same_owner();
 
 
--- ===== 0004_push_tokens.sql =====
+-- ===== 0004_hardening.sql =====
+-- Hardening: (1) every cross-table reference must stay inside one user's data,
+-- (2) indexes on foreign keys used by ON DELETE SET NULL / CASCADE, (3) atomic counter / replace operations
+-- so two devices can't lose each other's writes. Safe to re-run.
+
+-- ------------------------------------------------ 1. same-owner foreign keys
+-- RLS does not look at foreign keys, so a row could otherwise reference another user's parent row (if its id were known).
+-- Trigger args: pairs of (column, parent table). The parent lookup runs as the caller, so RLS hides other users' rows.
+create or replace function public.check_fk_owner() returns trigger
+language plpgsql as $$
+declare
+  i int := 0;
+  col text; parent text; ref uuid; parent_owner uuid;
+begin
+  while i < tg_nargs loop
+    col := tg_argv[i]; parent := tg_argv[i + 1]; i := i + 2;
+    ref := nullif(to_jsonb(new) ->> col, '')::uuid;
+    if ref is not null then
+      execute format('select user_id from public.%I where id = $1', parent) into parent_owner using ref;
+      if parent_owner is distinct from new.user_id then
+        raise exception '% does not belong to this user', col using errcode = '23503';
+      end if;
+    end if;
+  end loop;
+  return new;
+end $$;
+
+do $$
+declare r record;
+begin
+  for r in select * from (values
+    ('habit_logs',        'habit_id', 'habits', null, null),
+    ('study_sessions',    'goal_id', 'goals', 'topic_id', 'learning_topics'),
+    ('goals',             'topic_id', 'learning_topics', null, null),
+    ('focus_sessions',    'task_id', 'tasks', 'topic_id', 'learning_topics'),
+    ('exercise_logs',     'workout_id', 'workouts', 'exercise_id', 'exercises'),
+    ('interview_events',  'application_id', 'job_applications', null, null),
+    ('workouts',          'routine_id', 'routines', null, null)
+  ) as v(tbl, c1, p1, c2, p2) loop
+    execute format('drop trigger if exists fk_owner on public.%I', r.tbl);
+    if r.c2 is null then
+      execute format('create trigger fk_owner before insert or update on public.%I for each row execute function public.check_fk_owner(%L, %L)', r.tbl, r.c1, r.p1);
+    else
+      execute format('create trigger fk_owner before insert or update on public.%I for each row execute function public.check_fk_owner(%L, %L, %L, %L)', r.tbl, r.c1, r.p1, r.c2, r.p2);
+    end if;
+  end loop;
+end $$;
+
+-- ------------------------------------------------------ 2. foreign-key indexes
+create index if not exists goals_topic_idx            on public.goals (topic_id) where topic_id is not null;
+create index if not exists study_goal_idx             on public.study_sessions (goal_id) where goal_id is not null;
+create index if not exists study_topic_idx            on public.study_sessions (topic_id) where topic_id is not null;
+create index if not exists focus_task_idx             on public.focus_sessions (task_id) where task_id is not null;
+create index if not exists focus_topic_idx            on public.focus_sessions (topic_id) where topic_id is not null;
+create index if not exists notes_goal_idx             on public.notes (goal_id) where goal_id is not null;
+create index if not exists notes_task_idx             on public.notes (task_id) where task_id is not null;
+create index if not exists workouts_routine_idx       on public.workouts (routine_id) where routine_id is not null;
+create index if not exists exercise_logs_exercise_idx on public.exercise_logs (exercise_id) where exercise_id is not null;
+create index if not exists interview_app_idx          on public.interview_events (application_id);
+-- incremental ("changed since") fetches
+create index if not exists habit_logs_updated_idx     on public.habit_logs (user_id, updated_at);
+create index if not exists txn_updated_idx            on public.transactions (user_id, updated_at);
+create index if not exists health_updated_idx         on public.health_logs (user_id, updated_at);
+
+-- ------------------------------------------------------ 3. atomic operations
+-- Both run as the caller (security invoker), so RLS still applies.
+create or replace function public.add_water(p_date date, p_ml int) returns public.health_logs
+language plpgsql set search_path = '' as $$
+declare r public.health_logs;
+begin
+  insert into public.health_logs (log_date, water_ml) values (p_date, greatest(0, least(20000, p_ml)))
+  on conflict (user_id, log_date) do update
+    set water_ml = greatest(0, least(20000, public.health_logs.water_ml + p_ml))
+  returning * into r;
+  return r;
+end $$;
+
+-- Replaces every set of a workout in one transaction (no half-saved edits, no duplicates on retry).
+create or replace function public.replace_exercise_logs(p_workout uuid, p_sets jsonb) returns setof public.exercise_logs
+language plpgsql set search_path = '' as $$
+begin
+  if not exists (select 1 from public.workouts where id = p_workout) then
+    raise exception 'workout not found' using errcode = 'P0002';
+  end if;
+  delete from public.exercise_logs where workout_id = p_workout;
+  return query
+    insert into public.exercise_logs (workout_id, exercise_id, exercise_name, order_index, set_number, reps, weight_kg)
+    select p_workout, s.exercise_id, s.exercise_name, coalesce(s.order_index, 0), coalesce(s.set_number, 1), coalesce(s.reps, 0), coalesce(s.weight_kg, 0)
+    from jsonb_to_recordset(p_sets) as s(exercise_id uuid, exercise_name text, order_index smallint, set_number smallint, reps int, weight_kg numeric)
+    returning *;
+end $$;
+
+revoke all on function public.add_water(date, int) from public, anon;
+revoke all on function public.replace_exercise_logs(uuid, jsonb) from public, anon;
+grant execute on function public.add_water(date, int) to authenticated;
+grant execute on function public.replace_exercise_logs(uuid, jsonb) to authenticated;
+
+
+-- ===== 0005_history_owner_guard_and_user_indexes.sql =====
+-- 0005: the two gaps left after 0004_hardening (idempotent; safe to re-run).
+--  1. application_history.application_id was the one parent link without a same-owner guard. Same mechanism as 0004
+--     (public.check_fk_owner): a user can't point history at another user's application.
+--  2. Three tables that RLS filters by user_id had no user_id-leading index.
+
+drop trigger if exists fk_owner on public.application_history;
+create trigger fk_owner before insert or update on public.application_history
+  for each row execute function public.check_fk_owner('application_id', 'job_applications');
+
+create index if not exists app_history_user_idx   on public.application_history (user_id, changed_at);
+create index if not exists routines_user_idx      on public.routines (user_id);
+create index if not exists savings_goals_user_idx on public.savings_goals (user_id);
+
+
+-- ===== 0006_push_tokens.sql =====
 -- Push notification device tokens. ADDITIVE: one new table and two functions; no existing data is touched.
 -- Clients never write this table directly: they call register_push_token / unregister_push_token (security definer),
 -- so a token can be re-assigned when a different user signs in on the same phone, without opening an RLS hole.
@@ -639,74 +757,16 @@ grant execute on function public.register_push_token(text, text, text) to authen
 grant execute on function public.unregister_push_token(text) to authenticated;
 
 
--- ===== 0005_fk_ownership.sql =====
--- 0005: close the cross-owner foreign-key gap.
--- RLS checks the ROW's user_id, not the rows it points at, so before this migration a signed-in user who learned another
--- user's parent id (uuid) could attach their own child row to it (e.g. a habit_log pointing at someone else's habit).
--- No data is read or changed by this migration; it only adds BEFORE INSERT/UPDATE triggers (additive, reversible with DROP TRIGGER).
--- milestones and notes were already covered by check_same_owner() in 0003.
-
-create or replace function public.enforce_same_owner() returns trigger
-language plpgsql as $$
-declare
-  col text := tg_argv[0];
-  parent text := tg_argv[1];
-  ref uuid := nullif(to_jsonb(new) ->> col, '')::uuid;
-  parent_owner uuid;
-begin
-  if ref is null then return new; end if;               -- optional link left empty
-  execute format('select user_id from public.%I where id = $1', parent) into parent_owner using ref;
-  if parent_owner is distinct from new.user_id then
-    raise exception '% does not belong to this user', col using errcode = '42501';
-  end if;
-  return new;
-end $$;
-
-do $$
-declare l record;
-begin
-  for l in select * from (values
-    ('habit_logs',          'habit_id',       'habits'),
-    ('application_history', 'application_id', 'job_applications'),
-    ('interview_events',    'application_id', 'job_applications'),
-    ('exercise_logs',       'workout_id',     'workouts'),
-    ('exercise_logs',       'exercise_id',    'exercises'),
-    ('goals',               'topic_id',       'learning_topics'),
-    ('study_sessions',      'goal_id',        'goals'),
-    ('study_sessions',      'topic_id',       'learning_topics'),
-    ('workouts',            'routine_id',     'routines'),
-    ('focus_sessions',      'task_id',        'tasks'),
-    ('focus_sessions',      'topic_id',       'learning_topics')
-  ) as t(child, col, parent) loop
-    execute format('drop trigger if exists %I on public.%I', l.child || '_' || l.col || '_owner', l.child);
-    execute format('create trigger %I before insert or update of %I, user_id on public.%I for each row execute function public.enforce_same_owner(%L, %L)',
-      l.child || '_' || l.col || '_owner', l.col, l.child, l.col, l.parent);
-  end loop;
-end $$;
-
-
--- ===== 0006_atomic_increments.sql =====
--- 0006: atomic counters for water intake and savings deposits.
--- The client used to read the cached value, add to it and write the result back. Two devices (or two quick taps in flight)
--- could each write a stale total and silently lose an addition. These functions add inside the database in ONE statement,
--- so concurrent additions always accumulate. SECURITY INVOKER: row-level security still applies, so a user can only touch their own rows.
--- Additive: no existing data or table is changed.
-
-create or replace function public.add_water(p_date date, p_ml int)
-returns public.health_logs
-language plpgsql security invoker set search_path = public as $$
-declare r public.health_logs;
-begin
-  insert into public.health_logs as h (user_id, log_date, water_ml)
-  values (auth.uid(), p_date, greatest(0, p_ml))
-  on conflict (user_id, log_date) do update set water_ml = greatest(0, h.water_ml + p_ml)
-  returning * into r;
-  return r;
-end $$;
+-- ===== 0007_savings_atomic.sql =====
+-- 0007: atomic savings deposits.
+-- The client used to read the cached total, add to it and write it back, so two devices (or two quick taps in flight) could each write a
+-- stale total and silently lose a deposit. This function adds inside the database in ONE statement, so concurrent deposits accumulate.
+-- (add_water, the same fix for water intake, already exists in 0004_hardening.sql.)
+-- SECURITY INVOKER: row-level security still applies, so a user can only touch their own goals. Additive: no existing data or table is changed.
 
 create or replace function public.add_savings(p_goal uuid, p_paise bigint)
 returns public.savings_goals
-language plpgsql security invoker set search_path = public as $$
+language plpgsql security invoker set search_path = '' as $$
 declare r public.savings_goals;
 begin
   if p_paise is null or p_paise <= 0 then raise exception 'Enter an amount greater than 0.'; end if;
@@ -715,5 +775,5 @@ begin
   return r;
 end $$;
 
-revoke all on function public.add_water(date, int), public.add_savings(uuid, bigint) from public, anon;
-grant execute on function public.add_water(date, int), public.add_savings(uuid, bigint) to authenticated;
+revoke all on function public.add_savings(uuid, bigint) from public, anon;
+grant execute on function public.add_savings(uuid, bigint) to authenticated;

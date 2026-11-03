@@ -5,7 +5,10 @@ import { freshBackend, renderApp } from './helpers'
 beforeEach(freshBackend)
 
 describe('public legal pages', () => {
-  it.each([['/privacy', /Privacy Policy/], ['/terms', /Terms of Service/]])('%s is reachable without signing in', async (path, heading) => {
+  it.each([
+    ['/privacy', /Privacy Policy/],
+    ['/terms', /Terms of Service/],
+  ])('%s is reachable without signing in', async (path, heading) => {
     renderApp(path)
     expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Welcome back' })).toBeNull()

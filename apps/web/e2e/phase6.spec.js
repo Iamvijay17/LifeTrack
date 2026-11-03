@@ -7,8 +7,18 @@ test.describe('navigation, search, dashboard', () => {
     page.on('pageerror', (e) => errors.push(e.message))
     await register(page)
     const nav = page.getByRole('navigation', { name: 'Main' })
-    for (const g of ['Overview', 'Productivity', 'Growth', 'Wellness', 'Money', 'Insights', 'System']) await expect(nav.getByText(g, { exact: true })).toBeVisible()
-    for (const [path, heading] of [['/focus', 'Focus Mode'], ['/notes', 'Notes & Journal'], ['/goals', 'Goals & Milestones'], ['/reports', 'Reports'], ['/notifications', 'Notifications'], ['/export', 'Data Export'], ['/analytics', 'Analytics'], ['/settings', 'Settings']]) {
+    for (const g of ['Overview', 'Productivity', 'Growth', 'Wellness', 'Money', 'Insights', 'System'])
+      await expect(nav.getByText(g, { exact: true })).toBeVisible()
+    for (const [path, heading] of [
+      ['/focus', 'Focus Mode'],
+      ['/notes', 'Notes & Journal'],
+      ['/goals', 'Goals & Milestones'],
+      ['/reports', 'Reports'],
+      ['/notifications', 'Notifications'],
+      ['/export', 'Data Export'],
+      ['/analytics', 'Analytics'],
+      ['/settings', 'Settings'],
+    ]) {
       await page.goto(path)
       await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible()
     }
@@ -108,7 +118,11 @@ test.describe('goals', () => {
     const card = page.getByTestId('goal-card').filter({ hasText: 'Launch portfolio' })
     await expect(card).toBeVisible()
     await card.getByRole('button', { name: /Milestones/ }).click()
-    for (const m of ['Design', 'Build']) { await card.getByLabel('New milestone').fill(m); await card.getByRole('button', { name: 'Add', exact: true }).click(); await expect(card.getByText(m, { exact: true })).toBeVisible() }
+    for (const m of ['Design', 'Build']) {
+      await card.getByLabel('New milestone').fill(m)
+      await card.getByRole('button', { name: 'Add', exact: true }).click()
+      await expect(card.getByText(m, { exact: true })).toBeVisible()
+    }
     await card.getByRole('button', { name: 'Mark done: Design' }).click()
     await expect(card.getByText('50%')).toBeVisible()
     await card.getByRole('button', { name: 'Actions for Launch portfolio' }).click()
@@ -174,7 +188,23 @@ test.describe('focus mode', () => {
   test('manual record of a completed block shows in the totals', async ({ page }) => {
     await register(page)
     await page.goto('/focus')
-    await page.evaluate(() => { localStorage.setItem('lifetrack:focus-timer', JSON.stringify({ mode: 'focus', plannedMinutes: 25, endsAt: Date.now() + 1500, pausedLeft: null, taskId: null, topicId: null, label: 'Reading', startedAt: Date.now() - 1500000 })) })
+    await page.evaluate(() => {
+      // the running timer is stored per account
+      const userId = JSON.parse(localStorage.getItem('lifetrack-dev:session')).userId
+      localStorage.setItem(
+        `lifetrack:focus-timer:${userId}`,
+        JSON.stringify({
+          mode: 'focus',
+          plannedMinutes: 25,
+          endsAt: Date.now() + 1500,
+          pausedLeft: null,
+          taskId: null,
+          topicId: null,
+          label: 'Reading',
+          startedAt: Date.now() - 1500000,
+        }),
+      )
+    })
     await page.reload()
     await expect(page.getByText('Focus session complete')).toBeVisible({ timeout: 10_000 })
     await expect(page.getByText('1 completed block')).toBeVisible()

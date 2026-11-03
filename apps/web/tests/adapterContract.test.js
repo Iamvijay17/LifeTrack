@@ -5,5 +5,9 @@ import { setUserId } from '@/services/session'
 
 // The dev/e2e backend must behave like production for everything the app relies on.
 adapterContract({ describe, it, expect, beforeEach }, 'localAdapter (web dev backend)', async () => ({
-  adapter: localAdapter, as: setUserId, reset: async () => { localStorage.clear() },
+  adapter: localAdapter,
+  as: setUserId,
+  reset: async () => {
+    localStorage.clear()
+  },
 }))

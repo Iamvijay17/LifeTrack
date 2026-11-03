@@ -13,7 +13,13 @@ const sb = isSupabaseConfigured
 const USERS = 'lifetrack-dev:users'
 const SESSION = 'lifetrack-dev:session'
 const listeners = new Set()
-const users = () => { try { return JSON.parse(localStorage.getItem(USERS)) ?? [] } catch { return [] } }
+const users = () => {
+  try {
+    return JSON.parse(localStorage.getItem(USERS)) ?? []
+  } catch {
+    return []
+  }
+}
 const hash = async (pw) => {
   if (globalThis.crypto?.subtle) {
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`lt:${pw}`))
@@ -22,16 +28,30 @@ const hash = async (pw) => {
   return btoa(unescape(encodeURIComponent(`lt:${pw}`)))
 }
 const toSession = (u) => (u ? { user: { id: u.id, email: u.email, user_metadata: { display_name: u.name } } } : null)
-const current = () => { try { const id = JSON.parse(localStorage.getItem(SESSION))?.userId; return toSession(users().find((u) => u.id === id)) } catch { return null } }
+const current = () => {
+  try {
+    const id = JSON.parse(localStorage.getItem(SESSION))?.userId
+    return toSession(users().find((u) => u.id === id))
+  } catch {
+    return null
+  }
+}
 const emit = (event) => listeners.forEach((cb) => cb(event, current()))
 
 const local = {
-  async getSession() { return current() },
+  async getSession() {
+    return current()
+  },
   onChange(cb) {
     listeners.add(cb)
-    const onStorage = (e) => { if (e.key === SESSION) cb(current() ? 'SIGNED_IN' : 'SIGNED_OUT', current()) }
+    const onStorage = (e) => {
+      if (e.key === SESSION) cb(current() ? 'SIGNED_IN' : 'SIGNED_OUT', current())
+    }
     window.addEventListener('storage', onStorage)
-    return () => { listeners.delete(cb); window.removeEventListener('storage', onStorage) }
+    return () => {
+      listeners.delete(cb)
+      window.removeEventListener('storage', onStorage)
+    }
   },
   async signUp(email, password, displayName) {
     const list = users()
@@ -48,25 +68,46 @@ const local = {
     localStorage.setItem(SESSION, JSON.stringify({ userId: u.id }))
     emit('SIGNED_IN')
   },
-  async signOut() { localStorage.removeItem(SESSION); emit('SIGNED_OUT') },
-  async sendPasswordReset() { throw new AppError('Password reset emails need a Supabase project. DEV mode has no email delivery.') },
+  async signOut() {
+    localStorage.removeItem(SESSION)
+    emit('SIGNED_OUT')
+  },
+  async sendPasswordReset() {
+    throw new AppError('Password reset emails need a Supabase project. DEV mode has no email delivery.')
+  },
   async updatePassword(password) {
-    const s = current(); if (!s) throw new AppError('Not signed in.')
+    const s = current()
+    if (!s) throw new AppError('Not signed in.')
     const h = await hash(password)
     localStorage.setItem(USERS, JSON.stringify(users().map((u) => (u.id === s.user.id ? { ...u, hash: h } : u))))
   },
   async updateDisplayName(name) {
-    const s = current(); if (!s) throw new AppError('Not signed in.')
+    const s = current()
+    if (!s) throw new AppError('Not signed in.')
     localStorage.setItem(USERS, JSON.stringify(users().map((u) => (u.id === s.user.id ? { ...u, name } : u))))
     emit('USER_UPDATED')
   },
   async deleteAccount() {
-    const s = current(); if (!s) return
+    const s = current()
+    if (!s) return
     localAdapter.wipe()
     localStorage.setItem(USERS, JSON.stringify(users().filter((u) => u.id !== s.user.id)))
     await local.signOut()
   },
 }
 
-export const auth = isSupabaseConfigured ? sb : local
+const unavailableAuth = {
+  getSession: async () => null,
+  onChange: () => () => {},
+  ...Object.fromEntries(
+    ['signUp', 'signIn', 'signOut', 'sendPasswordReset', 'updatePassword', 'updateDisplayName', 'deleteAccount'].map((k) => [
+      k,
+      async () => {
+        throw new AppError('LifeTrack is not connected to a database (missing Supabase configuration).')
+      },
+    ]),
+  ),
+}
+
+export const auth = __BACKEND__ === 'supabase' ? sb : __BACKEND__ === 'local' ? local : unavailableAuth
 export { setUserId }

@@ -150,9 +150,9 @@ export function adapterContract(t, label, setup) {
       await adapter.remove('habits', habit.id)
       expect(await adapter.list('habit_logs')).toHaveLength(0)
     })
-    it('subscribe notifies about your own changes (table name only, never row data) and stops after unsubscribe', async () => {
+    it('subscribe notifies about your own changes (table name first) and stops after unsubscribe', async () => {
       const seen = []
-      const off = adapter.subscribe((table, ...rest) => { seen.push(table); expect(rest).toEqual([]) }, () => {})
+      const off = adapter.subscribe((table) => { seen.push(table) }, () => {})
       await new Promise((r) => setTimeout(r, 5))
       await adapter.insert('tasks', [task('mine')])
       await new Promise((r) => setTimeout(r, 20))

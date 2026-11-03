@@ -17,7 +17,7 @@ reminders table ──(every minute)──▶ send-reminders Edge Function ─�
 2. **Android push (FCM v1)** — create a Firebase project, add the Android app (`com.aatralex.lifetrack`), upload the FCM service-account key to EAS
    (`eas credentials`), and provide `google-services.json` as an EAS **file** secret named `GOOGLE_SERVICES_JSON`. Never commit it.
 3. **iOS push (APNs)** — needs an Apple Developer account; EAS creates and stores the key (`eas credentials`). iOS push cannot be tested in the simulator.
-4. **Database** — apply migrations `0004_push_tokens.sql`, `0005_fk_ownership.sql` (triggers only) and `0006_atomic_increments.sql` (two functions). All are additive or re-run the regenerated `supabase/setup-all.sql` on a fresh project.
+4. **Database** — apply migrations `0004_hardening.sql`, `0005_history_owner_guard_and_user_indexes.sql` (ownership guards, indexes, atomic functions), `0006_push_tokens.sql` (push tokens) and `0007_savings_atomic.sql` (`add_savings`), or re-run the regenerated `supabase/setup-all.sql` on a fresh project. All are additive.
 5. **Edge Function**
    ```bash
    supabase secrets set CRON_SECRET=<a long random string>

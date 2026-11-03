@@ -35,3 +35,6 @@ export const lpaToPaise = (lpa: unknown): number | null => {
   return p == null ? null : p * 100000
 }
 export const paiseToLpa = (paise: number | null | undefined): number | null => (paise == null ? null : paise / 100 / 100000)
+
+/** '12 LPA' for a stored package (paise per year), or null when there is none. */
+export const formatLpa = (paise: number | null | undefined): string | null => (paise == null ? null : `${paiseToLpa(paise)} LPA`)

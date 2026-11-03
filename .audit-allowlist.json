@@ -1,0 +1,12 @@
+[
+  {
+    "id": "GHSA-g3hv-75wg-m249",
+    "reason": "minimatch DoS reachable only through @expo/cli and jest build/test tooling (dependency of expo); never bundled into the app or run on user input.",
+    "reviewBy": "2027-02-01"
+  },
+  {
+    "id": "GHSA-3g3m-2fjr-6pw4",
+    "reason": "glob AbortSignal issue reachable only through @expo/cli build tooling; never bundled into the app or run on user input.",
+    "reviewBy": "2027-02-01"
+  }
+]

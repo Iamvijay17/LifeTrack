@@ -18,7 +18,7 @@ Money is stored in integer paise, dates as `yyyy-MM-dd` strings in the user's ti
 - CI/CD: [docs/CI.md](docs/CI.md) · deploying: [docs/DEPLOY.md](docs/DEPLOY.md) · **releasing: [docs/RELEASE.md](docs/RELEASE.md)** · [docs/RELEASE_AUDIT.md](docs/RELEASE_AUDIT.md)
 - Privacy/terms drafts and store copy: [docs/legal](docs/legal), [docs/store](docs/store)
 
-`pnpm verify` runs the whole local quality gate (typecheck, secrets scan, all tests with coverage thresholds, RLS suite, SQL and migration checks).
+`pnpm verify` runs the whole local quality gate (typecheck, lint and formatting, secrets scan, all tests with coverage thresholds, RLS suite, SQL and migration checks).
 
 ## Honest status
 **Automated and passing locally:** unit/component tests across all packages, the RLS suite (every user-owned table and foreign key), real-PostgreSQL concurrency tests,
@@ -40,4 +40,7 @@ push delivery on real iOS/Android devices. Treat each as implemented-but-unprove
 - DEV-mode local auth (no Supabase env) is for development only and is not secure.
 
 ## Existing Supabase projects
-Apply new migrations in order (`supabase/migrations`, additive); `supabase/setup-all.sql` is regenerated with `pnpm sql:build`. See docs/DEPLOY.md.
+Apply the migrations you have not applied yet, in order (`supabase/migrations`): `0004_hardening.sql` (ownership guards, indexes, atomic `add_water` / `replace_exercise_logs`), `0005_history_owner_guard_and_user_indexes.sql`, `0006_push_tokens.sql` (mobile push) and `0007_savings_atomic.sql` (`add_savings`). They are additive and safe to re-run; `supabase/setup-all.sql` contains them all and is regenerated with `pnpm sql:build`. See docs/DEPLOY.md.
+
+## Loading UI
+`apps/web/src/components/loaders/` (LifeTrack Progress Orbit): pure CSS/SVG, transform and opacity only, honours `prefers-reduced-motion`, no percentages when progress is unknown. Verified in headless Chromium (desktop, 360px mobile, dark/light, reduced motion); not profiled on physical low-end phones.

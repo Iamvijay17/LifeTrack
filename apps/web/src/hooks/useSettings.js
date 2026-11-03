@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import { useTable, upsert } from './store'
 import { DEFAULTS } from '@lifetrack/constants/schema'
-import { useAuth } from './useAuth'
 
 export function useSettings() {
   const { rows, loading, error } = useTable('user_settings')

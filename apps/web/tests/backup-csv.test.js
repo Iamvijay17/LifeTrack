@@ -16,9 +16,17 @@ describe('backup + csv', () => {
     expect(() => parseBackup(JSON.stringify({ ...ok, tables: { tasks: [{ title: 'no id' }] } }))).toThrow()
   })
   it('CSV escapes quotes/commas and neutralises spreadsheet formulas', () => {
-    const csv = toCsv([{ a: 'He said "hi", ok', b: '=SUM(A1)' }, { a: '-5', b: '@cmd' }], [{ header: 'A', value: (r) => r.a }, { header: 'B', value: (r) => r.b }])
+    const csv = toCsv(
+      [
+        { a: 'He said "hi", ok', b: '=SUM(A1)' },
+        { a: '-5', b: '@cmd' },
+      ],
+      [
+        { header: 'A', value: (r) => r.a },
+        { header: 'B', value: (r) => r.b },
+      ],
+    )
     expect(csv).toContain('"He said ""hi"", ok",\'=SUM(A1)')
     expect(csv).toContain("-5,'@cmd") // plain numbers are untouched
   })
 })
-

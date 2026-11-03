@@ -12,10 +12,20 @@ export default function LegalPage({ doc }) {
   return (
     <div className="min-h-dvh">
       <div className="mx-auto w-full max-w-2xl px-5 py-10">
-        <Link to="/" className="mb-8 inline-block"><Logo /></Link>
-        <article className="prose-sm"><Markdown source={DOCS[doc]} /></article>
+        <Link to="/" className="mb-8 inline-block">
+          <Logo />
+        </Link>
+        <article className="prose-sm">
+          <Markdown source={DOCS[doc]} />
+        </article>
         <p className="mt-10 text-sm text-muted-foreground">
-          <Link className="text-secondary hover:underline" to="/privacy">Privacy policy</Link> · <Link className="text-secondary hover:underline" to="/terms">Terms of service</Link>
+          <Link className="text-secondary hover:underline" to="/privacy">
+            Privacy policy
+          </Link>{' '}
+          ·{' '}
+          <Link className="text-secondary hover:underline" to="/terms">
+            Terms of service
+          </Link>
         </p>
       </div>
     </div>

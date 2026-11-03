@@ -22,5 +22,10 @@ export async function signedInUser(email = 'ann@example.com', name = 'Ann') {
   return s
 }
 
-export const renderApp = (path = '/') => render(<MemoryRouter initialEntries={[path]}><App /></MemoryRouter>)
+export const renderApp = (path = '/') =>
+  render(
+    <MemoryRouter initialEntries={[path]}>
+      <App />
+    </MemoryRouter>,
+  )
 export { db }

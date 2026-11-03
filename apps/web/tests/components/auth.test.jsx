@@ -27,7 +27,8 @@ describe('login form', () => {
     expect(screen.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'true')
   })
   it('shows the backend error for a wrong password and stays signed out', async () => {
-    await auth.signUp('ann@example.com', 'secret123', 'Ann'); await auth.signOut()
+    await auth.signUp('ann@example.com', 'secret123', 'Ann')
+    await auth.signOut()
     renderApp('/login')
     await userEvent.type(await screen.findByLabelText('Email'), 'ann@example.com')
     await userEvent.type(screen.getByLabelText('Password'), 'nope-nope')
@@ -36,7 +37,8 @@ describe('login form', () => {
     expect(await auth.getSession()).toBeNull()
   })
   it('signs in with correct credentials and lands in the app', async () => {
-    await auth.signUp('ann@example.com', 'secret123', 'Ann'); await auth.signOut()
+    await auth.signUp('ann@example.com', 'secret123', 'Ann')
+    await auth.signOut()
     renderApp('/login')
     await userEvent.type(await screen.findByLabelText('Email'), 'ann@example.com')
     await userEvent.type(screen.getByLabelText('Password'), 'secret123')

@@ -105,7 +105,7 @@ describe('reminder runner helpers', () => {
     expect(dueReminders([{ ...r, remind_date: '2026-11-01' }], '2026-11-02', clientNowTime('00:00'))).toHaveLength(1) // yesterday's: due regardless
   })
   it('labels, prefs and ordering', () => {
-    expect([kindLabel('bill'), repeatLabel('weekly'), kindLabel('x')]).toEqual(['Bill', 'Weekly', 'x'])
+    expect([kindLabel('bill'), repeatLabel('weekly'), kindLabel('x')]).toEqual(['Bill', 'Weekly', undefined])
     expect([prefEnabled({ task: false }, 'task'), prefEnabled({ task: false }, 'bill'), prefEnabled(undefined, 'bill')]).toEqual([false, true, true])
     expect(sortInbox([{ id: 'a', created_at: '2026-11-01T00:00:00Z' }, { id: 'b', created_at: '2026-11-02T00:00:00Z' }]).map((n) => n.id)).toEqual(['b', 'a'])
     expect(sortReminders([{ id: 'off', active: false, remind_date: '2026-11-01', remind_time: '08:00' }, { id: 'late', active: true, remind_date: '2026-11-03', remind_time: '08:00' }, { id: 'soon', active: true, remind_date: '2026-11-02', remind_time: '09:00' }]).map((r) => r.id)).toEqual(['soon', 'late', 'off'])

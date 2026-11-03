@@ -43,6 +43,12 @@ export function fakeDb() {
         if (!ex) throw new Error('Savings goal not found.')
         ex.saved_paise += args.p_paise; return { ...ex }
       }
+      if (fn === 'replace_exercise_logs') {
+        tables.exercise_logs = rows('exercise_logs').filter((x) => x.workout_id !== args.p_workout)
+        const fresh = args.p_sets.map((x: any) => ({ ...(DEFAULTS as any).exercise_logs, id: newId(), user_id: 'u1', ...x, workout_id: args.p_workout }))
+        fresh.forEach((r: any) => rows('exercise_logs').push(r))
+        return fresh.map((r: any) => ({ ...r }))
+      }
       throw new Error(`unknown function ${fn}`)
     },
     async remove(t, id) { tables[t] = rows(t).filter((x) => x.id !== id) },
