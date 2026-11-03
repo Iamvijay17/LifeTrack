@@ -19,11 +19,12 @@ export function paiseToInput(paise: number | null | undefined): string {
 }
 
 export function formatMoney(paise: number | null | undefined, currency = 'INR', { compact = false }: { compact?: boolean } = {}): string {
-  const cfg = CURRENCIES[currency] ?? CURRENCIES.INR
+  const code = CURRENCIES[currency] ? currency : 'INR' // unknown codes fall back to INR consistently (locale, symbol and currency)
+  const cfg = CURRENCIES[code]
   const value = (paise ?? 0) / 100
   const hasFraction = !compact && Math.abs(paise ?? 0) % 100 !== 0
   return new Intl.NumberFormat(cfg.locale, {
-    style: 'currency', currency, notation: compact ? 'compact' : 'standard',
+    style: 'currency', currency: code, notation: compact ? 'compact' : 'standard',
     minimumFractionDigits: hasFraction ? 2 : 0, maximumFractionDigits: compact ? 1 : 2,
   }).format(value)
 }

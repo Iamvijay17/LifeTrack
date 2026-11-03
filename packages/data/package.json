@@ -4,13 +4,24 @@
   "private": true,
   "type": "module",
   "main": "src/index.js",
-  "exports": { ".": "./src/index.js", "./*": "./src/*.js" },
-  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run --passWithNoTests" },
+  "exports": {
+    ".": "./src/index.js",
+    "./*": "./src/*.js"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:coverage": "vitest run --coverage"
+  },
   "dependencies": {
     "@lifetrack/constants": "workspace:*",
     "@lifetrack/core": "workspace:*",
     "@lifetrack/utils": "workspace:*",
     "@supabase/supabase-js": "^2.118.0"
   },
-  "devDependencies": { "typescript": "^5.9.0", "vitest": "^5.0.5" }
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "vitest": "^5.0.5",
+    "@lifetrack/schemas": "workspace:*"
+  }
 }

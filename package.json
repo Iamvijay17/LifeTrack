@@ -2,17 +2,21 @@
   "name": "lifetrack-monorepo",
   "private": true,
   "packageManager": "pnpm@10.28.0",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "pnpm --filter @lifetrack/web dev",
     "build": "pnpm --filter @lifetrack/web build",
     "test": "pnpm -r --if-present test",
     "test:e2e": "pnpm --filter @lifetrack/web test:e2e",
     "test:sql": "node scripts/verify-sql.mjs",
-    "sql:build": "node scripts/build-setup-sql.mjs"
+    "sql:build": "node scripts/build-setup-sql.mjs",
+    "test:coverage": "pnpm -r --if-present test:coverage"
   },
   "devDependencies": {
-    "typescript": "^5.9.0",
-    "@electric-sql/pglite": "^0.5.14"
+    "@electric-sql/pglite": "^0.5.14",
+    "@vitest/coverage-v8": "5.0.5",
+    "typescript": "^5.9.0"
   }
 }

@@ -80,7 +80,7 @@ export const localAdapter = {
     const i = rows.findIndex((r) => r.id === id)
     if (i < 0) throw new AppError('That record could not be found.', { code: 'PGRST116' })
     const { user_id, id: _id, created_at, ...clean } = patch
-    const next = { ...rows[i], ...clone(clean), updated_at: new Date().toISOString() }
+    const next = { ...rows[i], ...clone(clean), updated_at: monotonicNow() }
     if (violatesUnique(table, rows, next, id)) throw dup()
     afterWrite(db, table, next, rows[i])
     rows[i] = next
@@ -99,7 +99,7 @@ export const localAdapter = {
       if (i >= 0) {
         if (ignoreDuplicates) continue
         const { id, created_at, ...rest } = candidate
-        const next = { ...rows[i], ...clone(rest), updated_at: new Date().toISOString() }
+        const next = { ...rows[i], ...clone(rest), updated_at: monotonicNow() }
         if (violatesUnique(table, rows, next, rows[i].id)) throw dup()
         afterWrite(db, table, next, rows[i])
         rows[i] = next; out.push(next)

@@ -3,8 +3,19 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": { "./*": "./src/*.js" },
-  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run --passWithNoTests" },
-  "dependencies": { "@lifetrack/utils": "workspace:*" },
-  "devDependencies": { "typescript": "^5.9.0", "vitest": "^5.0.5" }
+  "exports": {
+    "./*": "./src/*.js"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@lifetrack/utils": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "vitest": "^5.0.5"
+  }
 }

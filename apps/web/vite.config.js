@@ -40,5 +40,13 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./tests/setup.js'],
     include: ['tests/**/*.test.{js,jsx}'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{js,jsx}'],
+      reporter: ['text-summary', 'json-summary'],
+      reportsDirectory: './coverage',
+      // Only the unit-testable logic is gated. Screens/hooks are exercised by Playwright and (Checkpoint B) component tests.
+      thresholds: { 'src/services/**': { lines: 95, branches: 80 } },
+    },
   },
 })
