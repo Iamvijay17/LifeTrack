@@ -4,7 +4,7 @@
 |---|---|---|---|
 | `ci.yml` (PR gate) | every PR, pushes to main | typecheck, secrets scan, `setup-all.sql` and migration checks; all unit/component tests with coverage gates; RLS + real-PostgreSQL tests; Deno tests of the Edge Function; web build + Playwright; mobile bundle | `pnpm verify` (+ `pnpm test:e2e`, `pnpm --filter @lifetrack/mobile export`) |
 | `ci-backend.yml` | nightly, manual, PRs touching `supabase/**` / data layer | migrations on a real Supabase stack, RLS through the HTTP API, two-device Realtime sync | `supabase start`, then see *API-level RLS* in SETUP.md |
-| `mobile-build.yml` | manual or `mobile-v*` tag; **off** until `EAS_ENABLED=true` | EAS preview/production builds after the same gates | docs/NATIVE.md |
+| `mobile-build.yml` | manual or `mobile-v*` tag; needs the `EXPO_TOKEN` secret (fails at its first step with a clear message otherwise) | EAS preview/production builds after the same gates | docs/NATIVE.md |
 | `db-migrate.yml` | manual only | dry run, safety check, then apply to staging/production | docs/DEPLOY.md |
 | `deploy-functions.yml` | manual only | tests then deploys `send-reminders` | docs/DEPLOY.md |
 | `deploy-web.yml` | manual only | production build + bundle secrets scan, artifact | docs/DEPLOY.md |
@@ -16,7 +16,7 @@ After the first green run of `ci.yml`, require these jobs in *Settings > Branche
 until it has been green for a while; it is slower and depends on the Supabase CLI image.
 
 ## Secrets and variables
-No workflow needs the Supabase service-role key. Per-Environment values are listed in DEPLOY.md; `EXPO_TOKEN` and `EAS_ENABLED` in NATIVE.md.
+No workflow needs the Supabase service-role key. Per-Environment values are listed in DEPLOY.md; `EXPO_TOKEN` in NATIVE.md.
 Workflows request `contents: read` only.
 
 ## Dependencies

@@ -1,7 +1,7 @@
 name: Mobile build (EAS)
 
-# DORMANT until you opt in: set the repository variable EAS_ENABLED=true (after `eas init`, see docs/NATIVE.md) and add the
-# EXPO_TOKEN secret. Builds are manual or tag-triggered; nothing is submitted to a store from here.
+# Needs the EXPO_TOKEN secret (Settings > Secrets and variables > Actions) and a finished `eas init` (docs/NATIVE.md). Without the token
+# the first step FAILS WITH A CLEAR MESSAGE instead of skipping silently. Builds are manual or tag-triggered; nothing is submitted to a store.
 on:
   workflow_dispatch:
     inputs:
@@ -28,7 +28,6 @@ concurrency:
 jobs:
   build:
     name: eas build
-    if: vars.EAS_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # The 'production' Environment should have required reviewers (Settings > Environments) so a production build needs approval.
@@ -37,6 +36,14 @@ jobs:
       PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'preview' }}
       PLATFORM: ${{ github.event_name == 'workflow_dispatch' && inputs.platform || 'android' }}
     steps:
+      - name: Check prerequisites
+        env:
+          HAS_TOKEN: ${{ secrets.EXPO_TOKEN != '' }}
+        run: |
+          if [ "$HAS_TOKEN" != "true" ]; then
+            echo "::error title=EXPO_TOKEN is missing::Create an access token at expo.dev > Account settings > Access tokens, then add it as a repository secret named EXPO_TOKEN (Settings > Secrets and variables > Actions). Also run 'eas init' once in apps/mobile and set the EAS environment variables (docs/NATIVE.md)."
+            exit 1
+          fi
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v7
