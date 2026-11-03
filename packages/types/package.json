@@ -8,5 +8,5 @@
   "exports": { ".": "./src/index.ts" },
   "scripts": { "typecheck": "tsc --noEmit" },
   "dependencies": { "@lifetrack/schemas": "workspace:*", "zod": "^4.6.6" },
-  "devDependencies": { "typescript": "^5.9.0" }
+  "devDependencies": { "typescript": "^7.0.2" }
 }
