@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { View } from 'react-native'
 import { CATEGORIES_BY_TYPE, PAYMENT_METHODS, TX_TYPES } from '@lifetrack/core/finance'
 import { CURRENCIES } from '@lifetrack/utils'
 import { blankSavingsGoal, blankTransaction, parseAmountOrThrow, savingsGoalFormSchema, savingsGoalToForm, savingsGoalToPayload, transactionFormSchema, transactionToForm, transactionToPayload } from '@lifetrack/schemas'
@@ -7,10 +8,13 @@ import { useAction } from '../../hooks/useAction'
 import { useSettings } from '../../hooks/useSettings'
 import { useZodForm } from '../../hooks/useZodForm'
 import { Sheet } from '../../ui/Sheet'
-import { ChipGroup, DateField, Segmented } from '../../ui/controls'
+import { Chip, ChipGroup, DateField, Segmented } from '../../ui/controls'
 import { Button, Field, Txt } from '../../ui'
 
 type TxType = 'expense' | 'income' | 'savings'
+
+// Categories typed in during this app session, per transaction type (saved rows keep their own category anyway).
+const customCats: Record<TxType, string[]> = { expense: [], income: [], savings: [] }
 
 export function TransactionForm({ visible, txn, defaultType, today, onClose }: { visible: boolean; txn: any | null; defaultType: TxType; today: string; onClose: () => void }) {
   const { settings } = useSettings()
@@ -25,13 +29,27 @@ export function TransactionForm({ visible, txn, defaultType, today, onClose }: {
     onClose()
   })
   const type = values.type as TxType
-  const cats = [...new Set([...(CATEGORIES_BY_TYPE as Record<TxType, string[]>)[type], values.category])].filter(Boolean)
+  const [adding, setAdding] = useState(false)
+  const [custom, setCustom] = useState('')
+  const cats = [...new Set([...(CATEGORIES_BY_TYPE as Record<TxType, string[]>)[type], ...customCats[type], values.category])].filter(Boolean)
+  const commitCustom = () => {
+    const name = custom.trim().slice(0, 40)
+    if (name) { if (!cats.includes(name)) customCats[type].push(name); set('category', name) }
+    setAdding(false)
+    setCustom('')
+  }
   return (
     <Sheet visible={visible} title={txn ? 'Edit transaction' : 'Add transaction'} onClose={onClose} footer={<Button title={txn ? 'Save changes' : 'Add'} onPress={save} loading={pending} />}>
       <Segmented value={type} options={TX_TYPES as { value: TxType; label: string }[]} onChange={(v) => { set('type', v); if (!(CATEGORIES_BY_TYPE as Record<TxType, string[]>)[v].includes(values.category)) set('category', first(v)) }} />
       <Field label={`Amount (${CURRENCIES[settings.currency]?.symbol ?? '₹'})`} value={values.amount} onChangeText={(t) => set('amount', t)} error={errors.amount} keyboardType="decimal-pad" placeholder="0.00" autoFocus={!txn} />
       <DateField label="Date" value={values.txn_date} onChange={(v) => set('txn_date', v)} error={errors.txn_date} />
       <ChipGroup label="Category" value={values.category} options={cats.map((c) => ({ value: c, label: c }))} onChange={(v) => set('category', v)} />
+      {adding ? (
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}>
+          <View style={{ flex: 1 }}><Field label="New category" value={custom} onChangeText={setCustom} placeholder="e.g. Rent" maxLength={40} autoFocus onSubmitEditing={commitCustom} /></View>
+          <Button title="Add" onPress={commitCustom} />
+        </View>
+      ) : <View style={{ flexDirection: 'row' }}><Chip label="+ Add new category" onPress={() => setAdding(true)} /></View>}
       <ChipGroup label="Payment method" value={values.payment_method} options={(PAYMENT_METHODS as string[]).map((m) => ({ value: m as typeof values.payment_method, label: m }))} onChange={(v) => set('payment_method', v)} />
       <Field label="Note" value={values.note} onChangeText={(t) => set('note', t)} placeholder="Optional" maxLength={300} />
     </Sheet>

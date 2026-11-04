@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest'
+import { pickDate } from './pickers'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, renderHook, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -272,9 +273,9 @@ describe('useDateRange / DateRangePicker', () => {
     await user.click(screen.getByRole('tab', { name: 'This week' }))
     expect(screen.getByTestId('r')).toHaveTextContent('2026-11-02→2026-11-08')
     await user.click(screen.getByRole('tab', { name: 'Custom' }))
-    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-10-10' } })
+    await pickDate(user, screen.getByLabelText('From'), '2026-10-10')
     expect(screen.getByTestId('r')).toHaveTextContent('2026-10-10→2026-11-02')
-    fireEvent.change(screen.getByLabelText('From'), { target: { value: '' } })
+    await pickDate(user, screen.getByLabelText('From'), '')
     expect(screen.getByTestId('r')).toHaveTextContent('2026-10-10→2026-11-02') // cleared input is ignored
   })
   it('default labels', () => {

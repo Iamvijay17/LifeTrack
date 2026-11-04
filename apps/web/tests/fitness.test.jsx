@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest'
+import { pickOption } from './pickers'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, within, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -308,7 +309,7 @@ describe('WorkoutDialog', () => {
     const user = userEvent.setup()
     render(<WorkoutDialog {...base} />)
     expect(screen.queryByLabelText('Exercise 1')).toBeNull()
-    await user.selectOptions(screen.getByLabelText('Routine (optional)'), 'r1')
+    await pickOption(user, screen.getByLabelText('Routine (optional)'), 'r1')
     expect(screen.getByLabelText('Exercise 1')).toHaveValue('Bench Press')
     expect(screen.getByLabelText('Name')).toHaveValue('Push day')
   })
@@ -335,7 +336,7 @@ describe('WorkoutDialog', () => {
   it('cardio workouts hide the exercise list and show cardio fields', async () => {
     const user = userEvent.setup()
     render(<WorkoutDialog {...base} routineId="r1" />)
-    await user.selectOptions(screen.getByLabelText('Type'), 'cardio')
+    await pickOption(user, screen.getByLabelText('Type'), 'cardio')
     expect(screen.queryByLabelText('Exercise 1')).toBeNull()
     expect(screen.getByLabelText('Distance (km)')).toBeInTheDocument()
   })
@@ -431,7 +432,7 @@ describe('ExerciseDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Name the exercise')).toBeInTheDocument()
     await user.type(screen.getByLabelText('Name'), 'Face Pull')
-    await user.selectOptions(screen.getByLabelText('Muscle group'), 'Shoulders')
+    await pickOption(user, screen.getByLabelText('Muscle group'), 'Shoulders')
     await user.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() =>
       expect(mocks.insert).toHaveBeenCalledWith('exercises', { name: 'Face Pull', muscle_group: 'Shoulders', equipment: '' }),
@@ -524,13 +525,13 @@ describe('WeeklyPlan and RoutinesTab', () => {
         onPlan={onPlan}
       />,
     )
-    expect(screen.getByLabelText('Plan for Monday')).toHaveValue('r1')
+    expect(screen.getByLabelText('Plan for Monday')).toHavePickerValue('r1')
     expect(screen.getByText('Done')).toBeInTheDocument()
     expect(screen.getByText('Rest')).toBeInTheDocument()
     expect(screen.getByText('TODAY')).toBeInTheDocument()
-    await user.selectOptions(screen.getByLabelText('Plan for Tuesday'), 'rest')
+    await pickOption(user, screen.getByLabelText('Plan for Tuesday'), 'rest')
     expect(onPlan).toHaveBeenCalledWith('2', 'rest')
-    await user.selectOptions(screen.getByLabelText('Plan for Monday'), '')
+    await pickOption(user, screen.getByLabelText('Plan for Monday'), '')
     expect(onPlan).toHaveBeenCalledWith('1', '')
   })
   it('tells you to create a routine first when there are none', () => {

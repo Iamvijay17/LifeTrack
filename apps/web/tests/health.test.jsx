@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest'
+import { pickTime } from './pickers'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -135,19 +136,19 @@ describe('DailyLogForm', () => {
   it('shows the live sleep duration for an overnight sleep', async () => {
     const user = userEvent.setup()
     form()
-    fireEvent.change(screen.getByLabelText('Bedtime'), { target: { value: '23:30' } })
-    fireEvent.change(screen.getByLabelText('Wake-up'), { target: { value: '06:30' } })
+    await pickTime(user, screen.getByLabelText('Bedtime'), '23:30')
+    await pickTime(user, screen.getByLabelText('Wake-up'), '06:30')
     expect(await screen.findByTestId('sleep-duration')).toHaveTextContent('7h')
     expect(user).toBeTruthy()
   })
   it('requires both times together and rejects identical ones', async () => {
     const user = userEvent.setup()
     form()
-    fireEvent.change(screen.getByLabelText('Bedtime'), { target: { value: '23:00' } })
+    await pickTime(user, screen.getByLabelText('Bedtime'), '23:00')
     await user.click(submit())
     expect(await screen.findByText('Enter both bedtime and wake-up time')).toBeInTheDocument()
     expect(mocks.saveHealth).not.toHaveBeenCalled()
-    fireEvent.change(screen.getByLabelText('Wake-up'), { target: { value: '23:00' } })
+    await pickTime(user, screen.getByLabelText('Wake-up'), '23:00')
     await user.click(submit())
     expect(await screen.findByText('Bedtime and wake-up time can’t be identical')).toBeInTheDocument()
   })

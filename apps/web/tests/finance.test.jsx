@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest'
+import { pickOption } from './pickers'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -141,7 +142,7 @@ describe('TransactionDialog', () => {
     expect(await screen.findByText('Enter an amount greater than 0 (max 2 decimals)')).toBeInTheDocument()
     await user.clear(screen.getByLabelText(/Amount/))
     await user.type(screen.getByLabelText(/Amount/), '99.5')
-    await user.selectOptions(screen.getByLabelText('Payment method'), 'Cash')
+    await pickOption(user, screen.getByLabelText('Payment method'), 'Cash')
     await user.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() =>
       expect(mocks.insert).toHaveBeenCalledWith(
@@ -154,7 +155,7 @@ describe('TransactionDialog', () => {
     const user = userEvent.setup()
     open()
     await user.click(screen.getByRole('tab', { name: 'Income' }))
-    expect(screen.getByLabelText('Category')).toHaveValue('Salary')
+    expect(screen.getByLabelText('Category')).toHavePickerValue('Salary')
   })
   it('prefills when editing and updates the same record', async () => {
     const user = userEvent.setup()

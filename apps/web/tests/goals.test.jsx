@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest'
+import { pickDate } from './pickers'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -169,7 +170,7 @@ describe('Milestones', () => {
     const user = userEvent.setup()
     list([M({ position: 0 }), M({ position: 4 })])
     await user.type(screen.getByLabelText('New milestone'), '  Design  ')
-    fireEvent.change(screen.getByLabelText('Milestone due date'), { target: { value: '2026-11-20' } })
+    await pickDate(user, screen.getByLabelText('Milestone due date'), '2026-11-20')
     await user.click(screen.getByRole('button', { name: 'Add' }))
     await waitFor(() =>
       expect(mocks.insert).toHaveBeenCalledWith('milestones', { goal_id: 'g1', title: 'Design', due_date: '2026-11-20', position: 5 }),
@@ -204,8 +205,8 @@ describe('GoalDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Create goal' }))
     expect(await screen.findByText('Name the goal')).toBeInTheDocument()
     await user.type(screen.getByLabelText('Goal'), 'X')
-    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-12-10' } })
-    fireEvent.change(screen.getByLabelText('Target date'), { target: { value: '2026-12-01' } })
+    await pickDate(user, screen.getByLabelText('Start date'), '2026-12-10')
+    await pickDate(user, screen.getByLabelText('Target date'), '2026-12-01')
     await user.click(screen.getByRole('button', { name: 'Create goal' }))
     expect(await screen.findByText('Target date must be on or after the start date')).toBeInTheDocument()
     expect(mocks.insert).not.toHaveBeenCalled()
@@ -213,8 +214,8 @@ describe('GoalDialog', () => {
   it('stores hours as minutes and blank dates as null; defaults the start to today and the period to the filter', async () => {
     const user = userEvent.setup()
     open({ defaultPeriod: 'yearly' })
-    expect(screen.getByLabelText('Start date')).toHaveValue(TODAY)
-    expect(screen.getByLabelText('Type')).toHaveValue('yearly')
+    expect(screen.getByLabelText('Start date')).toHavePickerValue(TODAY)
+    expect(screen.getByLabelText('Type')).toHavePickerValue('yearly')
     await user.type(screen.getByLabelText('Goal'), 'Read 20 books')
     await user.clear(screen.getByLabelText('Study target (hours)'))
     await user.type(screen.getByLabelText('Study target (hours)'), '1.5')
@@ -231,7 +232,7 @@ describe('GoalDialog', () => {
     open({ goal: G({ title: 'Ship v1', target_minutes: 600, manual_progress: 40, due_date: '2026-12-31', category: 'Fitness' }) })
     expect(screen.getByLabelText('Study target (hours)')).toHaveValue(10)
     expect(screen.getByLabelText('Manual progress (%)')).toHaveValue(40)
-    expect(screen.getByLabelText('Category')).toHaveValue('Fitness')
+    expect(screen.getByLabelText('Category')).toHavePickerValue('Fitness')
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     await waitFor(() =>
       expect(mocks.update).toHaveBeenCalledWith(

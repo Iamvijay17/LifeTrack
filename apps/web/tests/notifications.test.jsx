@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest'
+import { pickOption } from './pickers'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, renderHook, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
@@ -121,8 +122,8 @@ describe('ReminderDialog', () => {
     const user = userEvent.setup()
     open()
     await user.type(screen.getByLabelText('Remind me to'), '  Pay rent  ')
-    await user.selectOptions(screen.getByLabelText('Type'), 'bill')
-    await user.selectOptions(screen.getByLabelText('Repeat'), 'monthly')
+    await pickOption(user, screen.getByLabelText('Type'), 'bill')
+    await pickOption(user, screen.getByLabelText('Repeat'), 'monthly')
     await user.click(screen.getByRole('button', { name: 'Set reminder' }))
     await waitFor(() =>
       expect(mocks.insert).toHaveBeenCalledWith('reminders', {
@@ -153,8 +154,8 @@ describe('ReminderDialog', () => {
   it('editing pre-fills (time without seconds) and re-arms the reminder', async () => {
     const user = userEvent.setup()
     open({ reminder: R({ id: 'r9', title: 'Gym', kind: 'workout', repeat: 'weekly', remind_time: '18:30:00' }) })
-    expect(screen.getByLabelText(/^Time/)).toHaveValue('18:30')
-    expect(screen.getByLabelText('Repeat')).toHaveValue('weekly')
+    expect(screen.getByLabelText(/^Time/)).toHavePickerValue('18:30')
+    expect(screen.getByLabelText('Repeat')).toHavePickerValue('weekly')
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     await waitFor(() =>
       expect(mocks.update).toHaveBeenCalledWith(

@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest'
+import { expect } from 'vitest'
 import { configure } from '@testing-library/react'
 
 // CI runners (especially with coverage on) are slow: the first render of a lazily imported page can take longer than the 1s default.
@@ -23,3 +24,14 @@ if (!window.ResizeObserver)
     disconnect() {}
   }
 if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {}
+
+// Our Select / date / time pickers keep their value in a hidden <input> next to the trigger button.
+expect.extend({
+  toHavePickerValue(trigger, expected) {
+    const actual = trigger.parentElement?.querySelector('input[hidden]')?.value
+    return {
+      pass: actual === expected,
+      message: () => `expected picker value ${JSON.stringify(actual)} ${this.isNot ? 'not ' : ''}to be ${JSON.stringify(expected)}`,
+    }
+  },
+})

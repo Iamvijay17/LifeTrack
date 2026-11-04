@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest'
+import { pickOption } from './pickers'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, renderHook, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -253,11 +254,12 @@ describe('TimerCard', () => {
     const user = userEvent.setup()
     card({ setup: { ...base.setup, preset: 'custom' } })
     expect(screen.getByLabelText('Minutes')).toHaveValue(30)
-    await user.selectOptions(screen.getByLabelText('Working on'), 'task:t1')
+    await pickOption(user, screen.getByLabelText('Working on'), 'task:t1')
     expect(base.onSetup).toHaveBeenLastCalledWith({ mode: 'focus', preset: 'custom', custom: '30', target: 'task:t1', label: '' })
   })
-  it('lists open tasks and learning topics to work on', () => {
+  it('lists open tasks and learning topics to work on', async () => {
     card()
+    await userEvent.setup().click(screen.getByLabelText('Working on'))
     expect(screen.getByRole('option', { name: 'Write report' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Frontend · React' })).toBeInTheDocument()
   })

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { register, addTask } from './helpers'
+import { register, addTask, pickOption, pickDate } from './helpers'
 
 test.describe('navigation, search, dashboard', () => {
   test('sidebar is grouped and every page loads without errors', async ({ page }) => {
@@ -44,7 +44,7 @@ test.describe('navigation, search, dashboard', () => {
     await addTask(page, 'Apply to 3 companies')
     await page.getByRole('button', { name: 'Actions for Apply to 3 companies' }).click()
     await page.getByRole('menuitem', { name: 'Edit' }).click()
-    await page.getByLabel('Category').selectOption('Job Search')
+    await pickOption(page.getByLabel('Category'), 'Job Search')
     await page.getByRole('button', { name: 'Save changes' }).click()
     await page.getByRole('button', { name: 'Complete "Apply to 3 companies"' }).click()
     await page.goto('/')
@@ -109,11 +109,11 @@ test.describe('goals', () => {
     await page.getByRole('button', { name: 'Create goal' }).click()
     await expect(page.getByText('Name the goal')).toBeVisible()
     await page.getByLabel('Goal', { exact: true }).fill('Launch portfolio')
-    await page.getByLabel('Start date').fill('2026-12-10')
-    await page.getByLabel('Target date').fill('2026-12-01')
+    await pickDate(page.getByLabel('Start date'), '2026-12-10')
+    await pickDate(page.getByLabel('Target date'), '2026-12-01')
     await page.getByRole('button', { name: 'Create goal' }).click()
     await expect(page.getByText('Target date must be on or after the start date')).toBeVisible()
-    await page.getByLabel('Target date').fill('2026-12-31')
+    await pickDate(page.getByLabel('Target date'), '2026-12-31')
     await page.getByRole('button', { name: 'Create goal' }).click()
     const card = page.getByTestId('goal-card').filter({ hasText: 'Launch portfolio' })
     await expect(card).toBeVisible()
@@ -140,8 +140,8 @@ test.describe('reminders & notifications', () => {
     await page.getByRole('tab', { name: 'Reminders' }).click()
     await page.getByRole('button', { name: 'New reminder' }).first().click()
     await page.getByLabel('Remind me to').fill('Pay electricity bill')
-    await page.getByLabel('Type').selectOption('bill')
-    await page.getByLabel('Date').fill('2020-01-01') // already due
+    await pickOption(page.getByLabel('Type'), 'bill')
+    await pickDate(page.getByLabel('Date'), '2020-01-01') // already due
     await page.getByRole('button', { name: 'Set reminder' }).click()
     await expect(page.getByTestId('unread-count')).toHaveText('1')
     await page.getByRole('tab', { name: /Inbox/ }).click()
@@ -156,8 +156,8 @@ test.describe('reminders & notifications', () => {
     await page.getByRole('tab', { name: 'Reminders' }).click()
     await page.getByRole('button', { name: 'New reminder' }).first().click()
     await page.getByLabel('Remind me to').fill('Pay water bill')
-    await page.getByLabel('Type').selectOption('bill')
-    await page.getByLabel('Date').fill('2020-01-02')
+    await pickOption(page.getByLabel('Type'), 'bill')
+    await pickDate(page.getByLabel('Date'), '2020-01-02')
     await page.getByRole('button', { name: 'Set reminder' }).click()
     await expect(page.getByText('Pay water bill')).toBeVisible()
     await page.waitForTimeout(800)
@@ -218,15 +218,15 @@ test.describe('finance additions', () => {
     await page.goto('/finance')
     await page.getByRole('button', { name: 'Add', exact: true }).click()
     await page.getByLabel(/Amount/).fill('250')
-    await page.getByRole('dialog').getByLabel('Payment method').selectOption('Cash')
+    await pickOption(page.getByRole('dialog').getByLabel('Payment method'), 'Cash')
     await page.getByLabel('Note').fill('Lunch')
     await page.getByRole('button', { name: 'Save' }).click()
     await page.getByRole('button', { name: 'Add', exact: true }).click()
     await page.getByLabel(/Amount/).fill('900')
-    await page.getByRole('dialog').getByLabel('Payment method').selectOption('UPI')
+    await pickOption(page.getByRole('dialog').getByLabel('Payment method'), 'UPI')
     await page.getByLabel('Note').fill('Groceries')
     await page.getByRole('button', { name: 'Save' }).click()
-    await page.locator('select[aria-label="Payment method"]').selectOption('Cash')
+    await pickOption(page.getByLabel('Payment method'), 'Cash')
     await expect(page.getByText('Lunch')).toBeVisible()
     await expect(page.getByText('Groceries')).toHaveCount(0)
     await page.getByRole('button', { name: 'Create a savings goal' }).click()

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { register } from './helpers'
+import { register, pickDate } from './helpers'
 
 test.describe('notifications', () => {
   test('"New reminder" has a single icon (it used to render two)', async ({ page }) => {
@@ -29,7 +29,7 @@ test.describe('notifications', () => {
     await page.getByRole('button', { name: 'New reminder' }).first().click()
     const dlg = page.getByRole('dialog')
     await dlg.getByLabel('Remind me to').fill('Stretch')
-    await dlg.getByLabel('Date').fill('2020-01-01')
+    await pickDate(dlg.getByLabel('Date'), '2020-01-01')
     await dlg.getByRole('button', { name: 'Set reminder' }).click()
     await expect(page.getByTestId('unread-count')).toHaveText('1')
     await page.getByRole('tab', { name: /Inbox/ }).click()

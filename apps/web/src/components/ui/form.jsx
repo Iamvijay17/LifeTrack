@@ -1,28 +1,21 @@
 import { forwardRef, useId, cloneElement, isValidElement } from 'react'
 import { cn } from '@/lib/utils'
+import { DatePicker, TimePicker } from './pickers'
 
 const field =
   'w-full rounded-md border border-border bg-background px-3 text-sm placeholder:text-muted-foreground/70 transition-colors hover:border-muted-foreground/40 focus-visible:border-primary disabled:opacity-60'
-export const Input = forwardRef(({ className, ...p }, ref) => <input ref={ref} className={cn(field, 'h-10 md:h-9', className)} {...p} />)
+export const Input = forwardRef(({ className, type, ...p }, ref) => {
+  // Dates and times use our own pickers, never the browser's.
+  if (type === 'date') return <DatePicker ref={ref} className={className} {...p} />
+  if (type === 'time') return <TimePicker ref={ref} className={className} {...p} />
+  return <input ref={ref} type={type} className={cn(field, 'h-10 md:h-9', className)} {...p} />
+})
 Input.displayName = 'Input'
 export const Textarea = forwardRef(({ className, rows = 3, ...p }, ref) => (
   <textarea ref={ref} rows={rows} className={cn(field, 'py-2 resize-y', className)} {...p} />
 ))
 Textarea.displayName = 'Textarea'
-export const Select = forwardRef(({ className, children, ...p }, ref) => (
-  <select
-    ref={ref}
-    className={cn(
-      field,
-      'h-10 md:h-9 appearance-none bg-no-repeat pr-8 [background-image:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2716%27 height=%2716%27 fill=%27none%27 stroke=%27%23a1a1aa%27 stroke-width=%272%27%3E%3Cpath d=%27m4 6 4 4 4-4%27/%3E%3C/svg%3E")] [background-position:right_.6rem_center]',
-      className,
-    )}
-    {...p}
-  >
-    {children}
-  </select>
-))
-Select.displayName = 'Select'
+export { Select } from './pickers'
 
 /** Label + control + error. The control gets the id / aria wiring automatically. */
 export function Field({ label, error, hint, children, className }) {

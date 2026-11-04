@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { register } from './helpers'
+import { register, pickOption } from './helpers'
 
 const createRoutine = async (page, name = 'Push day') => {
   await page.getByRole('tab', { name: 'Routines' }).click()
@@ -56,7 +56,7 @@ test.describe('fitness', () => {
     await expect(page.getByRole('button', { name: 'Undo' })).toBeVisible()
     await page.getByRole('button', { name: 'Undo' }).click()
     await expect(page.getByRole('button', { name: 'Skip' })).toBeVisible()
-    await page.getByLabel('Plan for Monday').selectOption('rest')
+    await pickOption(page.getByLabel('Plan for Monday'), 'rest')
     await expect(page.getByText('Plan updated').first()).toBeVisible()
     await page.reload()
     await expect(page.getByLabel('Plan for Monday')).toHaveValue('rest') // persisted to the account

@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest'
+import { pickOption, pickDate, pickTime } from './pickers'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent, within, renderHook, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -209,8 +210,8 @@ describe('ApplicationDialog', () => {
   })
   it('opened from the Applied column it pre-fills today as the applied date', () => {
     open({ defaultStatus: 'applied' })
-    expect(screen.getByLabelText('Status')).toHaveValue('applied')
-    expect(screen.getByLabelText('Applied on')).toHaveValue(TODAY)
+    expect(screen.getByLabelText('Status')).toHavePickerValue('applied')
+    expect(screen.getByLabelText('Applied on')).toHavePickerValue(TODAY)
   })
   it('editing pre-fills (including the LPA) and updates the same record', async () => {
     const user = userEvent.setup()
@@ -235,8 +236,8 @@ describe('InterviewDialog', () => {
     const user = userEvent.setup()
     open({ applicationId: 'a1' })
     expect(screen.getByLabelText('Time (Asia/Kolkata)')).toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-11-10' } })
-    fireEvent.change(screen.getByLabelText(/^Time/), { target: { value: '15:00' } })
+    await pickDate(user, screen.getByLabelText('Date'), '2026-11-10')
+    await pickTime(user, screen.getByLabelText(/^Time/), '15:00')
     await user.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(mocks.insert).toHaveBeenCalledTimes(1))
     const row = mocks.insert.mock.calls[0][1]
@@ -257,9 +258,9 @@ describe('InterviewDialog', () => {
         notes: '',
       },
     })
-    expect(screen.getByLabelText('Date')).toHaveValue('2026-11-11')
-    expect(screen.getByLabelText(/^Time/)).toHaveValue('01:30')
-    expect(screen.getByLabelText('Application')).toHaveValue('a2')
+    expect(screen.getByLabelText('Date')).toHavePickerValue('2026-11-11')
+    expect(screen.getByLabelText(/^Time/)).toHavePickerValue('01:30')
+    expect(screen.getByLabelText('Application')).toHavePickerValue('a2')
   })
   it('defaults to the first application when none is preselected, and requires one', async () => {
     const user = userEvent.setup()
@@ -393,7 +394,7 @@ describe('JobsToolbar', () => {
     const user = userEvent.setup()
     const onFiltersChange = vi.fn()
     render(<JobsToolbar view="table" {...props} filters={{ q: '', status: '', source: 'LinkedIn' }} onFiltersChange={onFiltersChange} />)
-    await user.selectOptions(screen.getByLabelText('Filter by status'), 'interview')
+    await pickOption(user, screen.getByLabelText('Filter by status'), 'interview')
     expect(onFiltersChange).toHaveBeenCalledWith({ q: '', status: 'interview', source: 'LinkedIn' })
   })
 })
@@ -449,7 +450,7 @@ describe('ApplicationDetail', () => {
   it('changing the status goes through the status operation (which records history)', async () => {
     const user = userEvent.setup()
     detail()
-    await user.selectOptions(screen.getByLabelText('Status'), 'interview')
+    await pickOption(user, screen.getByLabelText('Status'), 'interview')
     await waitFor(() => expect(mocks.setStatus).toHaveBeenCalledWith(expect.objectContaining({ id: 'j1' }), 'interview', TODAY))
   })
 })

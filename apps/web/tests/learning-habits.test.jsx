@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest'
+import { pickOption } from './pickers'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, renderHook, act } from '@testing-library/react'
+import { render, screen, within, waitFor, renderHook, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { z } from 'zod'
 import { parseTarget, targetValue, sessionName, weekSeries, historyOf, topicGroups, revisionStatus } from '@/domain/learning'
@@ -216,16 +217,17 @@ describe('SessionDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Enter minutes studied or problems solved')).toBeInTheDocument()
     await user.type(screen.getByLabelText('Minutes'), '30')
-    await user.clear(screen.getByLabelText('Date'))
-    await user.type(screen.getByLabelText('Date'), '2026-12-01')
-    await user.click(screen.getByRole('button', { name: 'Save' }))
-    expect(await screen.findByText("You can't log study time in the future")).toBeInTheDocument()
+    // The calendar does not let you pick a day after today.
+    await user.click(screen.getByLabelText('Date'))
+    await user.click(screen.getByRole('button', { name: 'Next year' }))
+    const days = within(screen.getByRole('dialog', { name: 'Choose date' })).getAllByRole('button', { name: /\d{4}$/ })
+    expect(days.every((d) => d.disabled)).toBe(true)
     expect(mocks.insert).not.toHaveBeenCalled()
   })
   it('stores minutes as seconds and resolves the goal to its topic', async () => {
     const user = userEvent.setup()
     render(<SessionDialog {...props} />)
-    await user.selectOptions(screen.getByLabelText('What are you studying?'), 'g:g1')
+    await pickOption(user, screen.getByLabelText('What are you studying?'), 'g:g1')
     await user.type(screen.getByLabelText('Minutes'), '45')
     await user.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(mocks.insert).toHaveBeenCalledTimes(1))
@@ -260,7 +262,7 @@ describe('StudyGoalDialog and TopicDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Name the goal')).toBeInTheDocument()
     await user.type(screen.getByLabelText('Goal'), 'Finish React')
-    await user.selectOptions(screen.getByLabelText('Related topic (optional)'), 't1')
+    await pickOption(user, screen.getByLabelText('Related topic (optional)'), 't1')
     await user.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() =>
       expect(mocks.insert).toHaveBeenCalledWith(
@@ -294,7 +296,7 @@ describe('HabitDialog', () => {
     const user = userEvent.setup()
     render(<HabitDialog open onOpenChange={() => {}} today={TODAY} />)
     await user.type(screen.getByLabelText('Name'), 'Gym')
-    await user.selectOptions(screen.getByLabelText('Repeats'), 'custom')
+    await pickOption(user, screen.getByLabelText('Repeats'), 'custom')
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Pick at least one day')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Mon' }))
@@ -311,7 +313,7 @@ describe('HabitDialog', () => {
     const user = userEvent.setup()
     render(<HabitDialog open onOpenChange={() => {}} today={TODAY} />)
     await user.type(screen.getByLabelText('Name'), 'Run')
-    await user.selectOptions(screen.getByLabelText('Repeats'), 'weekly')
+    await pickOption(user, screen.getByLabelText('Repeats'), 'weekly')
     await user.clear(screen.getByLabelText('Times per week'))
     await user.type(screen.getByLabelText('Times per week'), '9')
     await user.click(screen.getByRole('button', { name: 'Save' }))

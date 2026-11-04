@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest'
+import { pickOption } from './pickers'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -145,7 +146,7 @@ describe('TaskDialog', () => {
     const user = userEvent.setup()
     open({ defaultDate: '' })
     await user.type(screen.getByLabelText('Title'), 'Gym')
-    await user.selectOptions(screen.getByLabelText('Repeat'), 'daily')
+    await pickOption(user, screen.getByLabelText('Repeat'), 'daily')
     await user.click(screen.getByRole('button', { name: 'Add task' }))
     expect(await screen.findByText('Repeating tasks need a due date')).toBeInTheDocument()
     expect(mocks.createTask).not.toHaveBeenCalled()
@@ -165,7 +166,7 @@ describe('TaskDialog', () => {
       },
     })
     expect(screen.getByLabelText('Title')).toHaveValue('Existing')
-    expect(screen.getByLabelText('Priority')).toHaveValue('high')
+    expect(screen.getByLabelText('Priority')).toHavePickerValue('high')
     await user.clear(screen.getByLabelText('Title'))
     await user.type(screen.getByLabelText('Title'), 'Renamed')
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
@@ -206,7 +207,7 @@ describe('NoteDialog', () => {
       goals: [{ id: 'g1', title: 'Goal one' }],
     })
     expect(screen.getByLabelText('Tags')).toHaveValue('a, b')
-    expect(screen.getByLabelText('Attach to goal')).toHaveValue('g1')
+    expect(screen.getByLabelText('Attach to goal')).toHavePickerValue('g1')
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     await waitFor(() =>
       expect(mocks.update).toHaveBeenCalledWith('notes', 'n1', expect.objectContaining({ pinned: true, goal_id: 'g1', category: 'Ideas' })),

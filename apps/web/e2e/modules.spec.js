@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { register, addTask } from './helpers'
+import { register, addTask, pickOption } from './helpers'
 
 test.describe('planner', () => {
   test('validates, creates, completes, edits and deletes a task; progress reflects it', async ({ page }) => {
@@ -43,7 +43,7 @@ test.describe('planner', () => {
     await page.goto('/planner')
     await page.getByRole('button', { name: /New task/ }).click()
     await page.getByLabel('Title').fill('Daily standup')
-    await page.getByLabel('Repeat', { exact: true }).selectOption('daily')
+    await pickOption(page.getByLabel('Repeat', { exact: true }), 'daily')
     await page.getByRole('button', { name: 'Add task' }).click()
     await page.getByRole('button', { name: 'Complete "Daily standup"' }).click()
     await expect(page.getByRole('button', { name: 'Mark "Daily standup" as not done' })).toBeVisible()
@@ -137,7 +137,7 @@ test.describe('job applications', () => {
     await page.getByRole('menuitem', { name: 'Applied' }).click()
     await expect(page.getByTestId('col-applied').getByText('Acme Corp')).toBeVisible()
     await page.getByTestId('col-applied').getByText('Acme Corp').click()
-    await page.getByLabel('Status').selectOption('interview')
+    await pickOption(page.getByLabel('Status'), 'interview')
     await expect(page.getByRole('dialog').getByText('Created as')).toBeVisible()
     const timeline = page.getByRole('dialog').locator('ol > li')
     await expect(timeline).toHaveCount(3) // created as interested -> applied -> interview
@@ -180,7 +180,7 @@ test.describe('finance', () => {
       await page.getByRole('dialog').getByRole('tab', { name: type }).click()
       const dlg = page.getByRole('dialog')
       await dlg.getByLabel(/^Amount/).fill(amount)
-      await dlg.getByLabel('Category').selectOption(category)
+      await pickOption(dlg.getByLabel('Category'), category)
       await dlg.getByRole('button', { name: 'Save', exact: true }).click()
       await expect(dlg).toBeHidden()
     }

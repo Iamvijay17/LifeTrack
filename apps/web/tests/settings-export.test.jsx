@@ -167,8 +167,8 @@ describe('PreferencesCard', () => {
   it('loads the saved values; the budget shows without paise', () => {
     render(<PreferencesCard />)
     expect(screen.getByLabelText('Default monthly expense budget')).toHaveValue('30000')
-    expect(screen.getByLabelText('Timezone')).toHaveValue('Asia/Kolkata')
-    expect(screen.getByLabelText('Week starts on')).toHaveValue('1')
+    expect(screen.getByLabelText('Timezone')).toHavePickerValue('Asia/Kolkata')
+    expect(screen.getByLabelText('Week starts on')).toHavePickerValue('1')
   })
   it('saves numbers and converts the budget to paise; a blank budget means 0', async () => {
     const user = userEvent.setup()
