@@ -13,13 +13,13 @@ test.describe('planner', () => {
     await expect(page.getByText('Write unit tests')).toBeVisible()
 
     await page.goto('/')
-    await expect(page.getByText(/of \d+ planned activities/)).toContainText('0 of 4') // 1 task + study + water + steps
+    await expect(page.getByText(/of \d+ planned activities/)).toContainText('0 of 3') // 1 task + water + steps (the study target only counts once you study)
     await page.goto('/planner')
     await page.getByRole('button', { name: 'Complete "Write unit tests"' }).click()
     await expect(page.getByRole('button', { name: 'Mark "Write unit tests" as not done' })).toBeVisible()
     await page.goto('/')
-    await expect(page.getByText(/of \d+ planned activities/)).toContainText('1 of 4')
-    await expect(page.getByRole('img', { name: '25% complete' })).toBeVisible()
+    await expect(page.getByText(/of \d+ planned activities/)).toContainText('1 of 3')
+    await expect(page.getByRole('img', { name: '33% complete' })).toBeVisible()
 
     await page.goto('/planner')
     await page.getByRole('button', { name: 'Actions for Write unit tests' }).click()
@@ -35,7 +35,7 @@ test.describe('planner', () => {
     await page.getByRole('button', { name: 'Actions for Maybe later' }).click()
     await page.getByRole('menuitem', { name: 'Cancel task' }).click()
     await page.goto('/')
-    await expect(page.getByText(/of \d+ planned activities/)).toContainText('0 of 3') // only study/water/steps remain
+    await expect(page.getByText(/of \d+ planned activities/)).toContainText('0 of 2') // only water/steps remain
   })
 
   test('recurring task spawns the next occurrence exactly once', async ({ page }) => {

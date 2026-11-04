@@ -7,7 +7,7 @@ and every **deliberate** difference. Anything not listed as a difference is expe
 
 | Web route | Mobile screen | Status | Deliberate differences |
 |---|---|---|---|
-| `/` Dashboard | Dashboard tab | ✅ | Quick actions open the same forms in sheets; no global FAB. Upcoming links open the module rather than the exact record. No Undo toast after completing a task. |
+| `/` Dashboard | Dashboard tab | ✅ | Quick actions open the same forms in sheets; no global FAB. Upcoming links open the module rather than the exact record. No Undo toast after completing a task. The Today list is the same on both; on mobile a ticked task can be un-ticked in the list. |
 | `/planner` | Planner tab | ✅ | Sectioned list; actions via a sheet instead of a hover menu. "Move to today" and jump-to-date are web-only for now. |
 | `/habits` | Habits tab | ✅ | Heatmap shows 20 weeks (web 26) to fit a phone; scrolls horizontally. |
 | `/focus` | More → Focus Timer | ✅ | Timer state is per device (as on web). The end of a timer also sends a local notification when the app is not open. |

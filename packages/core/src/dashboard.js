@@ -110,6 +110,7 @@ export function dashboardData(d, { settings, today, tz = settings.timezone, nowM
     activeGoals: d.goals.filter((g) => g.status === 'active').map((g) => ({ g, p: goalPercent(g, d.milestones, d.studySessions) }))
       .sort((a, b) => (a.g.due_date ?? '9999').localeCompare(b.g.due_date ?? '9999')).slice(0, 4),
     month: summarize(d.transactions, monthKey(today), budgetForMonth(d.budgets, monthStart(today), settings.monthly_budget_paise)),
+    agenda: todayAgenda({ tasks: d.tasks, habits: d.habits, habitLogs: d.habitLogs, workouts: d.workouts, routines: d.routines, interviews: d.interviews, applications: d.applications, reminders: d.reminders, topics: d.topics, recurringRules: d.recurringRules }, { today, tz, weekStartsOn: w, workoutPlan: settings.workout_plan }),
     upcoming: upcomingItems({ tasks: d.tasks, interviews: d.interviews, applications: d.applications, goals: d.goals, milestones: d.milestones, reminders: d.reminders, recurring: d.recurringRules }, { today, tz, nowMs }),
     gettingStarted: gettingStartedSteps({ tasks: d.tasks, habits: d.habits, goals: d.goals, transactions: d.transactions, healthLogs: d.healthLogs }),
     openToday: todayTasks.filter(isOpen).length,

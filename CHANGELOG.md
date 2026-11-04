@@ -6,6 +6,7 @@ store build numbers are auto-incremented by EAS. Add new entries under **Unrelea
 ## [Unreleased]
 See `docs/UX_AUDIT.md` for the full audit behind these changes.
 ### Added
+- Dashboard: **Today**, one ordered list of the whole day (interviews and reminders by time, then tasks, habits, the planned workout, revisions, follow-ups and bills due, finished items below). Tasks and habits can be ticked from it. Web and mobile; no migration.
 - Dashboard: Upcoming deadlines (interviews, follow-ups, goals, milestones, reminders, overdue tasks), a getting-started guide for new accounts, stat cards that open their module, and Undo after completing a task.
 - Fitness: personal records, per-exercise progress chart, month calendar in History.
 - Health: a sleep goal in Settings (used by the score and the charts), and sleep regularity and energy averages. The goal is stored in the existing `habit_prefs` settings column; no migration.
@@ -15,6 +16,8 @@ See `docs/UX_AUDIT.md` for the full audit behind these changes.
 - Learning: revision dates are picked from a calendar instead of typed.
 - Global search opens the application, day or month you picked. Each page has its own browser title.
 ### Fixed
+- Daily score: Personal, Finance, Gym and Health tasks now count (in Habits, Fitness and Sleep & Health); before, only Learning and Job Search tasks did. The default 120-minute study target applies only once you have studied in the last 14 days, so someone who doesn't study is no longer scored zero every day (the Today's progress list follows the same rule).
+- Savings goals on web: adding money now happens inside the database, like mobile, so two devices can't overwrite each other's deposit.
 - A long title made Dashboard and Planner wider than the screen on phones and tablets; the Fitness plan overflowed on phones.
 - Calendars and menus were cut off inside dialogs and tables. Popups now draw above their container.
 - Escape on an open dropdown or calendar closed the whole form and lost what was typed.

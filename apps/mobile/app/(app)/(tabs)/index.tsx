@@ -7,6 +7,8 @@ import { fmtDay, fmtDuration, formatMoney } from '@lifetrack/utils'
 import { QUICK_KINDS, WIDGETS, WIDGETS_NEEDING_DATA, dashboardData, isBrandNew, isWidgetOn, relTime } from '@lifetrack/core/dashboard'
 import { signFor } from '@lifetrack/core/finance'
 import { dueLabel } from '@lifetrack/core/upcoming'
+import { nextTimed } from '@lifetrack/core/agenda'
+import { timeStrInTz } from '@lifetrack/utils'
 import { api } from '../../../src/data/client'
 import { useTable } from '../../../src/data/useTable'
 import { useTables } from '../../../src/hooks/useTables'
@@ -26,8 +28,50 @@ type IconName = React.ComponentProps<typeof Ionicons>['name']
 const KIND_ICON: Record<string, IconName> = { task: 'checkmark-circle-outline', study: 'book-outline', workout: 'barbell-outline', money: 'wallet-outline', job: 'briefcase-outline', habit: 'repeat-outline' }
 const UPCOMING_ICON: Record<string, IconName> = { overdue: 'alert-circle-outline', task: 'checkbox-outline', interview: 'briefcase-outline', followup: 'send-outline', goal: 'flag-outline', milestone: 'flag-outline', reminder: 'notifications-outline', recurring: 'repeat-outline' }
 const UPCOMING_ROUTE: Record<string, string> = { overdue: '/planner', task: '/planner', interview: '/module/jobs', followup: '/module/jobs', goal: '/module/goals', milestone: '/module/goals', reminder: '/module/notifications', recurring: '/finance' }
+const AGENDA_ICON: Record<string, IconName> = { task: 'ellipse-outline', habit: 'repeat-outline', workout: 'barbell-outline', interview: 'briefcase-outline', reminder: 'notifications-outline', revision: 'school-outline', followup: 'send-outline', bill: 'wallet-outline' }
+const AGENDA_ROUTE: Record<string, string> = { task: '/planner', habit: '/habits', workout: '/module/fitness', interview: '/module/jobs', reminder: '/module/notifications', revision: '/module/learning', followup: '/module/jobs', bill: '/finance' }
 const GUIDE_ROUTE: Record<string, string> = { habit: '/habits', goal: '/module/goals', health: '/module/health' }
 const GUIDE_QUICK: Record<string, string> = { task: 'task', money: 'expense' }
+
+type AgendaProps = { agenda: any; nowTime: string; money: (p: number) => string; onToggle: (i: any) => void; onOpen: (i: any) => void }
+/** One ordered list of the whole day: a time rail first, then "Anytime", then what is done. */
+function TodayAgenda({ agenda, nowTime, money, onToggle, onOpen }: AgendaProps) {
+  const { colors } = useTheme()
+  const next = nextTimed(agenda, nowTime)
+  const row = (i: any) => {
+    const completable = i.kind === 'task' || i.kind === 'habit'
+    return (
+      <View key={i.id} style={{ flexDirection: 'row', alignItems: 'center', minHeight: 48, backgroundColor: next?.id === i.id ? colors.muted : 'transparent', borderRadius: 8 }}>
+        {completable ? (
+          <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: i.done }} accessibilityLabel={`${i.done ? 'Mark not done' : 'Complete'} ${i.title}`} onPress={() => onToggle(i)} hitSlop={4} style={{ width: 44, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name={i.done ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={i.done ? colors.success : colors.mutedForeground} />
+          </Pressable>
+        ) : (
+          <View style={{ width: 44, alignItems: 'center' }}><Ionicons name={AGENDA_ICON[i.kind]} size={18} color={colors.mutedForeground} /></View>
+        )}
+        <Pressable accessibilityRole="link" accessibilityLabel={i.title} onPress={() => onOpen(i)} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 48, paddingRight: 8 }}>
+          <Text numberOfLines={1} style={{ flex: 1, fontSize: 16, color: i.done ? colors.mutedForeground : colors.foreground, textDecorationLine: i.done ? 'line-through' : 'none' }}>{i.title}</Text>
+          {i.amount_paise != null ? <Text style={{ color: colors.foreground, fontSize: 13 }}>{signFor(i.txnType)}{money(i.amount_paise)}</Text> : null}
+          {i.time ? <Text style={{ color: colors.mutedForeground, fontSize: 13, fontVariant: ['tabular-nums'] }}>{i.time}</Text> : null}
+        </Pressable>
+      </View>
+    )
+  }
+  return (
+    <Card>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Txt variant="heading">Today</Txt>
+        <Txt variant="small" muted>{agenda.doneCount} of {agenda.total} done</Txt>
+      </View>
+      {agenda.total === 0 ? <Txt muted>Nothing planned for today. Add a task or check in a habit to start.</Txt> : null}
+      {agenda.timed.map(row)}
+      {agenda.anytime.length > 0 && agenda.timed.length > 0 ? <Txt variant="small" muted>Anytime</Txt> : null}
+      {agenda.anytime.map(row)}
+      {agenda.done.length > 0 ? <Txt variant="small" muted>Done</Txt> : null}
+      {agenda.done.map(row)}
+    </Card>
+  )
+}
 
 export default function Dashboard() {
   const { colors } = useTheme()
@@ -39,13 +83,18 @@ export default function Dashboard() {
   const [customize, setCustomize] = useState(false)
   // Read on its own: until migration 0008 is applied the table is missing, and that must not take the whole dashboard down.
   const { rows: recurringRules } = useTable('recurring_rules')
-  const { data, loading, refreshing, error, refetch } = useTables('tasks', 'study_sessions', 'workouts', 'health_logs', 'transactions', 'job_applications', 'application_history', 'interview_events', 'goals', 'milestones', 'habits', 'habit_logs', 'budgets', 'reminders')
+  const { data, loading, refreshing, error, refetch } = useTables('tasks', 'study_sessions', 'workouts', 'health_logs', 'transactions', 'job_applications', 'application_history', 'interview_events', 'goals', 'milestones', 'habits', 'habit_logs', 'budgets', 'reminders', 'routines', 'learning_topics')
   const [complete] = useAction((t: any) => api.setTaskStatus(t, 'done', today))
+  // Ticking a row in Today: tasks and habits can be completed (and un-ticked) in place.
+  const [toggleAgenda] = useAction(async (i: any) => {
+    if (i.kind === 'task') return api.setTaskStatus(i.source, i.done ? 'pending' : 'done', today)
+    return api.setHabitStatus(i.refId, today, i.done ? null : 'done')
+  })
   const [toggleWidget] = useAction((k: string, v: boolean) => save({ dashboard_widgets: { ...settings.dashboard_widgets, [k]: v } }))
   const cur = settings.currency
   const money = (p: number) => formatMoney(p, cur)
 
-  const d: any = useMemo(() => dashboardData({ tasks: data.tasks, studySessions: data.study_sessions, workouts: data.workouts, healthLogs: data.health_logs, transactions: data.transactions, applications: data.job_applications, history: data.application_history, interviews: data.interview_events, goals: data.goals, milestones: data.milestones, habits: data.habits, habitLogs: data.habit_logs, budgets: data.budgets, reminders: data.reminders, recurringRules }, { settings, today }), [data, recurringRules, settings, today])
+  const d: any = useMemo(() => dashboardData({ tasks: data.tasks, studySessions: data.study_sessions, workouts: data.workouts, healthLogs: data.health_logs, transactions: data.transactions, applications: data.job_applications, history: data.application_history, interviews: data.interview_events, goals: data.goals, milestones: data.milestones, habits: data.habits, habitLogs: data.habit_logs, budgets: data.budgets, reminders: data.reminders, recurringRules, routines: data.routines, topics: data.learning_topics }, { settings, today }), [data, recurringRules, settings, today])
   // A brand-new account sees the guide rather than rows of zeros; everything appears after the first real entry.
   const fresh = isWidgetOn(settings.dashboard_widgets, 'getting_started') && isBrandNew(data.tasks, data.habits, data.goals, data.transactions, data.health_logs, data.study_sessions, data.workouts, data.job_applications)
   const on = (k: string) => isWidgetOn(settings.dashboard_widgets, k) && !(fresh && WIDGETS_NEEDING_DATA.includes(k))
@@ -81,6 +130,8 @@ export default function Dashboard() {
               ))}
             </Card>
           ) : null}
+
+          {on('today') ? <TodayAgenda agenda={d.agenda} nowTime={timeStrInTz(new Date(), settings.timezone).slice(0, 5)} money={money} onToggle={toggleAgenda} onOpen={(i: any) => router.navigate(AGENDA_ROUTE[i.kind] as never)} /> : null}
 
           {on('score') ? <ScoreCard result={d.score} weekAvg={d.weekAvg} /> : null}
 
