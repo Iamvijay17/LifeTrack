@@ -18,6 +18,7 @@ cp .env.example .env.local
    - `supabase/migrations/0005_history_owner_guard_and_user_indexes.sql`
    - `supabase/migrations/0006_push_tokens.sql`
    - `supabase/migrations/0007_savings_atomic.sql`
+   - `supabase/migrations/0008_recurring_rules.sql`
 
    (or paste `supabase/setup-all.sql`, which contains all of them)
 

@@ -8,14 +8,19 @@ export function WeeklyScoreCard({ series, today, streak, className }) {
   return (
     <Card className={className}>
       <CardHeader>
-        <CardTitle>Weekly daily score</CardTitle>
+        <CardTitle>This week's score</CardTitle>
         <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Flame className="h-3.5 w-3.5 text-warning" />
-          {streak}-day active streak
+          {streak > 0 ? `${streak}-day active streak` : 'Start a streak today'}
         </span>
       </CardHeader>
       <CardContent>
-        <Chart height={190} empty={series.every((x) => x.score == null)} emptyText="Plan tasks or habits to see your daily score.">
+        <Chart
+          height={190}
+          empty={series.every((x) => !x.score)}
+          emptyText="Plan tasks or habits to see your daily score."
+          summary={`Daily score this week: ${series.map((x) => `${x.label} ${x.score ?? 'none'}`).join(', ')}`}
+        >
           <BarChart data={series.map((x) => ({ ...x, score: x.score ?? undefined }))}>
             {grid()}
             {xAxis({ dataKey: 'label' })}

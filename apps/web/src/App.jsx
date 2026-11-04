@@ -4,6 +4,7 @@ import { Toaster } from 'sonner'
 import { isMisconfigured } from '@/lib/backend'
 import { ConfigError } from '@/components/shared/ConfigError'
 import { AuthProvider, useAuth } from '@/hooks/useAuth'
+import { useResolvedTheme } from '@/hooks/useTheme'
 import { ConfirmProvider } from '@/components/shared/Confirm'
 import { AppShell } from '@/components/layout/AppShell'
 import { FullScreenLoader, InitialAppLoader } from '@/components/loaders'
@@ -37,6 +38,7 @@ function Protected({ children }) {
 }
 
 export default function App() {
+  const theme = useResolvedTheme()
   if (isMisconfigured) return <ConfigError />
   return (
     <AuthProvider>
@@ -76,11 +78,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
-        <Toaster
-          theme="system"
-          position="top-center"
-          toastOptions={{ classNames: { toast: '!bg-card !text-foreground !border-border' } }}
-        />
+        <Toaster theme={theme} position="top-center" toastOptions={{ classNames: { toast: '!bg-card !text-foreground !border-border' } }} />
       </ConfirmProvider>
     </AuthProvider>
   )

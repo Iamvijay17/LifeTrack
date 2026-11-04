@@ -5,11 +5,11 @@ import { moneyField } from '@/lib/validation'
 import { parseMoney } from '@/lib/money'
 import { useAction } from '@/hooks/useAction'
 import { useDialogForm } from '@/hooks/useDialogForm'
-import * as store from '@/hooks/store'
+import { addSavingsFunds } from '@/services/api'
 
 const schema = z.object({ amount: moneyField('Enter an amount greater than 0.') })
 
-/** Adds money to a savings goal. Read-modify-write: two devices adding at the same instant could lose one increment. */
+/** Adds money to a savings goal inside the database (add_savings), so two devices adding at the same instant never lose an increment. */
 export function AddFundsDialog({ goal, onClose, money }) {
   const {
     register,
@@ -19,9 +19,7 @@ export function AddFundsDialog({ goal, onClose, money }) {
 
   const [add, pending] = useAction(
     async (v) => {
-      // use the freshest cached value so two quick additions on this device don't overwrite each other
-      const fresh = store.peek('savings_goals').find((g) => g.id === goal.id) ?? goal
-      await store.update('savings_goals', goal.id, { saved_paise: fresh.saved_paise + parseMoney(v.amount) })
+      await addSavingsFunds(goal, parseMoney(v.amount))
       onClose()
     },
     { success: 'Added to savings goal' },

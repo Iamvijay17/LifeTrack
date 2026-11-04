@@ -57,7 +57,7 @@ test('main pages have no serious accessibility violations', async ({ page }) => 
 
 test('global search and a form dialog are accessible', async ({ page }) => {
   await register(page)
-  await page.getByRole('button', { name: 'Search', exact: true }).click()
+  await page.getByRole('button', { name: 'Search…', exact: true }).click()
   const box = page.getByRole('combobox', { name: 'Search everything' })
   await box.fill('plan')
   await expect(box).toHaveAttribute('aria-expanded', 'true')

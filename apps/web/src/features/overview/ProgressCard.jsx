@@ -58,10 +58,10 @@ export function ProgressCard({ progress, className }) {
             </p>
           </div>
           {progress.items.map((i) => (
-            <div key={i.key} className="grid grid-cols-[4.5rem_1fr_auto] items-center gap-3 text-xs">
+            <div key={i.key} className="grid grid-cols-[4.5rem_1fr_6rem] items-center gap-3 text-xs">
               <span className="text-muted-foreground">{i.label}</span>
               <Progress value={(i.done / i.total) * 100} tone={i.done >= i.total ? 'success' : 'primary'} label={i.label} />
-              <span className="w-20 text-right tabular-nums text-muted-foreground">{i.detail ?? `${i.done}/${i.total}`}</span>
+              <span className="whitespace-nowrap text-right tabular-nums text-muted-foreground">{i.detail ?? `${i.done}/${i.total}`}</span>
             </div>
           ))}
         </div>

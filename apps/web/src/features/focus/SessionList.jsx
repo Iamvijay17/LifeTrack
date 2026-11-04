@@ -27,6 +27,7 @@ export function SessionList({ sessions, tasks, topics, tz, onDelete }) {
                 <li key={s.id} className="flex items-center gap-3 py-2.5">
                   <span
                     className={cn('h-2 w-2 rounded-full', s.completed ? 'bg-success' : 'bg-warning')}
+                    role="img"
                     aria-label={s.completed ? 'completed' : 'stopped early'}
                   />
                   <div className="min-w-0 flex-1">

@@ -32,7 +32,7 @@ export function ConfirmProvider({ children }) {
         footer={
           <>
             <Button variant="outline" onClick={() => close(false)}>
-              Cancel
+              {req?.cancelLabel ?? 'Cancel'}
             </Button>
             <Button variant={req?.destructive === false ? 'default' : 'destructive'} onClick={() => close(true)}>
               {req?.confirmLabel ?? 'Delete'}

@@ -36,12 +36,12 @@ export function NotificationBell() {
         aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
         aria-expanded={open}
         aria-haspopup="true"
-        className="relative grid h-9 w-9 place-items-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+        className="relative grid h-10 w-10 place-items-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground md:h-9 md:w-9"
       >
         <Bell className="h-4 w-4" />
         {unread > 0 && (
           <span
-            className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-semibold text-white"
+            className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-primary-solid px-1 text-[10px] font-semibold text-white"
             data-testid="unread-count"
           >
             {unread > 9 ? '9+' : unread}
@@ -49,7 +49,7 @@ export function NotificationBell() {
         )}
       </button>
       {open && (
-        <div className="absolute right-0 z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-border bg-card shadow-xl animate-fade-in">
+        <div className="absolute right-0 z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-border bg-card shadow-xl animate-fade-in max-md:fixed max-md:inset-x-4 max-md:top-14 max-md:w-auto max-md:max-w-none">
           <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
             <span className="text-sm font-medium">Notifications</span>
             <button
@@ -75,8 +75,11 @@ export function NotificationBell() {
                     className={cn('block px-3 py-2.5 hover:bg-muted/50', !n.read_at && 'bg-primary/5')}
                   >
                     <p className="flex items-center gap-2 text-sm font-medium">
-                      {!n.read_at && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-label="unread" />}
-                      <span className="truncate">{n.title}</span>
+                      {!n.read_at && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />}
+                      <span className="truncate">
+                        {!n.read_at && <span className="sr-only">Unread: </span>}
+                        {n.title}
+                      </span>
                     </p>
                     <p className="text-xs text-muted-foreground">{relativeTime(n.created_at)}</p>
                   </Link>

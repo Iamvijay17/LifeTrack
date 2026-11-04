@@ -9,6 +9,7 @@ import { useTables } from '@/hooks/store'
 import { useSettings } from '@/hooks/useSettings'
 import { useToday } from '@/hooks/useToday'
 import { counted, countedMinutes, historyOf, problemsSolved, topicGroups, topicTotals, weekSeries } from '@/domain/learning'
+import { isStudyGoal } from '@lifetrack/core/learning'
 import { addDays, eachDay, fmtDay, fmtDuration, startOfWeek } from '@/lib/dates'
 import { OverviewTab } from './OverviewTab'
 import { GoalsTab } from './GoalsTab'
@@ -35,6 +36,7 @@ export default function LearningPage() {
   const [sessDlg, setSessDlg] = useState({ ...closed, session: null })
   const [topicDlg, setTopicDlg] = useState({ ...closed, topic: null })
 
+  const studyGoals = useMemo(() => data.goals.filter(isStudyGoal), [data.goals])
   const topics = useMemo(() => data.learning_topics.filter((t) => !t.archived), [data.learning_topics])
   const sessions = data.study_sessions
   const running = sessions.find((s) => s.status === 'running')
@@ -91,8 +93,8 @@ export default function LearningPage() {
             <StatCard
               icon={Target}
               label="Active goals"
-              value={data.goals.filter((g) => g.status === 'active').length}
-              sub={`${data.goals.filter((g) => g.status === 'completed').length} completed`}
+              value={studyGoals.filter((g) => g.status === 'active').length}
+              sub={`${studyGoals.filter((g) => g.status === 'completed').length} completed`}
             />
           </div>
           <Segmented value={tab} onChange={setTab} options={TABS} />
@@ -102,7 +104,7 @@ export default function LearningPage() {
           )}
           {tab === 'goals' && (
             <GoalsTab
-              goals={data.goals}
+              goals={studyGoals}
               sessions={sessions}
               today={today}
               onCreate={newGoal}
@@ -118,7 +120,13 @@ export default function LearningPage() {
             />
           )}
           {tab === 'sessions' && (
-            <SessionsTab history={history} goals={data.goals} topics={topics} onEdit={(session) => setSessDlg({ open: true, session })} />
+            <SessionsTab
+              history={history}
+              goals={data.goals}
+              topics={topics}
+              onCreate={() => setSessDlg({ open: true, session: null })}
+              onEdit={(session) => setSessDlg({ open: true, session })}
+            />
           )}
         </div>
       </DataGate>

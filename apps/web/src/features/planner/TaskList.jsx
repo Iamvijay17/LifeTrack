@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, Clock, Pencil, Play, Repeat, SkipForward, Trash2, XCircle, RotateCcw } from 'lucide-react'
+import { CalendarCheck, CheckCircle2, Circle, Clock, Pencil, Play, Repeat, SkipForward, Trash2, XCircle, RotateCcw } from 'lucide-react'
 import { Badge } from '@/components/ui/misc'
 import { Menu } from '@/components/ui/menu'
 import { cn } from '@/lib/utils'
@@ -14,6 +14,7 @@ export function TaskRow({ task, today, onEdit, showDue }) {
   const confirm = useConfirm()
   const [setStatus, pending] = useAction((s) => setTaskStatus(task, s, today))
   const [del] = useAction(() => store.remove('tasks', task.id), { success: 'Task deleted' })
+  const [moveToToday] = useAction(() => store.update('tasks', task.id, { due_date: today }), { success: 'Moved to today' })
   const done = task.status === 'done'
   const inactive = task.status === 'cancelled' || task.status === 'skipped'
   const overdue = !done && !inactive && task.due_date && task.due_date < today
@@ -29,7 +30,11 @@ export function TaskRow({ task, today, onEdit, showDue }) {
         disabled={pending}
         onClick={() => setStatus(done ? 'pending' : 'done')}
         aria-label={done ? `Mark "${task.title}" as not done` : `Complete "${task.title}"`}
-        className={cn('shrink-0 rounded-full', done ? 'text-success' : 'text-muted-foreground hover:text-foreground')}
+        className={cn(
+          // A 44px target on touch layouts around the 20px icon; the negative margin keeps the row's alignment.
+          '-my-2 -ml-2 grid h-11 w-11 shrink-0 place-items-center rounded-full md:m-0 md:h-auto md:w-auto',
+          done ? 'text-success' : 'text-muted-foreground hover:text-foreground',
+        )}
       >
         {done ? (
           <CheckCircle2 className="h-5 w-5" />
@@ -42,7 +47,7 @@ export function TaskRow({ task, today, onEdit, showDue }) {
         )}
       </button>
       <div className="min-w-0 flex-1">
-        <p className={cn('truncate text-sm', (done || inactive) && 'text-muted-foreground line-through')}>{task.title}</p>
+        <p className={cn('line-clamp-2 break-words text-sm', (done || inactive) && 'text-muted-foreground line-through')}>{task.title}</p>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
           <Badge tone="primary">{task.category}</Badge>
           {task.priority !== 'medium' && <Badge tone={PRIORITY_TONE[task.priority]}>{task.priority}</Badge>}
@@ -66,6 +71,7 @@ export function TaskRow({ task, today, onEdit, showDue }) {
       <Menu
         label={`Actions for ${task.title}`}
         items={[
+          { label: 'Move to today', icon: CalendarCheck, hidden: !overdue, onClick: () => moveToToday() },
           {
             label: 'Start',
             icon: Play,
@@ -100,10 +106,10 @@ export function TaskSection({ title, tasks, today, onEdit, showDue, hint, empty 
   if (!tasks.length && !empty) return null
   return (
     <section>
-      <h3 className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <h2 className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {title}
         <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">{tasks.length}</span>
-      </h3>
+      </h2>
       {hint && <p className="mb-1 text-xs text-muted-foreground">{hint}</p>}
       {tasks.length ? (
         <ul>

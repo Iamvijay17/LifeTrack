@@ -35,17 +35,31 @@ export function Progress({ value, tone = 'primary', className, label }) {
 }
 
 export function Segmented({ value, onChange, options, className }) {
+  const onKeyDown = (e) => {
+    const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key]
+    if (!step && e.key !== 'Home' && e.key !== 'End') return
+    e.preventDefault()
+    const at = options.findIndex((o) => o.value === value)
+    const next = e.key === 'Home' ? 0 : e.key === 'End' ? options.length - 1 : (at + step + options.length) % options.length
+    onChange(options[next].value)
+    e.currentTarget.querySelectorAll('[role=tab]')[next]?.focus()
+  }
   return (
-    <div role="tablist" className={cn('inline-flex rounded-md border border-border bg-card p-0.5', className)}>
+    <div
+      role="tablist"
+      onKeyDown={onKeyDown}
+      className={cn('inline-flex max-w-full overflow-x-auto rounded-md border border-border bg-card p-0.5', className)}
+    >
       {options.map((o) => (
         <button
           key={o.value}
           role="tab"
           aria-selected={value === o.value}
+          tabIndex={value === o.value ? 0 : -1}
           type="button"
           onClick={() => onChange(o.value)}
           className={cn(
-            'rounded px-3 py-1.5 text-[13px] font-medium transition-colors',
+            'shrink-0 whitespace-nowrap rounded px-3 py-2.5 text-[13px] font-medium transition-colors md:py-1.5',
             value === o.value ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground',
           )}
         >

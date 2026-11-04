@@ -2,9 +2,10 @@ import { Droplets, Footprints, Moon, Scale } from 'lucide-react'
 import { StatCard } from '@/components/shared/StatCard'
 import { percentOfGoal } from '@/domain/health'
 import { fmtDuration } from '@/lib/dates'
+import { plural } from '@/lib/format'
 
 /** `sleep` = averageSleep(); `weight` = weightSeries(); `todayLog` = today's health log or undefined. */
-export function HealthStats({ sleep, weight, todayLog, settings }) {
+export function HealthStats({ sleep, weight, todayLog, settings, sleepGoal }) {
   const water = todayLog?.water_ml ?? 0
   const steps = todayLog?.steps ?? 0
   const change = weight.change
@@ -14,7 +15,9 @@ export function HealthStats({ sleep, weight, todayLog, settings }) {
         icon={Moon}
         label="Avg sleep (7 days)"
         value={sleep.minutes == null ? '—' : fmtDuration(sleep.minutes)}
-        sub={sleep.nights ? `${sleep.nights} nights logged` : 'No sleep logged'}
+        sub={sleep.nights ? `goal ${fmtDuration(sleepGoal)} · ${plural(sleep.nights, 'night')} logged` : 'No sleep logged'}
+        progress={sleep.minutes == null ? null : Math.min(100, (sleep.minutes / sleepGoal) * 100)}
+        tone={sleep.minutes >= sleepGoal ? 'success' : 'primary'}
       />
       <StatCard
         icon={Droplets}

@@ -1,6 +1,6 @@
 import { weekday, dateStrInTz } from '@lifetrack/utils'
 import { isScheduled } from './streaks'
-import { countedMinutes } from './learning'
+import { countedMinutes, isStudying } from './learning'
 
 const EXCLUDED_TASK = ['cancelled', 'skipped']
 
@@ -49,8 +49,8 @@ export function dailyProgress({
   if (hTotal) items.push({ key: 'habits', label: 'Habits', done: hDone, total: hTotal })
 
   const target = settings.daily_study_target_minutes ?? 0
-  if (target > 0) {
-    const mins = countedMinutes(sessions.filter((s) => s.session_date === date))
+  const mins = countedMinutes(sessions.filter((s) => s.session_date === date))
+  if (target > 0 && isStudying(sessions, date, mins)) {
     items.push({ key: 'study', label: 'Study', done: Math.min(1, mins / target), total: 1, detail: `${Math.round(mins)}/${target} min` })
   }
 

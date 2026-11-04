@@ -67,7 +67,7 @@ describe('TodayStats', () => {
     wrap(<TodayStats h={{ ...h, habitsDone: 0, habitsDue: 0, studyRunning: true }} settings={{}} money={money} />)
     expect(screen.getByText('not logged')).toBeInTheDocument()
     expect(screen.getByText('none due today')).toBeInTheDocument()
-    expect(screen.getByText('⏱ timer running')).toBeInTheDocument()
+    expect(screen.getByText('timer running')).toBeInTheDocument()
     expect(screen.getByText('0 ml')).toBeInTheDocument()
   })
 })

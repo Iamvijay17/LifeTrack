@@ -62,3 +62,9 @@ export const NAV_GROUPS = [
 ]
 export const NAV = NAV_GROUPS.flatMap((g) => g.items)
 export const MOBILE_PRIMARY = ['/', '/planner', '/habits', '/finance']
+
+/** The browser tab title for a route. */
+export function pageTitle(pathname) {
+  const page = NAV.find((n) => n.to === pathname)
+  return page ? `${page.label} · LifeTrack` : 'LifeTrack'
+}

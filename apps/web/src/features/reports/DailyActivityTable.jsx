@@ -10,7 +10,7 @@ export function DailyActivityTable({ daily, money }) {
       <CardHeader>
         <CardTitle>Daily activity summary</CardTitle>
       </CardHeader>
-      <CardContent className="overflow-x-auto p-0 pt-2">
+      <CardContent className="overflow-x-auto p-0 pt-2" role="region" aria-label="Daily activity summary" tabIndex={0}>
         {daily.length === 0 ? (
           <p className="p-6 text-center text-sm text-muted-foreground">No days in this range yet.</p>
         ) : (

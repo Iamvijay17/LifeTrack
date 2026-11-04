@@ -32,7 +32,18 @@ export const tooltip = (p = {}) => (
   />
 )
 
-export function Chart({ height = 220, children, empty, emptyText = 'No data in this range yet.' }) {
+/** A text version of a series for `<Chart summary>`. Long series are reduced to their range and latest value, which is what a listener needs. */
+export function seriesSummary(title, rows, key, unit = '') {
+  const points = rows.filter((r) => r[key] != null)
+  if (!points.length) return `${title}: no data.`
+  const text = (r) => `${r.label} ${Math.round(r[key] * 100) / 100}${unit}`
+  if (points.length <= 12) return `${title}: ${points.map(text).join(', ')}.`
+  const values = points.map((r) => r[key])
+  return `${title}: ${points.length} points from ${points[0].label} to ${points.at(-1).label}, lowest ${Math.min(...values)}${unit}, highest ${Math.max(...values)}${unit}, latest ${text(points.at(-1))}.`
+}
+
+/** `summary` is what screen readers get instead of the drawing. */
+export function Chart({ height = 220, children, empty, emptyText = 'No data in this range yet.', summary }) {
   if (empty)
     return (
       <div className="grid place-items-center text-center text-sm text-muted-foreground" style={{ height }}>
@@ -43,7 +54,7 @@ export function Chart({ height = 220, children, empty, emptyText = 'No data in t
       </div>
     )
   return (
-    <div style={{ height }}>
+    <div style={{ height }} {...(summary ? { role: 'img', 'aria-label': summary } : {})}>
       <ResponsiveContainer width="100%" height="100%">
         {children}
       </ResponsiveContainer>

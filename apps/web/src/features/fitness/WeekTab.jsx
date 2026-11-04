@@ -1,5 +1,5 @@
 import { Bar, BarChart } from 'recharts'
-import { Chart, C, tooltip, xAxis, yAxis } from '@/components/shared/charts'
+import { Chart, C, tooltip, xAxis, yAxis, seriesSummary } from '@/components/shared/charts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TodayCard } from './TodayCard'
 import { WeeklyPlan } from './WeeklyPlan'
@@ -21,7 +21,7 @@ export function WeekTab({
   onUndo,
 }) {
   return (
-    <div className="grid gap-4 lg:grid-cols-5">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
       <WeeklyPlan
         weekDays={weekDays}
         today={today}
@@ -39,7 +39,12 @@ export function WeekTab({
             <CardTitle>Workouts per week</CardTitle>
           </CardHeader>
           <CardContent>
-            <Chart height={150} empty={weeks.every((x) => !x.workouts)} emptyText="Log a workout to see consistency.">
+            <Chart
+              summary={seriesSummary('Workouts per week', weeks, 'workouts')}
+              height={150}
+              empty={weeks.every((x) => !x.workouts)}
+              emptyText="Log a workout to see consistency."
+            >
               <BarChart data={weeks}>
                 {xAxis({ dataKey: 'label' })}
                 {yAxis({ allowDecimals: false })}

@@ -14,14 +14,14 @@ export function GoalsTab({ goals, sessions, today, onCreate, onEdit }) {
     return (
       <EmptyState
         icon={Target}
-        title="No goals yet"
-        description="Set a target in hours, then log sessions against it to see real progress."
+        title="No learning goals yet"
+        description="Set a target in hours, then log sessions against it to see real progress. Career and other goals live in Goals & Milestones."
         action={<Button onClick={onCreate}>Create a goal</Button>}
       />
     )
   }
   return (
-    <div className="grid gap-3 md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
       {goals.map((g) => {
         const p = goalProgress(g, sessions)
         const overdue = g.due_date && g.due_date < today && g.status === 'active'

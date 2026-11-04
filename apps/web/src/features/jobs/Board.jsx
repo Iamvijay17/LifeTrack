@@ -53,7 +53,7 @@ export function Board({ apps, today, onOpen, onAdd }) {
   const [over, setOver] = useState(null)
   const [move] = useAction((app, s) => setApplicationStatus(app, s, today), { success: 'Status updated' })
   return (
-    <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-3 md:mx-0 md:px-0">
+    <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-3 md:mx-0 md:px-0 md:pr-8 md:[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)]">
       {JOB_STATUSES.map((s) => {
         const items = apps.filter((a) => a.status === s)
         return (

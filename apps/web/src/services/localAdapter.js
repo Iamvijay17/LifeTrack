@@ -189,6 +189,7 @@ export const localAdapter = {
         ['focus_sessions', 'topic_id'],
       ],
       routines: [['workouts', 'routine_id']],
+      recurring_rules: [['transactions', 'recurring_rule_id']],
     }
     for (const [child, col] of setNull[table] ?? []) db[child] = (db[child] ?? []).map((r) => (set.has(r[col]) ? { ...r, [col]: null } : r))
     write(db)

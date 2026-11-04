@@ -23,7 +23,7 @@ export function RoutinesTab({ routines, onCreate, onEdit, onStart }) {
           action={<Button onClick={onCreate}>Create routine</Button>}
         />
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {routines.map((r) => (
             <Card key={r.id}>
               <CardContent className="space-y-2">

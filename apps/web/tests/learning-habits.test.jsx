@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest'
-import { pickOption } from './pickers'
+import { pickDate, pickOption } from './pickers'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, within, waitFor, renderHook, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -271,15 +271,16 @@ describe('StudyGoalDialog and TopicDialog', () => {
       ),
     )
   })
-  it('refuses an invalid revision date and saves clean, sorted dates otherwise', async () => {
+  it('picks revision dates from the calendar, de-duplicates and sorts them, and lets you remove one', async () => {
     const user = userEvent.setup()
     render(<TopicDialog open onOpenChange={() => {}} today={TODAY} />)
     await user.type(screen.getByLabelText('Topic'), 'Hooks')
-    await user.type(screen.getByLabelText('Revision dates'), '2026-11-09, tomorrow')
-    await user.click(screen.getByRole('button', { name: 'Save' }))
-    await waitFor(() => expect(mocks.insert).not.toHaveBeenCalled())
-    await user.clear(screen.getByLabelText('Revision dates'))
-    await user.type(screen.getByLabelText('Revision dates'), '2026-11-09, 2026-11-02, 2026-11-09')
+    const add = screen.getByLabelText('Add a revision date')
+    await pickDate(user, add, '2026-11-09')
+    await pickDate(user, add, '2026-11-20')
+    await pickDate(user, add, '2026-11-02')
+    await pickDate(user, add, '2026-11-09')
+    await user.click(screen.getByRole('button', { name: 'Remove 20 Nov 2026' }))
     await user.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() =>
       expect(mocks.insert).toHaveBeenCalledWith(

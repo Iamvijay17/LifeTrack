@@ -1,8 +1,12 @@
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Logo } from '@/components/layout/Logo'
 import { Banners } from '@/components/layout/StatusIndicators'
 
 export function AuthLayout({ title, subtitle, children, footer }) {
+  useEffect(() => {
+    document.title = `${title} · LifeTrack`
+  }, [title])
   return (
     <div className="min-h-dvh">
       <Banners />

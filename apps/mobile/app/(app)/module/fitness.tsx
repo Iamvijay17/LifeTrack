@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { fmtDay, weekday } from '@lifetrack/utils'
+import { personalRecords, recordText } from '@lifetrack/core/records'
 import { DAY_NAMES, dayStatus, exerciseGroups, fitnessWeek, measurementLine, offDayWorkout, planFor, sortedHistory, summarizeSets, todayHeadline, weightHistory, workoutMeta } from '@lifetrack/core/fitness'
 import { store } from '../../../src/data/client'
 import { useTables } from '../../../src/hooks/useTables'
@@ -43,6 +44,7 @@ export default function Fitness() {
   const todayDone: any[] = data.workouts.filter((x: any) => x.workout_date === today)
   const planToday = planFor(today, plan, routines)
   const history: any[] = sortedHistory(data.workouts)
+  const records: any[] = useMemo(() => personalRecords(data.exercise_logs, data.workouts), [data.exercise_logs, data.workouts])
   const { lib, groups } = exerciseGroups(data.exercises) as any
   const m = menu
 
@@ -110,6 +112,20 @@ export default function Fitness() {
               ))}
           </>) : null}
 
+          {tab === 'history' && records.length > 0 ? (
+            <Card>
+              <Txt variant="heading">Personal records</Txt>
+              {records.slice(0, 5).map((r) => (
+                <View key={r.name} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 6 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text numberOfLines={1} style={{ color: colors.foreground, fontWeight: '500' }}>{r.name}</Text>
+                    <Txt variant="small" muted>{fmtDay(r.date, 'd MMM yyyy')}</Txt>
+                  </View>
+                  <Text style={{ color: colors.foreground, fontWeight: '600', fontVariant: ['tabular-nums'] }}>{recordText(r)}</Text>
+                </View>
+              ))}
+            </Card>
+          ) : null}
           {tab === 'history' ? (history.length === 0
             ? <EmptyState title="No workouts logged" description="Your sets, reps and weights will be listed here." />
             : history.slice(0, 100).map((x) => {

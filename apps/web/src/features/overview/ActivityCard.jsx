@@ -23,7 +23,7 @@ export function ActivityCard({ items, className }) {
               const Icon = ICONS[a.kind]
               return (
                 <li key={i} className="flex items-start gap-2.5 text-sm">
-                  <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
                   <span className="min-w-0 flex-1 truncate">{a.text}</span>
                   <span className="shrink-0 text-xs text-muted-foreground">{relativeTime(a.at)}</span>
                 </li>

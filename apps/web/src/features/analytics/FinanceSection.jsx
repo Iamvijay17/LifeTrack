@@ -1,6 +1,6 @@
 import { Bar, BarChart } from 'recharts'
 import { Wallet } from 'lucide-react'
-import { Chart, C, grid, tooltip, xAxis, yAxis } from '@/components/shared/charts'
+import { Chart, C, grid, tooltip, xAxis, yAxis, seriesSummary } from '@/components/shared/charts'
 import { StatCard } from '@/components/shared/StatCard'
 import { Progress } from '@/components/ui/misc'
 import { Block, EmptyNote, Panel } from './Layout'
@@ -14,9 +14,14 @@ export function FinanceSection({ finance: f, money }) {
         <StatCard label="Expenses" value={money(f.expense)} />
         <StatCard label="Savings" value={money(f.savings)} sub={f.savingsRate == null ? undefined : `${f.savingsRate}% of income`} />
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Panel title={`Spending per ${f.unit}`}>
-          <Chart height={190} empty={f.expense === 0} emptyText="No expenses in this range.">
+          <Chart
+            summary={seriesSummary('Spending', f.chart, 'value')}
+            height={190}
+            empty={f.expense === 0}
+            emptyText="No expenses in this range."
+          >
             <BarChart data={f.chart}>
               {grid()}
               {xAxis({ dataKey: 'label', minTickGap: 16 })}

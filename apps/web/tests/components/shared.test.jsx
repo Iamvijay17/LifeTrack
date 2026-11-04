@@ -134,12 +134,12 @@ describe('useConfirm', () => {
 })
 
 describe('Heatmap', () => {
-  it('draws weeks×7 cells, disables future days and reports the selected day', async () => {
+  it('draws a labelled button for each past day (future days are not buttons) and reports the selected day', async () => {
     const onSelect = vi.fn()
     render(<Heatmap levels={new Map([['2026-11-02', 4]])} today="2026-11-04" weeks={2} onSelect={onSelect} />)
     const cells = screen.getAllByRole('button')
-    expect(cells).toHaveLength(14)
-    expect(cells.filter((c) => c.disabled)).toHaveLength(4) // Thu–Sun after Wed 4 Nov
+    expect(cells).toHaveLength(10) // Thu–Sun after Wed 4 Nov have no button
+    expect(cells.every((c) => c.getAttribute('aria-label'))).toBe(true)
     await userEvent.click(screen.getByTitle(/2 Nov 2026/))
     expect(onSelect).toHaveBeenCalledWith('2026-11-02')
   })

@@ -33,7 +33,7 @@ export default function HabitsPage() {
     <>
       <PageHeader
         title="Habits"
-        description="One tap a day. Streaks are calculated from your real check-ins."
+        description="One tap a day builds the streak."
         actions={
           <Button onClick={newHabit}>
             <Plus className="h-4 w-4" />
@@ -70,7 +70,7 @@ export default function HabitsPage() {
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <DateNav date={day} onChange={setDate} today={today} />
-              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <label className="flex min-h-10 items-center gap-2 text-xs text-muted-foreground md:min-h-0">
                 <input
                   type="checkbox"
                   checked={showArchived}
@@ -80,7 +80,7 @@ export default function HabitsPage() {
                 Show archived
               </label>
             </div>
-            <ul className="grid gap-2 md:grid-cols-2">
+            <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
               {visible.map((s) => (
                 <HabitRow key={s.habit.id} s={s} date={day} onEdit={(habit) => setDialog({ open: true, habit })} />
               ))}

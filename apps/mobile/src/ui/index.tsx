@@ -23,7 +23,7 @@ export function Txt({ children, variant = 'body', muted, style }: { children: Re
 
 export function Button({ title, onPress, loading, variant = 'primary', disabled }: { title: string; onPress: () => void; loading?: boolean; variant?: 'primary' | 'ghost' | 'danger'; disabled?: boolean }) {
   const { colors, radius } = useTheme()
-  const bg = variant === 'primary' ? colors.primary : variant === 'danger' ? colors.danger : 'transparent'
+  const bg = variant === 'primary' ? colors.primarySolid : variant === 'danger' ? colors.dangerSolid : 'transparent'
   const fg = variant === 'ghost' ? colors.foreground : colors.primaryForeground
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={title} accessibilityState={{ disabled: !!(disabled || loading), busy: !!loading }} disabled={disabled || loading} onPress={onPress}

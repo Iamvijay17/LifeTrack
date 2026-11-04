@@ -3,19 +3,19 @@
 export type Rgb = readonly [number, number, number]
 export type ColorName =
   | 'background' | 'foreground' | 'sidebar' | 'card' | 'border' | 'muted' | 'mutedForeground'
-  | 'primary' | 'primaryForeground' | 'secondary' | 'accent' | 'success' | 'warning' | 'danger'
+  | 'primary' | 'primarySolid' | 'primaryForeground' | 'secondary' | 'accent' | 'success' | 'warning' | 'danger' | 'dangerSolid'
 export type ChartColorName = 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'grid' | 'axis'
 
 export const colors: Record<'light' | 'dark', Record<ColorName, Rgb>> = {
   light: {
     background: [250, 250, 250], foreground: [9, 9, 11], sidebar: [244, 244, 245], card: [255, 255, 255], border: [228, 228, 231],
-    muted: [244, 244, 245], mutedForeground: [113, 113, 122], primary: [124, 58, 237], primaryForeground: [255, 255, 255],
-    secondary: [109, 40, 217], accent: [237, 233, 254], success: [22, 163, 74], warning: [217, 119, 6], danger: [220, 38, 38],
+    muted: [244, 244, 245], mutedForeground: [99, 99, 107], primary: [124, 58, 237], primarySolid: [124, 58, 237], primaryForeground: [255, 255, 255],
+    secondary: [109, 40, 217], accent: [237, 233, 254], success: [22, 101, 52], warning: [146, 64, 14], danger: [185, 28, 28], dangerSolid: [185, 28, 28],
   },
   dark: {
     background: [9, 9, 11], foreground: [250, 250, 250], sidebar: [17, 17, 19], card: [24, 24, 27], border: [39, 39, 42],
-    muted: [39, 39, 42], mutedForeground: [161, 161, 170], primary: [139, 92, 246], primaryForeground: [255, 255, 255],
-    secondary: [167, 139, 250], accent: [39, 39, 42], success: [34, 197, 94], warning: [245, 158, 11], danger: [239, 68, 68],
+    muted: [39, 39, 42], mutedForeground: [161, 161, 170], primary: [139, 92, 246], primarySolid: [124, 58, 237], primaryForeground: [255, 255, 255],
+    secondary: [167, 139, 250], accent: [39, 39, 42], success: [34, 197, 94], warning: [245, 158, 11], danger: [248, 113, 113], dangerSolid: [220, 38, 38],
   },
 }
 

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { CalendarCheck, Plus } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate, EmptyState } from '@/components/shared/states'
@@ -15,6 +16,14 @@ export default function PlannerPage() {
   const today = useToday()
   const [date, setDate] = useState(null)
   const day = date ?? today
+  const [params, setParams] = useSearchParams()
+  // Deep link from global search: /planner?date=yyyy-MM-dd
+  useEffect(() => {
+    const target = params.get('date')
+    if (!target) return
+    setDate(target)
+    setParams({}, { replace: true })
+  }, [params, setParams])
   const [dialog, setDialog] = useState({ open: false, task: null })
   const { data, loading, error, refetch } = useTables('tasks')
 
@@ -33,13 +42,12 @@ export default function PlannerPage() {
           </Button>
         }
       />
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">Looking for your journal? It lives in Notes &amp; Journal.</p>
+      <div className="mb-4 flex justify-end">
         <DateNav date={day} onChange={setDate} today={today} />
       </div>
       <DataGate loading={loading} error={error} onRetry={refetch} cards={0}>
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Card className="lg:col-span-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <Card className="order-2 lg:order-none lg:col-span-2">
             <CardContent className="space-y-5">
               {g.count === 0 && g.overdue.length === 0 ? (
                 <EmptyState
@@ -68,15 +76,16 @@ export default function PlannerPage() {
               )}
             </CardContent>
           </Card>
-          <div className="space-y-4">
+          {/* `contents` lets these cards reorder with the main one on a phone, where overdue work comes first; on desktop they form a side column. */}
+          <div className="contents lg:block lg:space-y-4">
             {g.overdue.length > 0 && (
-              <Card>
+              <Card className="order-1">
                 <CardContent>
                   <TaskSection title="Overdue" tasks={g.overdue} today={today} onEdit={edit} showDue />
                 </CardContent>
               </Card>
             )}
-            <Card>
+            <Card className="order-3">
               <CardContent>
                 <TaskSection title="No due date" tasks={g.someday} today={today} onEdit={edit} empty="Tasks without a date show up here." />
               </CardContent>

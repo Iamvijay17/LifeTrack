@@ -24,7 +24,7 @@ export function GoalCard({ row, today, onEdit }) {
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-semibold">{g.title}</h3>
+            <h2 className="truncate text-sm font-semibold">{g.title}</h2>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
               <Badge tone="primary">{periodLabel(g.period)}</Badge>
               <Badge>{g.category}</Badge>
@@ -70,7 +70,7 @@ export function GoalCard({ row, today, onEdit }) {
         <button
           onClick={() => setExpanded((e) => !e)}
           aria-expanded={expanded}
-          className="mt-3 flex w-full items-center justify-between text-xs font-medium text-secondary"
+          className="-mb-2 mt-1 flex w-full items-center justify-between rounded-md py-2 text-xs font-medium text-secondary"
         >
           Milestones ({milestones.filter((m) => m.done).length}/{milestones.length})
           {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}

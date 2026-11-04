@@ -3,7 +3,7 @@ export const DEFAULT_TOPICS = {
   Backend: ['Node.js', 'Express', 'Java', 'Spring Boot', 'SQL'],
   DSA: ['Arrays', 'Strings', 'Linked Lists', 'Trees', 'Graphs', 'Dynamic Programming'],
   AI: ['LLMs', 'RAG', 'AI integrations', 'AI application development'],
-  Projects: ['Portfolio', 'Vireon-AI', 'Other personal projects'],
+  Projects: ['Portfolio', 'Side project', 'Open source'],
 }
 export const TOPIC_GROUPS = Object.keys(DEFAULT_TOPICS)
 

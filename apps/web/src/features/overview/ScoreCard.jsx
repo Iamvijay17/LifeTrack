@@ -15,8 +15,11 @@ export function ScoreCard({ result, weekAvg }) {
     <Card data-testid="score-card">
       <CardHeader>
         <CardTitle>Daily score</CardTitle>
-        <button onClick={() => setOpen(true)} className="flex items-center gap-1 text-xs text-secondary underline underline-offset-2">
-          <Info className="h-3.5 w-3.5" />
+        <button
+          onClick={() => setOpen(true)}
+          className="-my-2 -mr-2 flex items-center gap-1 rounded-md p-2 text-xs text-secondary underline underline-offset-2"
+        >
+          <Info className="h-3.5 w-3.5" aria-hidden />
           How is this calculated?
         </button>
       </CardHeader>

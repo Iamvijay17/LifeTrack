@@ -35,7 +35,7 @@ function HabitRow({ s, date, onMenu }: { s: any; date: string; onMenu: (s: any) 
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={`Options for ${habit.name}`} onPress={() => onMenu(s)} style={{ flex: 1, gap: 4 }}>
           <Text numberOfLines={1} style={{ color: off ? colors.mutedForeground : colors.foreground, fontSize: 16, fontWeight: '600' }}>{habit.name}</Text>
-          <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>{scheduleLabel(habit)} · 🔥 {s.current}{s.unit} · {pctText(s.rate30)} (30d)</Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>{scheduleLabel(habit)} · streak {s.current}{s.unit} · {pctText(s.rate30)} (30d)</Text>
           <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
             {off ? <Badge>{log.status === 'rest' ? 'Rest day' : 'Skipped'}</Badge> : null}
             {!isScheduledOn(habit, date) && !log ? <Badge>Not scheduled</Badge> : null}

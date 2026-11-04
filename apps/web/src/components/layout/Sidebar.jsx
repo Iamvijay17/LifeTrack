@@ -22,7 +22,7 @@ export function Sidebar({ collapsed, onToggle }) {
         {NAV_GROUPS.map((g) => (
           <div key={g.title} className="mb-2">
             {!collapsed ? (
-              <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">{g.title}</p>
+              <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{g.title}</p>
             ) : (
               <div className="mx-3 my-2 border-t border-border" />
             )}
@@ -50,40 +50,28 @@ export function Sidebar({ collapsed, onToggle }) {
           </div>
         ))}
       </nav>
-      <div className="space-y-1 border-t border-border p-2">
+      <div className={cn('flex items-center gap-1 border-t border-border p-2', collapsed && 'flex-col')}>
         {!collapsed && (
-          <div className="px-3 py-1.5">
+          <div className="min-w-0 flex-1 px-2">
             <p className="truncate text-sm font-medium">{displayName}</p>
             <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
           </div>
         )}
         <button
           onClick={() => auth.signOut()}
+          aria-label="Sign out"
           title="Sign out"
-          className={cn(
-            'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-            collapsed && 'justify-center px-0',
-          )}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground"
         >
-          <LogOut className="h-4 w-4" />
-          {collapsed ? <span className="sr-only">Sign out</span> : 'Sign out'}
+          <LogOut className="h-4 w-4" aria-hidden />
         </button>
         <button
           onClick={onToggle}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className={cn(
-            'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-            collapsed && 'justify-center px-0',
-          )}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground"
         >
-          {collapsed ? (
-            <PanelLeftOpen className="h-4 w-4" />
-          ) : (
-            <>
-              <PanelLeftClose className="h-4 w-4" />
-              Collapse
-            </>
-          )}
+          {collapsed ? <PanelLeftOpen className="h-4 w-4" aria-hidden /> : <PanelLeftClose className="h-4 w-4" aria-hidden />}
         </button>
       </div>
     </aside>

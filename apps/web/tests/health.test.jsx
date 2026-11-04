@@ -16,7 +16,7 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 import { DailyLogForm } from '@/features/health/DailyLogForm'
 import { WaterDialog } from '@/features/health/WaterDialog'
 import { HealthStats } from '@/features/health/HealthStats'
-import { HealthHistory, describeLog } from '@/features/health/HealthHistory'
+import { HealthHistory, logFacts } from '@/features/health/HealthHistory'
 
 const DAY = '2026-11-02'
 const H = (o) => ({
@@ -131,7 +131,7 @@ describe('health domain', () => {
 
 describe('DailyLogForm', () => {
   const form = (p = {}) => render(<DailyLogForm day={DAY} today={DAY} log={undefined} onDayChange={() => {}} {...p} />)
-  const submit = () => document.querySelector('form button[type=submit]')
+  const submit = () => document.querySelector('button[type=submit]')
 
   it('shows the live sleep duration for an overnight sleep', async () => {
     const user = userEvent.setup()
@@ -165,7 +165,7 @@ describe('DailyLogForm', () => {
     const user = userEvent.setup()
     form()
     await user.type(screen.getByLabelText('Water (ml)'), '500')
-    await user.click(screen.getByRole('button', { name: 'Energy 4' }))
+    await user.click(screen.getByRole('button', { name: 'Energy 4 of 5' }))
     await user.click(submit())
     await waitFor(() =>
       expect(mocks.saveHealth).toHaveBeenCalledWith(
@@ -270,7 +270,7 @@ describe('HealthStats and HealthHistory', () => {
       />,
     )
     expect(screen.getByText('7h 30m')).toBeInTheDocument()
-    expect(screen.getByText('5 nights logged')).toBeInTheDocument()
+    expect(screen.getByText(/5 nights logged/)).toBeInTheDocument()
     expect(screen.getByText('1000 ml')).toBeInTheDocument()
     expect(screen.getByText('goal 3000 ml')).toBeInTheDocument()
     expect(screen.getByText('-1.5 kg since first log')).toBeInTheDocument()
@@ -295,8 +295,8 @@ describe('HealthStats and HealthHistory', () => {
   it('history lists only the metrics that were logged and opens the chosen day', async () => {
     const user = userEvent.setup()
     const onSelect = vi.fn()
-    expect(describeLog(H({ sleep_minutes: null, water_ml: 0, steps: 0, energy_level: null, weight_kg: null }))).toBe('')
-    expect(describeLog(H())).toBe('😴 7h  ·  💧 1000 ml  ·  👟 4,000  ·  ⚡ 3/5  ·  80.5 kg')
+    expect(logFacts(H({ sleep_minutes: null, water_ml: 0, steps: 0, energy_level: null, weight_kg: null }))).toEqual([])
+    expect(logFacts(H()).map((f) => f.text)).toEqual(['7h', '1000 ml', '4,000', '3/5', '80.5 kg'])
     render(<HealthHistory logs={[H()]} onSelect={onSelect} />)
     await user.click(screen.getByRole('button', { name: /Mon, 2 Nov/ }))
     expect(onSelect).toHaveBeenCalledWith(DAY)

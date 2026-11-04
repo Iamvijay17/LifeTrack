@@ -11,8 +11,8 @@ export function MoveMenu({ app, today }) {
     <Menu
       label={`Move ${app.company}`}
       trigger={
-        <span className="flex items-center gap-1 rounded px-1.5 py-1 text-[11px] text-muted-foreground hover:bg-muted">
-          <MoveRight className="h-3 w-3" />
+        <span className="flex items-center gap-1 rounded px-2.5 py-3 text-xs text-muted-foreground hover:bg-muted md:px-1.5 md:py-1 md:text-[11px]">
+          <MoveRight className="h-3 w-3" aria-hidden />
           Move
         </span>
       }

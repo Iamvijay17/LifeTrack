@@ -39,6 +39,9 @@ test.describe('navigation, search, dashboard', () => {
 
   test('daily score reflects real data, explains itself, and widgets can be hidden', async ({ page }) => {
     await register(page)
+    await expect(page.getByTestId('getting-started')).toBeVisible() // a new account sees the guide, not rows of zeros
+    await expect(page.getByTestId('score-card')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Dismiss the getting started guide' }).click()
     await expect(page.getByTestId('score-value')).toHaveText('0') // study target + no study yet; nothing else planned
     await page.goto('/planner')
     await addTask(page, 'Apply to 3 companies')
@@ -249,7 +252,8 @@ test.describe('jobs & export', () => {
     await page.goto('/jobs')
     await page.getByRole('button', { name: 'Add your first application' }).click()
     await expect(page.getByLabel('Status')).toContainText('Wishlist')
-    await expect(page.getByLabel('Status')).toContainText('Offer')
+    await page.getByLabel('Status').click()
+    await expect(page.getByRole('option', { name: 'Offer' })).toBeVisible()
   })
 
   test('CSV export for a module, and typed-confirmation erase', async ({ page }) => {

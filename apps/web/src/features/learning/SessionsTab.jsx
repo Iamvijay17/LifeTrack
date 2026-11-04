@@ -1,5 +1,6 @@
 import { Clock, Pencil, Trash2 } from 'lucide-react'
 import { EmptyState } from '@/components/shared/states'
+import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Menu } from '@/components/ui/menu'
 import { useShowMore } from '@/hooks/useShowMore'
@@ -9,7 +10,7 @@ import { sessionName } from '@/domain/learning'
 import { fmtDay, fmtDuration } from '@/lib/dates'
 
 /** `history` is completed sessions, newest first. */
-export function SessionsTab({ history, goals, topics, onEdit }) {
+export function SessionsTab({ history, goals, topics, onCreate, onEdit }) {
   const removeSession = useConfirmedDelete('study_sessions', 'Session deleted')
   const page = useShowMore(history)
   if (history.length === 0) {
@@ -18,6 +19,13 @@ export function SessionsTab({ history, goals, topics, onEdit }) {
         icon={Clock}
         title="No completed sessions yet"
         description="Use the timer or log a session manually. Running timers don't count until you save them."
+        action={
+          onCreate && (
+            <Button size="sm" onClick={onCreate}>
+              Log a session
+            </Button>
+          )
+        }
       />
     )
   }

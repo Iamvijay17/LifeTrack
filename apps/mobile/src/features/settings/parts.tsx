@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Linking, Text, View } from 'react-native'
 import { TIMEZONES, todayStr } from '@lifetrack/utils'
 import { SCORE_CATEGORIES, normalizeWeights, validateScoreWeights } from '@lifetrack/core/score'
+import { MAX_SLEEP_GOAL_MINUTES, MIN_SLEEP_GOAL_MINUTES, sleepGoalOf } from '@lifetrack/core/sleep'
 import { DELETE_CONFIRM_WORD, displayNameSchema, focusPrefsFormSchema, passwordChangeSchema, preferencesFormSchema, preferencesToForm, preferencesToPayload } from '@lifetrack/schemas'
 import { CURRENCIES } from '@lifetrack/utils'
 
@@ -58,10 +59,20 @@ export function AppearanceSection() {
 export function PreferencesSection() {
   const { settings, save } = useSettings()
   const { values, errors, set, reset, validate } = useZodForm(preferencesFormSchema, preferencesToForm(settings))
-  useEffect(() => { reset(preferencesToForm(settings)) }, [settings.updated_at]) // eslint-disable-line react-hooks/exhaustive-deps
-  const [submit, pending] = useAction(async () => { const v = validate(); if (!v) return; await save(preferencesToPayload(v)) })
+  const goalText = String(sleepGoalOf(settings) / 60)
+  const [sleepGoal, setSleepGoal] = useState(goalText)
+  const [sleepError, setSleepError] = useState<string | undefined>()
+  useEffect(() => { reset(preferencesToForm(settings)); setSleepGoal(goalText) }, [settings.updated_at]) // eslint-disable-line react-hooks/exhaustive-deps
+  const [submit, pending] = useAction(async () => {
+    const v = validate()
+    const hours = Number(sleepGoal)
+    const valid = hours * 60 >= MIN_SLEEP_GOAL_MINUTES && hours * 60 <= MAX_SLEEP_GOAL_MINUTES
+    setSleepError(valid ? undefined : 'Enter 4 to 12 hours')
+    if (!v || !valid) return
+    await save({ ...preferencesToPayload(v), habit_prefs: { ...settings.habit_prefs, sleep_goal_minutes: Math.round(hours * 60) } })
+  })
   const tzs = (TIMEZONES as string[]).includes(settings.timezone) ? TIMEZONES : [settings.timezone, ...TIMEZONES]
-  const dirty = JSON.stringify(values) !== JSON.stringify(preferencesToForm(settings))
+  const dirty = JSON.stringify(values) !== JSON.stringify(preferencesToForm(settings)) || sleepGoal !== goalText
   const num = (k: 'daily_study_target_minutes' | 'water_goal_ml' | 'steps_goal', label: string, hint?: string) =>
     <Field label={label} value={String(values[k] ?? '')} onChangeText={(t) => set(k, t as any)} error={errors[k]} keyboardType="number-pad" />
   return (
@@ -73,6 +84,7 @@ export function PreferencesSection() {
       <Field label="Default monthly expense budget" value={values.monthly_budget} onChangeText={(t) => set('monthly_budget', t)} error={errors.monthly_budget} keyboardType="decimal-pad" placeholder="e.g. 30000" />
       {num('water_goal_ml', 'Water goal (ml)')}
       {num('steps_goal', 'Daily steps goal')}
+      <Field label="Sleep goal (hours)" value={sleepGoal} onChangeText={setSleepGoal} error={sleepError} keyboardType="decimal-pad" />
       <Button title="Save preferences" onPress={submit} loading={pending} disabled={!dirty} />
     </Section>
   )

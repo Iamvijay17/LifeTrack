@@ -56,6 +56,7 @@ export const EXPORTABLE = [
   ['health_logs', 'Sleep & health'],
   ['transactions', 'Transactions'],
   ['budgets', 'Budgets'],
+  ['recurring_rules', 'Recurring rules'],
   ['savings_goals', 'Savings goals'],
   ['notes', 'Notes'],
   ['journal_entries', 'Journal'],

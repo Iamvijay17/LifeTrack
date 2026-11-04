@@ -1,6 +1,5 @@
-import { Link } from 'react-router-dom'
 import { Wallet } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardLink, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/misc'
 import { budgetTone } from '@/domain/finance'
 
@@ -13,9 +12,7 @@ export function SpendingCard({ sum, money }) {
           <Wallet className="h-4 w-4" />
           Spending this month
         </CardTitle>
-        <Link to="/finance" className="text-xs text-secondary underline underline-offset-2">
-          Finance
-        </Link>
+        <CardLink to="/finance">Finance</CardLink>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-baseline justify-between">

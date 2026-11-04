@@ -15,7 +15,7 @@ export const Block = ({ icon: Icon, title, children }) => (
 export const Panel = ({ title, children }) => (
   <Card>
     <CardHeader>
-      <CardTitle>{title}</CardTitle>
+      <CardTitle as="h3">{title}</CardTitle>
     </CardHeader>
     <CardContent>{children}</CardContent>
   </Card>

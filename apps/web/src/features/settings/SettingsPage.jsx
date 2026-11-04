@@ -24,7 +24,7 @@ export default function SettingsPage() {
           <ScoreWeightsCard />
           <FocusPrefsCard />
           <SettingsSection title="Your data" desc="Exports, backup and restore live on their own page.">
-            <Link to="/export" className="text-sm text-secondary underline underline-offset-2">
+            <Link to="/export" className="-m-2 inline-block rounded-md p-2 text-sm text-secondary underline underline-offset-2">
               Open Data Export →
             </Link>
           </SettingsSection>

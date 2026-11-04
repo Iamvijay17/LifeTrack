@@ -1,8 +1,10 @@
+import { useState } from 'react'
+import { X } from 'lucide-react'
 import { z } from 'zod'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { Field, Input, Textarea } from '@/components/ui/form'
 import { TOPIC_GROUPS } from '@/domain/defaults'
-import { isValidDay } from '@/lib/dates'
+import { fmtDay, isValidDay } from '@/lib/dates'
 import { useAction } from '@/hooks/useAction'
 import { useDialogForm } from '@/hooks/useDialogForm'
 import * as store from '@/hooks/store'
@@ -31,8 +33,13 @@ export function TopicDialog({ open, onOpenChange, topic, groups = TOPIC_GROUPS, 
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
   } = useDialogForm({ open, schema, recordKey: topic?.id, valuesFor: () => (topic ? fromTopic(topic) : blank) })
+  const [picking, setPicking] = useState('')
+  const { dates } = parseRevisionDates(watch('revision_dates') ?? '')
+  const writeDates = (next) => setValue('revision_dates', [...new Set(next)].sort().join(', '), { shouldDirty: true })
 
   const [save, pending] = useAction(
     async (v) => {
@@ -67,9 +74,37 @@ export function TopicDialog({ open, onOpenChange, topic, groups = TOPIC_GROUPS, 
           <Input {...register('name')} />
         </Field>
       </div>
-      <Field label="Revision dates" hint={`YYYY-MM-DD, comma separated. e.g. ${today}`} error={errors.revision_dates?.message}>
-        <Input {...register('revision_dates')} placeholder={today} />
-      </Field>
+      <div className="space-y-1.5">
+        <Field label="Add a revision date" hint="You'll see a reminder on the topic when it's due.">
+          <Input
+            type="date"
+            min={today}
+            placeholder="Choose a date"
+            value={picking}
+            onChange={(e) => {
+              if (e.target.value) writeDates([...dates, e.target.value])
+              setPicking('')
+            }}
+          />
+        </Field>
+        {dates.length > 0 && (
+          <ul aria-label="Revision dates" className="flex flex-wrap gap-1.5">
+            {dates.map((d) => (
+              <li key={d} className="inline-flex items-center gap-1 rounded-md bg-muted py-0.5 pl-2 pr-0.5 text-xs">
+                {fmtDay(d, 'd MMM yyyy')}
+                <button
+                  type="button"
+                  aria-label={`Remove ${fmtDay(d, 'd MMM yyyy')}`}
+                  className="rounded p-1 text-muted-foreground hover:text-foreground"
+                  onClick={() => writeDates(dates.filter((x) => x !== d))}
+                >
+                  <X className="h-3 w-3" aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
       <Field label="Notes">
         <Textarea rows={6} {...register('notes')} />
       </Field>

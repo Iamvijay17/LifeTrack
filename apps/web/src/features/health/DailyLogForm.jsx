@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { Trash2, Zap } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { DateNav } from '@/components/shared/DateNav'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -86,25 +86,29 @@ export function DailyLogForm({ day, today, log, onDayChange }) {
               <Input type="number" inputMode="numeric" min={0} {...register('steps')} />
             </Field>
           </div>
-          <Field label="Energy level">
-            <div className="flex gap-1.5">
+          <div className="space-y-1.5">
+            <p className="flex justify-between text-[13px] font-medium text-foreground/90">
+              Energy level
+              <span className="text-xs font-normal text-muted-foreground">1 low · 5 high</span>
+            </p>
+            <div role="group" aria-label="Energy level" className="flex gap-1.5">
               {[1, 2, 3, 4, 5].map((n) => (
                 <button
                   key={n}
                   type="button"
                   aria-pressed={energy === String(n)}
+                  aria-label={`Energy ${n} of 5`}
                   onClick={() => setValue('energy_level', energy === String(n) ? '' : String(n), { shouldDirty: true })}
                   className={cn(
-                    'h-10 flex-1 rounded-md border border-border text-sm',
-                    energy === String(n) ? 'border-primary bg-primary/15 text-secondary' : 'text-muted-foreground',
+                    'h-11 flex-1 rounded-md border border-border text-sm font-medium tabular-nums md:h-9',
+                    energy === String(n) ? 'border-primary bg-primary/15 text-secondary' : 'text-muted-foreground hover:bg-muted/60',
                   )}
                 >
-                  <Zap className="mx-auto h-4 w-4" />
-                  <span className="sr-only">Energy {n}</span>
+                  {n}
                 </button>
               ))}
             </div>
-          </Field>
+          </div>
           <Field label="Weight (kg)" error={errors.weight_kg?.message}>
             <Input type="number" inputMode="decimal" step="0.1" {...register('weight_kg')} />
           </Field>

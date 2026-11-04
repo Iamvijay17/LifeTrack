@@ -1,6 +1,7 @@
 import * as D from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { hasOpenPopup } from './popup'
 
 /** Bottom sheet on phones, centred modal on desktop. */
 export function Dialog({ open, onOpenChange, title, description, children, className, footer }) {
@@ -9,6 +10,7 @@ export function Dialog({ open, onOpenChange, title, description, children, class
       <D.Portal>
         <D.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-[2px]" />
         <D.Content
+          onEscapeKeyDown={(e) => hasOpenPopup() && e.preventDefault()} // Esc closes the open dropdown or calendar, not the form under it
           className={cn(
             'fixed z-50 flex max-h-[92dvh] w-full flex-col border border-border bg-card shadow-2xl animate-fade-in',
             'bottom-0 left-0 rounded-t-xl md:bottom-auto md:left-1/2 md:top-1/2 md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl',
@@ -24,12 +26,15 @@ export function Dialog({ open, onOpenChange, title, description, children, class
                 <D.Description className="sr-only">{title}</D.Description>
               )}
             </div>
-            <D.Close className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Close">
+            <D.Close
+              className="-m-1.5 rounded-md p-2.5 text-muted-foreground hover:bg-muted hover:text-foreground md:m-0 md:p-1"
+              aria-label="Close"
+            >
               <X className="h-4 w-4" />
             </D.Close>
           </div>
-          <div className="overflow-y-auto px-5 py-4">{children}</div>
-          {footer && <div className="flex justify-end gap-2 border-t border-border px-5 py-3 pb-safe">{footer}</div>}
+          <div className={cn('min-h-0 flex-1 overflow-y-auto px-5 py-4', !footer && 'pb-safe-3')}>{children}</div>
+          {footer && <div className="flex justify-end gap-2 border-t border-border px-5 pb-safe-3 pt-3">{footer}</div>}
         </D.Content>
       </D.Portal>
     </D.Root>

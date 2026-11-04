@@ -6,19 +6,20 @@
 //  2. The score is the weighted average of the APPLICABLE categories only — their weights are re-normalised, so a rest
 //     day, a day with no job-search plan, or missing sleep data is never counted as a zero.
 //  3. null (shown as "—") means nothing at all was applicable; a number is never invented.
-import { weekday } from '@lifetrack/utils'
-import { countedMinutes } from './learning'
+import { addDays, weekday } from '@lifetrack/utils'
+import { countedMinutes, isStudying } from './learning'
 import { habitDay } from './progress'
+import { DEFAULT_SLEEP_GOAL_MINUTES, sleepGoalOf } from './sleep'
 
 export const SCORE_CATEGORIES = [
   { key: 'learning', label: 'Learning', hint: 'Study time against your daily target, plus Learning tasks due today.' },
   { key: 'career', label: 'Career', hint: 'Job Search tasks due today, applications sent today and interviews completed today.' },
-  { key: 'fitness', label: 'Fitness', hint: 'Planned workout and steps. Rest days and skipped workouts are not penalised.' },
-  { key: 'habits', label: 'Habits', hint: 'Habits scheduled today. Skipped and rest-day habits are removed from the plan.' },
-  { key: 'health', label: 'Sleep & Health', hint: 'Sleep (against 7½ h) and water (against your goal), once logged.' },
+  { key: 'fitness', label: 'Fitness', hint: 'Planned workout and steps, plus Gym tasks due today. Rest days and skipped workouts are not penalised.' },
+  { key: 'habits', label: 'Habits', hint: 'Habits scheduled today, plus Personal and Finance tasks due today. Skipped and rest-day habits are removed from the plan.' },
+  { key: 'health', label: 'Sleep & Health', hint: 'Sleep and water against your goals once logged, plus Health tasks due today.' },
 ]
 export const DEFAULT_WEIGHTS = { learning: 25, career: 25, fitness: 20, habits: 15, health: 15 }
-export const SLEEP_TARGET_MINUTES = 450
+export const SLEEP_TARGET_MINUTES = DEFAULT_SLEEP_GOAL_MINUTES
 
 /** Sanitise user weights: non-negative numbers; falls back to defaults when everything is zero/invalid. */
 export function normalizeWeights(w) {
@@ -34,6 +35,9 @@ export function normalizeWeights(w) {
 
 const mean = (items) => items.reduce((a, i) => a + i.fraction, 0) / items.length
 const isTaskPlanned = (t, date) => t.due_date === date && t.status !== 'cancelled' && t.status !== 'skipped'
+/** A task category's items for the day: one row of "done / planned". */
+const taskItem = (label, tasks) =>
+  tasks.length ? { label, fraction: tasks.filter((t) => t.status === 'done').length / tasks.length, detail: `${tasks.filter((t) => t.status === 'done').length} / ${tasks.length}` } : null
 const frac = (done, target) => (target > 0 ? Math.max(0, Math.min(1, done / target)) : 0)
 
 export function dailyScore({
@@ -55,7 +59,8 @@ export function dailyScore({
   // learning
   const target = settings.daily_study_target_minutes ?? 0
   const minutes = countedMinutes(sessions.filter((s) => s.session_date === date))
-  if (target > 0)
+  // The default target is 120 minutes, so it only applies once the user actually studies: a non-learner is not scored zero every day.
+  if (target > 0 && isStudying(sessions, date, minutes))
     cats.learning.push({ label: 'Study time', fraction: frac(minutes, target), detail: `${Math.round(minutes)} / ${target} min` })
   else if (minutes > 0) cats.learning.push({ label: 'Study time', fraction: 1, detail: `${Math.round(minutes)} min (no target set)` })
   const learnTasks = tasksOf('Learning')
@@ -95,15 +100,21 @@ export function dailyScore({
   if ((settings.steps_goal ?? 0) > 0 && (steps > 0 || workoutPlanned))
     cats.fitness.push({ label: 'Steps', fraction: frac(steps, settings.steps_goal), detail: `${steps} / ${settings.steps_goal}` })
 
-  // habits
+  // habits (and everyday Personal / Finance tasks, which have no module of their own)
   const h = habitDay(habits, habitLogs, date)
   if (h.total) cats.habits.push({ label: 'Habits', fraction: h.done / h.total, detail: `${h.done} / ${h.total}` })
+  const everyday = taskItem('Personal tasks', [...tasksOf('Personal'), ...tasksOf('Finance')])
+  if (everyday) cats.habits.push(everyday)
+  const gymTasks = taskItem('Gym tasks', tasksOf('Gym'))
+  if (gymTasks) cats.fitness.push(gymTasks)
+  const healthTasks = taskItem('Health tasks', tasksOf('Health'))
+  if (healthTasks) cats.health.push(healthTasks)
 
   // sleep & health: only once something was logged — an unlogged day is "unknown", not "bad"
   if (health?.sleep_minutes != null)
     cats.health.push({
       label: 'Sleep',
-      fraction: frac(health.sleep_minutes, SLEEP_TARGET_MINUTES),
+      fraction: frac(health.sleep_minutes, sleepGoalOf(settings)),
       detail: `${(health.sleep_minutes / 60).toFixed(1)} h`,
     })
   if (health && (settings.water_goal_ml ?? 0) > 0 && (health.water_ml > 0 || health.sleep_minutes != null))

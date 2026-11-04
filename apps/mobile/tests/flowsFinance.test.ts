@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { financeMonth } from '@lifetrack/core/finance'
-import { blankSavingsGoal, blankTransaction, savingsGoalFormSchema, savingsGoalToPayload, transactionFormSchema, transactionToPayload } from '@lifetrack/schemas'
+import { blankRecurringRule, blankSavingsGoal, blankTransaction, recurringRuleFormSchema, recurringRuleToPayload, savingsGoalFormSchema, savingsGoalToPayload, transactionFormSchema, transactionToPayload } from '@lifetrack/schemas'
 import { setup } from './helpers'
 
 const TODAY = '2026-11-02', MONTH = '2026-11-01'
@@ -53,5 +53,26 @@ describe('finance flows', () => {
     expect(tables.savings_goals[0].saved_paise).toBe(10000 + 25000 + 5000)
     await expect(api.addSavingsFunds(g, 0)).rejects.toThrow(/greater than 0/)
     await expect(api.addSavingsFunds(g, 12.5)).rejects.toThrow()
+  })
+})
+
+describe('recurring flows', () => {
+  const rule = (o: object = {}) => recurringRuleToPayload(recurringRuleFormSchema.parse({ ...blankRecurringRule('Bills', '2026-09-30'), amount: '25000', note: 'Rent', ...o }))
+
+  it('a rule posts its missed occurrences through the TanStack store, once, on the right days', async () => {
+    const { store, api, tables } = setup()
+    await store.insert('recurring_rules', rule())
+    expect(await api.postDueRecurring(TODAY)).toBe(2) // 30 Sep, 30 Oct
+    expect(await api.postDueRecurring(TODAY)).toBe(0)
+    expect(tables.transactions.map((t) => t.txn_date)).toEqual(['2026-09-30', '2026-10-30'])
+    expect(tables.recurring_rules[0].next_date).toBe('2026-11-30')
+    expect((store.peek('transactions') as any[]).map((t) => t.amount_paise)).toEqual([2500000, 2500000]) // the cache sees them right away
+  })
+  it('a second device loses the race without an error', async () => {
+    const { store, api, tables } = setup()
+    await store.insert('recurring_rules', rule({ next_date: '2026-11-01' }))
+    const [a, b] = await Promise.all([api.postDueRecurring(TODAY), api.postDueRecurring(TODAY)])
+    expect(a + b).toBe(1)
+    expect(tables.transactions).toHaveLength(1)
   })
 })

@@ -11,7 +11,7 @@ export function WeeklyPlan({ weekDays, today, plan, routines, workouts, complete
     <Card className="lg:col-span-3">
       <CardHeader>
         <CardTitle>Weekly plan</CardTitle>
-        <span className="text-xs text-muted-foreground">Choose a routine, rest, or leave flexible</span>
+        <span className="hidden text-xs text-muted-foreground sm:inline">Choose a routine, rest, or leave flexible</span>
       </CardHeader>
       <CardContent className="space-y-1.5">
         {weekDays.map((d) => {
@@ -20,29 +20,30 @@ export function WeeklyPlan({ weekDays, today, plan, routines, workouts, complete
           const off = workouts.find((x) => x.workout_date === d && x.status !== 'completed')
           return (
             <div key={d} className={cn('flex items-center gap-3 rounded-md px-2 py-1.5', d === today && 'bg-primary/10')}>
-              <div className="w-24 shrink-0">
+              <div className="w-16 shrink-0 sm:w-24">
                 <p className="text-sm font-medium">
                   {DAY_NAMES[dow].slice(0, 3)}
-                  {d === today && <span className="ml-1.5 text-[10px] text-secondary">TODAY</span>}
+                  {d === today && <span className="ml-1.5 hidden text-[10px] text-secondary sm:inline">TODAY</span>}
                 </p>
                 <p className="text-xs text-muted-foreground">{fmtDay(d, 'd MMM')}</p>
               </div>
-              <Select
-                aria-label={`Plan for ${DAY_NAMES[dow]}`}
-                className="flex-1"
-                disabled={planning}
-                value={plan[dow] ?? ''}
-                onChange={(e) => onPlan(dow, e.target.value)}
-              >
-                <option value="">Flexible / unplanned</option>
-                <option value="rest">Rest day</option>
-                {routines.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-              </Select>
-              <div className="w-20 shrink-0 text-right">
+              <div className="min-w-0 flex-1">
+                <Select
+                  aria-label={`Plan for ${DAY_NAMES[dow]}`}
+                  disabled={planning}
+                  value={plan[dow] ?? ''}
+                  onChange={(e) => onPlan(dow, e.target.value)}
+                >
+                  <option value="">Flexible / unplanned</option>
+                  <option value="rest">Rest day</option>
+                  {routines.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div className="w-14 shrink-0 text-right sm:w-20">
                 {done ? <Badge tone="success">Done</Badge> : off ? <Badge>{off.status === 'rest' ? 'Rest' : 'Skipped'}</Badge> : null}
               </div>
             </div>

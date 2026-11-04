@@ -55,7 +55,7 @@ export function Journal({ date }) {
     .slice(0, 8)
 
   return (
-    <div className="grid gap-4 lg:grid-cols-5">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
       <Card className="lg:col-span-3">
         <CardContent className="space-y-4">
           <div>
@@ -104,7 +104,7 @@ export function Journal({ date }) {
         </CardContent>
       </Card>
       <div className="space-y-2 lg:col-span-2">
-        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Recent entries</h3>
+        <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Recent entries</h2>
         {past.length === 0 ? (
           <EmptyState title="No other entries yet" description="Short daily notes build a useful record over time." />
         ) : (

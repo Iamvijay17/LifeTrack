@@ -7,16 +7,16 @@ and every **deliberate** difference. Anything not listed as a difference is expe
 
 | Web route | Mobile screen | Status | Deliberate differences |
 |---|---|---|---|
-| `/` Dashboard | Dashboard tab | ✅ | Quick actions open the same forms in sheets; no global FAB. |
-| `/planner` | Planner tab | ✅ | Sectioned list; actions via a sheet instead of a hover menu. |
+| `/` Dashboard | Dashboard tab | ✅ | Quick actions open the same forms in sheets; no global FAB. Upcoming links open the module rather than the exact record. No Undo toast after completing a task. |
+| `/planner` | Planner tab | ✅ | Sectioned list; actions via a sheet instead of a hover menu. "Move to today" and jump-to-date are web-only for now. |
 | `/habits` | Habits tab | ✅ | Heatmap shows 20 weeks (web 26) to fit a phone; scrolls horizontally. |
 | `/focus` | More → Focus Timer | ✅ | Timer state is per device (as on web). The end of a timer also sends a local notification when the app is not open. |
 | `/learning` | More → Career & Learning | ✅ | — |
 | `/goals` | More → Goals & Milestones | ✅ | — |
 | `/jobs` | More → Job Switch | ✅ | Pipeline list with status filter chips instead of a drag-and-drop board; interviews as an agenda list instead of a month calendar. |
-| `/fitness` | More → Gym & Fitness | ✅ | — |
-| `/health` | More → Sleep & Health | ✅ | — |
-| `/finance` | Finance tab | ✅ | Filters are chips (no from/to date inputs); CSV download is web-only. |
+| `/fitness` | More → Gym & Fitness | ✅ | Personal records sit at the top of History. Per-exercise chart and month calendar are web-only for now. |
+| `/health` | More → Sleep & Health | ✅ | Same sleep goal, regularity and energy numbers (shared logic). |
+| `/finance` | Finance tab | ✅ | Filters are chips (no from/to date inputs); CSV download and Duplicate are web-only. |
 | `/notes` | More → Notes & Journal | ✅ | No `?note=` deep link from global search. |
 | `/analytics` | More → Analytics | ✅ | Charts have accessibility summaries instead of hover tooltips. |
 | `/settings` | More → Settings | ✅ | Includes in-app account deletion (App Store requirement). |

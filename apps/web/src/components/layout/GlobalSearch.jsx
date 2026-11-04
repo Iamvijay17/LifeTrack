@@ -21,7 +21,12 @@ export function searchAll(q, data, limit = 5) {
       icon: CheckSquare,
       items: (data.tasks ?? [])
         .filter((t) => has(t.title, t.notes))
-        .map((t) => ({ id: t.id, label: t.title, sub: t.due_date ?? 'No date', to: '/planner' })),
+        .map((t) => ({
+          id: t.id,
+          label: t.title,
+          sub: t.due_date ?? 'No date',
+          to: t.due_date ? `/planner?date=${t.due_date}` : '/planner',
+        })),
     },
     {
       title: 'Notes',
@@ -42,7 +47,7 @@ export function searchAll(q, data, limit = 5) {
       icon: Briefcase,
       items: (data.job_applications ?? [])
         .filter((a) => has(a.company, a.job_title, a.location))
-        .map((a) => ({ id: a.id, label: `${a.company} — ${a.job_title}`, sub: a.status, to: '/jobs' })),
+        .map((a) => ({ id: a.id, label: `${a.company} — ${a.job_title}`, sub: a.status, to: `/jobs?app=${a.id}` })),
     },
     {
       title: 'Habits',
@@ -54,7 +59,7 @@ export function searchAll(q, data, limit = 5) {
       icon: Wallet,
       items: (data.transactions ?? [])
         .filter((t) => has(t.note, t.category))
-        .map((t) => ({ id: t.id, label: t.note || t.category, sub: t.txn_date, to: '/finance' })),
+        .map((t) => ({ id: t.id, label: t.note || t.category, sub: t.txn_date, to: `/finance?month=${t.txn_date.slice(0, 7)}-01` })),
     },
   ]
   return groups.map((g) => ({ ...g, items: g.items.slice(0, limit) })).filter((g) => g.items.length)
@@ -159,12 +164,13 @@ export function GlobalSearch() {
     <>
       <button
         onClick={() => setOpen(true)}
-        aria-label="Search"
-        className="flex h-9 items-center gap-2 rounded-md border border-border px-2.5 text-sm text-muted-foreground hover:bg-muted/60 md:w-56"
+        className="flex h-10 items-center gap-2 rounded-md border border-border px-2.5 text-sm text-muted-foreground hover:bg-muted/60 md:h-9 md:w-56"
       >
-        <Search className="h-4 w-4" />
-        <span className="hidden flex-1 text-left md:inline">Search…</span>
-        <kbd className="hidden rounded border border-border px-1.5 text-[10px] md:inline">Ctrl K</kbd>
+        <Search className="h-4 w-4" aria-hidden />
+        <span className="sr-only md:not-sr-only md:flex-1 md:text-left">Search…</span>
+        <kbd aria-hidden className="hidden rounded border border-border px-1.5 text-[10px] md:inline">
+          Ctrl K
+        </kbd>
       </button>
       <D.Root open={open} onOpenChange={setOpen}>
         <D.Portal>

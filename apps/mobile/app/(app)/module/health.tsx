@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { fmtDay, fmtDuration, sleepMinutes } from '@lifetrack/utils'
 import { healthSummary, historyLine, signedKg } from '@lifetrack/core/health'
+import { averageEnergy, sleepConsistency, sleepGoalOf } from '@lifetrack/core/sleep'
 import { healthFormSchema, healthFormToPayload, healthToForm } from '@lifetrack/schemas'
 import { api, store } from '../../../src/data/client'
 import { useTables } from '../../../src/hooks/useTables'
@@ -40,14 +41,19 @@ export default function Health() {
   const h: any = useMemo(() => healthSummary(data.health_logs, today), [data.health_logs, today])
   const sleepData = h.week.map((w: any) => ({ label: w.label, value: w.sleep }))
   const waterData = h.week.map((w: any) => ({ label: w.label, value: w.water }))
+  const sleepGoal = sleepGoalOf(settings)
+  const { consistency, energy }: any = useMemo(() => {
+    const recent = h.history.slice(0, 14)
+    return { consistency: sleepConsistency(recent, { goalMinutes: sleepGoal }), energy: averageEnergy(recent) }
+  }, [h, sleepGoal])
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView refreshControl={pullToRefresh(refreshing, refetch)} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 32 }}>
-        <ModuleHeader title="Sleep & Health" action={<Button title="💧 Water" variant="ghost" onPress={() => setWater(true)} />} />
+        <ModuleHeader title="Sleep & Health" action={<Button title="Log water" variant="ghost" onPress={() => setWater(true)} />} />
         <DataGate loading={loading} error={error} onRetry={refetch}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-            <StatTile label="Avg sleep (7 days)" value={h.avgSleepMinutes == null ? '—' : fmtDuration(h.avgSleepMinutes)} sub={h.nightsLogged ? `${h.nightsLogged} nights logged` : 'No sleep logged'} />
+            <StatTile label="Avg sleep (7 days)" value={h.avgSleepMinutes == null ? '—' : fmtDuration(h.avgSleepMinutes)} sub={h.nightsLogged ? `goal ${fmtDuration(sleepGoal)} · ${h.nightsLogged} night${h.nightsLogged === 1 ? '' : 's'}` : 'No sleep logged'} progress={h.avgSleepMinutes == null ? null : Math.min(100, (h.avgSleepMinutes / sleepGoal) * 100)} />
             <StatTile label="Water today" value={`${h.todayLog?.water_ml ?? 0} ml`} sub={settings.water_goal_ml ? `goal ${settings.water_goal_ml} ml` : undefined} progress={settings.water_goal_ml ? ((h.todayLog?.water_ml ?? 0) / settings.water_goal_ml) * 100 : null} tone="success" />
             <StatTile label="Steps today" value={(h.todayLog?.steps ?? 0).toLocaleString('en-IN')} sub={settings.steps_goal ? `goal ${settings.steps_goal.toLocaleString('en-IN')}` : undefined} progress={settings.steps_goal ? ((h.todayLog?.steps ?? 0) / settings.steps_goal) * 100 : null} />
             <StatTile label="Latest weight" value={h.latestWeight != null ? `${h.latestWeight} kg` : '—'} sub={h.weightChange != null ? `${signedKg(h.weightChange)} since first log` : undefined} />
@@ -65,9 +71,9 @@ export default function Health() {
               <View style={{ flex: 1 }}><Field label="Water (ml)" value={values.water_ml} onChangeText={(t) => set('water_ml', t)} error={errors.water_ml} keyboardType="number-pad" /></View>
               <View style={{ flex: 1 }}><Field label="Steps" value={values.steps} onChangeText={(t) => set('steps', t)} error={errors.steps} keyboardType="number-pad" /></View>
             </View>
-            <Text style={{ color: colors.foreground, fontWeight: '500', marginTop: 8 }}>Energy level</Text>
+            <Text style={{ color: colors.foreground, fontWeight: '500', marginTop: 8 }}>Energy level <Text style={{ color: colors.mutedForeground, fontWeight: '400', fontSize: 13 }}>1 low · 5 high</Text></Text>
             <View style={{ flexDirection: 'row', gap: 8, marginVertical: 6 }}>
-              {[1, 2, 3, 4, 5].map((n) => <Chip key={n} label={`⚡${n}`} selected={values.energy_level === String(n)} onPress={() => set('energy_level', values.energy_level === String(n) ? '' : String(n))} />)}
+              {[1, 2, 3, 4, 5].map((n) => <Chip key={n} label={String(n)} selected={values.energy_level === String(n)} onPress={() => set('energy_level', values.energy_level === String(n) ? '' : String(n))} />)}
             </View>
             <Field label="Weight (kg)" value={values.weight_kg} onChangeText={(t) => set('weight_kg', t)} error={errors.weight_kg} keyboardType="decimal-pad" />
             <Field label="Notes" value={values.notes} onChangeText={(t) => set('notes', t)} multiline numberOfLines={2} style={{ minHeight: 64, textAlignVertical: 'top', paddingTop: 12 }} />
@@ -78,7 +84,12 @@ export default function Health() {
           </Card>
 
           <Card><Txt variant="heading">Sleep — last 7 days (hours)</Txt>
-            <BarChart data={sleepData} unit="h" refLine={8} maxValue={10} color={colors.secondary} summary={`Hours of sleep, last 7 days: ${sleepData.map((d: any) => `${d.label} ${d.value ?? 'none'}`).join(', ')}`} /></Card>
+            <BarChart data={sleepData} unit="h" refLine={sleepGoal / 60} maxValue={12} color={colors.secondary} summary={`Hours of sleep, last 7 days: ${sleepData.map((d: any) => `${d.label} ${d.value ?? 'none'}`).join(', ')}. Goal ${sleepGoal / 60} hours.`} />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
+              {([['Goal', fmtDuration(sleepGoal)], ['Met goal', consistency.nightsLogged ? `${consistency.nightsMetGoal} of ${consistency.nightsLogged}` : null], ['Usual bedtime', consistency.avgBedtime], ['Usual wake-up', consistency.avgWake], ['Regularity', consistency.label], ['Avg energy', energy != null ? `${energy} / 5` : null]] as [string, string | null][]).filter(([, v]) => v).map(([k, v]) => (
+                <View key={k} style={{ flexBasis: '45%', flexGrow: 1 }}><Txt variant="small" muted>{k}</Txt><Text style={{ color: colors.foreground, fontWeight: '500' }}>{v}</Text></View>
+              ))}
+            </View></Card>
           <Card><Txt variant="heading">Water (ml)</Txt>
             <BarChart data={waterData} refLine={settings.water_goal_ml || undefined} color={colors.success} summary={`Water in ml, last 7 days: ${waterData.map((d: any) => `${d.label} ${d.value ?? 0}`).join(', ')}`} /></Card>
           <Card><Txt variant="heading">Weight trend (kg)</Txt>

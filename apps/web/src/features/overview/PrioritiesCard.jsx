@@ -1,21 +1,18 @@
-import { Link } from 'react-router-dom'
 import { Circle, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardLink, CardTitle } from '@/components/ui/card'
 
 /** The top three open tasks for today; tapping one completes it. */
-export function PrioritiesCard({ priorities, hasTasksToday, openTasks, doneTasks, onComplete, onAddTask }) {
+export function PrioritiesCard({ priorities, hasTasksToday, openTasks, doneTasks, onComplete, onAddTask, className }) {
   return (
-    <Card className="lg:col-span-5">
+    <Card className={className}>
       <CardHeader>
         <CardTitle>Top priorities</CardTitle>
-        <span className="text-xs text-muted-foreground">
-          {openTasks} pending · {doneTasks} completed today
-        </span>
-        <Link to="/planner" className="text-xs text-secondary underline underline-offset-2">
-          Planner
-        </Link>
+        <CardLink to="/planner">Planner</CardLink>
       </CardHeader>
+      <p className="px-4 pt-0.5 text-xs text-muted-foreground">
+        {openTasks} pending · {doneTasks} completed today
+      </p>
       <CardContent className="space-y-1">
         {priorities.length === 0 ? (
           <div className="py-4 text-center text-sm text-muted-foreground">
@@ -33,10 +30,10 @@ export function PrioritiesCard({ priorities, hasTasksToday, openTasks, doneTasks
               key={t.id}
               onClick={() => onComplete(t)}
               aria-label={`Complete ${t.title}`}
-              className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-muted/40"
+              className="flex min-h-11 w-full items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-muted/40 md:min-h-0"
             >
-              <Circle className="h-5 w-5 shrink-0 text-muted-foreground" />
-              <span className="truncate text-sm">{t.title}</span>
+              <Circle className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+              <span className="line-clamp-2 min-w-0 break-words text-sm">{t.title}</span>
             </button>
           ))
         )}

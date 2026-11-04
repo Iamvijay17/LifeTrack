@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   upsert: vi.fn(),
   peek: vi.fn(),
   confirm: vi.fn(),
+  addFunds: vi.fn(),
   rows: { savings_goals: [] },
 }))
 vi.mock('@/hooks/store', () => ({
@@ -33,6 +34,7 @@ vi.mock('@/hooks/store', () => ({
   peek: mocks.peek,
   useTable: (t) => ({ rows: mocks.rows[t] ?? [] }),
 }))
+vi.mock('@/services/api', async (orig) => ({ ...(await orig()), addSavingsFunds: mocks.addFunds }))
 vi.mock('@/hooks/useSettings', () => ({ useSettings: () => ({ settings: { currency: 'INR' } }) }))
 vi.mock('@/components/shared/Confirm', () => ({ useConfirm: () => mocks.confirm }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
@@ -213,16 +215,16 @@ describe('savings goals', () => {
       }),
     )
   })
-  it('AddFundsDialog adds to the freshest cached total, not a stale prop', async () => {
+  it('AddFundsDialog adds inside the database, never from a cached total', async () => {
     const user = userEvent.setup()
-    mocks.peek.mockReturnValue([{ id: 'g1', saved_paise: 400000 }]) // another quick add already landed
     const onClose = vi.fn()
     render(
       <AddFundsDialog goal={{ id: 'g1', name: 'Laptop', saved_paise: 100000, target_paise: 5000000 }} money={money} onClose={onClose} />,
     )
     await user.type(screen.getByLabelText('Amount'), '500')
     await user.click(screen.getByRole('button', { name: 'Add' }))
-    await waitFor(() => expect(mocks.update).toHaveBeenCalledWith('savings_goals', 'g1', { saved_paise: 450000 }))
+    await waitFor(() => expect(mocks.addFunds).toHaveBeenCalledWith(expect.objectContaining({ id: 'g1' }), 50000))
+    expect(mocks.update).not.toHaveBeenCalled()
     expect(onClose).toHaveBeenCalled()
   })
   it('AddFundsDialog rejects zero', async () => {
@@ -231,7 +233,7 @@ describe('savings goals', () => {
     await user.type(screen.getByLabelText('Amount'), '0')
     await user.click(screen.getByRole('button', { name: 'Add' }))
     expect(await screen.findByText('Enter an amount greater than 0.')).toBeInTheDocument()
-    expect(mocks.update).not.toHaveBeenCalled()
+    expect(mocks.addFunds).not.toHaveBeenCalled()
   })
   it('SavingsGoals shows progress capped at 100% and an empty state', () => {
     const { unmount } = render(<SavingsGoals money={money} />)

@@ -1,6 +1,6 @@
 import { Briefcase, Send, Trophy, Users } from 'lucide-react'
 import { StatCard } from '@/components/shared/StatCard'
-import { pctText } from '@/lib/format'
+import { pctText, plural } from '@/lib/format'
 
 /** `funnel` is domain funnel() over all applications. */
 export function JobsStats({ appliedThisWeek, active, total, funnel }) {
@@ -14,7 +14,7 @@ export function JobsStats({ appliedThisWeek, active, total, funnel }) {
         value={pctText(funnel.conversion)}
         sub={`${funnel.interviews} of ${funnel.applied} applied`}
       />
-      <StatCard icon={Trophy} label="Offers" value={funnel.offers} sub={`${funnel.rejections} rejections`} />
+      <StatCard icon={Trophy} label="Offers" value={funnel.offers} sub={plural(funnel.rejections, 'rejection')} />
     </div>
   )
 }

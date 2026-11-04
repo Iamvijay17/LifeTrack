@@ -9,6 +9,7 @@ export const MAX_ROWS = 1000
 const err = (code, message) => ({ code, message })
 const clone = (v) => (v == null ? v : structuredClone(v))
 const CASCADE = { habits: [['habit_logs', 'habit_id']], job_applications: [['application_history', 'application_id'], ['interview_events', 'application_id']], workouts: [['exercise_logs', 'workout_id']], goals: [['milestones', 'goal_id']] }
+const SET_NULL = { recurring_rules: [['transactions', 'recurring_rule_id']] }
 const NOW_COLUMNS = { application_history: ['changed_at'], study_sessions: ['started_at'], focus_sessions: ['started_at'] }
 const owner = (table, row) => (table === 'profiles' ? row.id : row.user_id)
 
@@ -111,6 +112,7 @@ export function createMemorySupabase({ currentUser = getUserId } = {}) {
         const ids = new Set(targets.map((r) => r.id))
         tables[t] = rows(t).filter((r) => !ids.has(r.id))
         for (const [child, col] of CASCADE[t] ?? []) tables[child] = rows(child).filter((r) => !ids.has(r[col]))
+        for (const [child, col] of SET_NULL[t] ?? []) tables[child] = rows(child).map((r) => (ids.has(r[col]) ? { ...r, [col]: null } : r))
         out = targets
         targets.forEach((row) => emit(t, uid, 'DELETE', row))
       } else {

@@ -72,3 +72,12 @@ export function parseRevisionDates(text) {
   if (bad) throw new Error(`"${bad}" isn't a valid date. Use YYYY-MM-DD, separated by commas.`)
   return [...new Set(dates)].sort()
 }
+
+/** Goals measured in study time or tied to a topic. Other goals (career, money, ...) belong on the Goals screen, not in Learning. */
+export const isStudyGoal = (g) => g.target_minutes > 0 || !!g.topic_id || g.category === 'Learning'
+
+/** How far back a study session still counts as "you are studying" (the study target only applies then). */
+export const STUDY_LOOKBACK_DAYS = 14
+/** The default daily study target only applies once the user studies, so a non-learner is not scored zero every day. */
+export const isStudying = (sessions, date, minutesToday) =>
+  minutesToday > 0 || sessions.some((s) => s.status === 'completed' && s.session_date >= addDays(date, -STUDY_LOOKBACK_DAYS) && s.session_date < date)

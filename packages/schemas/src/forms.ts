@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { dateStrInTz, isValidDay, lpaToPaise, paiseToInput, paiseToLpa, parseMoney, parseTags, sleepMinutes, timeStrInTz, zonedToIso } from '@lifetrack/utils'
-import { TASK_CATEGORIES } from './tables'
+import { RECURRING_FREQUENCIES, TASK_CATEGORIES } from './tables'
 
 // Form-level validation + payload mapping shared by web and mobile. Forms hold strings ('' = empty);
 // *ToPayload converts them to the exact shape the database accepts (validated in tests against insertSchemas).
@@ -182,6 +182,27 @@ export const transactionToForm = (t: { type: TransactionForm['type']; amount_pai
   ({ type: t.type, amount: paiseToInput(t.amount_paise), category: t.category, txn_date: t.txn_date, payment_method: (t.payment_method ?? 'Other') as TransactionForm['payment_method'], note: t.note ?? '' })
 export const transactionToPayload = (v: TransactionForm) =>
   ({ type: v.type, amount_paise: parseMoney(v.amount) as number, category: v.category, txn_date: v.txn_date, payment_method: v.payment_method, note: v.note })
+
+export const recurringRuleFormSchema = z.object({
+  type: z.enum(TX_TYPES),
+  amount: z.string().trim().refine((v) => { const p = parseMoney(v); return p !== null && p > 0 }, 'Enter an amount greater than 0 (max 2 decimals)'),
+  category: z.string().min(1, 'Choose a category'),
+  payment_method: z.enum(TX_PAYMENT_METHODS),
+  note: z.string().max(300),
+  frequency: z.enum(RECURRING_FREQUENCIES),
+  next_date: z.string().refine(isValidDay, 'Pick a date'),
+  end_date: z.string().refine((v) => v === '' || isValidDay(v), 'Enter a valid date'),
+}).refine((v) => v.end_date === '' || v.end_date >= v.next_date, { path: ['end_date'], message: 'The end date must not be before the next date' })
+export type RecurringRuleForm = z.infer<typeof recurringRuleFormSchema>
+export const blankRecurringRule = (firstCategory: string, today: string): RecurringRuleForm => ({ type: 'expense', amount: '', category: firstCategory, payment_method: 'UPI', note: '', frequency: 'monthly', next_date: today, end_date: '' })
+type RecurringRuleRow = { type: RecurringRuleForm['type']; amount_paise: number; category: string; payment_method: string; note: string; frequency: RecurringRuleForm['frequency']; anchor_day: number; next_date: string; end_date?: string | null }
+export const recurringRuleToForm = (r: RecurringRuleRow): RecurringRuleForm =>
+  ({ type: r.type, amount: paiseToInput(r.amount_paise), category: r.category, payment_method: r.payment_method as RecurringRuleForm['payment_method'], note: r.note, frequency: r.frequency, next_date: r.next_date, end_date: r.end_date ?? '' })
+/** `existing` keeps the intended day while the schedule is untouched: a rule on the 31st sitting on Nov 30 must not become a rule on the 30th because its note was edited. */
+export const recurringRuleToPayload = (v: RecurringRuleForm, existing?: RecurringRuleRow | null) => ({
+  type: v.type, amount_paise: parseMoney(v.amount) as number, category: v.category, payment_method: v.payment_method, note: v.note, frequency: v.frequency, next_date: v.next_date, end_date: v.end_date || null,
+  anchor_day: existing && existing.next_date === v.next_date && existing.frequency === v.frequency ? existing.anchor_day : Number(v.next_date.slice(8)),
+})
 
 const money = (label: string, min = 1) => z.string().trim().refine((v) => { const p = parseMoney(v); return p !== null && p >= min }, `Enter a valid ${label}`)
 export const savingsGoalFormSchema = z.object({

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Download, Plus } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate } from '@/components/shared/states'
@@ -12,7 +13,9 @@ import { formatMoney } from '@/lib/money'
 import { download, toCsv, TX_COLUMNS } from '@/services/csv'
 import { MonthNav } from './MonthNav'
 import { FinanceStats } from './FinanceStats'
+import { BudgetAlert } from './BudgetAlert'
 import { FinanceCharts } from './FinanceCharts'
+import { RecurringRules } from './RecurringRules'
 import { SavingsGoals } from './SavingsGoals'
 import { TransactionList } from './TransactionList'
 import { TransactionDialog } from './TransactionDialog'
@@ -24,6 +27,14 @@ export default function FinancePage() {
   const money = (paise, opts) => formatMoney(paise, settings.currency, opts)
   const { data, loading, error, refetch } = useTables('transactions', 'budgets')
   const [chosen, setChosen] = useState(null)
+  const [params, setParams] = useSearchParams()
+  // Deep link from global search: /finance?month=yyyy-MM-01
+  useEffect(() => {
+    const target = params.get('month')
+    if (!target) return
+    setChosen(target)
+    setParams({}, { replace: true })
+  }, [params, setParams])
   const month = chosen ?? monthStart(today)
   const mk = monthKey(month)
   const [txnDialog, setTxnDialog] = useState({ open: false, txn: null, type: 'expense' })
@@ -34,12 +45,12 @@ export default function FinancePage() {
   const monthTx = useMemo(() => monthTransactions(data.transactions, mk), [data.transactions, mk])
   const expenseCount = useMemo(() => monthTx.filter((t) => t.type === 'expense').length, [monthTx])
 
-  const addTransaction = () => setTxnDialog({ open: true, txn: null, type: 'expense' })
+  const addTransaction = () => setTxnDialog({ open: true, txn: null, copyOf: null, type: 'expense' })
   return (
     <>
       <PageHeader
         title="Finance"
-        description="Income, spending and savings — all stored as exact paise."
+        description="Income, spending and savings at a glance."
         actions={
           <>
             <Button
@@ -68,20 +79,25 @@ export default function FinancePage() {
             money={money}
             onEditBudget={() => setBudgetOpen(true)}
           />
+          <BudgetAlert sum={sum} money={money} onEdit={() => setBudgetOpen(true)} />
           <FinanceCharts transactions={data.transactions} monthTx={monthTx} month={month} today={today} money={money} />
           <SavingsGoals money={money} />
+          <RecurringRules money={money} transactions={data.transactions} today={today} />
           <TransactionList
             monthTx={monthTx}
             month={month}
             money={money}
             onAdd={addTransaction}
             onEdit={(txn) => setTxnDialog({ open: true, txn, type: txn.type })}
+            onDuplicate={(txn) => setTxnDialog({ open: true, txn: null, copyOf: txn, type: txn.type })}
           />
         </div>
       </DataGate>
       <TransactionDialog
         open={txnDialog.open}
         txn={txnDialog.txn}
+        copyOf={txnDialog.copyOf}
+        transactions={data.transactions}
         defaultType={txnDialog.type}
         today={today}
         onOpenChange={(o) => setTxnDialog((d) => ({ ...d, open: o }))}

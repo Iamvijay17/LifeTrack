@@ -21,13 +21,18 @@ export function FinanceCharts({ transactions, monthTx, month, today, money }) {
   )
 
   return (
-    <div className="grid gap-4 lg:grid-cols-5">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
       <Card className="lg:col-span-2">
         <CardHeader>
           <CardTitle>Spending by category</CardTitle>
         </CardHeader>
         <CardContent>
-          <Chart height={230} empty={breakdown.length === 0} emptyText="No expenses this month.">
+          <Chart
+            height={200}
+            empty={breakdown.length === 0}
+            emptyText="No expenses this month."
+            summary={breakdown.map((b) => `${b.category} ${money(b.paise)}, ${Math.round(b.share * 100)}%`).join('; ')}
+          >
             <PieChart>
               <Pie
                 data={breakdown.map((b) => ({ name: b.category, value: b.paise / 100 }))}
@@ -37,12 +42,11 @@ export function FinanceCharts({ transactions, monthTx, month, today, money }) {
                 paddingAngle={2}
                 stroke="none"
               >
-                {breakdown.map((_, i) => (
-                  <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                {breakdown.map((b, i) => (
+                  <Cell key={i} fill={PALETTE[i % PALETTE.length]} aria-label={b.category} />
                 ))}
               </Pie>
               {tooltip({ formatter: (v) => money(Math.round(v * 100)) })}
-              <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
             </PieChart>
           </Chart>
           <ul className="mt-2 space-y-1.5">
@@ -70,6 +74,9 @@ export function FinanceCharts({ transactions, monthTx, month, today, money }) {
               height={200}
               empty={series.every((s) => !s.income && !s.expense && !s.savings)}
               emptyText="Add transactions to see trends."
+              summary={series
+                .map((s) => `${s.label}: income ${money(s.income)}, expenses ${money(s.expense)}, savings ${money(s.savings)}`)
+                .join('; ')}
             >
               <BarChart data={series}>
                 {grid()}
@@ -89,7 +96,12 @@ export function FinanceCharts({ transactions, monthTx, month, today, money }) {
             <CardTitle>Daily spending</CardTitle>
           </CardHeader>
           <CardContent>
-            <Chart height={140} empty={daily.every((d) => !d.paise)} emptyText="No spending this month.">
+            <Chart
+              height={140}
+              empty={daily.every((d) => !d.paise)}
+              emptyText="No spending this month."
+              summary={`Spending by day. Highest ${money(Math.max(...daily.map((d) => d.paise), 0))} of ${money(daily.reduce((a, d) => a + d.paise, 0))} in total.`}
+            >
               <LineChart data={daily}>
                 {xAxis({ dataKey: 'label' })}
                 {tooltip({ formatter: (v) => [money(Math.round(v * 100)), 'Spent'], labelFormatter: (l) => `Day ${l}` })}

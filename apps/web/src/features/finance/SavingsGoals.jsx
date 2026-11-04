@@ -41,7 +41,7 @@ export function SavingsGoals({ money }) {
             }
           />
         ) : (
-          <ul className="grid gap-3 md:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {rows.map((g) => {
               const pct = savingsGoalPercent(g)
               return (

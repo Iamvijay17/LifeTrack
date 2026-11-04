@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { fmtDay, fmtDuration } from '@lifetrack/utils'
-import { goalProgress, isGoalOverdue, sessionName, studyOverview, topicRevision, topicTotals } from '@lifetrack/core/learning'
+import { goalProgress, isGoalOverdue, isStudyGoal, sessionName, studyOverview, topicRevision, topicTotals } from '@lifetrack/core/learning'
 import { store } from '../../../src/data/client'
 import { useTables } from '../../../src/hooks/useTables'
 import { useSettings } from '../../../src/hooks/useSettings'
@@ -33,6 +33,7 @@ export default function Learning() {
 
   const topics = data.learning_topics.filter((t: any) => !t.archived)
   const sessions = data.study_sessions
+  const studyGoals: any[] = useMemo(() => data.goals.filter(isStudyGoal), [data.goals])
   const o = useMemo(() => studyOverview(sessions, data.goals, today, settings.week_starts_on), [sessions, data.goals, today, settings.week_starts_on])
   const totals: any[] = useMemo(() => topicTotals(topics, sessions), [topics, sessions])
   const groups = [...new Set(topics.map((t: any) => t.group_name))] as string[]
@@ -67,7 +68,7 @@ export default function Learning() {
             <StatTile label="Today" value={fmtDuration(o.todayMin)} sub={target ? `target ${fmtDuration(target)}` : 'no daily target set'} progress={target ? Math.min(100, (o.todayMin / target) * 100) : null} tone="success" />
             <StatTile label="This week" value={fmtDuration(o.weekMin)} sub={`${o.activeDays} active days`} />
             <StatTile label="DSA problems" value={o.problems} sub="all time" />
-            <StatTile label="Active goals" value={o.activeGoals} sub={`${o.completedGoals} completed`} />
+            <StatTile label="Active goals" value={studyGoals.filter((g: any) => g.status === 'active').length} sub={`${studyGoals.filter((g: any) => g.status === 'completed').length} completed`} />
           </View>
           <Segmented value={tab} onChange={setTab} options={[{ value: 'overview', label: 'Overview' }, { value: 'goals', label: 'Goals' }, { value: 'topics', label: 'Topics' }, { value: 'sessions', label: 'Sessions' }]} />
 
@@ -76,9 +77,9 @@ export default function Learning() {
             <Card><Txt variant="heading">This week (hours)</Txt><BarChart data={weekData} unit="h" summary={`Hours studied this week: ${weekData.map((d) => `${d.label} ${d.value}`).join(', ')}`} /></Card>
           </>) : null}
 
-          {tab === 'goals' ? (data.goals.length === 0
+          {tab === 'goals' ? (studyGoals.length === 0
             ? <EmptyState title="No goals yet" description="Set a target in hours, then log sessions against it to see real progress." action={{ label: 'Create a goal', onPress: () => setGoalForm({ open: true, goal: null }) }} />
-            : data.goals.map((g: any) => {
+            : studyGoals.map((g: any) => {
               const p = goalProgress(g, sessions)
               const overdue = isGoalOverdue(g, today)
               return (

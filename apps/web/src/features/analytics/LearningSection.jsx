@@ -1,6 +1,6 @@
 import { Bar, BarChart } from 'recharts'
 import { BookOpen } from 'lucide-react'
-import { Chart, C, grid, tooltip, xAxis, yAxis } from '@/components/shared/charts'
+import { Chart, C, grid, tooltip, xAxis, yAxis, seriesSummary } from '@/components/shared/charts'
 import { StatCard } from '@/components/shared/StatCard'
 import { Progress } from '@/components/ui/misc'
 import { fmtDuration } from '@/lib/dates'
@@ -13,9 +13,14 @@ export function LearningSection({ learning: l }) {
         <StatCard label="Study hours" value={fmtDuration(l.minutes)} sub={`${l.sessionCount} sessions`} />
         <StatCard label="DSA problems solved" value={l.problems} />
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Panel title={`Study hours per ${l.unit}`}>
-          <Chart height={190} empty={l.minutes === 0} emptyText="No completed study sessions in this range.">
+          <Chart
+            summary={seriesSummary('Hours studied', l.chart, 'value', ' h')}
+            height={190}
+            empty={l.minutes === 0}
+            emptyText="No completed study sessions in this range."
+          >
             <BarChart data={l.chart}>
               {grid()}
               {xAxis({ dataKey: 'label', minTickGap: 16 })}

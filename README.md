@@ -36,11 +36,12 @@ push delivery on real iOS/Android devices. Treat each as implemented-but-unprove
 - Streaks and interview rates are computed from current data; changing a habit's schedule re-judges past days against the new schedule.
 - Backup restore (web) merges by id and never deletes. Account deletion calls `delete_my_account()` and removes all data.
 - Reminders are pushed by a scheduled Edge Function (server) and, as a fallback, by open apps after a 2-minute grace; de-duplicated by the database.
+- Recurring transactions are posted by open apps, not the server: nothing is added until a device opens, then each missed charge appears dated the day it fell due. De-duplicated by the database.
 - Reports, Export/Import and global search exist on web only.
 - DEV-mode local auth (no Supabase env) is for development only and is not secure.
 
 ## Existing Supabase projects
-Apply the migrations you have not applied yet, in order (`supabase/migrations`): `0004_hardening.sql` (ownership guards, indexes, atomic `add_water` / `replace_exercise_logs`), `0005_history_owner_guard_and_user_indexes.sql`, `0006_push_tokens.sql` (mobile push) and `0007_savings_atomic.sql` (`add_savings`). They are additive and safe to re-run; `supabase/setup-all.sql` contains them all and is regenerated with `pnpm sql:build`. See docs/DEPLOY.md.
+Apply the migrations you have not applied yet, in order (`supabase/migrations`): `0004_hardening.sql` (ownership guards, indexes, atomic `add_water` / `replace_exercise_logs`), `0005_history_owner_guard_and_user_indexes.sql`, `0006_push_tokens.sql` (mobile push), `0007_savings_atomic.sql` (`add_savings`) and `0008_recurring_rules.sql` (recurring transactions). They are additive and safe to re-run; `supabase/setup-all.sql` contains them all and is regenerated with `pnpm sql:build`. See docs/DEPLOY.md.
 
 ## Loading UI
 `apps/web/src/components/loaders/` (LifeTrack Progress Orbit): pure CSS/SVG, transform and opacity only, honours `prefers-reduced-motion`, no percentages when progress is unknown. Verified in headless Chromium (desktop, 360px mobile, dark/light, reduced motion); not profiled on physical low-end phones.

@@ -80,7 +80,7 @@ export function QuickFab() {
     <button
       onClick={menu}
       aria-label="Quick add"
-      className="fixed bottom-[4.5rem] right-4 z-30 grid h-12 w-12 place-items-center rounded-full bg-primary text-white shadow-lg shadow-primary/30 active:scale-95 md:hidden"
+      className="fixed bottom-[4.5rem] right-4 z-30 grid h-12 w-12 place-items-center rounded-full bg-primary-solid text-white shadow-lg shadow-primary/30 active:scale-95 md:hidden"
       style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
     >
       <Plus className="h-6 w-6" />

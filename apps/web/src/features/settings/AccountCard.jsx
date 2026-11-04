@@ -37,7 +37,7 @@ export function AccountCard() {
 
   return (
     <SettingsSection title="Account" desc={user?.email}>
-      <form className="grid gap-3 sm:grid-cols-3 sm:items-start" noValidate onSubmit={handleSubmit(changePassword)}>
+      <form className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:items-start" noValidate onSubmit={handleSubmit(changePassword)}>
         <Field label="New password" error={errors.password?.message}>
           <Input type="password" autoComplete="new-password" {...register('password')} />
         </Field>

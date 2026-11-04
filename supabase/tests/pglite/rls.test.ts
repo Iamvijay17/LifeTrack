@@ -89,3 +89,41 @@ describe('ownership of foreign keys', () => {
     expect(missing, 'a foreign key between user-owned tables has no ownership test: add it to fixtures.ts').toEqual([])
   })
 })
+
+describe('recurring occurrences', () => {
+  const rule = () => makeRow('recurring_rules', A)
+  const post = (id: string | null, date: string | null, txn = '2026-11-01') => ctx.asUser(A, (q) => q(`insert into transactions(type, amount_paise, txn_date, recurring_rule_id, recurring_date) values ('expense',100,$1,$2,$3) returning id`, [txn, id, date]))
+
+  it('the database lets only one device post an occurrence', async () => {
+    const id = await rule()
+    await post(id, '2026-11-01')
+    expect(await ctx.fails(post(id, '2026-11-01'))).toMatch(/duplicate key|unique/i)
+    await post(id, '2026-12-01') // the next occurrence is fine
+    await post(await rule(), '2026-11-01') // so is the same day on another rule
+    await post(null, null) // and transactions typed by hand are not limited
+    await post(null, null)
+    expect((await ctx.asUser(A, (q) => q(`select 1 from transactions where recurring_rule_id = $1`, [id]))).rows).toHaveLength(2)
+  })
+  it('moving a posted transaction to another day keeps the occurrence taken', async () => {
+    const id = await rule()
+    const tx = (await post(id, '2026-11-01')).rows[0].id
+    await ctx.asUser(A, (q) => q(`update transactions set txn_date = '2026-11-05' where id = $1`, [tx]))
+    expect(await ctx.fails(post(id, '2026-11-01'))).toMatch(/duplicate key|unique/i)
+  })
+  it('a link without its occurrence date is rejected: it would slip past the unique index', async () => {
+    expect(await ctx.fails(post(await rule(), null))).toMatch(/transactions_recurring_ck/)
+  })
+  it('deleting a rule keeps the transactions it posted', async () => {
+    const id = await rule()
+    await post(id, '2026-11-01')
+    await ctx.asUser(A, (q) => q(`delete from recurring_rules where id = $1`, [id]))
+    const { rows } = await ctx.asUser(A, (q) => q(`select recurring_rule_id, recurring_date from transactions`))
+    expect(rows).toHaveLength(1)
+    expect(rows[0].recurring_rule_id).toBeNull()
+  })
+  it('a device posting for a rule deleted elsewhere is refused', async () => {
+    const id = await rule()
+    await ctx.asUser(A, (q) => q(`delete from recurring_rules where id = $1`, [id]))
+    expect(await ctx.fails(post(id, '2026-11-01'))).toMatch(/does not belong to this user/)
+  })
+})

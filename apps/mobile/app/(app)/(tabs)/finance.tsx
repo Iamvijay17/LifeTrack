@@ -3,14 +3,16 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { fmtDay, formatMoney, monthStart, paiseToInput } from '@lifetrack/utils'
 import { chartPalette, colors as tokens } from '@lifetrack/design-tokens'
-import { PAYMENT_METHODS, budgetTone, filterTransactions, financeMonth, savingsGoalPercent, savingsShareOfIncome, signFor, TYPE_TONE } from '@lifetrack/core/finance'
+import { frequencyLabel, ruleSchedule, ruleStatus, ruleTitle, sortRules } from '@lifetrack/core/recurring'
+import { PAYMENT_METHODS, budgetAlert, budgetTone, filterTransactions, financeMonth, savingsGoalPercent, savingsShareOfIncome, signFor, TYPE_TONE } from '@lifetrack/core/finance'
 import { api, store } from '../../../src/data/client'
+import { useTable } from '../../../src/data/useTable'
 import { useTables } from '../../../src/hooks/useTables'
 import { useSettings } from '../../../src/hooks/useSettings'
 import { useToday } from '../../../src/hooks/useToday'
 import { useAction } from '../../../src/hooks/useAction'
 import { useTheme } from '../../../src/providers/ThemeProvider'
-import { AmountSheet, SavingsGoalForm, TransactionForm } from '../../../src/features/finance/forms'
+import { AmountSheet, RecurringRuleForm, SavingsGoalForm, TransactionForm } from '../../../src/features/finance/forms'
 import { BarChart, DonutChart, GroupedBarChart } from '../../../src/ui/charts'
 import { ActionSheet } from '../../../src/ui/Sheet'
 import { confirm } from '../../../src/ui/confirm'
@@ -26,6 +28,9 @@ export default function Finance() {
   const { settings } = useSettings()
   const money = (p: number, o?: { compact?: boolean }) => formatMoney(p, settings.currency, o)
   const { data, loading, refreshing, error, refetch } = useTables('transactions', 'budgets', 'savings_goals')
+  // Read on its own: until migration 0008 is applied the table is missing, and that must not take the whole screen down.
+  const { rows: ruleRows } = useTable('recurring_rules')
+  const rules: any[] = useMemo(() => sortRules(ruleRows), [ruleRows])
   const [month, setMonth] = useState<string | null>(null)
   const m = month ?? monthStart(today)
   const [txForm, setTxForm] = useState<{ open: boolean; txn: any | null; type: TxType }>({ open: false, txn: null, type: 'expense' })
@@ -34,6 +39,8 @@ export default function Finance() {
   const [goalForm, setGoalForm] = useState<{ open: boolean; goal: any | null }>({ open: false, goal: null })
   const [goalMenu, setGoalMenu] = useState<any | null>(null)
   const [funds, setFunds] = useState<any | null>(null)
+  const [ruleForm, setRuleForm] = useState<{ open: boolean; rule: any | null }>({ open: false, rule: null })
+  const [ruleMenu, setRuleMenu] = useState<any | null>(null)
   const [f, setF] = useState({ type: '', category: '', method: '', q: '' })
   const [limit, setLimit] = useState(PAGE)
 
@@ -42,12 +49,15 @@ export default function Finance() {
   const filtered: any[] = useMemo(() => filterTransactions(monthTx, f), [monthTx, f])
   const [del] = useAction((id: string) => store.remove('transactions', id))
   const [delGoal] = useAction((id: string) => store.remove('savings_goals', id))
+  const [delRule] = useAction((id: string) => store.remove('recurring_rules', id))
+  const [toggleRule] = useAction((r: any) => api.toggleRecurringRule(r, today))
   const used = sum.budgetUsed
+  const alert: any = budgetAlert(sum)
   const toneKey = budgetTone(used) as 'primary' | 'success' | 'warning' | 'danger'
   const pal = chartPalette
   const raw = tokens[scheme]
   const series = [{ name: 'Income', color: colors.success }, { name: 'Expenses', color: colors.danger }, { name: 'Savings', color: colors.primary }]
-  const g = goalMenu, t = txMenu
+  const g = goalMenu, t = txMenu, r = ruleMenu
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.background }}>
@@ -66,6 +76,12 @@ export default function Finance() {
               <StatTile label="Budget left" value={sum.remaining == null ? 'No budget' : money(sum.remaining)} sub={sum.budget ? `of ${money(sum.budget)}${fin.overall ? '' : ' (default)'} · tap to edit` : 'Tap to set a monthly budget'} progress={used == null ? null : Math.min(100, used * 100)} tone={toneKey === 'success' || toneKey === 'warning' ? toneKey : undefined} />
             </Pressable>
           </View>
+
+          {alert ? (
+            <View accessibilityRole="alert" style={{ borderWidth: 1, borderColor: alert.level === 'danger' ? colors.danger : colors.warning, borderRadius: 8, padding: 12 }}>
+              <Txt>{alert.level === 'danger' ? `You're ${money(alert.overBy)} over this month's budget.` : `You've used ${alert.percent}% of this month's budget. ${money(alert.left)} left.`}</Txt>
+            </View>
+          ) : null}
 
           <Card>
             <Txt variant="heading">Spending by category</Txt>
@@ -107,6 +123,27 @@ export default function Finance() {
           </Card>
 
           <Card>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Txt variant="heading">Recurring</Txt>
+              <Button title="＋ Rule" variant="ghost" onPress={() => setRuleForm({ open: true, rule: null })} />
+            </View>
+            {rules.length === 0 ? <EmptyState title="No recurring transactions" description="Add rent, EMI or a subscription once, and it's logged for you each time it falls due." action={{ label: 'Add a recurring rule', onPress: () => setRuleForm({ open: true, rule: null }) }} />
+              : rules.map((rule: any) => {
+                const status = ruleStatus(rule)
+                return (
+                  <Pressable key={rule.id} accessibilityRole="button" accessibilityLabel={`${ruleTitle(rule)}, ${signFor(rule.type)}${money(rule.amount_paise)}, ${frequencyLabel(rule.frequency)}. Options`} onPress={() => setRuleMenu(rule)}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, minHeight: 56 }}>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text numberOfLines={1} style={{ color: status === 'active' ? colors.foreground : colors.mutedForeground, fontWeight: '500' }}>{ruleTitle(rule)}</Text>
+                      <Txt variant="small" muted>{frequencyLabel(rule.frequency)} · {ruleSchedule(rule)}</Txt>
+                    </View>
+                    <Text style={{ color: colors.foreground, fontWeight: '600', fontVariant: ['tabular-nums'] }}>{signFor(rule.type)}{money(rule.amount_paise)}</Text>
+                  </Pressable>
+                )
+              })}
+          </Card>
+
+          <Card>
             <Txt variant="heading">Transactions</Txt>
             <Field label="Search" value={f.q} onChangeText={(q) => { setF({ ...f, q }); setLimit(PAGE) }} placeholder="Note, category…" autoCapitalize="none" />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
@@ -131,6 +168,7 @@ export default function Finance() {
                         <Txt variant="small" muted>{fmtDay(tx.txn_date, 'EEE, d MMM')}</Txt>
                         <Badge tone={(TYPE_TONE as any)[tx.type]}>{tx.category}</Badge>
                         {tx.payment_method && tx.payment_method !== 'Other' ? <Txt variant="small" muted>· {tx.payment_method}</Txt> : null}
+                        {tx.recurring_date ? <Txt variant="small" muted>· Recurring</Txt> : null}
                       </View>
                     </View>
                     <Text style={{ color: tx.type === 'income' ? colors.success : tx.type === 'savings' ? colors.secondary : colors.foreground, fontWeight: '600', fontVariant: ['tabular-nums'] }}>{signFor(tx.type)}{money(tx.amount_paise)}</Text>
@@ -151,6 +189,13 @@ export default function Finance() {
         { label: 'Edit', onPress: () => setGoalForm({ open: true, goal: g }) },
         { label: 'Delete', destructive: true, onPress: async () => { if (await confirm('Delete this savings goal?', g.name)) delGoal(g.id) } },
       ] : []} />
+      <ActionSheet visible={!!r} title={r ? ruleTitle(r) : ''} onClose={() => setRuleMenu(null)} actions={r ? [
+        { label: 'Pause', hidden: ruleStatus(r) !== 'active', onPress: () => toggleRule(r) },
+        { label: 'Resume', hidden: ruleStatus(r) !== 'paused', onPress: () => toggleRule(r) },
+        { label: 'Edit', onPress: () => setRuleForm({ open: true, rule: r }) },
+        { label: 'Delete', destructive: true, onPress: async () => { if (await confirm('Delete this recurring rule?', `${ruleTitle(r)}. Transactions it already added stay.`)) delRule(r.id) } },
+      ] : []} />
+      <RecurringRuleForm visible={ruleForm.open} rule={ruleForm.rule} today={today} onClose={() => setRuleForm({ open: false, rule: null })} />
       <TransactionForm visible={txForm.open} txn={txForm.txn} defaultType={txForm.type} today={today} onClose={() => setTxForm({ open: false, txn: null, type: 'expense' })} />
       <SavingsGoalForm visible={goalForm.open} goal={goalForm.goal} onClose={() => setGoalForm({ open: false, goal: null })} />
       <AmountSheet visible={!!funds} title={funds ? `Add to “${funds.name}”` : ''} description={funds ? `${money(funds.saved_paise)} of ${money(funds.target_paise)} saved` : undefined} label="Amount" submitLabel="Add" errorText="Enter an amount greater than 0." onSubmit={(p) => api.addSavingsFunds(funds, p)} onClose={() => setFunds(null)} />

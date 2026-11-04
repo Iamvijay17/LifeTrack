@@ -11,11 +11,13 @@ import { GlobalSearch } from './GlobalSearch'
 import { NotificationBell } from './NotificationBell'
 import { ProfileMenu } from './ProfileMenu'
 import { useReminderRunner } from '@/features/notifications/useReminderRunner'
+import { useRecurringRunner } from '@/features/finance/useRecurringRunner'
 import { QuickAddMenu, QuickFab, QuickActionsProvider } from '@/features/quick/QuickActions'
 import { useSettings } from '@/hooks/useSettings'
 import { useThemeSync } from '@/hooks/useTheme'
 import { seedDefaults } from '@/services/api'
 import { toast } from 'sonner'
+import { pageTitle } from '@/lib/nav'
 import { cn } from '@/lib/utils'
 
 const read = () => {
@@ -41,6 +43,7 @@ export function AppShell() {
   const main = useRef(null)
   useThemeSync()
   useReminderRunner()
+  useRecurringRunner()
 
   // First sign-in on any device: create default topics / exercise library once (idempotent via unique keys).
   const { row, loading } = useSettings()
@@ -57,13 +60,14 @@ export function AppShell() {
   useEffect(() => {
     main.current?.focus({ preventScroll: true })
     window.scrollTo(0, 0)
+    document.title = pageTitle(pathname)
   }, [pathname])
 
   return (
     <QuickActionsProvider>
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-primary focus:px-3 focus:py-1.5 focus:text-white"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-primary-solid focus:px-3 focus:py-1.5 focus:text-white"
       >
         Skip to content
       </a>
@@ -83,7 +87,12 @@ export function AppShell() {
             <ProfileMenu />
           </div>
         </header>
-        <main id="main" ref={main} tabIndex={-1} className="mx-auto w-full max-w-6xl px-4 pb-28 pt-5 outline-none md:px-6 md:pb-10">
+        <main
+          id="main"
+          ref={main}
+          tabIndex={-1}
+          className="mx-auto w-full max-w-6xl px-4 pb-28 pt-5 outline-none focus-visible:ring-0 md:px-6 md:pb-10"
+        >
           <ErrorBoundary variant="section" resetKey={pathname}>
             <Suspense fallback={<PageLoader message={messageForPath(pathname)} />}>
               <Outlet />

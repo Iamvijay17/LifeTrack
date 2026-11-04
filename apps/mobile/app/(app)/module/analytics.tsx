@@ -49,7 +49,7 @@ export default function Analytics() {
         </>) : null}
         <Txt variant="small" muted>{fmtDay(from, 'd MMM yyyy')} – {fmtDay(to, 'd MMM yyyy')}</Txt>
         <DataGate loading={loading} error={error} onRetry={refetch}>
-          <Block title="📚 Career & learning">
+          <Block title="Career & learning">
             <Tiles><StatTile label="Study hours" value={fmtDuration(a.studyMinutes)} sub={`${a.studySessionCount} sessions`} /><StatTile label="DSA problems solved" value={a.problems} /></Tiles>
             <Panel title={`Study hours per ${a.study.unit}`}>{a.studyMinutes === 0 ? <Empty text="No completed study sessions in this range." /> : <BarChart data={bars(a.study, 100)} unit="h" summary={`Study hours per ${a.study.unit}, total ${fmtDuration(a.studyMinutes)}`} />}</Panel>
             <Panel title="Learning goals">{a.goalRows.length === 0 ? <Empty text="No goals yet." /> : a.goalRows.map(({ g, p }: any) => (
@@ -59,7 +59,7 @@ export default function Analytics() {
               </View>))}</Panel>
           </Block>
 
-          <Block title="💼 Job search">
+          <Block title="Job search">
             <Tiles>
               <StatTile label="Applications" value={a.jobs.applied} /><StatTile label="Interviews" value={a.jobs.interviews} /><StatTile label="Rejections" value={a.jobs.rejections} />
               <StatTile label="Interview conversion" value={pctText(a.jobs.conversion)} sub={a.jobs.applied ? `${a.jobs.interviews}/${a.jobs.applied} applications` : 'no applications'} />
@@ -68,7 +68,7 @@ export default function Analytics() {
             <Panel title="Package progression (LPA)">{salary.length === 0 ? <Empty text="No packages recorded in this range." /> : <LineChart data={salary} unit="L" summary={`Package progression, latest ${salary.at(-1)!.value} LPA`} />}</Panel>
           </Block>
 
-          <Block title="🏋️ Fitness">
+          <Block title="Fitness">
             <Tiles>
               <StatTile label="Workouts completed" value={a.done.length} />
               <StatTile label="Plan consistency" value={a.planConsistency == null ? '—' : pctText(a.planConsistency)} sub={a.plannedDays.length ? `${a.hit.length}/${a.plannedDays.length} planned days` : 'no planned days'} progress={a.planConsistency == null ? null : a.planConsistency * 100} tone="success" />
@@ -77,7 +77,7 @@ export default function Analytics() {
             <Panel title="Weight trend (kg)">{a.weights.length < 2 ? <Empty text="Log weight on two or more days in this range." /> : <LineChart data={a.weights.map((p: any) => ({ label: p.label, value: p.kg }))} unit=" kg" summary={`Weight trend, latest ${a.weights.at(-1).kg} kg`} />}</Panel>
           </Block>
 
-          <Block title="❤️ Sleep & health">
+          <Block title="Sleep & health">
             <Tiles>
               <StatTile label="Average sleep" value={a.sleepAvg == null ? '—' : fmtDuration(a.sleepAvg)} />
               <StatTile label="Average water" value={a.waterAvg == null ? '—' : `${Math.round(a.waterAvg)} ml`} />
@@ -86,7 +86,7 @@ export default function Analytics() {
             <Panel title="Sleep (hours)">{a.sleepSeries.every((x: any) => x.hours == null) ? <Empty text="No sleep logged in this range." /> : <BarChart data={a.sleepSeries.map((x: any) => ({ label: x.label, value: x.hours ?? null }))} unit="h" refLine={8} maxValue={10} color={colors.secondary} summary={`Average sleep ${a.sleepAvg == null ? 'none' : fmtDuration(a.sleepAvg)}`} />}</Panel>
           </Block>
 
-          <Block title="💰 Finance">
+          <Block title="Finance">
             <Tiles>
               <StatTile label="Income" value={money(a.sum.income)} /><StatTile label="Expenses" value={money(a.sum.expense)} />
               <StatTile label="Savings" value={money(a.sum.savings)} sub={a.sum.income ? `${Math.round((a.sum.savings / a.sum.income) * 100)}% of income` : undefined} />
@@ -99,7 +99,7 @@ export default function Analytics() {
               </View>))}</Panel>
           </Block>
 
-          <Block title="🔁 Habits">
+          <Block title="Habits">
             <Tiles>
               <StatTile label="Completion" value={pctText(a.habitRate)} progress={a.habitRate == null ? null : a.habitRate * 100} tone="success" />
               <StatTile label="Longest streak" value={a.longestStreak} sub="any habit, all time" />

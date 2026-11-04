@@ -4,7 +4,7 @@ import { percentOfGoal } from '@/domain/health'
 import { fmtDuration } from '@/lib/dates'
 
 /** Eight small cards for today. `h` is todayHeadlines(); `money(paise)` formats in the user's currency. */
-export function TodayStats({ h, settings, money }) {
+export function TodayStats({ h, settings, money, activeApplications }) {
   const study = settings.daily_study_target_minutes
   const water = h.health?.water_ml ?? 0
   const steps = h.health?.steps ?? 0
@@ -15,16 +15,18 @@ export function TodayStats({ h, settings, money }) {
         icon={BookOpen}
         label="Learning today"
         value={fmtDuration(h.studyMinutes)}
-        sub={h.studyRunning ? '⏱ timer running' : study ? `target ${fmtDuration(study)}` : undefined}
+        sub={h.studyRunning ? 'timer running' : study ? `target ${fmtDuration(study)}` : undefined}
         progress={study ? Math.min(100, (h.studyMinutes / study) * 100) : null}
         tone="success"
+        to="/learning"
       />
-      <StatCard icon={Dumbbell} label="Gym" value={h.gym} sub={h.workoutName} />
+      <StatCard icon={Dumbbell} label="Gym" value={h.gym} sub={h.workoutName} to="/fitness" />
       <StatCard
         icon={Moon}
         label="Sleep"
         value={slept != null ? fmtDuration(slept) : '—'}
         sub={slept != null ? 'last night' : 'not logged'}
+        to="/health"
       />
       <StatCard
         icon={Droplets}
@@ -32,6 +34,7 @@ export function TodayStats({ h, settings, money }) {
         value={`${water} ml`}
         sub={settings.water_goal_ml ? `goal ${settings.water_goal_ml}` : undefined}
         progress={percentOfGoal(water, settings.water_goal_ml)}
+        to="/health"
       />
       <StatCard
         icon={Footprints}
@@ -39,9 +42,16 @@ export function TodayStats({ h, settings, money }) {
         value={steps.toLocaleString('en-IN')}
         sub={settings.steps_goal ? `goal ${settings.steps_goal.toLocaleString('en-IN')}` : undefined}
         progress={percentOfGoal(steps, settings.steps_goal)}
+        to="/health"
       />
-      <StatCard icon={Briefcase} label="Applications" value={h.appliedThisWeek} sub="this week" />
-      <StatCard icon={Wallet} label="Spent today" value={money(h.spentToday)} />
+      <StatCard
+        icon={Briefcase}
+        label="Applications"
+        value={h.appliedThisWeek}
+        sub={`this week · ${activeApplications} active`}
+        to="/jobs"
+      />
+      <StatCard icon={Wallet} label="Spent today" value={money(h.spentToday)} to="/finance" />
       <StatCard
         icon={Check}
         label="Habits"
@@ -49,6 +59,7 @@ export function TodayStats({ h, settings, money }) {
         sub={h.habitsDue ? undefined : 'none due today'}
         progress={h.habitsDue ? (h.habitsDone / h.habitsDue) * 100 : null}
         tone="success"
+        to="/habits"
       />
     </div>
   )
