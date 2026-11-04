@@ -1,5 +1,5 @@
 import { Bar, BarChart } from 'recharts'
-import { Chart, C, grid, tooltip, xAxis, yAxis, seriesSummary } from '@/components/shared/charts'
+import { Chart, grid, tooltip, xAxis, yAxis, seriesSummary, G } from '@/components/shared/charts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StudyTimer } from './StudyTimer'
 
@@ -25,7 +25,7 @@ export function OverviewTab({ running, goals, topics, today, week, weekMinutes }
               {xAxis({ dataKey: 'label' })}
               {yAxis()}
               {tooltip({ formatter: (v) => [`${v} h`, 'Studied'] })}
-              <Bar dataKey="hours" fill={C.primary} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="hours" fill={G.mod} radius={[6, 6, 2, 2]} />
             </BarChart>
           </Chart>
         </CardContent>

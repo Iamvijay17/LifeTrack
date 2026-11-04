@@ -8,7 +8,7 @@ import { Block, EmptyNote, Panel } from './Layout'
 /** `money(paise)` formats in the user's currency. */
 export function FinanceSection({ finance: f, money }) {
   return (
-    <Block icon={Wallet} title="Finance">
+    <Block icon={Wallet} module="finance" title="Finance">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Income" value={money(f.income)} />
         <StatCard label="Expenses" value={money(f.expense)} />
@@ -27,7 +27,7 @@ export function FinanceSection({ finance: f, money }) {
               {xAxis({ dataKey: 'label', minTickGap: 16 })}
               {yAxis({ width: 48 })}
               {tooltip({ formatter: (v) => [money(Math.round(v * 100)), 'Spent'] })}
-              <Bar dataKey="value" fill={C.danger} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="value" fill={C.mod} radius={[5, 5, 2, 2]} />
             </BarChart>
           </Chart>
         </Panel>

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { SlidersHorizontal } from 'lucide-react'
 import { SettingsSection } from '@/components/shared/SettingsSection'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Select } from '@/components/ui/form'
@@ -67,7 +68,7 @@ export function PreferencesCard() {
   const timezones = TIMEZONES.includes(settings.timezone) ? TIMEZONES : [settings.timezone, ...TIMEZONES]
 
   return (
-    <SettingsSection title="Preferences" desc="All dates and daily totals use this timezone on every device.">
+    <SettingsSection icon={SlidersHorizontal} title="Preferences" desc="All dates and daily totals use this timezone on every device.">
       <form onSubmit={handleSubmit(submit)} noValidate className="space-y-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Timezone" error={errors.timezone?.message} hint={`Today there: ${todayStr(settings.timezone)}`}>

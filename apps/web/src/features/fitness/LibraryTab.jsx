@@ -19,12 +19,12 @@ export function LibraryTab({ groups, onCreate }) {
       )}
       {groups.map(({ group, items }) => (
         <section key={group}>
-          <h2 className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">{group}</h2>
+          <h2 className="mb-1.5 lt-eyebrow">{group}</h2>
           <div className="flex flex-wrap gap-2">
             {items.map((e) => (
               <span
                 key={e.id}
-                className="group inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 text-sm"
+                className="lt-lift group inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 text-sm"
               >
                 {e.name}
                 {e.equipment && <span className="text-xs text-muted-foreground">· {e.equipment}</span>}

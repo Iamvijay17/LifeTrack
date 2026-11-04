@@ -2,18 +2,19 @@ import { Suspense, createContext, lazy, useCallback, useContext, useMemo, useSta
 import { BookOpen, Briefcase, Check, CheckSquare, Droplets, Dumbbell, Plus, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
+import { Magnetic, m, spring } from '@/components/motion/primitives'
 
 // The forms behind the buttons are loaded the first time one is opened (see QuickDialogs).
 const QuickDialogs = lazy(() => import('./QuickDialogs'))
 
 export const QUICK = [
-  { kind: 'task', label: 'Add task', icon: CheckSquare },
-  { kind: 'study', label: 'Start study', icon: BookOpen },
-  { kind: 'workout', label: 'Log workout', icon: Dumbbell },
-  { kind: 'expense', label: 'Add expense', icon: Wallet },
-  { kind: 'water', label: 'Log water', icon: Droplets },
-  { kind: 'habit', label: 'Complete habit', icon: Check },
-  { kind: 'application', label: 'Job application', icon: Briefcase },
+  { kind: 'task', label: 'Add task', icon: CheckSquare, module: 'planner' },
+  { kind: 'study', label: 'Start study', icon: BookOpen, module: 'learning' },
+  { kind: 'workout', label: 'Log workout', icon: Dumbbell, module: 'fitness' },
+  { kind: 'expense', label: 'Add expense', icon: Wallet, module: 'finance' },
+  { kind: 'water', label: 'Log water', icon: Droplets, module: 'health' },
+  { kind: 'habit', label: 'Complete habit', icon: Check, module: 'habits' },
+  { kind: 'application', label: 'Job application', icon: Briefcase, module: 'jobs' },
 ]
 
 const Ctx = createContext({ open: () => {} })
@@ -38,16 +39,19 @@ export function QuickActionsProvider({ children }) {
       {children}
       <Dialog open={menu} onOpenChange={setMenu} title="Quick add">
         <div className="grid grid-cols-2 gap-2">
-          {QUICK.map(({ kind: k, label, icon: Icon }) => (
+          {QUICK.map(({ kind: k, label, icon: Icon, module }) => (
             <button
               key={k}
+              data-module={module}
               onClick={() => {
                 setMenu(false)
                 setKind(k)
               }}
-              className="flex items-center gap-2.5 rounded-lg border border-border px-3 py-3 text-left text-sm font-medium transition-colors hover:border-primary/50 hover:bg-primary/5"
+              className="lt-lift flex items-center gap-2.5 rounded-lg border border-border bg-surface-2/50 px-3 py-3 text-left text-sm font-medium"
             >
-              <Icon className="h-4 w-4 text-secondary" />
+              <span className="lt-icon-soft h-8 w-8 rounded-md">
+                <Icon className="h-4 w-4" aria-hidden />
+              </span>
               {label}
             </button>
           ))}
@@ -66,10 +70,12 @@ export function QuickActionsProvider({ children }) {
 export function QuickAddMenu() {
   const { menu } = useQuick()
   return (
-    <Button size="sm" className="hidden md:inline-flex" onClick={menu}>
-      <Plus className="h-4 w-4" />
-      Quick add
-    </Button>
+    <Magnetic className="hidden md:inline-flex">
+      <Button size="sm" onClick={menu}>
+        <Plus className="h-4 w-4" />
+        Quick add
+      </Button>
+    </Magnetic>
   )
 }
 
@@ -77,13 +83,17 @@ export function QuickAddMenu() {
 export function QuickFab() {
   const { menu } = useQuick()
   return (
-    <button
+    <m.button
       onClick={menu}
       aria-label="Quick add"
-      className="fixed bottom-[4.5rem] right-4 z-30 grid h-12 w-12 place-items-center rounded-full bg-primary-solid text-white shadow-lg shadow-primary/30 active:scale-95 md:hidden"
+      initial={{ scale: 0 }}
+      animate={{ scale: 1 }}
+      whileTap={{ scale: 0.9, rotate: 90 }}
+      transition={spring.snappy}
+      className="fixed bottom-[4.75rem] right-4 z-30 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-[#7C3AED] to-[#6246EA] text-white shadow-btn-primary md:hidden"
       style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
     >
       <Plus className="h-6 w-6" />
-    </button>
+    </m.button>
   )
 }

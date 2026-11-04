@@ -8,7 +8,7 @@ import { Block, Panel } from './Layout'
 export function JobsSection({ jobs }) {
   const f = jobs.funnel
   return (
-    <Block icon={Briefcase} title="Job search">
+    <Block icon={Briefcase} module="jobs" title="Job search">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Applications" value={f.applied} />
         <StatCard label="Interviews" value={f.interviews} />
@@ -32,7 +32,7 @@ export function JobsSection({ jobs }) {
               {xAxis({ dataKey: 'label', minTickGap: 16 })}
               {yAxis({ allowDecimals: false })}
               {tooltip()}
-              <Bar dataKey="value" name="Applications" fill={C.secondary} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="value" name="Applications" fill={C.mod} radius={[5, 5, 2, 2]} />
             </BarChart>
           </Chart>
         </Panel>
@@ -48,7 +48,7 @@ export function JobsSection({ jobs }) {
               {xAxis({ dataKey: 'label' })}
               {yAxis()}
               {tooltip({ formatter: (v, _n, p) => [`${v} LPA`, p.payload.company] })}
-              <Line dataKey="lpa" stroke={C.success} strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="lpa" stroke={C.mod} strokeWidth={2.5} dot={{ r: 3, strokeWidth: 0, fill: C.mod }} />
             </LineChart>
           </Chart>
         </Panel>

@@ -1,5 +1,5 @@
 import { Bar, BarChart } from 'recharts'
-import { Chart, C, tooltip, xAxis, yAxis, seriesSummary } from '@/components/shared/charts'
+import { Chart, tooltip, xAxis, yAxis, seriesSummary, G } from '@/components/shared/charts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TodayCard } from './TodayCard'
 import { WeeklyPlan } from './WeeklyPlan'
@@ -49,7 +49,7 @@ export function WeekTab({
                 {xAxis({ dataKey: 'label' })}
                 {yAxis({ allowDecimals: false })}
                 {tooltip()}
-                <Bar dataKey="workouts" name="Workouts" fill={C.success} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="workouts" name="Workouts" fill={G.mod} radius={[6, 6, 2, 2]} />
               </BarChart>
             </Chart>
           </CardContent>

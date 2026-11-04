@@ -4,15 +4,16 @@ import { ButtonLoader } from '@/components/loaders/ButtonLoader'
 import { cn } from '@/lib/utils'
 
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 select-none',
+  'lt-press inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[transform,background-color,border-color,color,box-shadow,filter] duration-150 disabled:pointer-events-none disabled:opacity-50 select-none',
   {
     variants: {
       variant: {
-        default: 'bg-primary-solid text-primary-foreground hover:bg-primary-solid/90',
+        default:
+          'bg-gradient-to-b from-[#7C3AED] to-[#6246EA] text-primary-foreground shadow-btn-primary hover:brightness-110 active:brightness-95',
         secondary: 'bg-muted text-foreground hover:bg-muted/70',
-        outline: 'border border-border bg-transparent hover:bg-muted/60',
+        outline: 'border border-border bg-card/60 shadow-card hover:border-muted-foreground/40 hover:bg-muted/60',
         ghost: 'hover:bg-muted/60',
-        destructive: 'bg-danger-solid text-white hover:bg-danger-solid/90',
+        destructive: 'bg-danger-solid text-white shadow-card hover:bg-danger-solid/90',
         success: 'bg-success/15 text-success hover:bg-success/25',
       },
       // Taller on touch layouts (below `md`), compact with a mouse.

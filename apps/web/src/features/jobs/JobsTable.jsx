@@ -12,40 +12,36 @@ export function JobsTable({ apps, today, onOpen }) {
   return (
     <>
       <Card className="hidden overflow-x-auto lg:block">
-        <table className="w-full text-sm">
-          <thead className="border-b border-border text-left text-xs text-muted-foreground">
+        <table className="lt-table">
+          <thead>
             <tr>
               {COLUMNS.map((h) => (
-                <th key={h} className="whitespace-nowrap px-4 py-2.5 font-medium">
-                  {h}
-                </th>
+                <th key={h}>{h}</th>
               ))}
-              <th className="px-2 py-2.5 font-medium">
+              <th>
                 <span className="sr-only">Move</span>
               </th>
             </tr>
           </thead>
           <tbody>
             {apps.map((a) => (
-              <tr key={a.id} className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/30" onClick={() => onOpen(a)}>
-                <td className="px-4 py-2.5 font-medium">
+              <tr key={a.id} className="cursor-pointer" onClick={() => onOpen(a)}>
+                <td className="font-medium">
                   {/* The row is clickable for the mouse; this is the same action for keyboards and screen readers. */}
                   <button type="button" className="rounded text-left hover:underline" onClick={() => onOpen(a)}>
                     {a.company}
                   </button>
                 </td>
-                <td className="px-4 py-2.5 text-muted-foreground">{a.job_title}</td>
-                <td className="px-4 py-2.5">
+                <td className="text-muted-foreground">{a.job_title}</td>
+                <td>
                   <StatusBadge status={a.status} />
                 </td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-muted-foreground">
-                  {a.applied_date ? fmtDay(a.applied_date, 'd MMM') : '—'}
-                </td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-muted-foreground">{formatLpa(a.salary_paise) ?? '—'}</td>
-                <td className={cn('whitespace-nowrap px-4 py-2.5', a.followup_date && a.followup_date <= today && 'text-warning')}>
+                <td className="whitespace-nowrap text-muted-foreground">{a.applied_date ? fmtDay(a.applied_date, 'd MMM') : '—'}</td>
+                <td className="whitespace-nowrap text-muted-foreground">{formatLpa(a.salary_paise) ?? '—'}</td>
+                <td className={cn('whitespace-nowrap', a.followup_date && a.followup_date <= today && 'text-warning')}>
                   {a.followup_date ? fmtDay(a.followup_date, 'd MMM') : '—'}
                 </td>
-                <td className="px-2" onClick={(e) => e.stopPropagation()}>
+                <td className="!px-2" onClick={(e) => e.stopPropagation()}>
                   <MoveMenu app={a} today={today} />
                 </td>
               </tr>

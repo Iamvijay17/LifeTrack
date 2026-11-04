@@ -2,7 +2,7 @@ import { CalendarClock, Pencil, Plus, StickyNote, Trash2 } from 'lucide-react'
 import { EmptyState } from '@/components/shared/states'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/misc'
+import { Badge, Progress } from '@/components/ui/misc'
 import { Menu } from '@/components/ui/menu'
 import { useConfirmedDelete } from '@/hooks/useConfirmedDelete'
 import { revisionStatus, topicGroups } from '@/domain/learning'
@@ -13,6 +13,8 @@ import { plural } from '@/lib/format'
 export function TopicsTab({ totals, today, onCreate, onEdit }) {
   const removeTopic = useConfirmedDelete('learning_topics', 'Topic deleted')
   const groups = topicGroups(totals.map((t) => t.topic))
+  // Bars are relative to the most-studied topic, so the page reads as a map of where the time has gone.
+  const most = Math.max(1, ...totals.map((t) => t.minutes))
   return (
     <div className="space-y-5">
       <div className="flex justify-end">
@@ -34,7 +36,7 @@ export function TopicsTab({ totals, today, onCreate, onEdit }) {
       )}
       {groups.map((grp) => (
         <section key={grp}>
-          <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{grp}</h2>
+          <h2 className="mb-2 lt-eyebrow">{grp}</h2>
           <Card>
             <ul className="grid grid-cols-1 divide-y divide-border md:grid-cols-2 md:gap-x-6 md:divide-y-0 md:px-1">
               {totals
@@ -42,7 +44,7 @@ export function TopicsTab({ totals, today, onCreate, onEdit }) {
                 .map(({ topic, minutes, problems }) => {
                   const { due, next } = revisionStatus(topic, today)
                   return (
-                    <li key={topic.id} className="flex min-h-12 items-center gap-2 px-3 py-1.5">
+                    <li key={topic.id} className="flex min-h-12 items-center gap-2 px-3 py-2 md:px-4">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{topic.name}</p>
                         {(minutes > 0 || problems > 0) && (
@@ -51,6 +53,9 @@ export function TopicsTab({ totals, today, onCreate, onEdit }) {
                             {minutes > 0 && problems > 0 ? ' · ' : ''}
                             {problems > 0 ? plural(problems, 'problem') : ''}
                           </p>
+                        )}
+                        {minutes > 0 && (
+                          <Progress value={(minutes / most) * 100} label={`${topic.name} study time`} className="mt-1.5 h-1 max-w-48" />
                         )}
                       </div>
                       {due && <Badge tone="warning">Revise today</Badge>}

@@ -40,7 +40,7 @@ export function Menu({ items, label = 'Actions', trigger, align = 'right', class
         className={
           trigger
             ? 'block rounded-md'
-            : 'grid h-10 w-10 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground md:h-7 md:w-7'
+            : 'lt-press grid h-10 w-10 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:h-7 md:w-7'
         }
       >
         {trigger ?? <MoreHorizontal className="h-4 w-4" />}
@@ -66,7 +66,7 @@ export function Menu({ items, label = 'Actions', trigger, align = 'right', class
               i.onClick()
             }}
             className={cn(
-              'flex w-full items-center gap-2 whitespace-nowrap rounded px-2.5 py-2.5 text-left text-[13px] hover:bg-muted focus-visible:bg-muted md:py-1.5',
+              'flex w-full items-center gap-2 whitespace-nowrap rounded-sm px-2.5 py-2.5 text-left text-[13px] transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-0 focus-visible:ring-offset-0 md:py-1.5',
               i.danger && 'text-danger',
             )}
           >

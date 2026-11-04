@@ -10,13 +10,22 @@ export function SkeletonLoader({ variant = 'page', cards = 4, rows = 4, label = 
   return (
     <div role="status" aria-live="polite" aria-busy="true" className={cn('space-y-4', className)}>
       <span className="sr-only">{label}…</span>
-      {variant === 'page' && <Skeleton className="h-8 w-48" />}
+      {variant === 'page' && (
+        <div className="flex items-center gap-3.5">
+          <Skeleton className="h-11 w-11 rounded-[0.875rem]" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-6 w-44" />
+            <Skeleton className="h-3.5 w-64 max-w-full" />
+          </div>
+        </div>
+      )}
       {(variant === 'page' || variant === 'cards') && cards > 0 && (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {Array.from({ length: cards }).map((_, i) => (
-            <Card key={i} className="space-y-3 p-4">
+            <Card key={i} className="space-y-3 p-4" style={{ animationDelay: `${i * 40}ms` }}>
               <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-7 w-16" />
+              <Skeleton className="h-7 w-20" />
+              <div aria-hidden className="h-1.5 w-full rounded-full bg-muted/60" />
             </Card>
           ))}
         </div>

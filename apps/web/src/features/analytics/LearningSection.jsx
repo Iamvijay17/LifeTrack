@@ -8,7 +8,7 @@ import { Block, EmptyNote, Panel } from './Layout'
 
 export function LearningSection({ learning: l }) {
   return (
-    <Block icon={BookOpen} title="Career & learning">
+    <Block icon={BookOpen} module="learning" title="Career & learning">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Study hours" value={fmtDuration(l.minutes)} sub={`${l.sessionCount} sessions`} />
         <StatCard label="DSA problems solved" value={l.problems} />
@@ -26,7 +26,7 @@ export function LearningSection({ learning: l }) {
               {xAxis({ dataKey: 'label', minTickGap: 16 })}
               {yAxis()}
               {tooltip({ formatter: (v) => [`${v} h`, 'Studied'] })}
-              <Bar dataKey="value" fill={C.primary} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="value" fill={C.mod} radius={[5, 5, 2, 2]} />
             </BarChart>
           </Chart>
         </Panel>

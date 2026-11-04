@@ -9,7 +9,7 @@ import { Block, Panel } from './Layout'
 export function FitnessSection({ fitness: f }) {
   const change = f.weightChange
   return (
-    <Block icon={Dumbbell} title="Fitness">
+    <Block icon={Dumbbell} module="fitness" title="Fitness">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Workouts completed" value={f.workouts} />
         <StatCard
@@ -35,7 +35,7 @@ export function FitnessSection({ fitness: f }) {
               {xAxis({ dataKey: 'label', minTickGap: 16 })}
               {yAxis({ allowDecimals: false })}
               {tooltip()}
-              <Bar dataKey="value" name="Workouts" fill={C.success} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="value" name="Workouts" fill={C.mod} radius={[5, 5, 2, 2]} />
             </BarChart>
           </Chart>
         </Panel>
@@ -51,7 +51,7 @@ export function FitnessSection({ fitness: f }) {
               {xAxis({ dataKey: 'label', minTickGap: 16 })}
               {yAxis({ domain: ['dataMin - 1', 'dataMax + 1'] })}
               {tooltip({ formatter: (v) => [`${v} kg`, 'Weight'] })}
-              <Line dataKey="kg" stroke={C.primary} strokeWidth={2} dot={{ r: 2 }} />
+              <Line type="monotone" dataKey="kg" stroke={C.mod} strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
             </LineChart>
           </Chart>
         </Panel>

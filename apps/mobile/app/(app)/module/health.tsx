@@ -17,7 +17,32 @@ import { BarChart, LineChart } from '../../../src/ui/charts'
 import { ModuleHeader } from '../../../src/ui/ModuleHeader'
 import { confirm } from '../../../src/ui/confirm'
 import { Chip, DataGate, DateNav, StatTile, TimeField, pullToRefresh } from '../../../src/ui/controls'
+import { AnimatedNumber, Gradient } from '../../../src/ui/motion'
 import { Button, Card, Field, Txt } from '../../../src/ui'
+
+const STARS = [[8, 14], [22, 34], [38, 10], [52, 26], [68, 12], [84, 30]]
+/** The week's sleep, under a night sky. Stays dark in the light theme, because the night does. */
+function NightHero({ value, sub, nights, goalHours }: { value: string; sub: string; nights: { d: string; label: string; sleep: number | null }[]; goalHours: number }) {
+  const tallest = Math.max(goalHours, ...nights.map((n) => n.sleep ?? 0), 1)
+  return (
+    <View style={{ borderRadius: 22, overflow: 'hidden', padding: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+      <Gradient from="#0B1026" to="#1E1B4B" />
+      {STARS.map(([x, y]) => <View key={`${x}-${y}`} style={{ position: 'absolute', left: `${x}%`, top: `${y}%`, width: 2, height: 2, borderRadius: 1, backgroundColor: '#FFFFFF', opacity: 0.7 }} />)}
+      <View style={{ position: 'absolute', right: 18, top: 16, width: 42, height: 42, borderRadius: 21, backgroundColor: '#FDE68A', overflow: 'hidden' }}>
+        <View style={{ position: 'absolute', right: -6, top: -6, width: 34, height: 34, borderRadius: 17, backgroundColor: '#141943' }} />
+      </View>
+      <Text style={{ color: '#BAE6FD', fontSize: 13, fontWeight: '500' }}>Avg sleep (7 days)</Text>
+      <AnimatedNumber value={value} style={{ color: '#FFFFFF', fontSize: 36, fontWeight: '700', letterSpacing: -1, marginTop: 4 }} />
+      <Text style={{ color: '#CBD5E1', fontSize: 12, marginTop: 2 }}>{sub}</Text>
+      <View accessibilityElementsHidden style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 64, marginTop: 14 }}>
+        {nights.map((n) => <View key={n.d} style={{ flex: 1, height: `${((n.sleep ?? 0) / tallest) * 100}%`, minHeight: n.sleep ? 4 : 0, borderTopLeftRadius: 5, borderTopRightRadius: 5, backgroundColor: '#7DD3FC' }} />)}
+      </View>
+      <View accessibilityElementsHidden style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+        {nights.map((n) => <Text key={n.d} style={{ flex: 1, textAlign: 'center', color: '#94A3B8', fontSize: 10 }}>{n.label[0]}</Text>)}
+      </View>
+    </View>
+  )
+}
 
 export default function Health() {
   const { colors } = useTheme()
@@ -52,9 +77,14 @@ export default function Health() {
       <ScrollView refreshControl={pullToRefresh(refreshing, refetch)} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 32 }}>
         <ModuleHeader title="Sleep & Health" action={<Button title="Log water" variant="ghost" onPress={() => setWater(true)} />} />
         <DataGate loading={loading} error={error} onRetry={refetch}>
+          <NightHero
+            value={h.avgSleepMinutes == null ? '—' : fmtDuration(h.avgSleepMinutes)}
+            sub={h.nightsLogged ? `goal ${fmtDuration(sleepGoal)} · ${h.nightsLogged} night${h.nightsLogged === 1 ? '' : 's'}` : 'No sleep logged'}
+            nights={h.week}
+            goalHours={sleepGoal / 60}
+          />
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-            <StatTile label="Avg sleep (7 days)" value={h.avgSleepMinutes == null ? '—' : fmtDuration(h.avgSleepMinutes)} sub={h.nightsLogged ? `goal ${fmtDuration(sleepGoal)} · ${h.nightsLogged} night${h.nightsLogged === 1 ? '' : 's'}` : 'No sleep logged'} progress={h.avgSleepMinutes == null ? null : Math.min(100, (h.avgSleepMinutes / sleepGoal) * 100)} />
-            <StatTile label="Water today" value={`${h.todayLog?.water_ml ?? 0} ml`} sub={settings.water_goal_ml ? `goal ${settings.water_goal_ml} ml` : undefined} progress={settings.water_goal_ml ? ((h.todayLog?.water_ml ?? 0) / settings.water_goal_ml) * 100 : null} tone="success" />
+            <StatTile label="Water today" value={`${h.todayLog?.water_ml ?? 0} ml`} sub={settings.water_goal_ml ? `goal ${settings.water_goal_ml} ml` : undefined} progress={settings.water_goal_ml ? ((h.todayLog?.water_ml ?? 0) / settings.water_goal_ml) * 100 : null} />
             <StatTile label="Steps today" value={(h.todayLog?.steps ?? 0).toLocaleString('en-IN')} sub={settings.steps_goal ? `goal ${settings.steps_goal.toLocaleString('en-IN')}` : undefined} progress={settings.steps_goal ? ((h.todayLog?.steps ?? 0) / settings.steps_goal) * 100 : null} />
             <StatTile label="Latest weight" value={h.latestWeight != null ? `${h.latestWeight} kg` : '—'} sub={h.weightChange != null ? `${signedKg(h.weightChange)} since first log` : undefined} />
           </View>

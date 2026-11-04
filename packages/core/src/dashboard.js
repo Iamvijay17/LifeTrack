@@ -45,6 +45,42 @@ export const isBrandNew = (...tables) => tables.every((rows) => !rows?.length)
 /** A widget is visible unless the user explicitly turned it off (so new widgets appear by default). */
 export const isWidgetOn = (prefs, key) => prefs?.[key] !== false
 
+/** The order widgets appear in until the user arranges them, and how wide each wants to be on a 12-column grid. */
+const DEFAULT_ORDER = ['getting_started', 'today', 'score', 'progress', 'priorities', 'stats', 'weekly', 'upcoming', 'goals', 'spending', 'activity', 'quick']
+const WIDGET_SPAN = { getting_started: 12, today: 7, score: 5, progress: 7, priorities: 5, stats: 12, weekly: 7, upcoming: 5, goals: 4, spending: 4, activity: 4, quick: 12 }
+
+/** Every widget key in the user's order. Saved keys come first; widgets added to the app later join in their default place. */
+export function widgetOrder(prefs) {
+  const saved = Array.isArray(prefs?.order) ? prefs.order.filter((k) => DEFAULT_ORDER.includes(k)) : []
+  const missing = DEFAULT_ORDER.filter((k) => !saved.includes(k))
+  return [...saved, ...missing]
+}
+
+/**
+ * Lays visible widgets out in rows of 12 columns: each widget keeps its preferred width while it fits, and a row that ends short is stretched
+ * to fill, so hiding or moving a widget never leaves a hole. Returns [{ key, span }] in display order.
+ */
+export function arrangeWidgets(keys) {
+  const out = []
+  let row = []
+  let used = 0
+  const flush = () => {
+    if (!row.length) return
+    const extra = 12 - used
+    const each = Math.floor(extra / row.length)
+    row.forEach((key, i) => out.push({ key, span: WIDGET_SPAN[key] + each + (i < extra - each * row.length ? 1 : 0) }))
+    row = []
+    used = 0
+  }
+  for (const key of keys) {
+    if (used + WIDGET_SPAN[key] > 12) flush()
+    row.push(key)
+    used += WIDGET_SPAN[key]
+  }
+  flush()
+  return out
+}
+
 export const QUICK_KINDS = [
   { kind: 'task', label: 'Add task' }, { kind: 'study', label: 'Start study' }, { kind: 'workout', label: 'Log workout' }, { kind: 'expense', label: 'Add expense' },
   { kind: 'water', label: 'Log water' }, { kind: 'habit', label: 'Complete habit' }, { kind: 'application', label: 'Job application' },

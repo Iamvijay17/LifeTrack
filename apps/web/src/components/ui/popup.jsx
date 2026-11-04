@@ -116,7 +116,7 @@ export function Popup({ open, anchorRef, popupRef, align = 'left', matchWidth = 
       // Not yet measured: hidden with opacity, not visibility, because a menu moves focus into itself as soon as it mounts.
       style={style ?? { position: 'fixed', top: 0, left: 0, opacity: 0 }}
       className={cn(
-        'z-[60] max-w-[calc(100vw-1rem)] overflow-y-auto rounded-lg border border-border bg-card p-1 shadow-xl animate-fade-in',
+        'z-[60] max-w-[calc(100vw-1rem)] origin-top animate-pop-in overflow-y-auto rounded-lg border border-border bg-card p-1 shadow-overlay',
         className,
       )}
       {...props}

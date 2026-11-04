@@ -23,12 +23,12 @@ export function HealthHistory({ logs, onSelect }) {
         {logs.length === 0 ? (
           <p className="px-4 pb-6 pt-2 text-center text-sm text-muted-foreground">Your daily logs will appear here.</p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-border/70">
             {logs.map((h) => (
               <li key={h.id}>
                 <button
                   onClick={() => onSelect(h.log_date)}
-                  className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2.5 text-left text-sm hover:bg-muted/30"
+                  className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2.5 text-left text-sm transition-colors hover:bg-muted/40 md:px-5"
                 >
                   <span className="font-medium">{fmtDay(h.log_date, 'EEE, d MMM')}</span>
                   <span className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">

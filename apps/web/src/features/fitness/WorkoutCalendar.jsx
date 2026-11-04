@@ -5,7 +5,7 @@ import { monthStart, fmtDay } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
 const STATUS_TEXT = { completed: 'Workout', rest: 'Rest day', skipped: 'Skipped' }
-const DOT = { completed: 'bg-success', rest: 'bg-primary', skipped: 'bg-muted-foreground' }
+const DOT = { completed: 'bg-success', rest: 'bg-mod', skipped: 'bg-muted-foreground' }
 
 /** The month at a glance: which days you trained, rested or skipped. */
 export function WorkoutCalendar({ workouts, today, weekStartsOn }) {

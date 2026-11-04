@@ -25,6 +25,7 @@ export function ConfirmProvider({ children }) {
     <Ctx.Provider value={confirm}>
       {children}
       <Dialog
+        stacked
         open={!!req}
         onOpenChange={(o) => !o && close(false)}
         title={req?.title ?? ''}

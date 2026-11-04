@@ -74,7 +74,7 @@ export function DailyLogForm({ day, today, log, onDayChange }) {
             </Field>
           </div>
           {liveSleep != null && (
-            <p className="rounded-md bg-muted/50 px-3 py-1.5 text-sm" data-testid="sleep-duration">
+            <p className="animate-slide-down rounded-md bg-mod/10 px-3 py-1.5 text-sm" data-testid="sleep-duration">
               Sleep: <b>{fmtDuration(liveSleep)}</b>
             </p>
           )}
@@ -100,8 +100,8 @@ export function DailyLogForm({ day, today, log, onDayChange }) {
                   aria-label={`Energy ${n} of 5`}
                   onClick={() => setValue('energy_level', energy === String(n) ? '' : String(n), { shouldDirty: true })}
                   className={cn(
-                    'h-11 flex-1 rounded-md border border-border text-sm font-medium tabular-nums md:h-9',
-                    energy === String(n) ? 'border-primary bg-primary/15 text-secondary' : 'text-muted-foreground hover:bg-muted/60',
+                    'lt-press h-11 flex-1 rounded-md border text-sm font-medium tabular-nums transition-colors duration-150 md:h-9',
+                    energy === String(n) ? 'border-mod bg-mod/15 text-mod-text' : 'border-border text-muted-foreground hover:bg-muted/60',
                   )}
                 >
                   {n}

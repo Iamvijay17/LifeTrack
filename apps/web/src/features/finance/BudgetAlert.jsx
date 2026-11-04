@@ -12,7 +12,7 @@ export function BudgetAlert({ sum, money, onEdit }) {
       role="status"
       data-testid="budget-alert"
       className={cn(
-        'flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-4 py-3 text-sm',
+        'flex animate-slide-down flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-4 py-3 text-sm',
         over ? 'border-danger/40 bg-danger/10' : 'border-warning/40 bg-warning/10',
       )}
     >
@@ -22,7 +22,7 @@ export function BudgetAlert({ sum, money, onEdit }) {
           ? `You're ${money(alert.overBy)} over this month's budget.`
           : `You've used ${alert.percent}% of this month's budget. ${money(alert.left)} left.`}
       </p>
-      <button type="button" onClick={onEdit} className="rounded-md text-xs text-secondary underline underline-offset-2">
+      <button type="button" onClick={onEdit} className="rounded-md text-xs text-mod-text underline underline-offset-2">
         Edit budget
       </button>
     </div>

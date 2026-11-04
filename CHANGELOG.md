@@ -4,8 +4,17 @@ All notable changes to LifeTrack. Versions follow `MAJOR.MINOR.PATCH` (`apps/mob
 store build numbers are auto-incremented by EAS. Add new entries under **Unreleased** in every pull request.
 
 ## [Unreleased]
-See `docs/UX_AUDIT.md` for the full audit behind these changes.
+See `docs/UX_AUDIT.md` for the full audit behind these changes, and `docs/DESIGN_SYSTEM.md` for the design and motion system.
+### Changed
+- **A full visual redesign, on web and mobile.** Dark-first, with violet and indigo accents, new surfaces and elevation, and rounder corners. Every module now has its own colour and character: the whole app, including charts and progress, takes on the colour of the module you're in. No feature, API or data changes.
+- Motion throughout, using Motion on the web and React Native's own Animated on mobile (no new native module): page transitions, a sliding navigation indicator, staggered content, numbers that count up, rings and bars that fill, animated dialogs, tabs, checkboxes and switches, and bottom sheets you can drag to dismiss. Everything respects the reduced-motion setting.
+- Charts: gradient fills, softer grids, a shared 650 ms rhythm instead of the 1.5 s default.
 ### Added
+- Dashboard: a hero with a live clock, a 12-column layout, small seven-day charts on the tiles, and widgets you can drag into your own order (saved to your account; arrows on mobile).
+- Command palette (Ctrl/Cmd + K): the search box now also runs quick actions, jumps to any page and switches the theme.
+- Celebrations for real achievements: finishing the day's habits or the whole agenda, streak milestones, completing a goal or a focus block, reaching a savings target, landing an offer.
+- Habits and Planner: a week strip to see and jump between days. Habits show the last seven days on each row.
+- Job Switch: a pipeline bar, cards that glide between board columns. Fitness: a week of day tiles. Health: a night-sky sleep card and a water glass that fills. Finance: a ledger hero, a budget gauge and transactions grouped by day.
 - Dashboard: **Today**, one ordered list of the whole day (interviews and reminders by time, then tasks, habits, the planned workout, revisions, follow-ups and bills due, finished items below). Tasks and habits can be ticked from it. Web and mobile; no migration.
 - Dashboard: Upcoming deadlines (interviews, follow-ups, goals, milestones, reminders, overdue tasks), a getting-started guide for new accounts, stat cards that open their module, and Undo after completing a task.
 - Fitness: personal records, per-exercise progress chart, month calendar in History.

@@ -7,7 +7,7 @@ import { Block, Panel } from './Layout'
 
 export function HealthSection({ health: h }) {
   return (
-    <Block icon={HeartPulse} title="Sleep & health">
+    <Block icon={HeartPulse} module="health" title="Sleep & health">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Average sleep" value={h.sleepAvg == null ? '—' : fmtDuration(h.sleepAvg)} />
         <StatCard label="Average water" value={h.waterAvg == null ? '—' : `${Math.round(h.waterAvg)} ml`} />
@@ -25,7 +25,7 @@ export function HealthSection({ health: h }) {
             {xAxis({ dataKey: 'label', minTickGap: 16 })}
             {yAxis({ domain: [0, 10] })}
             {tooltip({ formatter: (v) => [`${v} h`, 'Sleep'] })}
-            <Area dataKey="hours" stroke={C.secondary} fill={C.secondary} fillOpacity={0.2} connectNulls />
+            <Area type="monotone" dataKey="hours" stroke={C.mod} fill={C.mod} fillOpacity={0.14} strokeWidth={2.5} connectNulls />
           </AreaChart>
         </Chart>
       </Panel>

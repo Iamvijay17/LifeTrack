@@ -35,7 +35,7 @@ export function ProgressTab({ logs, workouts, onLog }) {
         description="Log a workout with sets and your personal bests appear here."
         action={
           onLog && (
-            <button className="text-sm text-secondary underline underline-offset-2" onClick={onLog}>
+            <button className="text-sm font-medium text-mod-text underline underline-offset-2" onClick={onLog}>
               Log a workout
             </button>
           )
@@ -69,7 +69,14 @@ export function ProgressTab({ logs, workouts, onLog }) {
               {xAxis({ dataKey: 'label', minTickGap: 24 })}
               {yAxis({ domain: ['auto', 'auto'], width: 44 })}
               {tooltip({ formatter: (v) => [`${v} ${unit}`, METRICS.find((m) => m.value === metric).label] })}
-              <Line dataKey={metric} stroke={C.primary} strokeWidth={2} dot={{ r: 3 }} />
+              <Line
+                dataKey={metric}
+                type="monotone"
+                stroke={C.mod}
+                strokeWidth={2.5}
+                dot={{ r: 3, strokeWidth: 0, fill: C.mod }}
+                activeDot={{ r: 5 }}
+              />
             </LineChart>
           </Chart>
         </CardContent>
@@ -83,15 +90,18 @@ export function ProgressTab({ logs, workouts, onLog }) {
         </CardHeader>
         <CardContent className="p-0 pt-2">
           <ul className="max-h-96 divide-y divide-border overflow-y-auto">
-            {records.map((r) => (
-              <li key={r.name} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
-                <div className="min-w-0">
+            {records.map((r, i) => (
+              <li key={r.name} className="flex items-center gap-3 px-4 py-2.5 text-sm md:px-5">
+                <span className={i === 0 ? 'lt-icon-tile lt-shine h-8 w-8' : 'lt-icon-soft h-8 w-8'}>
+                  <Trophy className="h-4 w-4" aria-hidden />
+                </span>
+                <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{r.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {fmtDay(r.date, 'd MMM yyyy')} · {plural(r.sessions, 'session')}
                   </p>
                 </div>
-                <span className="shrink-0 font-semibold tabular-nums">{recordText(r)}</span>
+                <span className="shrink-0 font-bold tabular-nums tracking-tight">{recordText(r)}</span>
               </li>
             ))}
           </ul>

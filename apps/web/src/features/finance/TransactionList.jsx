@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Copy, Pencil, Repeat, Search, SlidersHorizontal, Trash2, Wallet } from 'lucide-react'
+import { ArrowDownLeft, ArrowUpRight, Copy, Pencil, PiggyBank, Repeat, Search, SlidersHorizontal, Trash2, Wallet } from 'lucide-react'
+import { AnimatePresence, ease, m } from '@/components/motion/primitives'
 import { EmptyState } from '@/components/shared/states'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,17 +14,42 @@ import { cn } from '@/lib/utils'
 
 // Expenses are the normal case, so their badges stay neutral: a list of red tags reads as a list of problems.
 const TYPE_TONE = { income: 'success', expense: 'neutral', savings: 'primary' }
-const AMOUNT_CLASS = { income: 'text-success', expense: 'text-foreground', savings: 'text-secondary' }
+const AMOUNT_CLASS = { income: 'text-success', expense: 'text-foreground', savings: 'text-mod-text' }
 const SIGN = { income: '+', expense: '−', savings: '' }
 const NO_FILTERS = { type: '', category: '', method: '', q: '', from: '', to: '' }
+const TYPE_ICON = {
+  income: { icon: ArrowDownLeft, cls: 'bg-emerald-500/15 text-emerald-500' },
+  expense: { icon: ArrowUpRight, cls: 'bg-muted text-muted-foreground' },
+  savings: { icon: PiggyBank, cls: 'bg-violet-500/15 text-violet-500' },
+}
+
+/** Consecutive transactions on the same date, as [{ date, rows }]. */
+function byDay(rows) {
+  const out = []
+  for (const t of rows) {
+    if (out.at(-1)?.date === t.txn_date) out.at(-1).rows.push(t)
+    else out.push({ date: t.txn_date, rows: [t] })
+  }
+  return out
+}
 
 function TransactionRow({ t, money, onEdit, onDuplicate, onDelete }) {
+  const TypeIcon = TYPE_ICON[t.type].icon
   return (
-    <li className="flex items-center gap-3 px-4 py-2.5">
+    <m.li
+      layout="position"
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: -12, transition: { duration: 0.14 } }}
+      transition={{ duration: 0.2, ease: ease.out }}
+      className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/30 md:px-5"
+    >
+      <span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-lg', TYPE_ICON[t.type].cls)}>
+        <TypeIcon className="h-4 w-4" aria-hidden />
+      </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{t.note || t.category}</p>
         <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-          {fmtDay(t.txn_date, 'EEE, d MMM')}
           <Badge tone={TYPE_TONE[t.type]}>{t.category}</Badge>
           {t.payment_method && t.payment_method !== 'Other' && <span>· {t.payment_method}</span>}
           {t.recurring_date && (
@@ -46,7 +72,7 @@ function TransactionRow({ t, money, onEdit, onDuplicate, onDelete }) {
           { label: 'Delete', icon: Trash2, danger: true, onClick: () => onDelete(t) },
         ]}
       />
-    </li>
+    </m.li>
   )
 }
 
@@ -57,6 +83,7 @@ export function TransactionList({ monthTx, month, money, onAdd, onEdit, onDuplic
   const active = ['type', 'category', 'method', 'from', 'to'].filter((k) => f[k]).length
   const set = (key) => (e) => setF((cur) => ({ ...cur, [key]: e.target.value }))
   const filtered = useMemo(() => filterTransactions(monthTx, f), [monthTx, f])
+  const days = useMemo(() => byDay(filtered), [filtered])
   const categories = useMemo(() => transactionCategories(monthTx), [monthTx])
   const removeTxn = useConfirmedDelete('transactions', 'Transaction deleted')
   const askDelete = (t) => removeTxn(t.id, { title: 'Delete this transaction?', description: `${money(t.amount_paise)} · ${t.category}` })
@@ -123,11 +150,22 @@ export function TransactionList({ monthTx, month, money, onAdd, onEdit, onDuplic
         ) : filtered.length === 0 ? (
           <p className="p-6 text-center text-sm text-muted-foreground">No transactions match these filters.</p>
         ) : (
-          <ul className="divide-y divide-border">
-            {filtered.map((t) => (
-              <TransactionRow key={t.id} t={t} money={money} onEdit={onEdit} onDuplicate={onDuplicate} onDelete={askDelete} />
+          <div className="pb-1">
+            {days.map(({ date, rows }) => (
+              <section key={date}>
+                <h3 className="lt-eyebrow border-y border-border/70 bg-surface-2/60 px-4 py-1.5 text-[10px] md:px-5">
+                  {fmtDay(date, 'EEE, d MMM')}
+                </h3>
+                <ul className="divide-y divide-border/70">
+                  <AnimatePresence initial={false}>
+                    {rows.map((t) => (
+                      <TransactionRow key={t.id} t={t} money={money} onEdit={onEdit} onDuplicate={onDuplicate} onDelete={askDelete} />
+                    ))}
+                  </AnimatePresence>
+                </ul>
+              </section>
             ))}
-          </ul>
+          </div>
         )}
       </CardContent>
     </Card>

@@ -17,6 +17,7 @@ import { BarChart, DonutChart, GroupedBarChart } from '../../../src/ui/charts'
 import { ActionSheet } from '../../../src/ui/Sheet'
 import { confirm } from '../../../src/ui/confirm'
 import { Badge, Chip, DataGate, EmptyState, MonthNav, ProgressBar, StatTile, pullToRefresh } from '../../../src/ui/controls'
+import { AnimatedNumber, Hero } from '../../../src/ui/motion'
 import { Button, Card, Field, Txt } from '../../../src/ui'
 
 const PAGE = 40
@@ -68,11 +69,24 @@ export default function Finance() {
         </View>
         <DataGate loading={loading} error={error} onRetry={refetch}>
           <MonthNav month={m} thisMonth={monthStart(today)} onChange={(v) => { setMonth(v); setLimit(PAGE); setF({ type: '', category: '', method: '', q: '' }) }} />
+          <Hero>
+            <Txt variant="small" muted>Expenses</Txt>
+            <AnimatedNumber value={money(sum.expense)} style={{ color: colors.foreground, fontSize: 34, fontWeight: '700', letterSpacing: -1 }} />
+            <Txt variant="small" muted>{fin.expenseCount} transactions</Txt>
+            <View style={{ flexDirection: 'row', gap: 16, marginTop: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Txt variant="small" muted>Income</Txt>
+                <AnimatedNumber value={money(sum.income)} style={{ color: colors.success, fontSize: 18, fontWeight: '700', letterSpacing: -0.3 }} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Txt variant="small" muted>Savings</Txt>
+                <AnimatedNumber value={money(sum.savings)} style={{ color: colors.secondary, fontSize: 18, fontWeight: '700', letterSpacing: -0.3 }} />
+                {sum.income ? <Txt variant="small" muted>{savingsShareOfIncome(sum)}% of income</Txt> : null}
+              </View>
+            </View>
+          </Hero>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-            <StatTile label="Income" value={money(sum.income)} />
-            <StatTile label="Expenses" value={money(sum.expense)} sub={`${fin.expenseCount} transactions`} />
-            <StatTile label="Savings" value={money(sum.savings)} sub={sum.income ? `${savingsShareOfIncome(sum)}% of income` : undefined} />
-            <Pressable accessibilityRole="button" accessibilityLabel="Edit monthly budget" onPress={() => setBudgetOpen(true)} style={{ flexBasis: '47%', flexGrow: 1 }}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Edit monthly budget" onPress={() => setBudgetOpen(true)} style={{ flexBasis: '100%', flexGrow: 1 }}>
               <StatTile label="Budget left" value={sum.remaining == null ? 'No budget' : money(sum.remaining)} sub={sum.budget ? `of ${money(sum.budget)}${fin.overall ? '' : ' (default)'} · tap to edit` : 'Tap to set a monthly budget'} progress={used == null ? null : Math.min(100, used * 100)} tone={toneKey === 'success' || toneKey === 'warning' ? toneKey : undefined} />
             </Pressable>
           </View>

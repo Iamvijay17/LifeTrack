@@ -1,1 +1,1 @@
-export { WIDGETS, isWidgetOn } from '@lifetrack/core/dashboard'
+export { WIDGETS, arrangeWidgets, isWidgetOn, widgetOrder } from '@lifetrack/core/dashboard'

@@ -243,6 +243,7 @@ test.describe('finance additions', () => {
     await pickOption(page.getByRole('dialog').getByLabel('Payment method'), 'UPI')
     await page.getByLabel('Note').fill('Groceries')
     await page.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('dialog')).toHaveCount(0) // the form animates out; until then the page's filter has a namesake in it
     await pickOption(page.getByLabel('Payment method'), 'Cash')
     await expect(page.getByText('Lunch')).toBeVisible()
     await expect(page.getByText('Groceries')).toHaveCount(0)

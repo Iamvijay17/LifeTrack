@@ -1,9 +1,14 @@
 import '@testing-library/jest-dom/vitest'
 import { expect } from 'vitest'
 import { configure } from '@testing-library/react'
+import { MotionGlobalConfig } from 'motion/react'
 
-// CI runners (especially with coverage on) are slow: the first render of a lazily imported page can take longer than the 1s default.
-configure({ asyncUtilTimeout: 5000 })
+// Component tests check behaviour, not choreography: everything lands on its final state at once.
+MotionGlobalConfig.skipAnimations = true
+
+// CI runners (especially with coverage on) are slow, and so is any machine running the whole suite in parallel: the first render of a lazily
+// imported page has to compile that page on the spot, which has been seen to take well over 5 seconds.
+configure({ asyncUtilTimeout: 10_000 })
 
 // jsdom lacks these browser APIs; the app (sonner, charts, menus) expects them.
 if (!window.matchMedia)
@@ -22,6 +27,15 @@ if (!window.ResizeObserver)
     observe() {}
     unobserve() {}
     disconnect() {}
+  }
+if (!window.IntersectionObserver)
+  window.IntersectionObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    takeRecords() {
+      return []
+    }
   }
 if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {}
 

@@ -7,7 +7,7 @@ import { fmtDay } from '@/lib/dates'
 import { formatLpa } from '@/lib/money'
 import { useAction } from '@/hooks/useAction'
 import { useConfirmedDelete } from '@/hooks/useConfirmedDelete'
-import { setApplicationStatus } from '@/services/api'
+import { moveApplication } from './moveStatus'
 import { PrepChecklist, usePrepChecklist } from './PrepChecklist'
 import { StatusHistory } from './StatusHistory'
 import { ApplicationInterviews } from './ApplicationInterviews'
@@ -16,7 +16,7 @@ function Section({ title, icon: Icon, action, children }) {
   return (
     <section className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <h3 className="flex items-center gap-1.5 lt-eyebrow">
           {Icon && <Icon className="h-3.5 w-3.5" />}
           {title}
         </h3>
@@ -29,7 +29,7 @@ function Section({ title, icon: Icon, action, children }) {
 
 /** Everything about one application: status, facts, interviews, preparation checklist and status history. */
 export function ApplicationDetail({ app, history, events, tz, today, onClose, onEdit, onScheduleInterview, onEditInterview }) {
-  const [move, moving] = useAction((s) => setApplicationStatus(app, s, today), { success: 'Status updated' })
+  const [move, moving] = useAction((s) => moveApplication(app, s, today), { success: 'Status updated' })
   const removeApp = useConfirmedDelete('job_applications', 'Application deleted')
   const checklist = usePrepChecklist(app)
   const { done, total, percent } = checklistProgress(checklist.list)

@@ -16,6 +16,16 @@ const ICONS = {
   reminder: Bell,
   recurring: Repeat,
 }
+const MODULE = {
+  overdue: 'planner',
+  task: 'planner',
+  interview: 'jobs',
+  followup: 'jobs',
+  goal: 'goals',
+  milestone: 'goals',
+  reminder: 'notifications',
+  recurring: 'finance',
+}
 
 const linkFor = (item) =>
   ({
@@ -29,33 +39,41 @@ const linkFor = (item) =>
     recurring: '/finance',
   })[item.kind]
 
-/** Deadlines across every module for the next week. `upcoming` is upcomingItems(). */
+/** Deadlines across every module for the next week, on a timeline rail. `upcoming` is upcomingItems(). */
 export function UpcomingCard({ upcoming, today, money, className }) {
   return (
     <Card className={className}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <CalendarClock className="h-4 w-4" aria-hidden />
+          <CalendarClock className="h-4 w-4 text-mod-text" aria-hidden />
           Upcoming
         </CardTitle>
         <span className="text-xs text-muted-foreground">next 7 days</span>
       </CardHeader>
-      <CardContent className="p-2 pt-2">
+      <CardContent className="p-2 pt-3 md:p-3">
         {upcoming.items.length === 0 ? (
-          <p className="px-2 py-6 text-center text-sm text-muted-foreground">
+          <p className="px-2 py-8 text-center text-sm text-muted-foreground">
             Nothing due. Interviews, deadlines and reminders will show up here.
           </p>
         ) : (
-          <ul>
+          <ul className="relative before:absolute before:bottom-5 before:left-[1.45rem] before:top-5 before:w-px before:bg-border">
             {upcoming.items.map((item) => {
               const Icon = ICONS[item.kind]
               return (
                 <li key={item.id}>
                   <Link
                     to={linkFor(item)}
-                    className="flex min-h-11 items-center gap-2.5 rounded-md px-2 py-1.5 text-sm hover:bg-muted/40 md:min-h-0"
+                    data-module={MODULE[item.kind]}
+                    className="group relative flex min-h-11 items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/40 md:min-h-9"
                   >
-                    <Icon className={cn('h-4 w-4 shrink-0', item.overdue ? 'text-danger' : 'text-muted-foreground')} aria-hidden />
+                    <span
+                      className={cn(
+                        'lt-icon-soft relative h-6 w-6 rounded-full ring-4 ring-card transition-transform duration-150 group-hover:scale-110',
+                        item.overdue && '!bg-danger/15 !text-danger',
+                      )}
+                    >
+                      <Icon className="h-3 w-3" aria-hidden />
+                    </span>
                     <span className="min-w-0 flex-1 truncate">{item.title}</span>
                     {item.amount_paise != null && (
                       <span className="shrink-0 text-xs tabular-nums">
@@ -63,7 +81,7 @@ export function UpcomingCard({ upcoming, today, money, className }) {
                         {money(item.amount_paise)}
                       </span>
                     )}
-                    <span className={cn('shrink-0 text-xs', item.overdue ? 'text-danger' : 'text-muted-foreground')}>
+                    <span className={cn('shrink-0 text-xs', item.overdue ? 'font-medium text-danger' : 'text-muted-foreground')}>
                       {dueLabel(item, today, (d) => fmtDay(d, 'd MMM'))}
                     </span>
                   </Link>

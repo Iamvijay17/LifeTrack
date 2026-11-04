@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { Gauge } from 'lucide-react'
 import { SettingsSection } from '@/components/shared/SettingsSection'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/form'
@@ -48,6 +49,7 @@ export function ScoreWeightsCard() {
 
   return (
     <SettingsSection
+      icon={Gauge}
       title="Daily score weights"
       desc="Categories with nothing planned or logged that day are skipped and the remaining weights are re-balanced, so rest days are never penalised."
     >

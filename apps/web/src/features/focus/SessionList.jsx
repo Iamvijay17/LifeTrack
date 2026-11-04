@@ -20,7 +20,7 @@ export function SessionList({ sessions, tasks, topics, tz, onDelete }) {
             description="Start a 25-minute block — short, distraction-free work adds up."
           />
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-border/70">
             {newestFirst(sessions).map((s) => {
               const { what, note } = sessionTitle(s, tasks, topics)
               return (

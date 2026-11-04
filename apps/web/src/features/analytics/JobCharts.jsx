@@ -17,7 +17,7 @@ export function WeeklyApplicationsChart({ apps, today, weekStartsOn }) {
         {xAxis({ dataKey: 'label' })}
         {yAxis({ allowDecimals: false })}
         {tooltip({ formatter: (v) => [v, 'Applications'] })}
-        <Bar dataKey="count" fill={C.primary} radius={[4, 4, 0, 0]} />
+        <Bar dataKey="count" fill={C.mod} radius={[6, 6, 2, 2]} />
       </BarChart>
     </Chart>
   )
@@ -37,7 +37,7 @@ export function SalaryChart({ apps, tz }) {
         {xAxis({ dataKey: 'label' })}
         {yAxis({ unit: 'L' })}
         {tooltip({ formatter: (v, _n, p) => [`${v} LPA`, p.payload.company] })}
-        <Line dataKey="lpa" stroke={C.secondary} strokeWidth={2} dot={{ r: 3 }} />
+        <Line type="monotone" dataKey="lpa" stroke={C.mod} strokeWidth={2.5} dot={{ r: 3, strokeWidth: 0, fill: C.mod }} />
       </LineChart>
     </Chart>
   )

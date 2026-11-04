@@ -9,8 +9,7 @@ import { Popup, usePopup } from './popup'
 // They keep the contract of the inputs they replace so react-hook-form's register() and plain value/onChange keep working:
 // a hidden <input> carries the value (RHF reads and writes `.value` on it) and onChange receives { target }.
 
-const trigger =
-  'flex w-full items-center justify-between gap-2 rounded-md border border-border bg-background px-3 text-left text-sm transition-colors hover:border-muted-foreground/40 focus-visible:border-primary disabled:opacity-60 aria-[invalid=true]:border-danger h-11 md:h-9'
+const trigger = 'lt-field flex items-center justify-between gap-2 text-left h-11 md:h-9'
 
 /** Shared value plumbing for the three pickers. */
 function useFormValue({ forwardedRef, name, value, defaultValue, onChange, onBlur }) {
@@ -162,7 +161,7 @@ export const Select = forwardRef(function Select(
               className={cn(
                 'cursor-pointer whitespace-nowrap rounded-md px-3 py-2.5 text-sm md:py-1.5',
                 i === hi && 'bg-muted',
-                o.value === current && 'font-semibold text-secondary',
+                o.value === current && 'font-semibold text-mod-text',
                 o.disabled && 'cursor-not-allowed opacity-50',
               )}
             >
@@ -299,7 +298,7 @@ export const DatePicker = forwardRef(function DatePicker(
                 onClick={() => pick(day)}
                 className={cn(
                   'h-9 rounded-md text-sm hover:bg-muted disabled:pointer-events-none disabled:opacity-30',
-                  day === today && !sel && 'border border-primary text-secondary',
+                  day === today && !sel && 'border border-mod text-mod-text',
                   sel && 'bg-primary-solid font-semibold text-primary-foreground hover:bg-primary-solid',
                 )}
               >
@@ -391,7 +390,7 @@ export const TimePicker = forwardRef(function TimePicker(
           {col('Minute', minutes, m, (v) => commit(`${h}:${v}`))}
         </div>
         <div className="mt-2 flex justify-between border-t border-border pt-2 text-sm">
-          <button type="button" className="rounded-md px-2 py-1 text-secondary hover:bg-muted" onClick={() => setOpen(false)}>
+          <button type="button" className="rounded-md px-2 py-1 text-mod-text hover:bg-muted" onClick={() => setOpen(false)}>
             Done
           </button>
           {has && (

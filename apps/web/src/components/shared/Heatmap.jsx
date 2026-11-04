@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef } from 'react'
 import { addDays, startOfWeek, fmtDay } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
-const LEVELS = ['bg-muted', 'bg-primary/25', 'bg-primary/45', 'bg-primary/70', 'bg-primary']
+const LEVELS = ['bg-muted', 'bg-mod/25', 'bg-mod/45', 'bg-mod/70', 'bg-mod']
 
 /** GitHub-style contribution grid. `levels`: Map<'yyyy-MM-dd', 0..4>. `titles`: Map<date, string> */
 export function Heatmap({ levels, titles, today, weeks = 26, weekStartsOn = 1, onSelect, selected }) {
@@ -43,7 +43,7 @@ export function Heatmap({ levels, titles, today, weeks = 26, weekStartsOn = 1, o
                     onClick={() => onSelect?.(d)}
                     title={text}
                     className={cn(
-                      'h-3 w-3 rounded-[3px] transition-transform enabled:hover:scale-125',
+                      'h-3 w-3 rounded-[3px] transition-transform duration-150 enabled:hover:scale-125',
                       LEVELS[lvl],
                       selected === d && 'ring-1 ring-foreground',
                     )}

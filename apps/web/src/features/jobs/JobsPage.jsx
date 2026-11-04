@@ -86,7 +86,7 @@ export default function JobsPage() {
       />
       <DataGate loading={loading} error={error} onRetry={refetch}>
         <div className="space-y-5">
-          <JobsStats appliedThisWeek={appliedThisWeek} active={activePipelineCount(apps)} total={apps.length} funnel={stats} />
+          <JobsStats appliedThisWeek={appliedThisWeek} active={activePipelineCount(apps)} total={apps.length} funnel={stats} apps={apps} />
           <Reminders followups={followups} upcoming={upcoming} tz={tz} onOpen={open} />
           <JobsToolbar view={view} onViewChange={setView} filters={filters} onFiltersChange={setFilters} sources={sources} />
 

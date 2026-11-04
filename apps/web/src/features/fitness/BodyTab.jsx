@@ -44,7 +44,7 @@ export function BodyTab({ weightData, measurements, onLog }) {
               {xAxis({ dataKey: 'label' })}
               {yAxis({ domain: ['dataMin - 1', 'dataMax + 1'] })}
               {tooltip({ formatter: (v) => [`${v} kg`, 'Weight'] })}
-              <Line dataKey="kg" stroke={C.primary} strokeWidth={2} dot={{ r: 2 }} />
+              <Line type="monotone" dataKey="kg" stroke={C.mod} strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
             </LineChart>
           </Chart>
         </CardContent>
@@ -57,7 +57,7 @@ export function BodyTab({ weightData, measurements, onLog }) {
           {sorted.length === 0 ? (
             <p className="p-6 text-center text-sm text-muted-foreground">No measurements yet.</p>
           ) : (
-            <ul className="divide-y divide-border">
+            <ul className="divide-y divide-border/70">
               {sorted.map((m) => (
                 <li key={m.id} className="flex items-center justify-between gap-2 px-4 py-2.5 text-sm">
                   <div>

@@ -30,9 +30,7 @@ export function InterviewCalendar({ events, apps, tz, today, weekStartsOn, onOpe
               return n ? `${n} interview${n > 1 ? 's' : ''}` : ''
             }}
             markFor={(d) =>
-              byDay.get(d)?.length ? (
-                <span className="absolute bottom-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-primary" />
-              ) : null
+              byDay.get(d)?.length ? <span className="absolute bottom-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-mod" /> : null
             }
           />
         </CardContent>
@@ -47,7 +45,7 @@ export function InterviewCalendar({ events, apps, tz, today, weekStartsOn, onOpe
               dayEvents.map((e) => (
                 <button
                   key={e.id}
-                  className="flex w-full items-center justify-between rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-muted/40"
+                  className="lt-lift flex w-full items-center justify-between rounded-lg border border-border px-3 py-2 text-left text-sm"
                   onClick={() => onEditEvent(e)}
                 >
                   <span>

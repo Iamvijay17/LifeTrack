@@ -1,5 +1,5 @@
 import { Area, AreaChart, Bar, BarChart } from 'recharts'
-import { Chart, C, grid, tooltip, xAxis, yAxis, seriesSummary } from '@/components/shared/charts'
+import { Chart, C, grid, tooltip, xAxis, yAxis, seriesSummary, G } from '@/components/shared/charts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { fmtDay } from '@/lib/dates'
 
@@ -26,7 +26,7 @@ export function ReportCharts({ report: r }) {
               {xAxis({ dataKey: 'label', minTickGap: 16 })}
               {yAxis({ domain: [0, 100] })}
               {tooltip({ formatter: (v) => [v, 'Score'] })}
-              <Area dataKey="score" stroke={C.primary} fill={C.primary} fillOpacity={0.15} strokeWidth={2} connectNulls />
+              <Area type="monotone" dataKey="score" stroke={C.mod} fill={G.modArea} strokeWidth={2.5} connectNulls />
             </AreaChart>
           </Chart>
         </CardContent>
@@ -47,7 +47,7 @@ export function ReportCharts({ report: r }) {
               {xAxis({ dataKey: 'label' })}
               {yAxis({ domain: [0, 100] })}
               {tooltip({ formatter: (v, _n, p) => [`${v} (${p.payload.days} days)`, 'Average score'] })}
-              <Bar dataKey="score" fill={C.secondary} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="score" fill={G.mod} radius={[6, 6, 2, 2]} />
             </BarChart>
           </Chart>
         </CardContent>

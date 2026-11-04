@@ -19,11 +19,17 @@ export function WeeklyPlan({ weekDays, today, plan, routines, workouts, complete
           const done = completed.some((x) => x.workout_date === d)
           const off = workouts.find((x) => x.workout_date === d && x.status !== 'completed')
           return (
-            <div key={d} className={cn('flex items-center gap-3 rounded-md px-2 py-1.5', d === today && 'bg-primary/10')}>
+            <div
+              key={d}
+              className={cn(
+                'flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors',
+                d === today && 'bg-mod/10 ring-1 ring-inset ring-mod/25',
+              )}
+            >
               <div className="w-16 shrink-0 sm:w-24">
                 <p className="text-sm font-medium">
                   {DAY_NAMES[dow].slice(0, 3)}
-                  {d === today && <span className="ml-1.5 hidden text-[10px] text-secondary sm:inline">TODAY</span>}
+                  {d === today && <span className="ml-1.5 hidden text-[10px] text-mod-text sm:inline">TODAY</span>}
                 </p>
                 <p className="text-xs text-muted-foreground">{fmtDay(d, 'd MMM')}</p>
               </div>

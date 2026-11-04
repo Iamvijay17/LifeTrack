@@ -16,7 +16,7 @@ export function MonthCalendar({ month, onMonth, selected, onSelect, today, weekS
         <Button variant="ghost" size="icon-sm" aria-label="Previous month" onClick={() => onMonth(addMonths(month, -1))}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <p aria-live="polite" className="text-sm font-medium">
+        <p aria-live="polite" className="text-sm font-semibold tracking-tight">
           {fmtDay(month, 'MMMM yyyy')}
         </p>
         <Button variant="ghost" size="icon-sm" aria-label="Next month" onClick={() => onMonth(addMonths(month, 1))}>
@@ -37,10 +37,10 @@ export function MonthCalendar({ month, onMonth, selected, onSelect, today, weekS
             aria-label={`${fmtDay(d, 'd MMMM')}${labelFor?.(d) ? `, ${labelFor(d)}` : ''}`}
             aria-pressed={selected === d}
             className={cn(
-              'relative aspect-square rounded-md text-sm transition-colors hover:bg-muted',
-              d.slice(0, 7) !== month.slice(0, 7) && 'text-muted-foreground',
-              d === today && 'font-semibold text-secondary',
-              selected === d && 'bg-primary/20 ring-1 ring-primary',
+              'lt-press relative aspect-square rounded-md text-sm tabular-nums transition-colors duration-150 hover:bg-muted',
+              d.slice(0, 7) !== month.slice(0, 7) && 'text-muted-foreground/60',
+              d === today && 'font-semibold text-mod-text',
+              selected === d && 'bg-mod/20 ring-1 ring-mod',
             )}
           >
             {Number(d.slice(8))}

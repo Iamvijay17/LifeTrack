@@ -1,9 +1,9 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { habitHeatmap, habitStats, habitSummary, isScheduledOn, pctText, scheduleLabel } from '@lifetrack/core/habits'
 import { api, store } from '../../../src/data/client'
-import { haptics } from '../../../src/lib/haptics'
 import { useTables } from '../../../src/hooks/useTables'
 import { useSettings } from '../../../src/hooks/useSettings'
 import { useToday } from '../../../src/hooks/useToday'
@@ -14,6 +14,7 @@ import { Heatmap } from '../../../src/ui/Heatmap'
 import { ActionSheet } from '../../../src/ui/Sheet'
 import { confirm } from '../../../src/ui/confirm'
 import { Badge, Chip, DataGate, DateNav, EmptyState, ProgressBar, StatTile, pullToRefresh } from '../../../src/ui/controls'
+import { AnimatedNumber, CheckCircle, Hero, ProgressRing, useConfetti } from '../../../src/ui/motion'
 import { Button, Card, Txt } from '../../../src/ui'
 
 function HabitRow({ s, date, onMenu }: { s: any; date: string; onMenu: (s: any) => void }) {
@@ -24,18 +25,18 @@ function HabitRow({ s, date, onMenu }: { s: any; date: string; onMenu: (s: any) 
   const off = log && !done
   const [setStatus, pending] = useAction((st: string | null) => api.setHabitStatus(habit.id, date, st))
   const last = useRef(0)
-  const tap = () => { const n = Date.now(); if (n - last.current < 600) return; last.current = n; if (!done) haptics.success(); setStatus(done ? null : 'done') } // ignore accidental double taps
+  const tap = () => { const n = Date.now(); if (n - last.current < 600) return; last.current = n; setStatus(done ? null : 'done') } // ignore accidental double taps
   return (
     <Card>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, opacity: habit.archived_at ? 0.6 : 1 }}>
-        <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: done, busy: pending, disabled: !!habit.archived_at }} accessibilityLabel={`${done ? 'Undo' : 'Complete'} ${habit.name}`}
-          disabled={pending || !!habit.archived_at} onPress={tap}
-          style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: habit.color, backgroundColor: done ? habit.color : 'transparent', alignItems: 'center', justifyContent: 'center', opacity: pending ? 0.6 : 1 }}>
-          <Text style={{ color: done ? '#fff' : 'transparent', fontSize: 22, fontWeight: '700' }}>✓</Text>
-        </Pressable>
+        <CheckCircle done={done} color={habit.color} size={44} disabled={pending || !!habit.archived_at} onPress={tap} label={`${done ? 'Undo' : 'Complete'} ${habit.name}`} />
         <Pressable accessibilityRole="button" accessibilityLabel={`Options for ${habit.name}`} onPress={() => onMenu(s)} style={{ flex: 1, gap: 4 }}>
           <Text numberOfLines={1} style={{ color: off ? colors.mutedForeground : colors.foreground, fontSize: 16, fontWeight: '600' }}>{habit.name}</Text>
-          <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>{scheduleLabel(habit)} · streak {s.current}{s.unit} · {pctText(s.rate30)} (30d)</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>{scheduleLabel(habit)} ·</Text>
+            <Ionicons name="flame" size={12} color={s.current > 0 ? colors.warning : colors.mutedForeground} />
+            <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>{s.current}{s.unit} · {pctText(s.rate30)} (30d)</Text>
+          </View>
           <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
             {off ? <Badge>{log.status === 'rest' ? 'Rest day' : 'Skipped'}</Badge> : null}
             {!isScheduledOn(habit, date) && !log ? <Badge>Not scheduled</Badge> : null}
@@ -69,6 +70,15 @@ export default function Habits() {
   const visible = stats.filter((s) => showArchived || !s.habit.archived_at)
   const { levels } = useMemo(() => habitHeatmap(active, focus, today), [active, focus, today])
 
+  // Finishing the last habit of the day earns confetti, once, as it happens.
+  const confetti = useConfetti()
+  const remaining = day === today && !loading ? summary.total - summary.doneToday : null
+  const wasRemaining = useRef<number | null>(null)
+  useEffect(() => {
+    if (wasRemaining.current != null && wasRemaining.current > 0 && remaining === 0) confetti.fire()
+    wasRemaining.current = remaining
+  }, [remaining]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const m = menu, h = m?.habit, mlog = m?.logs.find((l: any) => l.log_date === day)
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.background }}>
@@ -81,8 +91,18 @@ export default function Habits() {
           {stats.length === 0 ? (
             <EmptyState title="Build your first habit" description="Daily, weekly or on specific days. Check in with one tap and watch the streak grow." action={{ label: 'Create a habit', onPress: () => setForm({ open: true, habit: null }) }} />
           ) : (<>
+            <Hero>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                <ProgressRing value={summary.total ? (summary.doneToday / summary.total) * 100 : 0} size={104} stroke={10} label={day === today ? 'Done today' : 'Done that day'}>
+                  <AnimatedNumber value={`${summary.doneToday}/${summary.total}`} style={{ color: colors.foreground, fontSize: 24, fontWeight: '700', letterSpacing: -0.5 }} />
+                </ProgressRing>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Txt variant="heading">{day === today ? 'Done today' : 'Done that day'}</Txt>
+                  <Txt variant="small" muted>{summary.total === summary.doneToday && summary.total > 0 ? 'Everything checked in. Nicely done.' : 'One tap a day builds the streak.'}</Txt>
+                </View>
+              </View>
+            </Hero>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-              <StatTile label={day === today ? 'Done today' : 'Done that day'} value={`${summary.doneToday}/${summary.total}`} progress={summary.total ? (summary.doneToday / summary.total) * 100 : 0} tone="success" />
               <StatTile label="Best current streak" value={summary.bestCurrent} sub="days / weeks" />
               <StatTile label="Longest streak" value={summary.longest} sub="across all habits" />
               <StatTile label="30-day completion" value={pctText(summary.avg30)} progress={summary.avg30 == null ? null : summary.avg30 * 100} />
@@ -125,6 +145,7 @@ export default function Habits() {
         { label: 'Delete', destructive: true, onPress: async () => { if (await confirm(`Delete "${h.name}"?`, 'This permanently deletes the habit and its whole history. Archive it instead to keep the history.')) del(h.id) } },
       ] : []} />
       <HabitForm visible={form.open} habit={form.habit} today={today} onClose={() => setForm({ open: false, habit: null })} />
+      {confetti.node}
     </SafeAreaView>
   )
 }

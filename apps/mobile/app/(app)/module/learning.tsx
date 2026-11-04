@@ -16,6 +16,7 @@ import { ModuleHeader } from '../../../src/ui/ModuleHeader'
 import { ActionSheet } from '../../../src/ui/Sheet'
 import { confirm } from '../../../src/ui/confirm'
 import { Badge, DataGate, EmptyState, ProgressBar, Segmented, StatTile, pullToRefresh } from '../../../src/ui/controls'
+import { AnimatedNumber, Hero, ProgressRing } from '../../../src/ui/motion'
 import { Button, Card, Txt } from '../../../src/ui'
 
 type Tab = 'overview' | 'goals' | 'topics' | 'sessions'
@@ -64,8 +65,17 @@ export default function Learning() {
           <View style={{ flex: 1 }}><Button title="New goal" onPress={() => setGoalForm({ open: true, goal: null })} /></View>
         </View>
         <DataGate loading={loading} error={error} onRetry={refetch}>
+          <Hero>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+              <ProgressRing value={target ? Math.min(100, (o.todayMin / target) * 100) : null} size={96} stroke={10} label="Study time against today's target" />
+              <View style={{ flex: 1 }}>
+                <Txt variant="small" muted>Today</Txt>
+                <AnimatedNumber value={fmtDuration(o.todayMin)} style={{ color: colors.foreground, fontSize: 32, fontWeight: '700', letterSpacing: -1 }} />
+                <Txt variant="small" muted>{target ? `target ${fmtDuration(target)}` : 'no daily target set'}</Txt>
+              </View>
+            </View>
+          </Hero>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-            <StatTile label="Today" value={fmtDuration(o.todayMin)} sub={target ? `target ${fmtDuration(target)}` : 'no daily target set'} progress={target ? Math.min(100, (o.todayMin / target) * 100) : null} tone="success" />
             <StatTile label="This week" value={fmtDuration(o.weekMin)} sub={`${o.activeDays} active days`} />
             <StatTile label="DSA problems" value={o.problems} sub="all time" />
             <StatTile label="Active goals" value={studyGoals.filter((g: any) => g.status === 'active').length} sub={`${studyGoals.filter((g: any) => g.status === 'completed').length} completed`} />

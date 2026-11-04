@@ -1,16 +1,16 @@
-@import '@fontsource-variable/inter';
+@import '@fontsource-variable/inter/opsz.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* Design tokens as space-separated RGB so Tailwind opacity modifiers work. */
 :root {
-  --background: 250 250 250;
+  --background: 248 248 250;
   --foreground: 9 9 11;
-  --sidebar: 244 244 245;
+  --sidebar: 242 242 245;
   --card: 255 255 255;
-  --border: 228 228 231;
-  --muted: 244 244 245;
+  --border: 228 228 233;
+  --muted: 241 241 244;
   --muted-foreground: 99 99 107;
   --primary: 124 58 237;
   --primary-solid: 124 58 237;
@@ -21,47 +21,216 @@
   --warning: 146 64 14;
   --danger: 185 28 28;
   --danger-solid: 185 28 28;
+  --surface2: 244 244 247;
+  --indigo: 79 70 229;
   --c-primary: #7c3aed;
   --c-secondary: #a78bfa;
   --c-success: #16a34a;
   --c-warning: #d97706;
   --c-danger: #dc2626;
-  --c-grid: #e4e4e7;
+  --c-grid: #e7e7ec;
   --c-axis: #71717a;
+  --shadow-card: 0 1px 2px rgb(15 15 25 / 0.04), 0 1px 1px rgb(15 15 25 / 0.03);
+  --shadow-raised: 0 2px 4px rgb(15 15 25 / 0.05), 0 12px 28px -12px rgb(15 15 25 / 0.14);
+  --shadow-overlay: 0 4px 12px rgb(15 15 25 / 0.08), 0 28px 60px -16px rgb(15 15 25 / 0.28);
 }
 .dark {
   --background: 9 9 11;
   --foreground: 250 250 250;
-  --sidebar: 17 17 19;
-  --card: 24 24 27;
-  --border: 39 39 42;
-  --muted: 39 39 42;
+  --sidebar: 13 13 16;
+  --card: 17 17 20;
+  --border: 39 39 44;
+  --muted: 32 32 37;
   --muted-foreground: 161 161 170;
   --primary: 139 92 246;
   --primary-solid: 124 58 237;
   --primary-foreground: 255 255 255;
   --secondary: 167 139 250;
-  --accent: 39 39 42;
+  --accent: 39 39 44;
   --success: 34 197 94;
   --warning: 245 158 11;
   --danger: 248 113 113;
   --danger-solid: 220 38 38;
+  --surface2: 24 24 27;
+  --indigo: 99 102 241;
   --c-primary: #8b5cf6;
   --c-secondary: #a78bfa;
   --c-success: #22c55e;
   --c-warning: #f59e0b;
   --c-danger: #ef4444;
-  --c-grid: #27272a;
+  --c-grid: #222227;
   --c-axis: #a1a1aa;
+  /* Shadows barely read on near-black, so depth comes from a hairline highlight along the top edge. */
+  --shadow-card: inset 0 1px 0 rgb(255 255 255 / 0.035), 0 1px 2px rgb(0 0 0 / 0.5);
+  --shadow-raised: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 2px 4px rgb(0 0 0 / 0.4), 0 16px 32px -14px rgb(0 0 0 / 0.75);
+  --shadow-overlay: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 8px 20px rgb(0 0 0 / 0.5), 0 36px 72px -16px rgb(0 0 0 / 0.85);
+}
+
+/* Each module's accent. Mirrors moduleAccents in packages/design-tokens. Applies to a page (on <html>) or to a single tile. */
+:root,
+[data-module='dashboard'] {
+  --mod: 139 92 246;
+  --mod-2: 99 102 241;
+  --mod-text: 109 40 217;
+}
+[data-module='planner'] {
+  --mod: 99 102 241;
+  --mod-2: 59 130 246;
+  --mod-text: 67 56 202;
+}
+[data-module='focus'] {
+  --mod: 168 85 247;
+  --mod-2: 236 72 153;
+  --mod-text: 147 51 234;
+}
+[data-module='habits'] {
+  --mod: 244 63 94;
+  --mod-2: 251 146 60;
+  --mod-text: 190 18 60;
+}
+[data-module='notes'] {
+  --mod: 234 179 8;
+  --mod-2: 245 158 11;
+  --mod-text: 161 98 7;
+}
+[data-module='learning'] {
+  --mod: 139 92 246;
+  --mod-2: 59 130 246;
+  --mod-text: 109 40 217;
+}
+[data-module='jobs'] {
+  --mod: 245 158 11;
+  --mod-2: 249 115 22;
+  --mod-text: 180 83 9;
+}
+[data-module='goals'] {
+  --mod: 236 72 153;
+  --mod-2: 139 92 246;
+  --mod-text: 190 24 93;
+}
+[data-module='fitness'] {
+  --mod: 249 115 22;
+  --mod-2: 239 68 68;
+  --mod-text: 194 65 12;
+}
+[data-module='health'] {
+  --mod: 56 189 248;
+  --mod-2: 99 102 241;
+  --mod-text: 3 105 161;
+}
+[data-module='finance'] {
+  --mod: 16 185 129;
+  --mod-2: 20 184 166;
+  --mod-text: 4 120 87;
+}
+[data-module='analytics'] {
+  --mod: 99 102 241;
+  --mod-2: 139 92 246;
+  --mod-text: 67 56 202;
+}
+[data-module='reports'] {
+  --mod: 100 116 139;
+  --mod-2: 99 102 241;
+  --mod-text: 71 85 105;
+}
+[data-module='notifications'] {
+  --mod: 139 92 246;
+  --mod-2: 236 72 153;
+  --mod-text: 109 40 217;
+}
+[data-module='settings'] {
+  --mod: 113 113 122;
+  --mod-2: 139 92 246;
+  --mod-text: 82 82 91;
+}
+[data-module='export'] {
+  --mod: 20 184 166;
+  --mod-2: 99 102 241;
+  --mod-text: 15 118 110;
+}
+.dark,
+.dark [data-module='dashboard'] {
+  --mod-text: 167 139 250;
+}
+.dark[data-module='planner'],
+.dark [data-module='planner'] {
+  --mod-text: 165 180 252;
+}
+.dark[data-module='focus'],
+.dark [data-module='focus'] {
+  --mod-text: 216 180 254;
+}
+.dark[data-module='habits'],
+.dark [data-module='habits'] {
+  --mod-text: 253 164 175;
+}
+.dark[data-module='notes'],
+.dark [data-module='notes'] {
+  --mod-text: 253 224 71;
+}
+.dark[data-module='learning'],
+.dark [data-module='learning'] {
+  --mod-text: 196 181 253;
+}
+.dark[data-module='jobs'],
+.dark [data-module='jobs'] {
+  --mod-text: 252 211 77;
+}
+.dark[data-module='goals'],
+.dark [data-module='goals'] {
+  --mod-text: 249 168 212;
+}
+.dark[data-module='fitness'],
+.dark [data-module='fitness'] {
+  --mod-text: 253 186 116;
+}
+.dark[data-module='health'],
+.dark [data-module='health'] {
+  --mod-text: 125 211 252;
+}
+.dark[data-module='finance'],
+.dark [data-module='finance'] {
+  --mod-text: 110 231 183;
+}
+.dark[data-module='analytics'],
+.dark [data-module='analytics'] {
+  --mod-text: 165 180 252;
+}
+.dark[data-module='reports'],
+.dark [data-module='reports'] {
+  --mod-text: 203 213 225;
+}
+.dark[data-module='notifications'],
+.dark [data-module='notifications'] {
+  --mod-text: 196 181 253;
+}
+.dark[data-module='settings'],
+.dark [data-module='settings'] {
+  --mod-text: 212 212 216;
+}
+.dark[data-module='export'],
+.dark [data-module='export'] {
+  --mod-text: 94 234 212;
 }
 
 @layer base {
+  /* A card's inner padding: roomier on larger screens. A variable, so `p-0` on one card can still opt out at every width. */
+  :root {
+    --pad: 1rem;
+  }
+  @media (min-width: 768px) {
+    :root {
+      --pad: 1.25rem;
+    }
+  }
   * {
     @apply border-border;
   }
   html {
     color-scheme: light;
     -webkit-tap-highlight-color: transparent;
+    font-optical-sizing: auto;
+    scrollbar-gutter: stable;
   }
   html.dark {
     color-scheme: dark;
@@ -69,6 +238,12 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: 'cv11', 'ss01';
+    text-rendering: optimizeLegibility;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
   }
   :focus-visible {
     @apply outline-none ring-2 ring-primary/70 ring-offset-2 ring-offset-background;
@@ -79,6 +254,11 @@
   input[type='date'],
   input[type='time'] {
     color-scheme: inherit;
+  }
+  /* Quiet scrollbars: visible enough to find, never the loudest thing on screen. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--foreground) / 0.14) transparent;
   }
   /* Everything that moves, unless a component opts out by being essential. Loaders have their own rules further down. */
   @media (prefers-reduced-motion: reduce) {
@@ -93,12 +273,161 @@
   }
 }
 
+@layer components {
+  /* Page-level type */
+  .lt-eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground;
+  }
+  .lt-stat-value {
+    @apply font-semibold tabular-nums tracking-display;
+  }
+
+  /* The standard surface. Glass is a separate, deliberately rare treatment (.lt-glass). */
+  .lt-card {
+    @apply rounded-xl border border-border bg-card shadow-card;
+  }
+  .lt-glass {
+    background: rgb(var(--card) / 0.72);
+    backdrop-filter: blur(14px) saturate(1.4);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  }
+  /* Blur is the costliest thing on a mid-range phone, so small screens get a near-solid surface instead. */
+  @media (max-width: 767px) {
+    .lt-glass {
+      background: rgb(var(--card) / 0.96);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+  }
+
+  /* Hover lift and press. CSS rather than Motion: lists can hold hundreds of these. Mouse only, so a tap doesn't leave a card raised. */
+  .lt-lift {
+    transition:
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 180ms,
+      box-shadow 180ms;
+  }
+  @media (hover: hover) {
+    .lt-lift:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-raised);
+      border-color: rgb(var(--mod) / 0.35);
+    }
+  }
+  .lt-lift:active {
+    transform: scale(0.985);
+  }
+  .lt-press {
+    transition: transform 120ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .lt-press:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  /* Accent tile behind a module icon. */
+  .lt-icon-tile {
+    @apply grid shrink-0 place-items-center rounded-lg text-white;
+    background: linear-gradient(135deg, rgb(var(--mod)), rgb(var(--mod-2)));
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.25),
+      0 6px 16px -8px rgb(var(--mod) / 0.8);
+  }
+  .lt-icon-soft {
+    @apply grid shrink-0 place-items-center rounded-lg;
+    color: rgb(var(--mod-text));
+    background: rgb(var(--mod) / 0.14);
+  }
+
+  /* A hero card's light source: two soft pools of the module colour, drawn with cheap gradients and no blur filter. */
+  .lt-hero {
+    @apply relative isolate overflow-hidden rounded-2xl border border-border bg-card shadow-card;
+  }
+  .lt-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+      radial-gradient(60% 90% at 12% 0%, rgb(var(--mod) / 0.2), transparent 70%),
+      radial-gradient(50% 80% at 92% 100%, rgb(var(--mod-2) / 0.16), transparent 70%);
+  }
+
+  /* Validation: the field shakes once, and the message slides in. */
+  [aria-invalid='true'] {
+    animation: lt-shake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+  }
+
+  /* Controls */
+  .lt-field {
+    @apply w-full rounded-md border border-border bg-background/60 px-3 text-sm transition-[border-color,box-shadow,background-color] duration-150 placeholder:text-muted-foreground hover:border-muted-foreground/40 disabled:opacity-60 aria-[invalid=true]:border-danger;
+  }
+  .lt-field:focus-visible {
+    @apply border-primary;
+    box-shadow: 0 0 0 3px rgb(var(--primary) / 0.22);
+    --tw-ring-shadow: 0 0 #0000;
+    --tw-ring-offset-shadow: 0 0 #0000;
+  }
+
+  /* Tick drawn on when the checkbox is ticked. */
+  .lt-check-box {
+    @apply grid h-[18px] w-[18px] shrink-0 place-items-center rounded-[5px] border border-muted-foreground/50 bg-background/60;
+    transition:
+      background-color 150ms,
+      border-color 150ms,
+      transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .lt-check-box svg {
+    stroke-dasharray: 18;
+    stroke-dashoffset: 18;
+    transition: stroke-dashoffset 220ms cubic-bezier(0.65, 0, 0.35, 1);
+  }
+  input:checked + .lt-check-box {
+    @apply border-primary-solid bg-primary-solid;
+    transform: scale(1.04);
+  }
+  input:checked + .lt-check-box svg {
+    stroke-dashoffset: 0;
+  }
+  input:focus-visible + .lt-check-box {
+    @apply ring-2 ring-primary/70 ring-offset-2 ring-offset-background;
+  }
+
+  /* Native tables, styled once so every table in the app matches. */
+  .lt-table {
+    @apply w-full text-sm;
+  }
+  .lt-table thead {
+    @apply border-b border-border text-left;
+  }
+  .lt-table th {
+    @apply whitespace-nowrap px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground;
+  }
+  .lt-table td {
+    @apply px-4 py-2.5;
+  }
+  .lt-table tbody tr {
+    @apply border-b border-border/70 transition-colors last:border-0 hover:bg-muted/40;
+  }
+}
+
 @layer utilities {
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
   }
   .pb-safe-3 {
     padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+  .text-gradient {
+    background: linear-gradient(120deg, rgb(var(--foreground)) 30%, rgb(var(--mod-text)));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
   .skeleton {
     @apply relative overflow-hidden rounded-md bg-muted/70;
@@ -118,12 +447,189 @@
   }
 }
 
+/* ─────────────────────────── Ambient light ───────────────────────────
+   Two gradient pools behind the whole app, tinted by the current module. Only transform moves, on their own layer, so the page
+   underneath never repaints. Phones get them standing still. */
+.lt-ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+.lt-ambient::before,
+.lt-ambient::after {
+  content: '';
+  position: absolute;
+  width: 70vmax;
+  height: 70vmax;
+  border-radius: 50%;
+  will-change: transform;
+}
+.lt-ambient::before {
+  top: -38vmax;
+  left: -8vmax;
+  background: radial-gradient(closest-side, rgb(var(--mod) / 0.13), transparent);
+  animation: lt-drift-a 34s ease-in-out infinite alternate;
+}
+.lt-ambient::after {
+  bottom: -42vmax;
+  right: -14vmax;
+  background: radial-gradient(closest-side, rgb(var(--mod-2) / 0.09), transparent);
+  animation: lt-drift-b 42s ease-in-out infinite alternate;
+}
+:root:not(.dark) .lt-ambient::before {
+  background: radial-gradient(closest-side, rgb(var(--mod) / 0.09), transparent);
+}
+:root:not(.dark) .lt-ambient::after {
+  background: radial-gradient(closest-side, rgb(var(--mod-2) / 0.06), transparent);
+}
+@media (max-width: 767px), (prefers-reduced-motion: reduce) {
+  .lt-ambient::before,
+  .lt-ambient::after {
+    animation: none;
+    will-change: auto;
+  }
+}
+
+/* ─────────────────────────── Small repeating effects ─────────────────────────── */
+.lt-flame {
+  transform-origin: 50% 90%;
+  animation: lt-flicker 1.8s ease-in-out infinite;
+}
+.lt-float {
+  animation: lt-float 4.5s ease-in-out infinite;
+}
+.lt-twinkle {
+  animation: lt-twinkle 3.2s ease-in-out infinite;
+}
+.lt-pulse-ring {
+  animation: lt-pulse-ring 1.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+.lt-shine {
+  position: relative;
+  overflow: hidden;
+}
+.lt-shine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-120%) skewX(-18deg);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.18), transparent);
+  animation: lt-shine 4.5s ease-in-out infinite;
+}
+.lt-colon {
+  animation: lt-colon 2s steps(1) infinite;
+}
+.lt-wave {
+  animation: lt-wave 6s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lt-flame,
+  .lt-float,
+  .lt-twinkle,
+  .lt-pulse-ring,
+  .lt-colon,
+  .lt-wave,
+  .lt-shine::after {
+    animation: none;
+  }
+}
+
+@keyframes lt-drift-a {
+  to {
+    transform: translate3d(10vmax, 6vmax, 0) scale(1.08);
+  }
+}
+@keyframes lt-drift-b {
+  to {
+    transform: translate3d(-8vmax, -6vmax, 0) scale(1.05);
+  }
+}
+@keyframes lt-shake {
+  20%,
+  60% {
+    translate: -3px 0;
+  }
+  40%,
+  80% {
+    translate: 3px 0;
+  }
+}
+@keyframes lt-flicker {
+  0%,
+  100% {
+    transform: scale(1) rotate(-2deg);
+  }
+  35% {
+    transform: scale(1.1, 1.16) rotate(2deg);
+  }
+  70% {
+    transform: scale(0.97, 1.04) rotate(-1deg);
+  }
+}
+@keyframes lt-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@keyframes lt-twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes lt-pulse-ring {
+  from {
+    transform: scale(0.9);
+    opacity: 0.6;
+  }
+  to {
+    transform: scale(1.45);
+    opacity: 0;
+  }
+}
+@keyframes lt-shine {
+  0%,
+  60% {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(220%) skewX(-18deg);
+  }
+}
+@keyframes lt-colon {
+  50% {
+    opacity: 0.35;
+  }
+}
+@keyframes lt-wave {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 @media print {
   aside,
   header,
   nav[aria-label='Mobile'],
+  .lt-ambient,
   .print\:hidden {
     display: none !important;
+  }
+  /* Anything still waiting to scroll into view must print anyway. */
+  [data-reveal],
+  [data-reveal] * {
+    opacity: 1 !important;
+    transform: none !important;
   }
   body {
     background: #fff !important;

@@ -4,54 +4,74 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/misc'
+import { AnimatedValue, ProgressRing } from '@/components/motion/primitives'
 import { explainScore } from '@lifetrack/core/score'
 import { scoreTone } from '@lifetrack/core/dashboard'
+import { cn } from '@/lib/utils'
 
-export function ScoreCard({ result, weekAvg }) {
+const RING = {
+  success: ['#34D399', '#059669'],
+  primary: ['rgb(var(--mod))', 'rgb(var(--mod-2))'],
+  warning: ['#FBBF24', '#F97316'],
+}
+
+export function ScoreCard({ result, weekAvg, className }) {
   const [open, setOpen] = useState(false)
   const s = result.score
   const tone = scoreTone(s)
   return (
-    <Card data-testid="score-card">
+    <Card data-testid="score-card" className={cn('flex flex-col', className)}>
       <CardHeader>
         <CardTitle>Daily score</CardTitle>
         <button
           onClick={() => setOpen(true)}
-          className="-my-2 -mr-2 flex items-center gap-1 rounded-md p-2 text-xs text-secondary underline underline-offset-2"
+          className="-my-2 -mr-2 flex items-center gap-1 rounded-md p-2 text-xs text-muted-foreground transition-colors hover:text-mod-text"
         >
           <Info className="h-3.5 w-3.5" aria-hidden />
           How is this calculated?
         </button>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-semibold tabular-nums" data-testid="score-value">
-            {s ?? '—'}
-          </span>
-          <span className="text-sm text-muted-foreground">/ 100</span>
-          {weekAvg != null && <span className="ml-auto text-xs text-muted-foreground">week avg {weekAvg}</span>}
-        </div>
-        <Progress value={s ?? 0} tone={tone} label="Daily score" />
-        {s == null && (
-          <p className="text-xs text-muted-foreground">
-            Nothing planned or logged yet — rest days and empty categories are never counted as zero.
-          </p>
-        )}
-        <ul className="space-y-1.5">
-          {result.categories.map((c) => (
-            <li key={c.key} className="grid grid-cols-[6rem_1fr_2.5rem] items-center gap-2 text-xs">
-              <span className="truncate text-muted-foreground">{c.label}</span>
-              {c.applicable ? (
-                <Progress value={c.fraction * 100} tone={c.fraction >= 1 ? 'success' : 'primary'} label={c.label} />
-              ) : (
-                <span className="text-muted-foreground/70">not planned</span>
-              )}
-              <span className="text-right tabular-nums text-muted-foreground">
-                {c.applicable ? `${Math.round(c.fraction * 100)}%` : '—'}
+      <CardContent className="flex flex-1 flex-col justify-center gap-5">
+        <div className="relative flex justify-center">
+          <ProgressRing
+            value={s}
+            size={148}
+            stroke={12}
+            from={RING[tone][0]}
+            to={RING[tone][1]}
+            label={`Daily score ${s ?? 'not available'}`}
+          >
+            <div>
+              <span className="block text-[2.5rem] font-semibold leading-none tracking-display" data-testid="score-value">
+                {s == null ? '—' : <AnimatedValue value={s} />}
               </span>
-            </li>
-          ))}
-        </ul>
+              <span className="text-[11px] text-muted-foreground">/ 100</span>
+            </div>
+          </ProgressRing>
+          {weekAvg != null && <p className="absolute right-0 top-0 text-xs text-muted-foreground">week avg {weekAvg}</p>}
+        </div>
+        <div className="min-w-0 space-y-2">
+          {s == null && (
+            <p className="text-xs text-muted-foreground">
+              Nothing planned or logged yet — rest days and empty categories are never counted as zero.
+            </p>
+          )}
+          <ul className="space-y-1.5">
+            {result.categories.map((c) => (
+              <li key={c.key} className="grid grid-cols-[5.5rem_1fr_2.25rem] items-center gap-2 text-xs">
+                <span className="truncate text-muted-foreground">{c.label}</span>
+                {c.applicable ? (
+                  <Progress value={c.fraction * 100} tone={c.fraction >= 1 ? 'success' : 'primary'} label={c.label} />
+                ) : (
+                  <span className="text-muted-foreground/70">not planned</span>
+                )}
+                <span className="text-right tabular-nums text-muted-foreground">
+                  {c.applicable ? `${Math.round(c.fraction * 100)}%` : '—'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </CardContent>
       <Dialog
         open={open}
@@ -68,9 +88,9 @@ export function ScoreCard({ result, weekAvg }) {
           <p className="text-muted-foreground">{explainScore(result)}</p>
           <ul className="space-y-3">
             {result.categories.map((c) => (
-              <li key={c.key} className="rounded-md border border-border p-3">
+              <li key={c.key} className="rounded-lg border border-border bg-surface-2/50 p-3">
                 <div className="flex items-center justify-between">
-                  <b>{c.label}</b>
+                  <b className="font-semibold">{c.label}</b>
                   <span className="text-xs text-muted-foreground">
                     weight {c.weight}%{c.applicable && c.effectiveWeight > 0 ? ` → counts as ${Math.round(c.effectiveWeight)}% today` : ''}
                   </span>

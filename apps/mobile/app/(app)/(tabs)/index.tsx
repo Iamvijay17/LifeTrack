@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { fmtDay, fmtDuration, formatMoney } from '@lifetrack/utils'
-import { QUICK_KINDS, WIDGETS, WIDGETS_NEEDING_DATA, dashboardData, isBrandNew, isWidgetOn, relTime } from '@lifetrack/core/dashboard'
+import { QUICK_KINDS, WIDGETS, WIDGETS_NEEDING_DATA, dashboardData, isBrandNew, isWidgetOn, relTime, widgetOrder } from '@lifetrack/core/dashboard'
 import { signFor } from '@lifetrack/core/finance'
 import { dueLabel } from '@lifetrack/core/upcoming'
 import { nextTimed } from '@lifetrack/core/agenda'
@@ -12,6 +12,7 @@ import { timeStrInTz } from '@lifetrack/utils'
 import { api } from '../../../src/data/client'
 import { useTable } from '../../../src/data/useTable'
 import { useTables } from '../../../src/hooks/useTables'
+import { useNow } from '../../../src/hooks/useNow'
 import { useSettings } from '../../../src/hooks/useSettings'
 import { useToday } from '../../../src/hooks/useToday'
 import { useAction } from '../../../src/hooks/useAction'
@@ -22,7 +23,31 @@ import { useQuick } from '../../../src/features/quick/QuickActions'
 import { BarChart } from '../../../src/ui/charts'
 import { Sheet } from '../../../src/ui/Sheet'
 import { DataGate, ProgressBar, StatTile, pullToRefresh } from '../../../src/ui/controls'
+import { Accent } from '../../../src/ui/accent'
+import { AnimatedNumber, CheckCircle, FadeIn, Hero, IconTile, PressableScale, useConfetti } from '../../../src/ui/motion'
 import { Button, Card, Txt } from '../../../src/ui'
+
+const QUICK_LOOK: Record<string, { icon: IconName; module: any }> = {
+  task: { icon: 'checkbox-outline', module: 'planner' },
+  study: { icon: 'book-outline', module: 'learning' },
+  workout: { icon: 'barbell-outline', module: 'fitness' },
+  expense: { icon: 'wallet-outline', module: 'finance' },
+  water: { icon: 'water-outline', module: 'health' },
+  habit: { icon: 'checkmark-done-outline', module: 'habits' },
+  application: { icon: 'briefcase-outline', module: 'jobs' },
+}
+const AGENDA_MODULE: Record<string, any> = { task: 'planner', habit: 'habits', workout: 'fitness', interview: 'jobs', reminder: 'notifications', revision: 'learning', followup: 'jobs', bill: 'finance' }
+const ACTIVITY_MODULE: Record<string, any> = { task: 'planner', study: 'learning', workout: 'fitness', money: 'finance', job: 'jobs', habit: 'habits' }
+
+/** Ticks here and nowhere else, so a second passing re-renders only these few characters. */
+function LiveClock({ tz, color }: { tz: string; color: string }) {
+  const now = useNow(1000)
+  return <Text accessibilityLabel={`Current time ${timeStrInTz(new Date(now), tz)}`} style={{ color, fontSize: 30, fontWeight: '600', fontVariant: ['tabular-nums'], letterSpacing: -1 }}>{timeStrInTz(new Date(now), tz)}</Text>
+}
+const HeroChip = ({ children }: { children: ReactNode }) => {
+  const { colors } = useTheme()
+  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card }}>{children}</View>
+}
 
 type IconName = React.ComponentProps<typeof Ionicons>['name']
 const KIND_ICON: Record<string, IconName> = { task: 'checkmark-circle-outline', study: 'book-outline', workout: 'barbell-outline', money: 'wallet-outline', job: 'briefcase-outline', habit: 'repeat-outline' }
@@ -41,20 +66,20 @@ function TodayAgenda({ agenda, nowTime, money, onToggle, onOpen }: AgendaProps) 
   const row = (i: any) => {
     const completable = i.kind === 'task' || i.kind === 'habit'
     return (
-      <View key={i.id} style={{ flexDirection: 'row', alignItems: 'center', minHeight: 48, backgroundColor: next?.id === i.id ? colors.muted : 'transparent', borderRadius: 8 }}>
-        {completable ? (
-          <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: i.done }} accessibilityLabel={`${i.done ? 'Mark not done' : 'Complete'} ${i.title}`} onPress={() => onToggle(i)} hitSlop={4} style={{ width: 44, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name={i.done ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={i.done ? colors.success : colors.mutedForeground} />
+      <Accent key={i.id} module={AGENDA_MODULE[i.kind]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 48, backgroundColor: next?.id === i.id ? colors.muted : 'transparent', borderRadius: 12 }}>
+          {completable ? (
+            <CheckCircle done={i.done} onPress={() => onToggle(i)} label={`${i.done ? 'Mark not done' : 'Complete'} ${i.title}`} size={24} />
+          ) : (
+            <View style={{ width: 44, alignItems: 'center' }}><IconTile name={AGENDA_ICON[i.kind]} size={26} soft /></View>
+          )}
+          <Pressable accessibilityRole="link" accessibilityLabel={i.title} onPress={() => onOpen(i)} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 48, paddingRight: 8 }}>
+            <Text numberOfLines={1} style={{ flex: 1, fontSize: 16, color: i.done ? colors.mutedForeground : colors.foreground, textDecorationLine: i.done ? 'line-through' : 'none' }}>{i.title}</Text>
+            {i.amount_paise != null ? <Text style={{ color: colors.foreground, fontSize: 13 }}>{signFor(i.txnType)}{money(i.amount_paise)}</Text> : null}
+            {i.time ? <Text style={{ color: colors.mutedForeground, fontSize: 13, fontVariant: ['tabular-nums'] }}>{i.time}</Text> : null}
           </Pressable>
-        ) : (
-          <View style={{ width: 44, alignItems: 'center' }}><Ionicons name={AGENDA_ICON[i.kind]} size={18} color={colors.mutedForeground} /></View>
-        )}
-        <Pressable accessibilityRole="link" accessibilityLabel={i.title} onPress={() => onOpen(i)} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 48, paddingRight: 8 }}>
-          <Text numberOfLines={1} style={{ flex: 1, fontSize: 16, color: i.done ? colors.mutedForeground : colors.foreground, textDecorationLine: i.done ? 'line-through' : 'none' }}>{i.title}</Text>
-          {i.amount_paise != null ? <Text style={{ color: colors.foreground, fontSize: 13 }}>{signFor(i.txnType)}{money(i.amount_paise)}</Text> : null}
-          {i.time ? <Text style={{ color: colors.mutedForeground, fontSize: 13, fontVariant: ['tabular-nums'] }}>{i.time}</Text> : null}
-        </Pressable>
-      </View>
+        </View>
+      </Accent>
     )
   }
   return (
@@ -63,6 +88,7 @@ function TodayAgenda({ agenda, nowTime, money, onToggle, onOpen }: AgendaProps) 
         <Txt variant="heading">Today</Txt>
         <Txt variant="small" muted>{agenda.doneCount} of {agenda.total} done</Txt>
       </View>
+      {agenda.total > 0 ? <View style={{ marginVertical: 6 }}><ProgressBar value={(agenda.doneCount / agenda.total) * 100} label="Today's agenda done" /></View> : null}
       {agenda.total === 0 ? <Txt muted>Nothing planned for today. Add a task or check in a habit to start.</Txt> : null}
       {agenda.timed.map(row)}
       {agenda.anytime.length > 0 && agenda.timed.length > 0 ? <Txt variant="small" muted>Anytime</Txt> : null}
@@ -100,19 +126,29 @@ export default function Dashboard() {
   const on = (k: string) => isWidgetOn(settings.dashboard_widgets, k) && !(fresh && WIDGETS_NEEDING_DATA.includes(k))
   const first = displayName.split(' ')[0]
   const h = d.health
+  // Clearing the whole day earns confetti, but only as it happens, not on every visit to a finished day.
+  const confetti = useConfetti()
+  const remaining = loading ? null : d.agenda.total - d.agenda.doneCount
+  const lastRemaining = useRef<number | null>(null)
+  useEffect(() => {
+    if (lastRemaining.current != null && lastRemaining.current > 0 && remaining === 0 && d.agenda.total > 0) confetti.fire()
+    lastRemaining.current = remaining
+  }, [remaining]) // eslint-disable-line react-hooks/exhaustive-deps
+  const order: string[] = widgetOrder(settings.dashboard_widgets)
+  const [reorder] = useAction((next: string[]) => save({ dashboard_widgets: { ...settings.dashboard_widgets, order: next } }))
+  const move = (key: string, by: number) => {
+    const at = order.indexOf(key)
+    const to = at + by
+    if (to < 0 || to >= order.length) return
+    const next = [...order]
+    next.splice(at, 1)
+    next.splice(to, 0, key)
+    reorder(next)
+  }
+  const labelOf = (key: string) => WIDGETS.find((w: any) => w.key === key)?.label ?? key
 
-  return (
-    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScrollView refreshControl={pullToRefresh(refreshing, refetch)} contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 32 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <View style={{ flex: 1 }}>
-            <Txt variant="title" style={{ fontSize: 24 }}>{d.greeting}{first ? `, ${first}` : ''}</Txt>
-            <Txt muted>{fmtDay(today, 'EEEE, d MMMM yyyy')}</Txt>
-          </View>
-          <Button title="Customize" variant="ghost" onPress={() => setCustomize(true)} />
-        </View>
-        <DataGate loading={loading} error={error} onRetry={refetch}>
-          {on('getting_started') && !d.gettingStarted.complete ? (
+  const sections: Record<string, ReactNode> = {
+    getting_started: on('getting_started') && !d.gettingStarted.complete ? (
             <Card>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Txt variant="heading">Get started</Txt>
@@ -129,13 +165,10 @@ export default function Dashboard() {
                 </Pressable>
               ))}
             </Card>
-          ) : null}
-
-          {on('today') ? <TodayAgenda agenda={d.agenda} nowTime={timeStrInTz(new Date(), settings.timezone).slice(0, 5)} money={money} onToggle={toggleAgenda} onOpen={(i: any) => router.navigate(AGENDA_ROUTE[i.kind] as never)} /> : null}
-
-          {on('score') ? <ScoreCard result={d.score} weekAvg={d.weekAvg} /> : null}
-
-          {on('progress') ? (
+          ) : null,
+    today: on('today') ? <TodayAgenda agenda={d.agenda} nowTime={timeStrInTz(new Date(), settings.timezone).slice(0, 5)} money={money} onToggle={toggleAgenda} onOpen={(i: any) => router.navigate(AGENDA_ROUTE[i.kind] as never)} /> : null,
+    score: on('score') ? <ScoreCard result={d.score} weekAvg={d.weekAvg} /> : null,
+    progress: on('progress') ? (
             <Card>
               <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
                 <Ring percent={d.progress.percent} />
@@ -147,14 +180,13 @@ export default function Dashboard() {
               {d.progress.items.map((i: any) => (
                 <View key={i.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 3 }}>
                   <Text style={{ width: 64, color: colors.mutedForeground, fontSize: 12 }}>{i.label}</Text>
-                  <View style={{ flex: 1 }}><ProgressBar value={(i.done / i.total) * 100} color={i.done >= i.total ? colors.success : colors.primary} label={i.label} /></View>
+                  <View style={{ flex: 1 }}><ProgressBar value={(i.done / i.total) * 100} color={i.done >= i.total ? colors.success : undefined} label={i.label} /></View>
                   <Text style={{ width: 70, textAlign: 'right', color: colors.mutedForeground, fontSize: 12 }}>{i.detail ?? `${i.done}/${i.total}`}</Text>
                 </View>
               ))}
             </Card>
-          ) : null}
-
-          {on('priorities') ? (
+          ) : null,
+    priorities: on('priorities') ? (
             <Card>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Txt variant="heading">Top priorities</Txt>
@@ -162,17 +194,16 @@ export default function Dashboard() {
               </View>
               <Txt variant="small" muted>{d.openToday} pending · {d.doneTodayTasks} completed today</Txt>
               {d.topTasks.length === 0
-                ? <View style={{ alignItems: 'center', gap: 8, paddingVertical: 8 }}><Txt muted>{d.hasTasksToday ? 'All priorities done 🎉' : 'No tasks for today.'}</Txt><Button title="Add task" variant="ghost" onPress={() => quick.open('task')} /></View>
+                ? <View style={{ alignItems: 'center', gap: 8, paddingVertical: 8 }}><Txt muted>{d.hasTasksToday ? 'All priorities done' : 'No tasks for today.'}</Txt><Button title="Add task" variant="ghost" onPress={() => quick.open('task')} /></View>
                 : d.topTasks.map((t: any) => (
-                  <Pressable key={t.id} accessibilityRole="checkbox" accessibilityState={{ checked: false }} accessibilityLabel={`Complete ${t.title}`} onPress={() => complete(t)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48 }}>
-                    <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: colors.mutedForeground }} />
+                  <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 48 }}>
+                    <Accent module="planner"><CheckCircle done={false} onPress={() => complete(t)} label={`Complete ${t.title}`} size={24} /></Accent>
                     <Text numberOfLines={1} style={{ color: colors.foreground, flex: 1, fontSize: 16 }}>{t.title}</Text>
-                  </Pressable>
+                  </View>
                 ))}
             </Card>
-          ) : null}
-
-          {on('upcoming') ? (
+          ) : null,
+    upcoming: on('upcoming') ? (
             <Card>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Txt variant="heading">Upcoming</Txt>
@@ -188,22 +219,20 @@ export default function Dashboard() {
               ))}
               {d.upcoming.more > 0 ? <Txt variant="small" muted>and {d.upcoming.more} more</Txt> : null}
             </Card>
-          ) : null}
-
-          {on('stats') ? (
+          ) : null,
+    stats: on('stats') ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-              <StatTile label="Learning today" value={fmtDuration(d.studyMin)} sub={d.timerRunning ? 'timer running' : settings.daily_study_target_minutes ? `target ${fmtDuration(settings.daily_study_target_minutes)}` : undefined} progress={settings.daily_study_target_minutes ? Math.min(100, (d.studyMin / settings.daily_study_target_minutes) * 100) : null} tone="success" />
-              <StatTile label="Gym" value={d.gym} sub={d.todayWorkouts[0]?.name} />
-              <StatTile label="Sleep" value={h?.sleep_minutes != null ? fmtDuration(h.sleep_minutes) : '—'} sub={h?.sleep_minutes != null ? 'last night' : 'not logged'} />
-              <StatTile label="Water" value={`${h?.water_ml ?? 0} ml`} sub={settings.water_goal_ml ? `goal ${settings.water_goal_ml}` : undefined} progress={settings.water_goal_ml ? ((h?.water_ml ?? 0) / settings.water_goal_ml) * 100 : null} />
-              <StatTile label="Steps" value={(h?.steps ?? 0).toLocaleString('en-IN')} sub={settings.steps_goal ? `goal ${settings.steps_goal.toLocaleString('en-IN')}` : undefined} progress={settings.steps_goal ? ((h?.steps ?? 0) / settings.steps_goal) * 100 : null} />
-              <StatTile label="Applications" value={d.weekApps} sub="this week" />
-              <StatTile label="Spent today" value={money(d.spentToday)} />
-              <StatTile label="Habits" value={`${d.habitsDone}/${d.habitsDue}`} sub={d.habitsDue ? undefined : 'none due today'} progress={d.habitsDue ? (d.habitsDone / d.habitsDue) * 100 : null} tone="success" />
+              <StatTile module="learning" icon="book-outline" onPress={() => router.push('/module/learning')} label="Learning today" value={fmtDuration(d.studyMin)} sub={d.timerRunning ? 'timer running' : settings.daily_study_target_minutes ? `target ${fmtDuration(settings.daily_study_target_minutes)}` : undefined} progress={settings.daily_study_target_minutes ? Math.min(100, (d.studyMin / settings.daily_study_target_minutes) * 100) : null} />
+              <StatTile module="fitness" icon="barbell-outline" onPress={() => router.push('/module/fitness')} label="Gym" value={d.gym} sub={d.todayWorkouts[0]?.name} />
+              <StatTile module="health" icon="moon-outline" onPress={() => router.push('/module/health')} label="Sleep" value={h?.sleep_minutes != null ? fmtDuration(h.sleep_minutes) : '—'} sub={h?.sleep_minutes != null ? 'last night' : 'not logged'} />
+              <StatTile module="health" icon="water-outline" onPress={() => router.push('/module/health')} label="Water" value={`${h?.water_ml ?? 0} ml`} sub={settings.water_goal_ml ? `goal ${settings.water_goal_ml}` : undefined} progress={settings.water_goal_ml ? ((h?.water_ml ?? 0) / settings.water_goal_ml) * 100 : null} />
+              <StatTile module="health" icon="footsteps-outline" onPress={() => router.push('/module/health')} label="Steps" value={(h?.steps ?? 0).toLocaleString('en-IN')} sub={settings.steps_goal ? `goal ${settings.steps_goal.toLocaleString('en-IN')}` : undefined} progress={settings.steps_goal ? ((h?.steps ?? 0) / settings.steps_goal) * 100 : null} />
+              <StatTile module="jobs" icon="briefcase-outline" onPress={() => router.push('/module/jobs')} label="Applications" value={d.weekApps} sub="this week" />
+              <StatTile module="finance" icon="wallet-outline" onPress={() => router.navigate('/finance')} label="Spent today" value={money(d.spentToday)} />
+              <StatTile module="habits" icon="repeat-outline" onPress={() => router.navigate('/habits')} label="Habits" value={`${d.habitsDone}/${d.habitsDue}`} sub={d.habitsDue ? undefined : 'none due today'} progress={d.habitsDue ? (d.habitsDone / d.habitsDue) * 100 : null} />
             </View>
-          ) : null}
-
-          {on('goals') ? (
+          ) : null,
+    goals: on('goals') ? (
             <Card>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Txt variant="heading">Goal progress</Txt>
@@ -212,20 +241,19 @@ export default function Dashboard() {
               {d.activeGoals.length === 0 ? <Txt muted>No active goals yet.</Txt> : d.activeGoals.map(({ g, p }: any) => (
                 <View key={g.id} style={{ gap: 4, paddingVertical: 4 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text numberOfLines={1} style={{ color: colors.foreground, flex: 1 }}>{g.title}</Text><Txt variant="small" muted>{p.percent}%</Txt></View>
-                  <ProgressBar value={p.percent} color={p.percent >= 100 ? colors.success : colors.primary} label={g.title} />
+                  <ProgressBar value={p.percent} color={p.percent >= 100 ? colors.success : undefined} label={g.title} />
                 </View>
               ))}
             </Card>
-          ) : null}
-
-          {on('spending') ? (
+          ) : null,
+    spending: on('spending') ? (
             <Card>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Txt variant="heading">Spending this month</Txt>
                 <Pressable accessibilityRole="link" onPress={() => router.navigate('/finance')} hitSlop={8}><Text style={{ color: colors.secondary }}>Finance</Text></Pressable>
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <Text style={{ color: colors.foreground, fontSize: 24, fontWeight: '600' }}>{money(d.month.expense)}</Text>
+                <AnimatedNumber value={money(d.month.expense)} style={{ color: colors.foreground, fontSize: 24, fontWeight: '700', letterSpacing: -0.5 }} />
                 {d.month.budget > 0 ? <Txt variant="small" muted>of {money(d.month.budget)} budget</Txt> : null}
               </View>
               {d.month.budgetUsed != null ? (<>
@@ -233,53 +261,81 @@ export default function Dashboard() {
                 <Txt variant="small" muted>{Math.round(d.month.budgetUsed * 100)}% used · {d.month.remaining >= 0 ? `${money(d.month.remaining)} left` : `${money(-d.month.remaining)} over`}</Txt>
               </>) : <Txt variant="small" muted>Income {money(d.month.income)} · set a budget in Finance to track usage.</Txt>}
             </Card>
-          ) : null}
-
-          {on('weekly') ? (
+          ) : null,
+    weekly: on('weekly') ? (
             <Card>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Txt variant="heading">This week&apos;s score</Txt><Txt variant="small" muted>{d.streak > 0 ? `${d.streak}-day active streak` : 'Start a streak today'}</Txt></View>
               <BarChart data={d.weekScores.map((x: any) => ({ label: x.label, value: x.score }))} maxValue={100} summary={`Daily score this week: ${d.weekScores.map((x: any) => `${x.label} ${x.score ?? 'none'}`).join(', ')}`} />
             </Card>
-          ) : null}
-
-          {on('activity') ? (
+          ) : null,
+    activity: on('activity') ? (
             <Card>
               <Txt variant="heading">Recent activity</Txt>
               {d.activity.length === 0 ? <Txt muted>Your activity will show up here.</Txt> : d.activity.map((a: any, i: number) => (
-                <View key={i} style={{ flexDirection: 'row', gap: 10, paddingVertical: 4, alignItems: 'flex-start' }}>
-                  <Ionicons name={KIND_ICON[a.kind]} size={16} color={colors.mutedForeground} style={{ width: 22, marginTop: 2 }} />
+                <View key={i} style={{ flexDirection: 'row', gap: 10, paddingVertical: 4, alignItems: 'center' }}>
+                  <IconTile name={KIND_ICON[a.kind]} size={26} soft module={ACTIVITY_MODULE[a.kind]} />
                   <Text numberOfLines={2} style={{ color: colors.foreground, flex: 1 }}>{a.text}</Text>
                   <Txt variant="small" muted>{relTime(a.at)}</Txt>
                 </View>
               ))}
             </Card>
-          ) : null}
-
-          {on('quick') ? (
+          ) : null,
+    quick: on('quick') ? (
             <View style={{ gap: 8 }}>
-              <Txt variant="small" muted>QUICK ACTIONS</Txt>
+              <Txt variant="small" muted style={{ fontSize: 11, fontWeight: '600', letterSpacing: 0.8 }}>QUICK ACTIONS</Txt>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 {QUICK_KINDS.map((q: any) => (
-                  <Pressable key={q.kind} accessibilityRole="button" accessibilityLabel={q.label} onPress={() => quick.open(q.kind)}
-                    style={{ flexBasis: '47%', flexGrow: 1, minHeight: 52, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', padding: 8 }}>
-                    <Text style={{ color: colors.foreground, fontWeight: '500' }}>{q.label}</Text>
-                  </Pressable>
+                  <PressableScale key={q.kind} accessibilityRole="button" accessibilityLabel={q.label} onPress={() => quick.open(q.kind)}
+                    style={{ flexBasis: '47%', flexGrow: 1, minHeight: 60, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10 }}>
+                    <IconTile name={QUICK_LOOK[q.kind].icon} size={36} module={QUICK_LOOK[q.kind].module} />
+                    <Text numberOfLines={2} style={{ color: colors.foreground, fontWeight: '500', flex: 1 }}>{q.label}</Text>
+                  </PressableScale>
                 ))}
               </View>
             </View>
-          ) : null}
+          ) : null,
+  }
+  return (
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView refreshControl={pullToRefresh(refreshing, refetch)} contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 32 }}>
+        <FadeIn>
+          <Hero>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <Txt variant="small" muted style={{ textTransform: 'uppercase', letterSpacing: 0.8, fontSize: 11, fontWeight: '600' }}>{fmtDay(today, 'EEEE, d MMMM yyyy')}</Txt>
+                <Txt variant="title" style={{ fontSize: 26, marginTop: 6 }}>{d.greeting}{first ? `, ${first}` : ''}</Txt>
+              </View>
+              <LiveClock tz={settings.timezone} color={colors.foreground} />
+            </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 12 }}>
+              {d.agenda.total > 0 ? <HeroChip><AnimatedNumber value={d.agenda.doneCount} style={{ color: colors.foreground, fontSize: 12, fontWeight: '600' }} /><Txt variant="small" style={{ fontSize: 12 }}>of {d.agenda.total} done today</Txt></HeroChip> : null}
+              <HeroChip><Ionicons name="flame" size={13} color={d.streak > 0 ? colors.warning : colors.mutedForeground} /><Txt variant="small" style={{ fontSize: 12 }}>{d.streak > 0 ? `${d.streak}-day streak` : 'Start a streak today'}</Txt></HeroChip>
+              <View style={{ flex: 1 }} />
+              <Button title="Customize" variant="ghost" onPress={() => setCustomize(true)} />
+            </View>
+          </Hero>
+        </FadeIn>
+        <DataGate loading={loading} error={error} onRetry={refetch}>
+          {order.map((key) => (sections[key] ? <Fragment key={key}>{sections[key]}</Fragment> : null))}
         </DataGate>
       </ScrollView>
 
       <Sheet visible={customize} title="Customize dashboard" onClose={() => setCustomize(false)}>
-        <Txt muted>Choose which widgets to show. Saved to your account, so it applies on every device.</Txt>
-        {WIDGETS.map((w: any) => (
-          <View key={w.key} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48 }}>
-            <Text style={{ color: colors.foreground, fontSize: 16 }}>{w.label}</Text>
-            <Switch accessibilityLabel={w.label} value={isWidgetOn(settings.dashboard_widgets, w.key)} onValueChange={(v) => { toggleWidget(w.key, v) }} trackColor={{ true: colors.primary }} />
+        <Txt muted>Choose which widgets to show and arrange their order. Saved to your account, so it applies on every device.</Txt>
+        {order.map((key, at) => (
+          <View key={key} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 48 }}>
+            <Text style={{ color: colors.foreground, fontSize: 16, flex: 1 }}>{labelOf(key)}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Move ${labelOf(key)} up`} accessibilityState={{ disabled: at === 0 }} disabled={at === 0} hitSlop={4} onPress={() => move(key, -1)} style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center', opacity: at === 0 ? 0.3 : 1 }}>
+              <Ionicons name="chevron-up" size={18} color={colors.mutedForeground} />
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Move ${labelOf(key)} down`} accessibilityState={{ disabled: at === order.length - 1 }} disabled={at === order.length - 1} hitSlop={4} onPress={() => move(key, 1)} style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center', opacity: at === order.length - 1 ? 0.3 : 1 }}>
+              <Ionicons name="chevron-down" size={18} color={colors.mutedForeground} />
+            </Pressable>
+            <Switch accessibilityLabel={labelOf(key)} value={isWidgetOn(settings.dashboard_widgets, key)} onValueChange={(v) => { toggleWidget(key, v) }} trackColor={{ true: colors.primary }} />
           </View>
         ))}
       </Sheet>
+      {confetti.node}
     </SafeAreaView>
   )
 }

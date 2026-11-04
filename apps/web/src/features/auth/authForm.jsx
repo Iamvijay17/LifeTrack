@@ -30,14 +30,14 @@ export function useSubmit(fn) {
 
 export const Err = ({ children }) =>
   children ? (
-    <p role="alert" className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+    <p role="alert" className="animate-slide-down rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
       {children}
     </p>
   ) : null
 
 export const Note = ({ children }) =>
   children ? (
-    <p role="status" className="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">
+    <p role="status" className="animate-slide-down rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">
       {children}
     </p>
   ) : null

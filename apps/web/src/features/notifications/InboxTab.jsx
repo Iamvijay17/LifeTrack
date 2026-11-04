@@ -12,8 +12,11 @@ import { cn } from '@/lib/utils'
 
 function NotificationRow({ n, onRead, onDelete }) {
   return (
-    <li className={cn('flex items-start gap-3 px-4 py-3', !n.read_at && 'bg-primary/5')}>
-      <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', n.read_at ? 'bg-transparent' : 'bg-primary')} aria-hidden />
+    <li className={cn('flex items-start gap-3 px-4 py-3 transition-colors md:px-5', !n.read_at && 'bg-mod/[0.06]')}>
+      <span className="relative mt-1.5 flex h-2 w-2 shrink-0" aria-hidden>
+        {!n.read_at && <span className="lt-pulse-ring absolute inset-0 rounded-full bg-mod" />}
+        <span className={cn('relative h-2 w-2 rounded-full', n.read_at ? 'bg-muted' : 'bg-mod')} />
+      </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium">
           {!n.read_at && <span className="sr-only">Unread: </span>}
@@ -23,7 +26,7 @@ function NotificationRow({ n, onRead, onDelete }) {
           <Badge>{n.kind}</Badge>
           {relativeTime(n.created_at)}
           {n.link && (
-            <Link to={n.link} onClick={() => onRead(n)} className="-m-2 rounded-md p-2 text-secondary underline underline-offset-2">
+            <Link to={n.link} onClick={() => onRead(n)} className="-m-2 rounded-md p-2 text-mod-text underline underline-offset-2">
               Open
             </Link>
           )}
@@ -72,7 +75,7 @@ export function InboxTab({ inbox, unread, readingAll, onRead, onReadAll, onDelet
         />
       ) : (
         <Card>
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-border/70">
             {page.visible.map((n) => (
               <NotificationRow key={n.id} n={n} onRead={onRead} onDelete={onDelete} />
             ))}

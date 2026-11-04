@@ -129,3 +129,12 @@ describe('CustomizeDialog', () => {
     expect(onToggle).toHaveBeenCalledWith('score', true)
   })
 })
+
+describe('CustomizeDialog arranging', () => {
+  it('lists widgets in the saved order, with the rest after them', () => {
+    render(<CustomizeDialog open onOpenChange={() => {}} prefs={{ order: ['quick', 'score'] }} onToggle={() => {}} onReorder={() => {}} />)
+    const names = screen.getAllByRole('switch').map((s) => s.getAttribute('aria-label'))
+    expect(names.slice(0, 2)).toEqual(['Quick actions', 'Daily score'])
+    expect(names).toHaveLength(12)
+  })
+})

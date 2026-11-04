@@ -15,7 +15,7 @@ export function SleepFacts({ c, goalMinutes, energy }) {
       {facts.map(([k, v]) => (
         <div key={k}>
           <dt className="text-xs text-muted-foreground">{k}</dt>
-          <dd className="font-medium">{v}</dd>
+          <dd className="font-medium tracking-tight">{v}</dd>
         </div>
       ))}
     </dl>

@@ -45,12 +45,16 @@ export function RecurringRules({ money, transactions, today }) {
             }
           />
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-border/70">
             {rules.map((r) => {
               const status = ruleStatus(r)
               const title = ruleTitle(r)
               return (
-                <li key={r.id} className="flex items-center gap-3 px-4 py-2.5" data-testid="recurring-rule">
+                <li
+                  key={r.id}
+                  className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/30 md:px-5"
+                  data-testid="recurring-rule"
+                >
                   <div className="min-w-0 flex-1">
                     <p className={cn('truncate text-sm font-medium', status !== 'active' && 'text-muted-foreground')}>{title}</p>
                     <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">

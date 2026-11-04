@@ -1,9 +1,7 @@
-import { useCallback, useMemo, useState } from 'react'
-import { SlidersHorizontal } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate } from '@/components/shared/states'
-import { Button } from '@/components/ui/button'
+import { Stagger, StaggerItem } from '@/components/motion/primitives'
 import { useQuick } from '@/features/quick/QuickActions'
 import { useHabits } from '@/features/habits/useHabits'
 import { useTable, useTables } from '@/hooks/store'
@@ -21,8 +19,12 @@ import { WIDGETS_NEEDING_DATA, gettingStartedSteps, isBrandNew } from '@lifetrac
 import { upcomingItems } from '@lifetrack/core/upcoming'
 import { todayAgenda } from '@lifetrack/core/agenda'
 import { activePipelineCount } from '@/domain/jobs'
-import { fmtDay, monthKey, monthStart, startOfWeek, timeStrInTz } from '@/lib/dates'
+import { addDays, eachDay, fmtDay, monthKey, monthStart, startOfWeek, timeStrInTz } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
+import { celebrate } from '@/lib/celebrate'
+import { cn } from '@/lib/utils'
+import { healthWeek } from '@/domain/health'
+import { DashboardHero } from './DashboardHero'
 import { ActivityCard } from './ActivityCard'
 import { CustomizeDialog } from './CustomizeDialog'
 import { GettingStartedCard } from './GettingStartedCard'
@@ -36,7 +38,17 @@ import { TodayStats } from './TodayStats'
 import { TodayCard } from './TodayCard'
 import { UpcomingCard } from './UpcomingCard'
 import { WeeklyScoreCard } from './WeeklyScoreCard'
-import { isWidgetOn } from './widgets'
+import { arrangeWidgets, isWidgetOn, widgetOrder } from './widgets'
+
+// `lg:` classes spelled out in full, so Tailwind can see them.
+const SPAN = {
+  4: 'lg:col-span-4',
+  5: 'lg:col-span-5',
+  6: 'lg:col-span-6',
+  7: 'lg:col-span-7',
+  8: 'lg:col-span-8',
+  12: 'lg:col-span-12',
+}
 
 const TABLES = [
   'tasks',
@@ -69,6 +81,7 @@ export default function OverviewPage() {
   const { habits, logs: habitLogs, stats: habitStats, loading: habitsLoading, error: habitsError } = useHabits(today, weekStartsOn)
 
   const [toggleWidget] = useAction((key, value) => saveSettings({ dashboard_widgets: { ...settings.dashboard_widgets, [key]: value } }))
+  const [reorderWidgets] = useAction((order) => saveSettings({ dashboard_widgets: { ...settings.dashboard_widgets, order } }))
   const [undo] = useAction((task) => setTaskStatus(task, 'pending', today))
   const [complete] = useAction(async (task) => {
     await setTaskStatus(task, 'done', today)
@@ -223,6 +236,28 @@ export default function OverviewPage() {
     [tasks, sessions, workouts, data.transactions, data.application_history, applications, habitLogs, habits, currency],
   )
 
+  // The last seven days of each metric, for the small charts on the tiles. Real data only: a day with nothing logged stays empty.
+  const trends = useMemo(() => {
+    const days = eachDay(addDays(today, -6), today)
+    const week = healthWeek(healthLogs, today)
+    return {
+      sleep: week.map((d) => d.sleep),
+      workouts: days.map((d) => (workouts.some((w) => w.workout_date === d && w.status === 'completed') ? 1 : 0)),
+      spend: days.map((d) =>
+        data.transactions.filter((t) => t.type === 'expense' && t.txn_date === d).reduce((sum, t) => sum + t.amount_paise, 0),
+      ),
+    }
+  }, [today, healthLogs, workouts, data.transactions])
+
+  // Clearing the whole day is worth a moment of confetti, but only when it just happened, not on every visit to a finished day.
+  const remaining = agenda.total - agenda.doneCount
+  const lastRemaining = useRef(null)
+  useEffect(() => {
+    if (loading || habitsLoading) return
+    if (lastRemaining.current > 0 && remaining === 0 && agenda.total > 0) celebrate()
+    lastRemaining.current = remaining
+  }, [remaining, agenda.total, loading, habitsLoading])
+
   // A brand-new account sees the guide rather than rows of zeros; everything appears after the first real entry.
   const guideOn = isWidgetOn(settings.dashboard_widgets, 'getting_started')
   const fresh = guideOn && isBrandNew(tasks, habits, data.goals, data.transactions, healthLogs, sessions, workouts, applications)
@@ -230,85 +265,67 @@ export default function OverviewPage() {
 
   const greeting = greetingFor(Number(timeStrInTz(new Date(), tz).slice(0, 2)))
 
+  const firstName = displayName ? `, ${displayName.split(' ')[0]}` : ''
+  const widgets = {
+    getting_started: (cls) =>
+      !guide.complete && (
+        <GettingStartedCard guide={guide} onQuick={quick.open} onDismiss={() => toggleWidget('getting_started', false)} className={cls} />
+      ),
+    today: (cls) => (
+      <TodayCard agenda={agenda} nowTime={timeStrInTz(new Date(), tz).slice(0, 5)} money={money} onToggle={toggleAgenda} className={cls} />
+    ),
+    score: (cls) => <ScoreCard result={score} weekAvg={weekAvg} className={cls} />,
+    progress: (cls) => <ProgressCard progress={progress} className={cls} />,
+    priorities: (cls) => (
+      <PrioritiesCard
+        priorities={headlines.priorities}
+        hasTasksToday={headlines.hasTasksToday}
+        openTasks={headlines.openTasks}
+        doneTasks={headlines.doneTasks}
+        onComplete={complete}
+        onAddTask={() => quick.open('task')}
+        className={cls}
+      />
+    ),
+    upcoming: (cls) => <UpcomingCard upcoming={upcoming} today={today} money={money} className={cls} />,
+    stats: () => (
+      <TodayStats h={headlines} settings={settings} money={money} activeApplications={activePipelineCount(applications)} trends={trends} />
+    ),
+    goals: (cls) => <GoalsCard rows={goals} className={cls} />,
+    spending: (cls) => <SpendingCard sum={monthSum} money={money} className={cls} />,
+    weekly: (cls) => <WeeklyScoreCard series={weekScores} today={today} streak={streak} className={cls} />,
+    activity: (cls) => <ActivityCard items={activity} className={cls} />,
+    quick: () => <QuickActionsGrid onOpen={quick.open} />,
+  }
+  const visible = widgetOrder(settings.dashboard_widgets).filter((key) => on(key) && (key !== 'getting_started' || !guide.complete))
+
   return (
     <>
-      <PageHeader
-        title={`${greeting}${displayName ? `, ${displayName.split(' ')[0]}` : ''}`}
-        description={fmtDay(today, 'EEEE, d MMMM yyyy')}
-        actions={
-          <Button variant="outline" size="sm" onClick={() => setCustomizing(true)}>
-            <SlidersHorizontal className="h-4 w-4" />
-            Customize
-          </Button>
-        }
+      <DashboardHero
+        greeting={`${greeting}${firstName}`}
+        date={fmtDay(today, 'EEEE, d MMMM yyyy')}
+        tz={tz}
+        agenda={agenda}
+        streak={streak}
+        weekAvg={weekAvg}
+        onCustomize={() => setCustomizing(true)}
       />
       <DataGate loading={loading || habitsLoading} error={error || habitsError} onRetry={refetch}>
-        <div className="space-y-5">
-          {on('getting_started') && !guide.complete && (
-            <GettingStartedCard guide={guide} onQuick={quick.open} onDismiss={() => toggleWidget('getting_started', false)} />
-          )}
-          {on('today') && (
-            <TodayCard agenda={agenda} nowTime={timeStrInTz(new Date(), tz).slice(0, 5)} money={money} onToggle={toggleAgenda} />
-          )}
-          {(on('score') || on('progress')) && (
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-              {on('score') && (
-                <div className={on('progress') ? 'lg:col-span-2' : 'lg:col-span-5'}>
-                  <ScoreCard result={score} weekAvg={weekAvg} />
-                </div>
-              )}
-              {on('progress') && <ProgressCard progress={progress} className={on('score') ? 'lg:col-span-3' : 'lg:col-span-5'} />}
-            </div>
-          )}
-          {(on('priorities') || on('upcoming')) && (
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-              {on('priorities') && (
-                <PrioritiesCard
-                  priorities={headlines.priorities}
-                  hasTasksToday={headlines.hasTasksToday}
-                  openTasks={headlines.openTasks}
-                  doneTasks={headlines.doneTasks}
-                  onComplete={complete}
-                  onAddTask={() => quick.open('task')}
-                  className={on('upcoming') ? 'lg:col-span-3' : 'lg:col-span-5'}
-                />
-              )}
-              {on('upcoming') && (
-                <UpcomingCard
-                  upcoming={upcoming}
-                  today={today}
-                  money={money}
-                  className={on('priorities') ? 'lg:col-span-2' : 'lg:col-span-5'}
-                />
-              )}
-            </div>
-          )}
-          {on('stats') && (
-            <TodayStats h={headlines} settings={settings} money={money} activeApplications={activePipelineCount(applications)} />
-          )}
-          {(on('goals') || on('spending')) && (
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {on('goals') && <GoalsCard rows={goals} />}
-              {on('spending') && <SpendingCard sum={monthSum} money={money} />}
-            </div>
-          )}
-          {(on('weekly') || on('activity')) && (
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-              {on('weekly') && (
-                <WeeklyScoreCard
-                  series={weekScores}
-                  today={today}
-                  streak={streak}
-                  className={on('activity') ? 'lg:col-span-3' : 'lg:col-span-5'}
-                />
-              )}
-              {on('activity') && <ActivityCard items={activity} className={on('weekly') ? 'lg:col-span-2' : 'lg:col-span-5'} />}
-            </div>
-          )}
-          {on('quick') && <QuickActionsGrid onOpen={quick.open} />}
-        </div>
+        <Stagger gap={0.05} className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+          {arrangeWidgets(visible).map(({ key, span }) => (
+            <StaggerItem key={key} className={cn('min-w-0', SPAN[span] ?? 'lg:col-span-12')}>
+              {widgets[key]('h-full')}
+            </StaggerItem>
+          ))}
+        </Stagger>
       </DataGate>
-      <CustomizeDialog open={customizing} onOpenChange={setCustomizing} prefs={settings.dashboard_widgets} onToggle={toggleWidget} />
+      <CustomizeDialog
+        open={customizing}
+        onOpenChange={setCustomizing}
+        prefs={settings.dashboard_widgets}
+        onToggle={toggleWidget}
+        onReorder={reorderWidgets}
+      />
     </>
   )
 }

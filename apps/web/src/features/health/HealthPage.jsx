@@ -53,7 +53,15 @@ export default function HealthPage() {
       />
       <DataGate loading={loading} error={error} onRetry={refetch}>
         <div className="space-y-5">
-          <HealthStats sleep={sleep} weight={weight} todayLog={todayLog} settings={settings} sleepGoal={sleepGoal} />
+          <HealthStats
+            sleep={sleep}
+            weight={weight}
+            todayLog={todayLog}
+            settings={settings}
+            sleepGoal={sleepGoal}
+            week={week}
+            energy={energy}
+          />
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
             <DailyLogForm day={day} today={today} log={logs.find((h) => h.log_date === day)} onDayChange={setDate} />
             <HealthCharts

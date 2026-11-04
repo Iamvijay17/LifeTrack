@@ -4,6 +4,7 @@ import { EmptyState } from '@/components/shared/states'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/misc'
 import { Menu } from '@/components/ui/menu'
+import { Collapse } from '@/components/motion/primitives'
 import { useShowMore } from '@/hooks/useShowMore'
 import { ShowMore } from '@/components/shared/ShowMore'
 import { useConfirmedDelete } from '@/hooks/useConfirmedDelete'
@@ -32,7 +33,7 @@ export function HistoryTab({ history, logsByWorkout, today, weekStartsOn, onEdit
     <div className="space-y-4">
       <WorkoutCalendar workouts={history} today={today} weekStartsOn={weekStartsOn} />
       <Card>
-        <ul className="divide-y divide-border">
+        <ul className="divide-y divide-border/70">
           {page.visible.map((x) => {
             const sets = logsByWorkout.get(x.id) ?? []
             const open = openId === x.id
@@ -43,7 +44,9 @@ export function HistoryTab({ history, logsByWorkout, today, weekStartsOn, onEdit
                     <p className="flex items-center gap-2 truncate text-sm font-medium">
                       {x.name}
                       {x.status !== 'completed' && <Badge>{x.status === 'rest' ? 'Rest day' : 'Skipped'}</Badge>}
-                      <ChevronDown className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform', open && 'rotate-180')} />
+                      <ChevronDown
+                        className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform duration-200', open && 'rotate-180')}
+                      />
                     </p>
                     <p className="text-xs text-muted-foreground">{details(x, sets)}</p>
                   </button>
@@ -64,16 +67,18 @@ export function HistoryTab({ history, logsByWorkout, today, weekStartsOn, onEdit
                     ]}
                   />
                 </div>
-                {open && (
-                  <div className="space-y-1 bg-muted/20 px-4 pb-3 text-sm">
-                    {summarizeSets(sets).map((e) => (
-                      <p key={e.name}>
-                        <b>{e.name}</b> <span className="text-muted-foreground">{e.text}</span>
-                      </p>
-                    ))}
-                    {!sets.length && <p className="text-muted-foreground">{x.notes || 'No sets recorded.'}</p>}
-                  </div>
-                )}
+                <Collapse open={open}>
+                  {open && (
+                    <div className="space-y-1 bg-muted/30 px-4 py-3 text-sm">
+                      {summarizeSets(sets).map((e) => (
+                        <p key={e.name}>
+                          <b className="font-semibold">{e.name}</b> <span className="text-muted-foreground">{e.text}</span>
+                        </p>
+                      ))}
+                      {!sets.length && <p className="text-muted-foreground">{x.notes || 'No sets recorded.'}</p>}
+                    </div>
+                  )}
+                </Collapse>
               </li>
             )
           })}

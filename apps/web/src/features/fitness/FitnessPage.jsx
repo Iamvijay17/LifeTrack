@@ -96,7 +96,7 @@ export default function FitnessPage() {
       />
       <DataGate loading={loading} error={error} onRetry={refetch}>
         <div className="space-y-5">
-          <FitnessStats stats={stats} latestWeight={weight.latest} />
+          <FitnessStats stats={stats} latestWeight={weight.latest} week={{ days: weekDays, today, workouts: data.workouts, plan }} />
           <Segmented value={tab} onChange={setTab} options={TABS} />
 
           {tab === 'week' && (

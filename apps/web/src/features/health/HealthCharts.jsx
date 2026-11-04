@@ -1,5 +1,5 @@
 import { Bar, BarChart, Line, LineChart, ReferenceLine } from 'recharts'
-import { Chart, C, grid, tooltip, xAxis, yAxis, seriesSummary } from '@/components/shared/charts'
+import { Chart, C, grid, tooltip, xAxis, yAxis, seriesSummary, G } from '@/components/shared/charts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { SleepFacts } from './SleepFacts'
 
@@ -23,7 +23,7 @@ export function HealthCharts({ week, weightData, waterGoal, sleepGoal, consisten
               {xAxis({ dataKey: 'label' })}
               {yAxis({ domain: [0, 12], ticks: [0, 4, 8, 12] })}
               {tooltip({ formatter: (v) => [`${v} h`, 'Sleep'] })}
-              <Bar dataKey="sleep" fill={C.secondary} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="sleep" fill={G.mod} radius={[6, 6, 2, 2]} />
               <ReferenceLine y={sleepGoal / 60} stroke={C.success} strokeDasharray="4 4" />
             </BarChart>
           </Chart>
@@ -46,7 +46,7 @@ export function HealthCharts({ week, weightData, waterGoal, sleepGoal, consisten
                 {xAxis({ dataKey: 'label' })}
                 {tooltip({ formatter: (v) => [`${v} ml`, 'Water'] })}
                 {waterGoal > 0 && <ReferenceLine y={waterGoal} stroke={C.success} strokeDasharray="4 4" />}
-                <Bar dataKey="water" fill={C.success} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="water" fill={G.mod} radius={[6, 6, 2, 2]} />
               </BarChart>
             </Chart>
           </CardContent>
@@ -66,7 +66,7 @@ export function HealthCharts({ week, weightData, waterGoal, sleepGoal, consisten
                 {xAxis({ dataKey: 'label' })}
                 {yAxis({ domain: ['dataMin - 1', 'dataMax + 1'] })}
                 {tooltip({ formatter: (v) => [`${v} kg`, 'Weight'] })}
-                <Line dataKey="kg" stroke={C.primary} strokeWidth={2} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="kg" stroke={C.mod} strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
               </LineChart>
             </Chart>
           </CardContent>

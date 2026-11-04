@@ -28,6 +28,7 @@ test('auth pages have no serious accessibility violations', async ({ page }) => 
 })
 
 test('main pages have no serious accessibility violations', async ({ page }) => {
+  test.slow() // one full axe scan per page, sixteen pages
   await register(page)
   for (const path of [
     '/',
