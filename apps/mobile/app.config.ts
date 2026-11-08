@@ -3,6 +3,7 @@ import type { ExpoConfig } from 'expo/config'
 // Only PUBLIC values are read here (EXPO_PUBLIC_*). Never put a service-role key in a client app.
 const IOS_BUNDLE_ID = process.env.APP_IOS_BUNDLE_ID ?? 'com.aatralex.lifetrack'
 const ANDROID_PACKAGE = process.env.APP_ANDROID_PACKAGE ?? 'com.aatralex.lifetrack'
+const EAS_PROJECT_ID_FALLBACK = '71dc873a-64a1-49a8-bc56-6a0500fe5355'
 const BRAND = '#8B5CF6'
 const DARK = '#09090B'
 
@@ -18,7 +19,7 @@ const config: ExpoConfig = {
   name: 'LifeTrack',
   slug: 'lifetrack',
   scheme: 'lifetrack',
-  version: '1.0.1',
+  version: '1.0.2',
   // Native-compatibility fingerprint. Over-the-air JS updates are NOT enabled (no expo-updates yet): every change ships through a store build.
   runtimeVersion: { policy: 'appVersion' },
   orientation: 'portrait',
@@ -47,8 +48,8 @@ const config: ExpoConfig = {
   extra: {
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
-    // Created by `eas init`; push tokens need it. Not a secret.
-    eas: { projectId: process.env.EAS_PROJECT_ID },
+    // Created by `eas init`; push tokens need it. Not a secret, so the committed id is the fallback for local/dev builds.
+    eas: { projectId: process.env.EAS_PROJECT_ID ?? EAS_PROJECT_ID_FALLBACK },
   },
 }
 export default config

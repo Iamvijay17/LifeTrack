@@ -18,47 +18,53 @@ import {
 } from 'lucide-react'
 
 export const NAV_GROUPS = [
-  { title: 'Overview', items: [{ to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true }] },
+  { title: 'Overview', items: [{ to: '/', module: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true }] },
   {
     title: 'Productivity',
     items: [
-      { to: '/planner', label: 'Daily Planner', short: 'Planner', icon: CalendarCheck },
-      { to: '/focus', label: 'Focus Mode', short: 'Focus', icon: Timer },
-      { to: '/habits', label: 'Habits', icon: Repeat },
-      { to: '/notes', label: 'Notes & Journal', short: 'Notes', icon: NotebookPen },
+      { to: '/planner', module: 'planner', label: 'Daily Planner', short: 'Planner', icon: CalendarCheck },
+      { to: '/focus', module: 'focus', label: 'Focus Mode', short: 'Focus', icon: Timer },
+      { to: '/habits', module: 'habits', label: 'Habits', icon: Repeat },
+      { to: '/notes', module: 'notes', label: 'Notes & Journal', short: 'Notes', icon: NotebookPen },
     ],
   },
   {
     title: 'Growth',
     items: [
-      { to: '/learning', label: 'Career & Learning', short: 'Learning', icon: GraduationCap },
-      { to: '/jobs', label: 'Job Switch', short: 'Jobs', icon: Briefcase },
-      { to: '/goals', label: 'Goals & Milestones', short: 'Goals', icon: Target },
+      { to: '/learning', module: 'learning', label: 'Career & Learning', short: 'Learning', icon: GraduationCap },
+      { to: '/jobs', module: 'jobs', label: 'Job Switch', short: 'Jobs', icon: Briefcase },
+      { to: '/goals', module: 'goals', label: 'Goals & Milestones', short: 'Goals', icon: Target },
     ],
   },
   {
     title: 'Wellness',
     items: [
-      { to: '/fitness', label: 'Gym & Fitness', short: 'Gym', icon: Dumbbell },
-      { to: '/health', label: 'Sleep & Health', short: 'Health', icon: HeartPulse },
+      { to: '/fitness', module: 'fitness', label: 'Gym & Fitness', short: 'Gym', icon: Dumbbell },
+      { to: '/health', module: 'health', label: 'Sleep & Health', short: 'Health', icon: HeartPulse },
     ],
   },
-  { title: 'Money', items: [{ to: '/finance', label: 'Finance', icon: Wallet }] },
+  { title: 'Money', items: [{ to: '/finance', module: 'finance', label: 'Finance', icon: Wallet }] },
   {
     title: 'Insights',
     items: [
-      { to: '/analytics', label: 'Analytics', icon: BarChart3 },
-      { to: '/reports', label: 'Reports', icon: FileText },
+      { to: '/analytics', module: 'analytics', label: 'Analytics', icon: BarChart3 },
+      { to: '/reports', module: 'reports', label: 'Reports', icon: FileText },
     ],
   },
   {
     title: 'System',
     items: [
-      { to: '/notifications', label: 'Notifications', short: 'Alerts', icon: Bell },
-      { to: '/settings', label: 'Settings', icon: Settings },
-      { to: '/export', label: 'Data Export', short: 'Export', icon: Download },
+      { to: '/notifications', module: 'notifications', label: 'Notifications', short: 'Alerts', icon: Bell },
+      { to: '/settings', module: 'settings', label: 'Settings', icon: Settings },
+      { to: '/export', module: 'export', label: 'Data Export', short: 'Export', icon: Download },
     ],
   },
 ]
 export const NAV = NAV_GROUPS.flatMap((g) => g.items)
 export const MOBILE_PRIMARY = ['/', '/planner', '/habits', '/finance']
+
+/** The browser tab title for a route. */
+export function pageTitle(pathname) {
+  const page = NAV.find((n) => n.to === pathname)
+  return page ? `${page.label} · LifeTrack` : 'LifeTrack'
+}

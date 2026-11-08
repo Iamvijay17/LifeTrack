@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { Timer } from 'lucide-react'
 import { SettingsSection } from '@/components/shared/SettingsSection'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/form'
@@ -33,9 +34,9 @@ export function FocusPrefsCard() {
   )
 
   return (
-    <SettingsSection title="Focus mode" desc="Break lengths for the Pomodoro timer.">
+    <SettingsSection icon={Timer} title="Focus mode" desc="Break lengths for the Pomodoro timer.">
       <form noValidate className="space-y-4" onSubmit={handleSubmit(submit)}>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Field label="Short break (min)" error={errors.short_break?.message}>
             <Input type="number" inputMode="numeric" {...register('short_break')} />
           </Field>

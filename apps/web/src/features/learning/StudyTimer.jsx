@@ -52,7 +52,7 @@ export function StudyTimer({ running, goals, topics, today }) {
   const minutesOver = Number(form.minutes) > elapsed / 60 + 0.5
 
   return (
-    <Card className={running ? 'border-primary/50' : undefined}>
+    <Card className={running ? 'lt-hero border-mod/50 shadow-glow' : undefined}>
       <CardContent className="space-y-3">
         {running ? (
           <>
@@ -62,11 +62,18 @@ export function StudyTimer({ running, goals, topics, today }) {
                 <p className="text-sm font-medium">{label}</p>
               </div>
               <span className="flex items-center gap-1.5 text-xs text-success">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-success" />
+                <span className="relative flex h-2 w-2">
+                  <span className="lt-pulse-ring absolute inset-0 rounded-full bg-success" />
+                  <span className="relative h-2 w-2 rounded-full bg-success" />
+                </span>
                 Running on all devices
               </span>
             </div>
-            <p className="text-center text-5xl font-semibold tabular-nums tracking-tight" aria-live="off" data-testid="timer-clock">
+            <p
+              className="py-2 text-center text-[3.25rem] font-semibold leading-none tabular-nums tracking-display"
+              aria-live="off"
+              data-testid="timer-clock"
+            >
               {clock(elapsed)}
             </p>
             {stale && (

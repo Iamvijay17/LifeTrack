@@ -10,7 +10,7 @@ export function SaveStatus() {
   const s = useSaveStatus()
   if (s.status === 'idle')
     return (
-      <span className="hidden text-xs text-muted-foreground sm:inline" data-testid="save-status">
+      <span className="hidden whitespace-nowrap text-xs text-muted-foreground lg:inline" data-testid="save-status">
         All changes saved
       </span>
     )
@@ -24,7 +24,7 @@ export function SaveStatus() {
       role="status"
       data-testid="save-status"
       title={s.error ?? undefined}
-      className={cn('flex items-center gap-1.5 text-xs font-medium', cfg.cls)}
+      className={cn('flex animate-fade-in items-center gap-1.5 text-xs font-medium', cfg.cls)}
     >
       {cfg.icon}
       {cfg.text}
@@ -38,9 +38,12 @@ export function LiveDot() {
   const live = online && realtime === 'SUBSCRIBED'
   const label = !online ? 'Offline' : live ? (isDevMode ? 'Live (cross-tab)' : 'Live sync on') : 'Connecting…'
   return (
-    <span title={label} aria-label={label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-      <span className={cn('h-2 w-2 rounded-full', live ? 'bg-success' : online ? 'bg-warning' : 'bg-danger')} />
-      <span className="hidden lg:inline">{label}</span>
+    <span title={label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <span className="relative flex h-2 w-2" aria-hidden>
+        {live && <span className="lt-pulse-ring absolute inset-0 rounded-full bg-success" />}
+        <span className={cn('relative h-2 w-2 rounded-full', live ? 'bg-success' : online ? 'bg-warning' : 'bg-danger')} />
+      </span>
+      <span className="sr-only lg:not-sr-only">{label}</span>
     </span>
   )
 }

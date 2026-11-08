@@ -25,6 +25,7 @@ export function EraseCard() {
   )
   return (
     <SettingsSection
+      icon={AlertTriangle}
       title="Erase all data"
       desc="Deletes every task, habit, note, log and record but keeps your account and settings. This cannot be undone."
     >

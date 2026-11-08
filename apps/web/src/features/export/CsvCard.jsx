@@ -12,7 +12,11 @@ export function CsvCard() {
     download(`lifetrack-${table}.csv`, csv)
   })
   return (
-    <SettingsSection title="Export to CSV" desc="One spreadsheet-ready file per module. Reports can be exported from the Reports page.">
+    <SettingsSection
+      icon={Download}
+      title="Export to CSV"
+      desc="One spreadsheet-ready file per module. Reports can be exported from the Reports page."
+    >
       <div className="flex flex-wrap gap-2">
         {EXPORTABLE.map(([table, label]) => (
           <Button key={table} variant="outline" size="sm" disabled={busy} onClick={() => exportTable(table)}>

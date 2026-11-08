@@ -23,12 +23,12 @@ export function RoutinesTab({ routines, onCreate, onEdit, onStart }) {
           action={<Button onClick={onCreate}>Create routine</Button>}
         />
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {routines.map((r) => (
-            <Card key={r.id}>
+            <Card key={r.id} interactive>
               <CardContent className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="font-medium">{r.name}</p>
+                  <p className="font-bold tracking-tight">{r.name}</p>
                   <Menu
                     label={`Actions for ${r.name}`}
                     items={[

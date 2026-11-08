@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { fmtDay, weekday } from '@lifetrack/utils'
+import { personalRecords, recordText } from '@lifetrack/core/records'
 import { DAY_NAMES, dayStatus, exerciseGroups, fitnessWeek, measurementLine, offDayWorkout, planFor, sortedHistory, summarizeSets, todayHeadline, weightHistory, workoutMeta } from '@lifetrack/core/fitness'
 import { store } from '../../../src/data/client'
 import { useTables } from '../../../src/hooks/useTables'
@@ -15,6 +16,7 @@ import { ModuleHeader } from '../../../src/ui/ModuleHeader'
 import { ActionSheet } from '../../../src/ui/Sheet'
 import { confirm } from '../../../src/ui/confirm'
 import { Badge, DataGate, EmptyState, Segmented, SelectField, StatTile, pullToRefresh } from '../../../src/ui/controls'
+import { AnimatedNumber, Hero } from '../../../src/ui/motion'
 import { Button, Card, Txt } from '../../../src/ui'
 
 type Tab = 'week' | 'routines' | 'history' | 'library' | 'body'
@@ -38,11 +40,12 @@ export default function Fitness() {
   const routines: any[] = data.routines.filter((r: any) => !r.archived_at)
   const plan = settings.workout_plan ?? {}
   const fw: any = useMemo(() => fitnessWeek({ workouts: data.workouts, logs: data.exercise_logs, plan, today, weekStartsOn: w }), [data.workouts, data.exercise_logs, plan, today, w])
-  const { weekDays, byWorkout, stats, weeks } = fw
+  const { weekDays, byWorkout, stats, weeks, completed } = fw
   const wh: any = useMemo(() => weightHistory(data.health_logs), [data.health_logs])
   const todayDone: any[] = data.workouts.filter((x: any) => x.workout_date === today)
   const planToday = planFor(today, plan, routines)
   const history: any[] = sortedHistory(data.workouts)
+  const records: any[] = useMemo(() => personalRecords(data.exercise_logs, data.workouts), [data.exercise_logs, data.workouts])
   const { lib, groups } = exerciseGroups(data.exercises) as any
   const m = menu
 
@@ -51,8 +54,25 @@ export default function Fitness() {
       <ScrollView refreshControl={pullToRefresh(refreshing, refetch)} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 32 }}>
         <ModuleHeader title="Gym & Fitness" action={<Button title="＋ Log" onPress={() => setWForm({ open: true, workout: null, date: today, routineId: null })} />} />
         <DataGate loading={loading} error={error} onRetry={refetch}>
+          <Hero>
+            <Txt variant="small" muted>Workouts this week</Txt>
+            <AnimatedNumber value={stats.count} style={{ color: colors.foreground, fontSize: 44, fontWeight: '800', letterSpacing: -1.5 }} />
+            <Txt variant="small" muted>{stats.planned ? `${stats.hit}/${stats.planned} planned days done` : 'no days planned yet'}</Txt>
+            <View accessibilityElementsHidden style={{ flexDirection: 'row', gap: 6, marginTop: 12 }}>
+              {weekDays.map((d: string) => {
+                const trained = completed.some((x: any) => x.workout_date === d)
+                return (
+                  <View key={d} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
+                    <Text style={{ color: d === today ? colors.foreground : colors.mutedForeground, fontSize: 10, fontWeight: '600' }}>{fmtDay(d, 'EEEEE')}</Text>
+                    <View style={{ width: '100%', maxWidth: 38, aspectRatio: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: trained ? '#F97316' : colors.muted, borderWidth: d === today ? 2 : 0, borderColor: '#F97316' }}>
+                      {trained ? <Text style={{ color: '#FFFFFF', fontWeight: '800' }}>✓</Text> : null}
+                    </View>
+                  </View>
+                )
+              })}
+            </View>
+          </Hero>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-            <StatTile label="Workouts this week" value={stats.count} sub={stats.planned ? `${stats.hit}/${stats.planned} planned days done` : 'no days planned yet'} progress={stats.planned ? (stats.hit / stats.planned) * 100 : null} tone="success" />
             <StatTile label="Training time" value={`${stats.minutes} min`} sub={stats.cardio ? `${stats.cardio} min cardio` : 'this week'} />
             <StatTile label="Volume" value={`${Math.round(stats.vol).toLocaleString('en-IN')} kg`} sub="reps × weight, this week" />
             <StatTile label="Body weight" value={wh.latest ? `${wh.latest.weight_kg} kg` : '—'} sub={wh.latest ? `as of ${fmtDay(wh.latest.log_date, 'd MMM')}` : 'not logged yet'} />
@@ -110,6 +130,20 @@ export default function Fitness() {
               ))}
           </>) : null}
 
+          {tab === 'history' && records.length > 0 ? (
+            <Card>
+              <Txt variant="heading">Personal records</Txt>
+              {records.slice(0, 5).map((r) => (
+                <View key={r.name} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 6 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text numberOfLines={1} style={{ color: colors.foreground, fontWeight: '500' }}>{r.name}</Text>
+                    <Txt variant="small" muted>{fmtDay(r.date, 'd MMM yyyy')}</Txt>
+                  </View>
+                  <Text style={{ color: colors.foreground, fontWeight: '600', fontVariant: ['tabular-nums'] }}>{recordText(r)}</Text>
+                </View>
+              ))}
+            </Card>
+          ) : null}
           {tab === 'history' ? (history.length === 0
             ? <EmptyState title="No workouts logged" description="Your sets, reps and weights will be listed here." />
             : history.slice(0, 100).map((x) => {

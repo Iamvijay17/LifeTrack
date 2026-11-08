@@ -25,6 +25,7 @@ export type ExerciseLog = Row<'exercise_logs'>
 export type BodyMeasurement = Row<'body_measurements'>
 export type HealthLog = Row<'health_logs'>
 export type Transaction = Row<'transactions'>
+export type RecurringRule = Row<'recurring_rules'>
 export type Budget = Row<'budgets'>
 export type SavingsGoal = Row<'savings_goals'>
 export type JournalEntry = Row<'journal_entries'>

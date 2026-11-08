@@ -33,4 +33,4 @@ export function healthSummary(logs, today) {
 export const signedKg = (n) => `${n > 0 ? '+' : ''}${n.toFixed(1)} kg`
 /** One-line summary of a day's log for the history list. */
 export const historyLine = (h) =>
-  [h.sleep_minutes != null && `😴 ${fmtDuration(h.sleep_minutes)}`, h.water_ml > 0 && `💧 ${h.water_ml} ml`, h.steps > 0 && `👟 ${h.steps.toLocaleString('en-IN')}`, h.energy_level && `⚡ ${h.energy_level}/5`, h.weight_kg != null && `${h.weight_kg} kg`].filter(Boolean).join('  ·  ')
+  [h.sleep_minutes != null && `Sleep ${fmtDuration(h.sleep_minutes)}`, h.water_ml > 0 && `Water ${h.water_ml} ml`, h.steps > 0 && `${h.steps.toLocaleString('en-IN')} steps`, h.energy_level && `Energy ${h.energy_level}/5`, h.weight_kg != null && `${h.weight_kg} kg`].filter(Boolean).join('  ·  ')

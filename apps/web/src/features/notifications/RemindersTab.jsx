@@ -25,9 +25,9 @@ export function RemindersTab({ reminders, onCreate, onEdit, onToggle }) {
   }
   return (
     <Card>
-      <ul className="divide-y divide-border">
+      <ul className="divide-y divide-border/70">
         {reminders.map((r) => (
-          <li key={r.id} className="flex items-center gap-3 px-4 py-3">
+          <li key={r.id} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30 md:px-5">
             <Switch checked={r.active} onChange={() => onToggle(r)} label={`${r.active ? 'Disable' : 'Enable'} ${r.title}`} />
             <div className={cn('min-w-0 flex-1', !r.active && 'opacity-60')}>
               <p className="truncate text-sm font-medium">{r.title}</p>

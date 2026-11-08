@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { Smile, Meh, Frown, Laugh, Angry } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { m, spring } from '@/components/motion/primitives'
 import { Button } from '@/components/ui/button'
 import { Field, Textarea } from '@/components/ui/form'
 import { EmptyState } from '@/components/shared/states'
@@ -55,7 +56,7 @@ export function Journal({ date }) {
     .slice(0, 8)
 
   return (
-    <div className="grid gap-4 lg:grid-cols-5">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
       <Card className="lg:col-span-3">
         <CardContent className="space-y-4">
           <div>
@@ -68,11 +69,15 @@ export function Journal({ date }) {
                   aria-pressed={mood === v}
                   onClick={() => setValue('mood', mood === v ? null : v, { shouldDirty: true })}
                   className={cn(
-                    'flex flex-1 flex-col items-center gap-1 rounded-md border border-border py-2 text-[11px] text-muted-foreground',
-                    mood === v && 'border-primary bg-primary/15 text-secondary',
+                    'lt-press flex flex-1 flex-col items-center gap-1 rounded-lg border py-2.5 text-[11px] transition-colors duration-150',
+                    mood === v
+                      ? 'border-mod/50 bg-mod/15 font-medium text-mod-text'
+                      : 'border-border text-muted-foreground hover:bg-muted/50',
                   )}
                 >
-                  <Icon className="h-5 w-5" />
+                  <m.span animate={{ scale: mood === v ? 1.18 : 1 }} transition={spring.bouncy} className="block">
+                    <Icon className="h-5 w-5" aria-hidden />
+                  </m.span>
                   {label}
                 </button>
               ))}
@@ -104,7 +109,7 @@ export function Journal({ date }) {
         </CardContent>
       </Card>
       <div className="space-y-2 lg:col-span-2">
-        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Recent entries</h3>
+        <h2 className="lt-eyebrow">Recent entries</h2>
         {past.length === 0 ? (
           <EmptyState title="No other entries yet" description="Short daily notes build a useful record over time." />
         ) : (

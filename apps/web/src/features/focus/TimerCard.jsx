@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Field, Input, Select } from '@/components/ui/form'
 import { Segmented } from '@/components/ui/misc'
+import { Magnetic } from '@/components/motion/primitives'
 import { MODE_LABEL, PRESETS } from '@/domain/focus'
 import { Dial } from './Dial'
 
@@ -24,16 +25,21 @@ export function TimerCard({ timer, setup, onSetup, minutes, validMinutes, tasks,
   const set = (key) => (value) => onSetup({ ...setup, [key]: value })
 
   return (
-    <Card className="lg:col-span-3">
-      <CardContent className="space-y-5 py-6">
+    <Card className="lt-hero lg:col-span-3">
+      <CardContent className="space-y-5 py-7">
         {!active && <Segmented className="mx-auto flex w-fit" value={setup.mode} onChange={set('mode')} options={MODES} />}
         {active && (
-          <p className="text-center text-sm font-medium text-secondary">
+          <p className="animate-fade-in text-center text-sm font-medium text-mod-text">
             {MODE_LABEL[active.mode]}
             {active.label ? ` · ${active.label}` : ''}
           </p>
         )}
-        <Dial left={active ? timer.left : validMinutes ? minutes * 60 : 0} total={total} mode={shownMode} />
+        <Dial
+          left={active ? timer.left : validMinutes ? minutes * 60 : 0}
+          total={total}
+          mode={shownMode}
+          running={!!active && timer.running}
+        />
         {!active ? (
           <div className="mx-auto max-w-sm space-y-3">
             {setup.mode === 'focus' ? (
@@ -79,10 +85,12 @@ export function TimerCard({ timer, setup, onSetup, minutes, validMinutes, tasks,
             ) : (
               <p className="text-center text-sm text-muted-foreground">{breakMinutes}-minute break. Change break lengths in Settings.</p>
             )}
-            <Button size="lg" className="w-full" onClick={onStart} disabled={!validMinutes}>
-              {setup.mode === 'focus' ? <Timer className="h-4 w-4" /> : <Coffee className="h-4 w-4" />}Start{' '}
-              {MODE_LABEL[setup.mode].toLowerCase()}
-            </Button>
+            <Magnetic className="flex w-full" strength={0.08}>
+              <Button size="lg" className="w-full" onClick={onStart} disabled={!validMinutes}>
+                {setup.mode === 'focus' ? <Timer className="h-4 w-4" /> : <Coffee className="h-4 w-4" />}Start{' '}
+                {MODE_LABEL[setup.mode].toLowerCase()}
+              </Button>
+            </Magnetic>
           </div>
         ) : (
           <div className="flex justify-center gap-2">

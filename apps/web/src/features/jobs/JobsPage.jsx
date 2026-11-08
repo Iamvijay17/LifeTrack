@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Briefcase, CalendarPlus, Plus } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate, EmptyState } from '@/components/shared/states'
@@ -39,6 +40,14 @@ export default function JobsPage() {
   const [appDlg, setAppDlg] = useState({ open: false, app: null, status: 'interested' })
   const [intDlg, setIntDlg] = useState({ open: false, event: null, appId: null })
   const [openId, setOpenId] = useState(null)
+  const [params, setParams] = useSearchParams()
+  // Deep link from global search and the dashboard: /jobs?app=<id>
+  useEffect(() => {
+    const id = params.get('app')
+    if (!id || loading) return
+    setOpenId(id)
+    setParams({}, { replace: true })
+  }, [params, loading, setParams])
 
   const apps = data.job_applications
   const detail = apps.find((a) => a.id === openId) ?? null
@@ -77,7 +86,7 @@ export default function JobsPage() {
       />
       <DataGate loading={loading} error={error} onRetry={refetch}>
         <div className="space-y-5">
-          <JobsStats appliedThisWeek={appliedThisWeek} active={activePipelineCount(apps)} total={apps.length} funnel={stats} />
+          <JobsStats appliedThisWeek={appliedThisWeek} active={activePipelineCount(apps)} total={apps.length} funnel={stats} apps={apps} />
           <Reminders followups={followups} upcoming={upcoming} tz={tz} onOpen={open} />
           <JobsToolbar view={view} onViewChange={setView} filters={filters} onFiltersChange={setFilters} sources={sources} />
 

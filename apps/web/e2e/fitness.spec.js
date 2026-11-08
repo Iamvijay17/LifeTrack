@@ -59,7 +59,7 @@ test.describe('fitness', () => {
     await pickOption(page.getByLabel('Plan for Monday'), 'rest')
     await expect(page.getByText('Plan updated').first()).toBeVisible()
     await page.reload()
-    await expect(page.getByLabel('Plan for Monday')).toHaveValue('rest') // persisted to the account
+    await expect(page.getByLabel('Plan for Monday')).toHaveText('Rest day') // persisted to the account
   })
 
   test('body: weight logged from the dialog shows in the stats; empty entries are refused', async ({ page }) => {

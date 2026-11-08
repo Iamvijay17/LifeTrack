@@ -16,6 +16,7 @@ export function fakeDb() {
     async insert(t, input) {
       return input.map((r) => {
         if (t === 'tasks' && r.series_id && rows(t).some((x) => x.series_id === r.series_id && x.due_date === r.due_date)) throw dup()
+        if (t === 'transactions' && r.recurring_rule_id && rows(t).some((x) => x.recurring_rule_id === r.recurring_rule_id && x.recurring_date === r.recurring_date)) throw dup()
         const row = { ...(DEFAULTS as any)[t], id: newId(), user_id: 'u1', created_at: `2026-11-0${1 + (n % 5)}T00:00:00Z`, ...r } as any
         rows(t).push(row); return { ...row }
       })

@@ -22,6 +22,8 @@ export const {
   setGoalStatus,
   toggleMilestone,
   recordFocus,
+  postDueRecurring,
+  toggleRecurringRule,
   fireDueReminders,
   toggleReminder,
   clearReadNotifications,

@@ -18,6 +18,7 @@ import { FitnessStats } from './FitnessStats'
 import { HistoryTab } from './HistoryTab'
 import { LibraryTab } from './LibraryTab'
 import { MeasurementDialog } from './MeasurementDialog'
+import { ProgressTab } from './ProgressTab'
 import { RoutineDialog } from './RoutineDialog'
 import { RoutinesTab } from './RoutinesTab'
 import { WeekTab } from './WeekTab'
@@ -25,6 +26,7 @@ import { WorkoutDialog } from './WorkoutDialog'
 
 const TABS = [
   { value: 'week', label: 'This week' },
+  { value: 'progress', label: 'Progress' },
   { value: 'routines', label: 'Routines' },
   { value: 'history', label: 'History' },
   { value: 'library', label: 'Exercises' },
@@ -84,7 +86,7 @@ export default function FitnessPage() {
     <>
       <PageHeader
         title="Gym & Fitness"
-        description="Your plan, your split — nothing is hardcoded."
+        description="Plan your week, log your sets and see your progress."
         actions={
           <Button onClick={() => logWorkout()}>
             <Plus className="h-4 w-4" />
@@ -94,7 +96,7 @@ export default function FitnessPage() {
       />
       <DataGate loading={loading} error={error} onRetry={refetch}>
         <div className="space-y-5">
-          <FitnessStats stats={stats} latestWeight={weight.latest} />
+          <FitnessStats stats={stats} latestWeight={weight.latest} week={{ days: weekDays, today, workouts: data.workouts, plan }} />
           <Segmented value={tab} onChange={setTab} options={TABS} />
 
           {tab === 'week' && (
@@ -115,6 +117,7 @@ export default function FitnessPage() {
               onUndo={undoOff}
             />
           )}
+          {tab === 'progress' && <ProgressTab logs={data.exercise_logs} workouts={data.workouts} onLog={() => logWorkout()} />}
           {tab === 'routines' && (
             <RoutinesTab
               routines={routines}
@@ -127,6 +130,8 @@ export default function FitnessPage() {
             <HistoryTab
               history={history}
               logsByWorkout={logsByWorkout}
+              today={today}
+              weekStartsOn={weekStartsOn}
               onEdit={(workout) => logWorkout({ workout, date: workout.workout_date })}
             />
           )}

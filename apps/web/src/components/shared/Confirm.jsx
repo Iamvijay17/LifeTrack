@@ -25,6 +25,7 @@ export function ConfirmProvider({ children }) {
     <Ctx.Provider value={confirm}>
       {children}
       <Dialog
+        stacked
         open={!!req}
         onOpenChange={(o) => !o && close(false)}
         title={req?.title ?? ''}
@@ -32,7 +33,7 @@ export function ConfirmProvider({ children }) {
         footer={
           <>
             <Button variant="outline" onClick={() => close(false)}>
-              Cancel
+              {req?.cancelLabel ?? 'Cancel'}
             </Button>
             <Button variant={req?.destructive === false ? 'default' : 'destructive'} onClick={() => close(true)}>
               {req?.confirmLabel ?? 'Delete'}

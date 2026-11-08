@@ -1,6 +1,7 @@
 // Domain operations that span more than one row. UI components call these (never the adapters directly).
 import { nextOccurrence, nextDueDate } from '@lifetrack/core/recurrence'
 import { dueReminders, afterFire, KIND_LINK } from '@lifetrack/core/reminders'
+import { afterPost, dueOccurrences, dueRules, occurrenceRow, togglePatch as recurringTogglePatch } from '@lifetrack/core/recurring'
 import { MIN_RECORD_SECONDS } from '@lifetrack/core/focus'
 import { DEFAULT_TOPICS, DEFAULT_EXERCISES } from '@lifetrack/constants/defaults'
 import { CONFLICT_KEYS } from '@lifetrack/constants/schema'
@@ -160,6 +161,37 @@ export function createApi(store) {
     })
   }
 
+  // ------------------------------------------------------------- recurring
+  /**
+   * Posts what recurring rules owe as transactions, each dated the day it fell due, so a device that was closed for a week catches up on the right days.
+   * Safe to run from several devices at once: the occurrence's unique index lets only the first insert win (the loser gets 23505 and is ignored), and
+   * next_date only moves after the inserts, so a run that dies half way simply repeats and skips what it already posted.
+   * Runs while LifeTrack is open on any device: nothing is posted until one of them opens, which the back-dating makes invisible.
+   */
+  async function postDueRecurring(today) {
+    await store.load('recurring_rules')
+    if (!dueRules(store.peek('recurring_rules'), today).length) return 0
+    // A device waking from sleep may hold an old next_date; re-read so it can't re-post an occurrence the user deleted meanwhile.
+    await store.refetch('recurring_rules')
+    let posted = 0
+    for (const rule of dueRules(store.peek('recurring_rules'), today)) {
+      const dates = dueOccurrences(rule, today)
+      try {
+        for (const date of dates) {
+          try {
+            await store.insert('transactions', occurrenceRow(rule, date))
+            posted++
+          } catch (e) { if (e.code !== '23505') throw e }
+        }
+        await store.update('recurring_rules', rule.id, afterPost(rule, dates.at(-1)))
+      } catch (e) {
+        if (e.code !== '23503') throw e // 23503: another device deleted this rule just now; nothing left to do for it
+      }
+    }
+    return posted
+  }
+  const toggleRecurringRule = (rule, today) => store.update('recurring_rules', rule.id, recurringTogglePatch(rule, today))
+
   // ------------------------------------------------------------- reminders
   /**
    * Turns due reminders into notifications. Safe to run from several devices at once: the notification's dedupe_key is
@@ -195,5 +227,5 @@ export function createApi(store) {
     return unread.length
   }
 
-  return { saveRow, deleteRow, createTask, setTaskStatus, setHabitStatus, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, fireDueReminders, toggleReminder, clearReadNotifications, markNotificationRead, markAllRead }
+  return { saveRow, deleteRow, createTask, setTaskStatus, setHabitStatus, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, postDueRecurring, toggleRecurringRule, fireDueReminders, toggleReminder, clearReadNotifications, markNotificationRead, markAllRead }
 }

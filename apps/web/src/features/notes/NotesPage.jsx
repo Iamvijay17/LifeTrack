@@ -127,7 +127,7 @@ export default function NotesPage() {
             <p className="py-10 text-center text-sm text-muted-foreground">No notes match your search.</p>
           ) : (
             <>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="columns-1 gap-3 sm:columns-2 lg:columns-3 [&>*]:mb-3 [&>*]:break-inside-avoid">
                 {page.visible.map((n) => (
                   <NoteCard
                     key={n.id}

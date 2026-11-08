@@ -9,14 +9,14 @@ import { cn } from '@/lib/utils'
 /** One note in the grid. Pure presentation: every action is a callback from the page. */
 export function NoteCard({ note: n, goalName, taskName, onOpen, onEdit, onTogglePin, onDelete, onTag }) {
   return (
-    <Card className={cn('transition-colors hover:border-muted-foreground/40', n.pinned && 'border-primary/40')}>
+    <Card interactive className={cn(n.pinned && 'border-mod/40 bg-gradient-to-b from-mod/[0.06] to-transparent')}>
       <CardContent className="space-y-2 p-4">
         <div className="flex items-start justify-between gap-2">
-          <button onClick={() => onOpen(n)} className="min-w-0 flex-1 text-left">
-            <h3 className="truncate text-sm font-semibold">
-              {n.pinned && <Pin className="mr-1 inline h-3 w-3 text-secondary" aria-label="pinned" />}
+          <button onClick={() => onOpen(n)} className="min-h-8 min-w-0 flex-1 rounded text-left">
+            <h2 className="truncate text-sm font-semibold">
+              {n.pinned && <Pin className="mr-1 inline h-3 w-3 animate-pop-in text-mod-text" role="img" aria-label="Pinned" />}
               {n.title || 'Untitled'}
-            </h3>
+            </h2>
           </button>
           <Menu
             label={`Actions for ${n.title || 'note'}`}
@@ -33,7 +33,7 @@ export function NoteCard({ note: n, goalName, taskName, onOpen, onEdit, onToggle
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge tone="primary">{n.category}</Badge>
           {(n.tags ?? []).map((t) => (
-            <button key={t} onClick={() => onTag(t)}>
+            <button key={t} onClick={() => onTag(t)} className="lt-press">
               <Badge>#{t}</Badge>
             </button>
           ))}

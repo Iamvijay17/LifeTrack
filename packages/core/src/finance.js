@@ -57,6 +57,19 @@ export const savingsShareOfIncome = (s) => (s.income ? Math.round((s.savings / s
 export const budgetTone = (used) => (used == null ? 'primary' : used > 1 ? 'danger' : used > 0.8 ? 'warning' : 'success')
 export const savingsGoalPercent = (g) => Math.min(100, Math.round((g.saved_paise / g.target_paise) * 100))
 
+/** The month's own budget (category '') if one was set, otherwise the default from settings. */
+export function budgetForMonth(budgets = [], month, defaultBudget = 0) {
+  const overall = budgets.find((b) => b.month === month && b.category === '')
+  return overall ? overall.amount_paise : defaultBudget
+}
+
+/** A heads-up once spending nears the budget (null until then). `sum` is summarize(). */
+export function budgetAlert(sum) {
+  if (sum.budgetUsed == null || sum.budgetUsed < 0.8) return null
+  if (sum.remaining < 0) return { level: 'danger', percent: Math.round(sum.budgetUsed * 100), overBy: -sum.remaining }
+  return { level: 'warning', percent: Math.round(sum.budgetUsed * 100), left: sum.remaining }
+}
+
 /**
  * Everything one month of the Finance screen needs. `month` is a first-of-month date ('yyyy-MM-01').
  * A per-month overall budget (category '') overrides the default monthly budget from settings.

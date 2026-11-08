@@ -1,23 +1,22 @@
 import { useRouter } from 'expo-router'
-import { Ionicons } from '@expo/vector-icons'
 import { View } from 'react-native'
 import { MODULES } from '../../../src/lib/modules'
 import { signOutCleanly } from '../../../src/lib/signOut'
 import { useAuth } from '../../../src/providers/AuthProvider'
-import { useTheme } from '../../../src/providers/ThemeProvider'
+import { moduleForSegment } from '../../../src/ui/accent'
+import { IconTile } from '../../../src/ui/motion'
 import { Button, Card, Screen, Txt } from '../../../src/ui'
 
 export default function More() {
   const router = useRouter()
   const { email } = useAuth()
-  const { colors } = useTheme()
   return (
     <Screen>
       <Txt variant="title">More</Txt>
       {MODULES.map((m) => (
         <Card key={m.slug} onPress={() => router.push(m.href as never)}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Ionicons name={m.icon} size={22} color={colors.primary} />
+            <IconTile name={m.icon} size={38} module={moduleForSegment(m.slug)} />
             <Txt>{m.title}</Txt>
           </View>
         </Card>

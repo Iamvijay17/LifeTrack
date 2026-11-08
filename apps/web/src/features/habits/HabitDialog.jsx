@@ -103,7 +103,7 @@ export function HabitDialog({ open, onOpenChange, habit, today }) {
                       onClick={() => field.onChange(on ? field.value.filter((x) => x !== v) : [...field.value, v])}
                       className={cn(
                         'h-9 w-12 rounded-md border border-border text-[13px]',
-                        on ? 'border-primary bg-primary/15 text-secondary' : 'text-muted-foreground',
+                        on ? 'border-mod bg-mod/15 text-mod-text' : 'text-muted-foreground',
                       )}
                     >
                       {l}

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { useSettings } from './useSettings'
 
 export function applyTheme(theme) {
@@ -11,6 +11,15 @@ export function applyTheme(theme) {
     /* non-critical preference */
   }
 }
+
+const onThemeClass = (notify) => {
+  const observer = new MutationObserver(notify)
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+  return () => observer.disconnect()
+}
+const currentTheme = () => (document.documentElement.classList.contains('dark') ? 'dark' : 'light')
+/** The theme actually on screen, for things drawn outside Tailwind's dark classes. */
+export const useResolvedTheme = () => useSyncExternalStore(onThemeClass, currentTheme)
 
 /** Keeps <html class="dark"> in sync with the account's theme setting (so it follows you across devices). */
 export function useThemeSync() {

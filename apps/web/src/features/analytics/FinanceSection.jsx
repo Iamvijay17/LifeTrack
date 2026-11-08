@@ -1,6 +1,6 @@
 import { Bar, BarChart } from 'recharts'
 import { Wallet } from 'lucide-react'
-import { Chart, C, grid, tooltip, xAxis, yAxis } from '@/components/shared/charts'
+import { Chart, C, grid, tooltip, xAxis, yAxis, seriesSummary } from '@/components/shared/charts'
 import { StatCard } from '@/components/shared/StatCard'
 import { Progress } from '@/components/ui/misc'
 import { Block, EmptyNote, Panel } from './Layout'
@@ -8,21 +8,26 @@ import { Block, EmptyNote, Panel } from './Layout'
 /** `money(paise)` formats in the user's currency. */
 export function FinanceSection({ finance: f, money }) {
   return (
-    <Block icon={Wallet} title="Finance">
+    <Block icon={Wallet} module="finance" title="Finance">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Income" value={money(f.income)} />
         <StatCard label="Expenses" value={money(f.expense)} />
         <StatCard label="Savings" value={money(f.savings)} sub={f.savingsRate == null ? undefined : `${f.savingsRate}% of income`} />
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Panel title={`Spending per ${f.unit}`}>
-          <Chart height={190} empty={f.expense === 0} emptyText="No expenses in this range.">
+          <Chart
+            summary={seriesSummary('Spending', f.chart, 'value')}
+            height={190}
+            empty={f.expense === 0}
+            emptyText="No expenses in this range."
+          >
             <BarChart data={f.chart}>
               {grid()}
               {xAxis({ dataKey: 'label', minTickGap: 16 })}
               {yAxis({ width: 48 })}
               {tooltip({ formatter: (v) => [money(Math.round(v * 100)), 'Spent'] })}
-              <Bar dataKey="value" fill={C.danger} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="value" fill={C.mod} radius={[5, 5, 2, 2]} />
             </BarChart>
           </Chart>
         </Panel>

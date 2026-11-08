@@ -46,7 +46,7 @@ export default function AnalyticsPage() {
 
   return (
     <>
-      <PageHeader title="Analytics" description="Everything here is computed from your real records. Empty ranges stay empty." />
+      <PageHeader title="Analytics" description="Trends across everything you track." />
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <DateRangePicker range={range} className="contents" />
         <span className="text-xs text-muted-foreground">

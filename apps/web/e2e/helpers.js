@@ -27,6 +27,17 @@ export async function pickOption(trigger, value) {
   await trigger.page().locator(`[role="listbox"] [role="option"][data-value="${value}"]`).click()
 }
 
+/** Set one of our time pickers to 'HH:mm' (minutes in 5-minute steps) through its hour and minute lists. */
+export async function pickTime(trigger, value) {
+  const page = trigger.page()
+  await trigger.click()
+  const pop = page.getByRole('dialog', { name: 'Choose time' })
+  const [h, m] = value.split(':')
+  await pop.getByRole('listbox', { name: 'Hour' }).getByRole('option', { name: h }).click()
+  await pop.getByRole('listbox', { name: 'Minute' }).getByRole('option', { name: m }).click()
+  await pop.getByRole('button', { name: 'Done' }).click()
+}
+
 /** Set one of our date pickers to 'yyyy-MM-dd' by walking its calendar. */
 export async function pickDate(trigger, value) {
   const page = trigger.page()

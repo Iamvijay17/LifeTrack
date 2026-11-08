@@ -24,6 +24,8 @@ import {
   MIN_MINUTES,
 } from '@/domain/focus'
 import { fmtDay } from '@/lib/dates'
+import { pageTitle } from '@/lib/nav'
+import { celebrate } from '@/lib/celebrate'
 import { beep } from './beep'
 import { FocusSummary } from './FocusSummary'
 import { SessionList } from './SessionList'
@@ -56,7 +58,10 @@ export default function FocusPage() {
           label: t.label,
           date: today,
         })
-        if (saved) toast.success('Focus session complete', { description: `${t.plannedMinutes} minutes recorded.` })
+        if (saved) {
+          toast.success('Focus session complete', { description: `${t.plannedMinutes} minutes recorded.` })
+          celebrate({ count: 60 })
+        }
         setSetup((s) => ({ ...s, mode: nextBreak(doneToday + 1, prefs.long_every) }))
       } else {
         toast('Break over — ready for the next focus block?')
@@ -66,7 +71,7 @@ export default function FocusPage() {
   })
 
   useEffect(() => {
-    document.title = timer.timer ? `${fmtClock(timer.left)} · ${MODE_LABEL[timer.timer.mode]} — LifeTrack` : 'LifeTrack'
+    document.title = timer.timer ? `${fmtClock(timer.left)} · ${MODE_LABEL[timer.timer.mode]} — LifeTrack` : pageTitle('/focus')
     return () => {
       document.title = 'LifeTrack'
     }
@@ -113,7 +118,7 @@ export default function FocusPage() {
     <>
       <PageHeader title="Focus Mode" description="Pomodoro timer — every finished block is saved to your account." />
       <DataGate loading={loading} error={error} onRetry={refetch}>
-        <div className="grid gap-4 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
           <TimerCard
             timer={timer}
             setup={setup}

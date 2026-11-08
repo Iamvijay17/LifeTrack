@@ -4,6 +4,7 @@ import { signUpSchema } from '@lifetrack/schemas'
 import { toAppError } from '@lifetrack/data'
 import { authService } from '../../src/lib/supabase'
 import { Button, Field, Screen, Txt, type InputRef } from '../../src/ui'
+import { BrandMark } from '../../src/ui/BrandMark'
 import { useTheme } from '../../src/providers/ThemeProvider'
 
 export default function SignUp() {
@@ -28,6 +29,7 @@ export default function SignUp() {
   const set = (k: keyof typeof v) => (t: string) => setV({ ...v, [k]: t })
   return (
     <Screen>
+      <BrandMark />
       <Txt variant="title">Create account</Txt>
       <Field label="Name" value={v.name} onChangeText={set('name')} error={errors.name} autoComplete="name" textContentType="name" returnKeyType="next" onSubmitEditing={() => emailRef.current?.focus()} blurOnSubmit={false} />
       <Field inputRef={emailRef} label="Email" value={v.email} onChangeText={set('email')} error={errors.email} autoCapitalize="none" autoComplete="email" keyboardType="email-address" textContentType="emailAddress" returnKeyType="next" onSubmitEditing={() => pwRef.current?.focus()} blurOnSubmit={false} />

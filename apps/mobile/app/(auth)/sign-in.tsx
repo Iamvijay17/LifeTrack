@@ -4,6 +4,7 @@ import { signInSchema } from '@lifetrack/schemas'
 import { toAppError } from '@lifetrack/data'
 import { authService } from '../../src/lib/supabase'
 import { Button, Field, Screen, Txt, type InputRef } from '../../src/ui'
+import { BrandMark } from '../../src/ui/BrandMark'
 import { useTheme } from '../../src/providers/ThemeProvider'
 
 export default function SignIn() {
@@ -24,6 +25,7 @@ export default function SignIn() {
   }
   return (
     <Screen>
+      <BrandMark />
       <Txt variant="title">Welcome back</Txt>
       <Txt muted>Sign in to your LifeTrack account.</Txt>
       <Field label="Email" value={v.email} onChangeText={(email) => setV({ ...v, email })} error={errors.email} autoCapitalize="none" autoComplete="email" keyboardType="email-address" textContentType="emailAddress" returnKeyType="next" onSubmitEditing={() => passwordRef.current?.focus()} blurOnSubmit={false} />

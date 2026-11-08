@@ -9,3 +9,6 @@ export function relativeTime(iso, nowMs = Date.now()) {
   if (mins < 1440) return `${Math.round(mins / 60)}h ago`
   return `${Math.round(mins / 1440)}d ago`
 }
+
+/** "1 rejection", "3 rejections". */
+export const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`

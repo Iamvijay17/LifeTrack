@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { fmtDay, fmtDuration, sleepMinutes } from '@lifetrack/utils'
 import { healthSummary, historyLine, signedKg } from '@lifetrack/core/health'
+import { averageEnergy, sleepConsistency, sleepGoalOf } from '@lifetrack/core/sleep'
 import { healthFormSchema, healthFormToPayload, healthToForm } from '@lifetrack/schemas'
 import { api, store } from '../../../src/data/client'
 import { useTables } from '../../../src/hooks/useTables'
@@ -16,7 +17,32 @@ import { BarChart, LineChart } from '../../../src/ui/charts'
 import { ModuleHeader } from '../../../src/ui/ModuleHeader'
 import { confirm } from '../../../src/ui/confirm'
 import { Chip, DataGate, DateNav, StatTile, TimeField, pullToRefresh } from '../../../src/ui/controls'
+import { AnimatedNumber, Gradient } from '../../../src/ui/motion'
 import { Button, Card, Field, Txt } from '../../../src/ui'
+
+const STARS = [[8, 14], [22, 34], [38, 10], [52, 26], [68, 12], [84, 30]]
+/** The week's sleep, under a night sky. Stays dark in the light theme, because the night does. */
+function NightHero({ value, sub, nights, goalHours }: { value: string; sub: string; nights: { d: string; label: string; sleep: number | null }[]; goalHours: number }) {
+  const tallest = Math.max(goalHours, ...nights.map((n) => n.sleep ?? 0), 1)
+  return (
+    <View style={{ borderRadius: 22, overflow: 'hidden', padding: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+      <Gradient from="#0B1026" to="#1E1B4B" />
+      {STARS.map(([x, y]) => <View key={`${x}-${y}`} style={{ position: 'absolute', left: `${x}%`, top: `${y}%`, width: 2, height: 2, borderRadius: 1, backgroundColor: '#FFFFFF', opacity: 0.7 }} />)}
+      <View style={{ position: 'absolute', right: 18, top: 16, width: 42, height: 42, borderRadius: 21, backgroundColor: '#FDE68A', overflow: 'hidden' }}>
+        <View style={{ position: 'absolute', right: -6, top: -6, width: 34, height: 34, borderRadius: 17, backgroundColor: '#141943' }} />
+      </View>
+      <Text style={{ color: '#BAE6FD', fontSize: 13, fontWeight: '500' }}>Avg sleep (7 days)</Text>
+      <AnimatedNumber value={value} style={{ color: '#FFFFFF', fontSize: 36, fontWeight: '700', letterSpacing: -1, marginTop: 4 }} />
+      <Text style={{ color: '#CBD5E1', fontSize: 12, marginTop: 2 }}>{sub}</Text>
+      <View accessibilityElementsHidden style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 64, marginTop: 14 }}>
+        {nights.map((n) => <View key={n.d} style={{ flex: 1, height: `${((n.sleep ?? 0) / tallest) * 100}%`, minHeight: n.sleep ? 4 : 0, borderTopLeftRadius: 5, borderTopRightRadius: 5, backgroundColor: '#7DD3FC' }} />)}
+      </View>
+      <View accessibilityElementsHidden style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+        {nights.map((n) => <Text key={n.d} style={{ flex: 1, textAlign: 'center', color: '#94A3B8', fontSize: 10 }}>{n.label[0]}</Text>)}
+      </View>
+    </View>
+  )
+}
 
 export default function Health() {
   const { colors } = useTheme()
@@ -40,15 +66,25 @@ export default function Health() {
   const h: any = useMemo(() => healthSummary(data.health_logs, today), [data.health_logs, today])
   const sleepData = h.week.map((w: any) => ({ label: w.label, value: w.sleep }))
   const waterData = h.week.map((w: any) => ({ label: w.label, value: w.water }))
+  const sleepGoal = sleepGoalOf(settings)
+  const { consistency, energy }: any = useMemo(() => {
+    const recent = h.history.slice(0, 14)
+    return { consistency: sleepConsistency(recent, { goalMinutes: sleepGoal }), energy: averageEnergy(recent) }
+  }, [h, sleepGoal])
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView refreshControl={pullToRefresh(refreshing, refetch)} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 32 }}>
-        <ModuleHeader title="Sleep & Health" action={<Button title="💧 Water" variant="ghost" onPress={() => setWater(true)} />} />
+        <ModuleHeader title="Sleep & Health" action={<Button title="Log water" variant="ghost" onPress={() => setWater(true)} />} />
         <DataGate loading={loading} error={error} onRetry={refetch}>
+          <NightHero
+            value={h.avgSleepMinutes == null ? '—' : fmtDuration(h.avgSleepMinutes)}
+            sub={h.nightsLogged ? `goal ${fmtDuration(sleepGoal)} · ${h.nightsLogged} night${h.nightsLogged === 1 ? '' : 's'}` : 'No sleep logged'}
+            nights={h.week}
+            goalHours={sleepGoal / 60}
+          />
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-            <StatTile label="Avg sleep (7 days)" value={h.avgSleepMinutes == null ? '—' : fmtDuration(h.avgSleepMinutes)} sub={h.nightsLogged ? `${h.nightsLogged} nights logged` : 'No sleep logged'} />
-            <StatTile label="Water today" value={`${h.todayLog?.water_ml ?? 0} ml`} sub={settings.water_goal_ml ? `goal ${settings.water_goal_ml} ml` : undefined} progress={settings.water_goal_ml ? ((h.todayLog?.water_ml ?? 0) / settings.water_goal_ml) * 100 : null} tone="success" />
+            <StatTile label="Water today" value={`${h.todayLog?.water_ml ?? 0} ml`} sub={settings.water_goal_ml ? `goal ${settings.water_goal_ml} ml` : undefined} progress={settings.water_goal_ml ? ((h.todayLog?.water_ml ?? 0) / settings.water_goal_ml) * 100 : null} />
             <StatTile label="Steps today" value={(h.todayLog?.steps ?? 0).toLocaleString('en-IN')} sub={settings.steps_goal ? `goal ${settings.steps_goal.toLocaleString('en-IN')}` : undefined} progress={settings.steps_goal ? ((h.todayLog?.steps ?? 0) / settings.steps_goal) * 100 : null} />
             <StatTile label="Latest weight" value={h.latestWeight != null ? `${h.latestWeight} kg` : '—'} sub={h.weightChange != null ? `${signedKg(h.weightChange)} since first log` : undefined} />
           </View>
@@ -65,9 +101,9 @@ export default function Health() {
               <View style={{ flex: 1 }}><Field label="Water (ml)" value={values.water_ml} onChangeText={(t) => set('water_ml', t)} error={errors.water_ml} keyboardType="number-pad" /></View>
               <View style={{ flex: 1 }}><Field label="Steps" value={values.steps} onChangeText={(t) => set('steps', t)} error={errors.steps} keyboardType="number-pad" /></View>
             </View>
-            <Text style={{ color: colors.foreground, fontWeight: '500', marginTop: 8 }}>Energy level</Text>
+            <Text style={{ color: colors.foreground, fontWeight: '500', marginTop: 8 }}>Energy level <Text style={{ color: colors.mutedForeground, fontWeight: '400', fontSize: 13 }}>1 low · 5 high</Text></Text>
             <View style={{ flexDirection: 'row', gap: 8, marginVertical: 6 }}>
-              {[1, 2, 3, 4, 5].map((n) => <Chip key={n} label={`⚡${n}`} selected={values.energy_level === String(n)} onPress={() => set('energy_level', values.energy_level === String(n) ? '' : String(n))} />)}
+              {[1, 2, 3, 4, 5].map((n) => <Chip key={n} label={String(n)} selected={values.energy_level === String(n)} onPress={() => set('energy_level', values.energy_level === String(n) ? '' : String(n))} />)}
             </View>
             <Field label="Weight (kg)" value={values.weight_kg} onChangeText={(t) => set('weight_kg', t)} error={errors.weight_kg} keyboardType="decimal-pad" />
             <Field label="Notes" value={values.notes} onChangeText={(t) => set('notes', t)} multiline numberOfLines={2} style={{ minHeight: 64, textAlignVertical: 'top', paddingTop: 12 }} />
@@ -78,7 +114,12 @@ export default function Health() {
           </Card>
 
           <Card><Txt variant="heading">Sleep — last 7 days (hours)</Txt>
-            <BarChart data={sleepData} unit="h" refLine={8} maxValue={10} color={colors.secondary} summary={`Hours of sleep, last 7 days: ${sleepData.map((d: any) => `${d.label} ${d.value ?? 'none'}`).join(', ')}`} /></Card>
+            <BarChart data={sleepData} unit="h" refLine={sleepGoal / 60} maxValue={12} color={colors.secondary} summary={`Hours of sleep, last 7 days: ${sleepData.map((d: any) => `${d.label} ${d.value ?? 'none'}`).join(', ')}. Goal ${sleepGoal / 60} hours.`} />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
+              {([['Goal', fmtDuration(sleepGoal)], ['Met goal', consistency.nightsLogged ? `${consistency.nightsMetGoal} of ${consistency.nightsLogged}` : null], ['Usual bedtime', consistency.avgBedtime], ['Usual wake-up', consistency.avgWake], ['Regularity', consistency.label], ['Avg energy', energy != null ? `${energy} / 5` : null]] as [string, string | null][]).filter(([, v]) => v).map(([k, v]) => (
+                <View key={k} style={{ flexBasis: '45%', flexGrow: 1 }}><Txt variant="small" muted>{k}</Txt><Text style={{ color: colors.foreground, fontWeight: '500' }}>{v}</Text></View>
+              ))}
+            </View></Card>
           <Card><Txt variant="heading">Water (ml)</Txt>
             <BarChart data={waterData} refLine={settings.water_goal_ml || undefined} color={colors.success} summary={`Water in ml, last 7 days: ${waterData.map((d: any) => `${d.label} ${d.value ?? 0}`).join(', ')}`} /></Card>
           <Card><Txt variant="heading">Weight trend (kg)</Txt>

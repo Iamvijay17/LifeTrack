@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { register, addTask, pickOption } from './helpers'
+import { register, addTask, pickOption, pickTime } from './helpers'
 
 test.describe('planner', () => {
   test('validates, creates, completes, edits and deletes a task; progress reflects it', async ({ page }) => {
@@ -13,13 +13,13 @@ test.describe('planner', () => {
     await expect(page.getByText('Write unit tests')).toBeVisible()
 
     await page.goto('/')
-    await expect(page.getByText(/of \d+ planned activities/)).toContainText('0 of 4') // 1 task + study + water + steps
+    await expect(page.getByText(/of \d+ planned activities/)).toContainText('0 of 3') // 1 task + water + steps (the study target only counts once you study)
     await page.goto('/planner')
     await page.getByRole('button', { name: 'Complete "Write unit tests"' }).click()
     await expect(page.getByRole('button', { name: 'Mark "Write unit tests" as not done' })).toBeVisible()
     await page.goto('/')
-    await expect(page.getByText(/of \d+ planned activities/)).toContainText('1 of 4')
-    await expect(page.getByRole('img', { name: '25% complete' })).toBeVisible()
+    await expect(page.getByText(/of \d+ planned activities/)).toContainText('1 of 3')
+    await expect(page.getByRole('img', { name: '33% complete' })).toBeVisible()
 
     await page.goto('/planner')
     await page.getByRole('button', { name: 'Actions for Write unit tests' }).click()
@@ -35,7 +35,7 @@ test.describe('planner', () => {
     await page.getByRole('button', { name: 'Actions for Maybe later' }).click()
     await page.getByRole('menuitem', { name: 'Cancel task' }).click()
     await page.goto('/')
-    await expect(page.getByText(/of \d+ planned activities/)).toContainText('0 of 3') // only study/water/steps remain
+    await expect(page.getByText(/of \d+ planned activities/)).toContainText('0 of 2') // only water/steps remain
   })
 
   test('recurring task spawns the next occurrence exactly once', async ({ page }) => {
@@ -211,21 +211,21 @@ test.describe('sleep & health', () => {
   test('overnight sleep duration is calculated correctly and persisted', async ({ page }) => {
     await register(page)
     await page.goto('/health')
-    await page.getByLabel('Bedtime').fill('23:30')
-    await page.getByLabel('Wake-up').fill('06:30')
+    await pickTime(page.getByLabel('Bedtime'), '23:30')
+    await pickTime(page.getByLabel('Wake-up'), '06:30')
     await expect(page.getByTestId('sleep-duration')).toContainText('7h')
     await page.getByRole('spinbutton', { name: 'Steps' }).fill('8421')
     await page.getByRole('button', { name: 'Save log' }).click()
     await expect(page.getByText('Health log saved').first()).toBeVisible()
     await page.reload()
-    await expect(page.getByLabel('Bedtime')).toHaveValue('23:30')
+    await expect(page.getByLabel('Bedtime')).toHaveText('23:30')
     await expect(page.getByText('8,421').first()).toBeVisible()
   })
 
   test('rejects half-filled sleep times', async ({ page }) => {
     await register(page)
     await page.goto('/health')
-    await page.getByLabel('Bedtime').fill('23:30')
+    await pickTime(page.getByLabel('Bedtime'), '23:30')
     await page.getByRole('button', { name: 'Save log' }).click()
     await expect(page.getByText('Enter both bedtime and wake-up time')).toBeVisible()
   })
@@ -254,7 +254,7 @@ test.describe('fitness', () => {
     await page.getByRole('dialog').getByRole('button', { name: 'Log workout' }).click()
     await expect(page.getByText('Workout done')).toBeVisible()
     await page.getByRole('tab', { name: 'History' }).click()
-    await page.getByText('Upper body').click()
+    await page.getByRole('button', { name: /^Upper body/ }).click()
     await expect(page.getByText('8×60kg')).toBeVisible()
   })
 })

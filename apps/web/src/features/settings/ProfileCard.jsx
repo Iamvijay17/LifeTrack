@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { User } from 'lucide-react'
 import { SettingsSection } from '@/components/shared/SettingsSection'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/form'
@@ -33,7 +34,7 @@ export function ProfileCard() {
   )
 
   return (
-    <SettingsSection title="Profile">
+    <SettingsSection icon={User} title="Profile">
       <form className="flex items-start gap-2" noValidate onSubmit={handleSubmit(save)}>
         <Field label="Display name" className="flex-1" error={errors.name?.message}>
           <Input maxLength={80} {...register('name')} />

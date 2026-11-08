@@ -17,6 +17,7 @@ export const TASK_CATEGORIES = ['Learning', 'Job Search', 'Gym', 'Health', 'Pers
 export const JOB_STATUSES = ['interested', 'preparing', 'applied', 'assessment', 'interview', 'selected', 'offer', 'rejected', 'withdrawn'] as const
 export const PAYMENT_METHODS = ['Cash', 'UPI', 'Credit card', 'Debit card', 'Bank transfer', 'Other'] as const
 export const REMINDER_KINDS = ['task', 'study', 'workout', 'habit', 'bill', 'custom'] as const
+export const RECURRING_FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly'] as const
 
 /** Writable columns per table. Optional = has a DB default or is nullable. */
 const insertShapes = {
@@ -89,7 +90,11 @@ const insertShapes = {
   },
   transactions: {
     type: z.enum(['income', 'expense', 'savings']), amount_paise: z.number().int().positive(), category: text().optional(), txn_date: day,
-    note: text().optional(), payment_method: z.enum(PAYMENT_METHODS).optional(),
+    note: text().optional(), payment_method: z.enum(PAYMENT_METHODS).optional(), recurring_rule_id: uuid.nullable().optional(), recurring_date: day.nullable().optional(),
+  },
+  recurring_rules: {
+    type: z.enum(['income', 'expense', 'savings']), amount_paise: z.number().int().positive(), category: str(1, 40).optional(), payment_method: z.enum(PAYMENT_METHODS).optional(),
+    note: str(0, 300).optional(), frequency: z.enum(RECURRING_FREQUENCIES).optional(), anchor_day: int().min(1).max(31), next_date: day, end_date: day.nullable().optional(), active: z.boolean().optional(),
   },
   budgets: { month: day.refine((d) => d.endsWith('-01'), 'Must be the first day of a month'), category: text().optional(), amount_paise: paise() },
   journal_entries: { entry_date: day, mood: int().min(1).max(5).nullable().optional(), content: text().optional(), wins: text().optional() },

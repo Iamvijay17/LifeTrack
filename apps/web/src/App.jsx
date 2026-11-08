@@ -4,9 +4,11 @@ import { Toaster } from 'sonner'
 import { isMisconfigured } from '@/lib/backend'
 import { ConfigError } from '@/components/shared/ConfigError'
 import { AuthProvider, useAuth } from '@/hooks/useAuth'
+import { useResolvedTheme } from '@/hooks/useTheme'
 import { ConfirmProvider } from '@/components/shared/Confirm'
 import { AppShell } from '@/components/layout/AppShell'
 import { FullScreenLoader, InitialAppLoader } from '@/components/loaders'
+import { MotionProvider } from '@/components/motion/primitives'
 import LegalPage from '@/features/legal/LegalPage'
 import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from '@/features/auth/AuthPages'
 
@@ -37,51 +39,64 @@ function Protected({ children }) {
 }
 
 export default function App() {
+  const theme = useResolvedTheme()
   if (isMisconfigured) return <ConfigError />
   return (
-    <AuthProvider>
-      <ConfirmProvider>
-        <Suspense fallback={<FullScreenLoader message="Syncing your progress..." />}>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
-            <Route path="/privacy" element={<LegalPage doc="privacy" />} />
-            <Route path="/terms" element={<LegalPage doc="terms" />} />
-            <Route
-              element={
-                <Protected>
-                  <AppShell />
-                </Protected>
-              }
-            >
-              <Route index element={<Overview />} />
-              <Route path="planner" element={<Planner />} />
-              <Route path="learning" element={<Learning />} />
-              <Route path="jobs" element={<Jobs />} />
-              <Route path="fitness" element={<Fitness />} />
-              <Route path="health" element={<Health />} />
-              <Route path="finance" element={<Finance />} />
-              <Route path="habits" element={<Habits />} />
-              <Route path="analytics" element={<Analytics />} />
-              <Route path="focus" element={<Focus />} />
-              <Route path="notes" element={<Notes />} />
-              <Route path="goals" element={<Goals />} />
-              <Route path="reports" element={<Reports />} />
-              <Route path="notifications" element={<Notifications />} />
-              <Route path="export" element={<ExportPage />} />
-              <Route path="settings" element={<Settings />} />
-            </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-        <Toaster
-          theme="system"
-          position="top-center"
-          toastOptions={{ classNames: { toast: '!bg-card !text-foreground !border-border' } }}
-        />
-      </ConfirmProvider>
-    </AuthProvider>
+    <MotionProvider>
+      <AuthProvider>
+        <ConfirmProvider>
+          <Suspense fallback={<FullScreenLoader message="Syncing your progress..." />}>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/privacy" element={<LegalPage doc="privacy" />} />
+              <Route path="/terms" element={<LegalPage doc="terms" />} />
+              <Route
+                element={
+                  <Protected>
+                    <AppShell />
+                  </Protected>
+                }
+              >
+                <Route index element={<Overview />} />
+                <Route path="planner" element={<Planner />} />
+                <Route path="learning" element={<Learning />} />
+                <Route path="jobs" element={<Jobs />} />
+                <Route path="fitness" element={<Fitness />} />
+                <Route path="health" element={<Health />} />
+                <Route path="finance" element={<Finance />} />
+                <Route path="habits" element={<Habits />} />
+                <Route path="analytics" element={<Analytics />} />
+                <Route path="focus" element={<Focus />} />
+                <Route path="notes" element={<Notes />} />
+                <Route path="goals" element={<Goals />} />
+                <Route path="reports" element={<Reports />} />
+                <Route path="notifications" element={<Notifications />} />
+                <Route path="export" element={<ExportPage />} />
+                <Route path="settings" element={<Settings />} />
+              </Route>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+          <Toaster
+            theme={theme}
+            position="top-center"
+            gap={8}
+            offset={{ top: 16 }}
+            toastOptions={{
+              classNames: {
+                toast: '!rounded-xl !bg-card !text-foreground !border-border !shadow-overlay !font-sans',
+                description: '!text-muted-foreground',
+                actionButton: '!rounded-md !bg-primary-solid !text-white',
+                success: '[&_[data-icon]]:!text-success',
+                error: '[&_[data-icon]]:!text-danger',
+              },
+            }}
+          />
+        </ConfirmProvider>
+      </AuthProvider>
+    </MotionProvider>
   )
 }

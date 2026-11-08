@@ -1,3 +1,4 @@
+import { Palette } from 'lucide-react'
 import { SettingsSection } from '@/components/shared/SettingsSection'
 import { Segmented } from '@/components/ui/misc'
 import { useAction } from '@/hooks/useAction'
@@ -17,7 +18,7 @@ export function AppearanceCard() {
     await save({ theme })
   })
   return (
-    <SettingsSection title="Appearance" desc="Follows your account on every device.">
+    <SettingsSection icon={Palette} title="Appearance" desc="Follows your account on every device.">
       <Segmented value={settings.theme} onChange={setTheme} options={THEMES} />
     </SettingsSection>
   )

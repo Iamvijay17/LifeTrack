@@ -1,7 +1,8 @@
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { CheckCircle2, Circle, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
+import { CheckButton } from '@/components/shared/CheckButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/form'
 import { nextMilestonePosition } from '@/domain/goals'
@@ -41,18 +42,21 @@ export function Milestones({ goal, milestones }) {
 
   return (
     <div className="mt-3 space-y-2 border-t border-border pt-3">
-      <ul className="space-y-1">
+      <ul className="relative space-y-0.5 before:absolute before:bottom-4 before:left-[0.7rem] before:top-4 before:w-px before:bg-border">
         {milestones.map((m) => (
-          <li key={m.id} className="flex items-center gap-2 rounded px-1 py-1 text-sm hover:bg-muted/40">
-            <button onClick={() => toggle(m)} aria-label={`${m.done ? 'Mark not done' : 'Mark done'}: ${m.title}`} aria-pressed={m.done}>
-              {m.done ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
-            </button>
+          <li key={m.id} className="relative flex items-center gap-2 rounded-md py-0.5 pr-1 text-sm transition-colors hover:bg-muted/40">
+            <CheckButton
+              done={m.done}
+              onToggle={() => toggle(m)}
+              label={`${m.done ? 'Mark not done' : 'Mark done'}: ${m.title}`}
+              className="-ml-2.5 bg-card md:ml-[-0.2rem] md:h-6 md:w-6 [&>span]:md:h-[18px] [&>span]:md:w-[18px]"
+            />
             <span className={cn('min-w-0 flex-1 truncate', m.done && 'text-muted-foreground line-through')}>{m.title}</span>
             {m.due_date && <span className="text-xs text-muted-foreground">{fmtDay(m.due_date, 'd MMM')}</span>}
             <button
               onClick={() => remove(m.id)}
               aria-label={`Delete milestone ${m.title}`}
-              className="text-muted-foreground hover:text-danger"
+              className="lt-press text-muted-foreground transition-colors hover:text-danger"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>

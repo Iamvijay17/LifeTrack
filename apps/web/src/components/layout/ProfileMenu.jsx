@@ -15,7 +15,7 @@ export function ProfileMenu() {
     <Menu
       label={`Profile menu for ${displayName || user?.email || 'you'}`}
       trigger={
-        <span className="grid h-9 w-9 place-items-center rounded-full bg-primary/20 text-sm font-semibold text-secondary">
+        <span className="lt-press grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-[#8B5CF6] to-[#6366F1] text-sm font-semibold text-white shadow-card md:h-8 md:w-8 md:text-xs">
           {initial ?? <User className="h-4 w-4" />}
         </span>
       }

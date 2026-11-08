@@ -67,7 +67,7 @@ describe('TodayStats', () => {
     wrap(<TodayStats h={{ ...h, habitsDone: 0, habitsDue: 0, studyRunning: true }} settings={{}} money={money} />)
     expect(screen.getByText('not logged')).toBeInTheDocument()
     expect(screen.getByText('none due today')).toBeInTheDocument()
-    expect(screen.getByText('⏱ timer running')).toBeInTheDocument()
+    expect(screen.getByText('timer running')).toBeInTheDocument()
     expect(screen.getByText('0 ml')).toBeInTheDocument()
   })
 })
@@ -127,5 +127,14 @@ describe('CustomizeDialog', () => {
     expect(screen.getByRole('switch', { name: "Today's progress" })).toHaveAttribute('aria-checked', 'true')
     await userEvent.click(score)
     expect(onToggle).toHaveBeenCalledWith('score', true)
+  })
+})
+
+describe('CustomizeDialog arranging', () => {
+  it('lists widgets in the saved order, with the rest after them', () => {
+    render(<CustomizeDialog open onOpenChange={() => {}} prefs={{ order: ['quick', 'score'] }} onToggle={() => {}} onReorder={() => {}} />)
+    const names = screen.getAllByRole('switch').map((s) => s.getAttribute('aria-label'))
+    expect(names.slice(0, 2)).toEqual(['Quick actions', 'Daily score'])
+    expect(names).toHaveLength(12)
   })
 })

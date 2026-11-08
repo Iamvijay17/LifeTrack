@@ -8,7 +8,7 @@ export function StatusHistory({ history, tz }) {
     <ol className="space-y-1.5 border-l border-border pl-4">
       {history.map((h) => (
         <li key={h.id} className="relative text-sm">
-          <span className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-primary" />
+          <span className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-mod" />
           <span className="flex flex-wrap items-center gap-1.5">
             {h.from_status ? (
               <>

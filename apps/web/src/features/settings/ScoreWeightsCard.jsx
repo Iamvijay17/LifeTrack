@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { Gauge } from 'lucide-react'
 import { SettingsSection } from '@/components/shared/SettingsSection'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/form'
@@ -48,11 +49,12 @@ export function ScoreWeightsCard() {
 
   return (
     <SettingsSection
+      icon={Gauge}
       title="Daily score weights"
       desc="Categories with nothing planned or logged that day are skipped and the remaining weights are re-balanced, so rest days are never penalised."
     >
       <form noValidate className="space-y-4" onSubmit={handleSubmit(submit)}>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {SCORE_CATEGORIES.map((c) => (
             <Field key={c.key} label={c.label} hint={`${shares[c.key]}% of the total`} error={errors[c.key]?.message}>
               <Input type="number" min={0} max={100} inputMode="numeric" {...register(c.key)} />

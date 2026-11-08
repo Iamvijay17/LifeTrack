@@ -1,6 +1,6 @@
 import { Line, LineChart } from 'recharts'
 import { Ruler, Trash2 } from 'lucide-react'
-import { Chart, C, grid, tooltip, xAxis, yAxis } from '@/components/shared/charts'
+import { Chart, C, grid, tooltip, xAxis, yAxis, seriesSummary } from '@/components/shared/charts'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useConfirmedDelete } from '@/hooks/useConfirmedDelete'
@@ -23,7 +23,7 @@ export function BodyTab({ weightData, measurements, onLog }) {
   const removeEntry = useConfirmedDelete('body_measurements', 'Entry deleted')
   const sorted = [...measurements].sort((a, b) => b.measured_on.localeCompare(a.measured_on))
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle>Weight trend</CardTitle>
@@ -33,13 +33,18 @@ export function BodyTab({ weightData, measurements, onLog }) {
           </Button>
         </CardHeader>
         <CardContent>
-          <Chart height={220} empty={weightData.length < 2} emptyText="Log weight on two or more days to see a trend.">
+          <Chart
+            summary={seriesSummary('Weight', weightData, 'kg', ' kg')}
+            height={220}
+            empty={weightData.length < 2}
+            emptyText="Log weight on two or more days to see a trend."
+          >
             <LineChart data={weightData}>
               {grid()}
               {xAxis({ dataKey: 'label' })}
               {yAxis({ domain: ['dataMin - 1', 'dataMax + 1'] })}
               {tooltip({ formatter: (v) => [`${v} kg`, 'Weight'] })}
-              <Line dataKey="kg" stroke={C.primary} strokeWidth={2} dot={{ r: 2 }} />
+              <Line type="monotone" dataKey="kg" stroke={C.mod} strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
             </LineChart>
           </Chart>
         </CardContent>
@@ -52,7 +57,7 @@ export function BodyTab({ weightData, measurements, onLog }) {
           {sorted.length === 0 ? (
             <p className="p-6 text-center text-sm text-muted-foreground">No measurements yet.</p>
           ) : (
-            <ul className="divide-y divide-border">
+            <ul className="divide-y divide-border/70">
               {sorted.map((m) => (
                 <li key={m.id} className="flex items-center justify-between gap-2 px-4 py-2.5 text-sm">
                   <div>

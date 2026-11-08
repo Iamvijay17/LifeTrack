@@ -1,16 +1,18 @@
-import { useState } from 'react'
-import { Check, Flame, Plus, Trophy } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Flame, Plus } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate, EmptyState } from '@/components/shared/states'
 import { DateNav } from '@/components/shared/DateNav'
-import { StatCard } from '@/components/shared/StatCard'
+import { Checkbox } from '@/components/ui/form'
+import { Stagger, StaggerItem } from '@/components/motion/primitives'
 import { Button } from '@/components/ui/button'
 import { useSettings } from '@/hooks/useSettings'
 import { useToday } from '@/hooks/useToday'
 import { summarizeHabits } from '@/domain/habits'
-import { pctText } from '@/lib/format'
+import { celebrate } from '@/lib/celebrate'
 import { HabitDialog } from './HabitDialog'
 import { HabitRow } from './HabitRow'
+import { HabitsOverview } from './HabitsOverview'
 import { ConsistencyCard } from './ConsistencyCard'
 import { PerHabitStats } from './PerHabitStats'
 import { useHabits } from './useHabits'
@@ -29,11 +31,19 @@ export default function HabitsPage() {
   const visible = stats.filter((s) => showArchived || !s.habit.archived_at)
   const newHabit = () => setDialog({ open: true, habit: null })
 
+  // Finishing the last habit of the day earns confetti, but only at the moment it happens, not every time a finished day is opened.
+  const remaining = day === today && !loading ? active.length - doneOnDay : null
+  const wasRemaining = useRef(null)
+  useEffect(() => {
+    if (wasRemaining.current > 0 && remaining === 0) celebrate()
+    wasRemaining.current = remaining
+  }, [remaining])
+
   return (
     <>
       <PageHeader
         title="Habits"
-        description="One tap a day. Streaks are calculated from your real check-ins."
+        description="One tap a day builds the streak."
         actions={
           <Button onClick={newHabit}>
             <Plus className="h-4 w-4" />
@@ -51,40 +61,33 @@ export default function HabitsPage() {
           />
         ) : (
           <div className="space-y-5">
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <StatCard
-                icon={Check}
-                label={day === today ? 'Done today' : 'Done that day'}
-                value={`${doneOnDay}/${active.length}`}
-                progress={active.length ? (doneOnDay / active.length) * 100 : 0}
-                tone="success"
-              />
-              <StatCard icon={Flame} label="Best current streak" value={bestCurrent} sub="days / weeks" />
-              <StatCard icon={Trophy} label="Longest streak" value={longest} sub="across all habits" />
-              <StatCard
-                label="30-day completion"
-                value={pctText(avg30)}
-                sub="average of habits"
-                progress={avg30 == null ? null : avg30 * 100}
-              />
-            </div>
+            <HabitsOverview
+              active={active}
+              day={day}
+              today={today}
+              weekStartsOn={weekStartsOn}
+              doneOnDay={doneOnDay}
+              bestCurrent={bestCurrent}
+              longest={longest}
+              avg30={avg30}
+              onSelect={setDate}
+            />
             <div className="flex flex-wrap items-center justify-between gap-3">
               <DateNav date={day} onChange={setDate} today={today} />
-              <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={showArchived}
-                  onChange={(e) => setShowArchived(e.target.checked)}
-                  className="accent-[rgb(var(--primary))]"
-                />
-                Show archived
-              </label>
+              <Checkbox
+                checked={showArchived}
+                onChange={setShowArchived}
+                label="Show archived"
+                className="min-h-10 text-xs text-muted-foreground md:min-h-0"
+              />
             </div>
-            <ul className="grid gap-2 md:grid-cols-2">
+            <Stagger as="ul" gap={0.04} className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
               {visible.map((s) => (
-                <HabitRow key={s.habit.id} s={s} date={day} onEdit={(habit) => setDialog({ open: true, habit })} />
+                <StaggerItem as="li" key={s.habit.id}>
+                  <HabitRow s={s} date={day} onEdit={(habit) => setDialog({ open: true, habit })} />
+                </StaggerItem>
               ))}
-            </ul>
+            </Stagger>
             <ConsistencyCard active={active} today={today} weekStartsOn={weekStartsOn} selected={day} onSelect={setDate} />
             <PerHabitStats active={active} />
           </div>

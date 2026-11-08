@@ -26,10 +26,11 @@ describe('daily score', () => {
   it('weights categories as configured', () => {
     const tasks = [{ due_date: D, status: 'done', category: 'Job Search' }]
     const habits = [{ id: 'h', frequency: 'daily', start_date: '2026-01-01', days_of_week: [], archived_at: null }]
+    const studying = [{ session_date: '2026-10-30', status: 'completed', duration_seconds: 600 }] // studied recently, nothing today
     // learning 0% (weight 25), career 100% (25)  => 50
-    expect(dailyScore({ ...base, tasks, habits: [] }).score).toBe(50)
+    expect(dailyScore({ ...base, tasks, sessions: studying, habits: [] }).score).toBe(50)
     // double the career weight => (0*25 + 1*50)/75 = 67
-    expect(dailyScore({ ...base, tasks, settings: { ...settings, score_weights: { ...DEFAULT_WEIGHTS, career: 50 } } }).score).toBe(67)
+    expect(dailyScore({ ...base, tasks, sessions: studying, settings: { ...settings, score_weights: { ...DEFAULT_WEIGHTS, career: 50 } } }).score).toBe(67)
     expect(habits.length).toBe(1)
   })
   it('does not penalise a planned rest day or a skipped workout', () => {
@@ -49,6 +50,23 @@ describe('daily score', () => {
   it('credits applications sent and ignores cancelled/skipped tasks', () => {
     const r = dailyScore({ ...base, settings: { ...settings, daily_study_target_minutes: 0 }, applications: [{ applied_date: D }], tasks: [{ due_date: D, status: 'cancelled', category: 'Job Search' }] })
     expect(r.categories.find((c) => c.key === 'career').fraction).toBe(1)
+  })
+  it('only applies the study target once the user studies, so a non-learner is not scored zero', () => {
+    expect(dailyScore({ ...base }).score).toBeNull()
+    expect(dailyScore({ ...base, sessions: [{ session_date: '2026-10-01', status: 'completed', duration_seconds: 600 }] }).score).toBeNull() // too long ago
+    const recent = dailyScore({ ...base, sessions: [{ session_date: '2026-10-30', status: 'completed', duration_seconds: 600 }] })
+    expect(recent.categories.find((c) => c.key === 'learning').fraction).toBe(0)
+  })
+  it('counts Personal, Finance, Gym and Health tasks in the category they belong to', () => {
+    const noStudy = { ...settings, daily_study_target_minutes: 0 }
+    const t = (category, status) => ({ due_date: D, status, category })
+    const r = dailyScore({ ...base, settings: noStudy, tasks: [t('Personal', 'done'), t('Finance', 'pending'), t('Gym', 'done'), t('Health', 'pending')] })
+    const frac = (k) => r.categories.find((c) => c.key === k).fraction
+    expect(frac('habits')).toBe(0.5)
+    expect(frac('fitness')).toBe(1)
+    expect(frac('health')).toBe(0)
+    expect(r.score).toBe(Math.round(((0.5 * 15 + 1 * 20 + 0 * 15) / 50) * 100))
+    expect(dailyScore({ ...base, settings: noStudy, tasks: [t('Personal', 'cancelled'), t('Gym', 'skipped')] }).score).toBeNull()
   })
   it('sanitises weights and explains the result', () => {
     expect(normalizeWeights({ learning: -5, career: 'x' })).toEqual(DEFAULT_WEIGHTS)

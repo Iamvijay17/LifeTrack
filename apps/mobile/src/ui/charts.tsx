@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { View, Text } from 'react-native'
-import Svg, { Circle, G, Line, Polyline, Rect, Text as SvgText } from 'react-native-svg'
+import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Polyline, Rect, Stop, Text as SvgText } from 'react-native-svg'
 import { useTheme } from '../providers/ThemeProvider'
+import { useAccent } from './accent'
+import { FadeIn } from './motion'
 
 /** Simple vertical bar chart. `data`: [{ label, value }]. Accessible summary replaces per-bar tooltips. */
 export function BarChart({ data, height = 160, color, unit = '', summary, refLine, maxValue }: { data: { label: string; value: number | null }[]; height?: number; color?: string; unit?: string; summary: string; refLine?: number; maxValue?: number }) {
   const { colors } = useTheme()
+  const accent = useAccent()
   const [w, setW] = useState(0)
   const max = Math.max(1, maxValue ?? 0, refLine ?? 0, ...data.map((d) => d.value ?? 0))
   const padB = 22, padT = 16
@@ -15,7 +18,9 @@ export function BarChart({ data, height = 160, color, unit = '', summary, refLin
   return (
     <View onLayout={(e) => setW(e.nativeEvent.layout.width)} accessible accessibilityRole="image" accessibilityLabel={summary}>
       {w > 0 ? (
+        <FadeIn y={8}>
         <Svg width={w} height={height}>
+          <Defs><LinearGradient id="bar" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor={color ?? accent.from} /><Stop offset="1" stopColor={color ?? accent.to} stopOpacity={color ? 0.7 : 0.85} /></LinearGradient></Defs>
           <Line x1={0} x2={w} y1={height - padB} y2={height - padB} stroke={colors.border} strokeWidth={1} />
           {refLine != null ? <Line x1={0} x2={w} y1={height - padB - (refLine / max) * plotH} y2={height - padB - (refLine / max) * plotH} stroke={colors.mutedForeground} strokeWidth={1} strokeDasharray="4 4" /> : null}
           {data.map((d, i) => {
@@ -24,13 +29,14 @@ export function BarChart({ data, height = 160, color, unit = '', summary, refLin
             const x = i * slot + (slot - bar) / 2
             return (
               <G key={d.label}>
-                <Rect x={x} y={height - padB - h} width={bar} height={Math.max(h, v > 0 ? 2 : 0)} rx={4} fill={color ?? colors.primary} />
+                <Rect x={x} y={height - padB - h} width={bar} height={Math.max(h, v > 0 ? 2 : 0)} rx={6} fill="url(#bar)" />
                 {v > 0 ? <SvgText x={x + bar / 2} y={height - padB - h - 4} fontSize={10} fill={colors.mutedForeground} textAnchor="middle">{d.value}{unit}</SvgText> : null}
                 <SvgText x={x + bar / 2} y={height - 6} fontSize={11} fill={colors.mutedForeground} textAnchor="middle">{d.label}</SvgText>
               </G>
             )
           })}
         </Svg>
+        </FadeIn>
       ) : <View style={{ height }} />}
       {data.every((d) => !d.value) ? <Text style={{ position: 'absolute', alignSelf: 'center', top: height / 2 - 12, color: colors.mutedForeground }}>No data yet</Text> : null}
     </View>
@@ -40,6 +46,8 @@ export function BarChart({ data, height = 160, color, unit = '', summary, refLin
 /** Simple line chart with dots. `domain` pads the y-range around the data. */
 export function LineChart({ data, height = 160, color, unit = '', summary }: { data: { label: string; value: number }[]; height?: number; color?: string; unit?: string; summary: string }) {
   const { colors } = useTheme()
+  const accent = useAccent()
+  const stroke = color ?? accent.from
   const [w, setW] = useState(0)
   const padB = 22, padT = 16, padX = 14
   const plotH = height - padB - padT
@@ -52,17 +60,21 @@ export function LineChart({ data, height = 160, color, unit = '', summary }: { d
   return (
     <View onLayout={(e) => setW(e.nativeEvent.layout.width)} accessible accessibilityRole="image" accessibilityLabel={summary}>
       {w > 0 && data.length > 0 ? (
+        <FadeIn y={8}>
         <Svg width={w} height={height}>
+          <Defs><LinearGradient id="area" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor={stroke} stopOpacity={0.28} /><Stop offset="1" stopColor={stroke} stopOpacity={0} /></LinearGradient></Defs>
           <Line x1={0} x2={w} y1={height - padB} y2={height - padB} stroke={colors.border} strokeWidth={1} />
-          <Polyline points={pts} fill="none" stroke={color ?? colors.primary} strokeWidth={2} />
+          {data.length > 1 ? <Path d={`M${x(0)},${height - padB} L${pts.replaceAll(' ', ' L')} L${x(data.length - 1)},${height - padB} Z`} fill="url(#area)" /> : null}
+          <Polyline points={pts} fill="none" stroke={stroke} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
           {data.map((d, i) => (
             <G key={`${d.label}-${i}`}>
-              <Circle cx={x(i)} cy={y(d.value)} r={3} fill={color ?? colors.primary} />
+              <Circle cx={x(i)} cy={y(d.value)} r={3} fill={stroke} />
               {i % step === 0 ? <SvgText x={x(i)} y={height - 6} fontSize={10} fill={colors.mutedForeground} textAnchor="middle">{d.label}</SvgText> : null}
             </G>
           ))}
           <SvgText x={w - padX} y={padT - 4} fontSize={10} fill={colors.mutedForeground} textAnchor="end">{data.at(-1)!.value}{unit}</SvgText>
         </Svg>
+        </FadeIn>
       ) : <View style={{ height }} />}
     </View>
   )
@@ -110,7 +122,7 @@ export function GroupedBarChart({ data, series, height = 180, summary }: { data:
                 {d.values.map((v, k) => {
                   const h = (v / max) * plotH
                   const x = i * slot + (slot - bar * series.length) / 2 + k * bar
-                  return <Rect key={k} x={x} y={height - padB - h} width={bar - 1} height={Math.max(h, v > 0 ? 2 : 0)} rx={2} fill={series[k].color} />
+                  return <Rect key={k} x={x} y={height - padB - h} width={bar - 1} height={Math.max(h, v > 0 ? 2 : 0)} rx={3} fill={series[k].color} />
                 })}
                 <SvgText x={i * slot + slot / 2} y={height - 6} fontSize={11} fill={colors.mutedForeground} textAnchor="middle">{d.label}</SvgText>
               </G>

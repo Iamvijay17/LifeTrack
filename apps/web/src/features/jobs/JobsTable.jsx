@@ -5,37 +5,43 @@ import { cn } from '@/lib/utils'
 import { StatusBadge } from './StatusBadge'
 import { MoveMenu } from './MoveMenu'
 
-const COLUMNS = ['Company', 'Role', 'Status', 'Applied', 'Package', 'Follow-up', '']
+const COLUMNS = ['Company', 'Role', 'Status', 'Applied', 'Package', 'Follow-up']
 
-/** Table on desktop, stacked cards on phones. */
+/** Table on desktop, stacked cards on phones and tablets. */
 export function JobsTable({ apps, today, onOpen }) {
   return (
     <>
-      <Card className="hidden overflow-hidden md:block">
-        <table className="w-full text-sm">
-          <thead className="border-b border-border text-left text-xs text-muted-foreground">
+      <Card className="hidden overflow-x-auto lg:block">
+        <table className="lt-table">
+          <thead>
             <tr>
-              {COLUMNS.map((h, i) => (
-                <th key={i} className="px-4 py-2.5 font-medium">
-                  {h}
-                </th>
+              {COLUMNS.map((h) => (
+                <th key={h}>{h}</th>
               ))}
+              <th>
+                <span className="sr-only">Move</span>
+              </th>
             </tr>
           </thead>
           <tbody>
             {apps.map((a) => (
-              <tr key={a.id} className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/30" onClick={() => onOpen(a)}>
-                <td className="px-4 py-2.5 font-medium">{a.company}</td>
-                <td className="px-4 py-2.5 text-muted-foreground">{a.job_title}</td>
-                <td className="px-4 py-2.5">
+              <tr key={a.id} className="cursor-pointer" onClick={() => onOpen(a)}>
+                <td className="font-medium">
+                  {/* The row is clickable for the mouse; this is the same action for keyboards and screen readers. */}
+                  <button type="button" className="rounded text-left hover:underline" onClick={() => onOpen(a)}>
+                    {a.company}
+                  </button>
+                </td>
+                <td className="text-muted-foreground">{a.job_title}</td>
+                <td>
                   <StatusBadge status={a.status} />
                 </td>
-                <td className="px-4 py-2.5 text-muted-foreground">{a.applied_date ? fmtDay(a.applied_date, 'd MMM') : '—'}</td>
-                <td className="px-4 py-2.5 text-muted-foreground">{formatLpa(a.salary_paise) ?? '—'}</td>
-                <td className={cn('px-4 py-2.5', a.followup_date && a.followup_date <= today && 'text-warning')}>
+                <td className="whitespace-nowrap text-muted-foreground">{a.applied_date ? fmtDay(a.applied_date, 'd MMM') : '—'}</td>
+                <td className="whitespace-nowrap text-muted-foreground">{formatLpa(a.salary_paise) ?? '—'}</td>
+                <td className={cn('whitespace-nowrap', a.followup_date && a.followup_date <= today && 'text-warning')}>
                   {a.followup_date ? fmtDay(a.followup_date, 'd MMM') : '—'}
                 </td>
-                <td className="px-2" onClick={(e) => e.stopPropagation()}>
+                <td className="!px-2" onClick={(e) => e.stopPropagation()}>
                   <MoveMenu app={a} today={today} />
                 </td>
               </tr>
@@ -43,7 +49,7 @@ export function JobsTable({ apps, today, onOpen }) {
           </tbody>
         </table>
       </Card>
-      <div className="space-y-2 md:hidden">
+      <div className="space-y-2 lg:hidden">
         {apps.map((a) => (
           <Card key={a.id}>
             <CardContent className="p-3">

@@ -67,7 +67,7 @@ export default function GoalsPage() {
               action={tab === 'active' ? <Button onClick={newGoal}>Create a goal</Button> : undefined}
             />
           ) : (
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {shown.map((row) => (
                 <GoalCard key={row.goal.id} row={row} today={today} onEdit={(goal) => setDlg({ open: true, goal })} />
               ))}

@@ -4,6 +4,7 @@ import { forgotPasswordSchema } from '@lifetrack/schemas'
 import { toAppError } from '@lifetrack/data'
 import { authService } from '../../src/lib/supabase'
 import { Button, Field, Screen, Txt } from '../../src/ui'
+import { BrandMark } from '../../src/ui/BrandMark'
 import { useTheme } from '../../src/providers/ThemeProvider'
 
 export default function ForgotPassword() {
@@ -21,6 +22,7 @@ export default function ForgotPassword() {
   }
   return (
     <Screen>
+      <BrandMark />
       <Txt variant="title">Reset password</Txt>
       <Txt muted>We will email you a link. Open it on this device.</Txt>
       <Field label="Email" value={email} onChangeText={setEmail} error={error} autoCapitalize="none" keyboardType="email-address" autoComplete="email" onSubmitEditing={submit} />

@@ -40,6 +40,7 @@ export function BackupCard() {
 
   return (
     <SettingsSection
+      icon={FileJson}
       title="Your data"
       desc="Export everything any time. Restoring merges into this account and never deletes existing data."
     >

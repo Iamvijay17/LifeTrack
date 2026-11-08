@@ -53,7 +53,7 @@ export default function ReportsPage() {
     <>
       <PageHeader
         title="Reports"
-        description="Summaries computed from your own records — no estimates."
+        description="Summaries of any period, ready to print or export."
         actions={
           <>
             <Button variant="outline" onClick={() => window.print()}>
