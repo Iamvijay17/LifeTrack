@@ -29,8 +29,8 @@
     "verify:bundles": "pnpm --filter @lifetrack/web verify:bundles"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.14",
-    "@vitest/coverage-v8": "5.0.5",
+    "@electric-sql/pglite": "^0.5.15",
+    "@vitest/coverage-v8": "5.1.0",
     "typescript": "^5.9.0",
     "@eslint/js": "^9.39.5",
     "eslint": "^9.39.5",
