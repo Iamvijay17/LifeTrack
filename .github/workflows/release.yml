@@ -47,7 +47,7 @@ jobs:
       - name: Legal documents are finished (full releases only)
         if: ${{ !inputs.prerelease }}
         run: node scripts/check-legal-ready.mjs
-      - uses: pnpm/action-setup@v5
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
@@ -59,7 +59,7 @@ jobs:
         run: |
           mkdir -p out
           (cd apps/web/dist && zip -qr "../../../out/lifetrack-web-${VERSION}.zip" .)
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with: { name: release-web, path: out/*.zip, retention-days: 7 }
 
   android:
@@ -77,7 +77,7 @@ jobs:
             exit 1
           fi
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v5
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
@@ -95,7 +95,7 @@ jobs:
           mkdir -p out
           curl -fsSL "$url" -o "out/lifetrack-${VERSION}.apk"
           ls -l out
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with: { name: release-android, path: out/*.apk, retention-days: 7 }
 
   publish:
@@ -106,7 +106,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { path: files, merge-multiple: true }
       - name: Create or update the release
         env:
