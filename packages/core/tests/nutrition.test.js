@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { STARTER_FOODS } from '../../constants/src/foods.js'
 import {
-  analyze, buildCatalog, calendarTotals, dailySeries, dayMeals, dayTotals, duplicateDraft, entryDraftFromFood, entryRow, firstLogDate, foodNutrition,
+  dayStatus, analyze, buildCatalog, calendarTotals, dailySeries, dayMeals, dayTotals, duplicateDraft, entryDraftFromFood, entryRow, firstLogDate, foodNutrition,
   frequentFoods, guessMeal, hasGoals, goalsOf, isValidWaterAmount, liveFavorites, macroSplit, missingDays, mealDistribution, percentOfGoal, perServing,
   recentFoods, remainingOf, round, scaleNutrition, searchFoods, servingOptions, standoutDays, sumNutrition, toggleFavorite, topFoods, viewRange, waterDay, weeklyTrend,
 } from '../src/nutrition.js'
@@ -247,5 +247,26 @@ describe('calendar: days with nothing logged', () => {
   })
   it('calories per day for the month grid', () => {
     expect(calendarTotals(logs, '2026-11-01', '2026-11-30')).toEqual({ '2026-11-02': { kcal: 500, count: 1 }, '2026-11-04': { kcal: 600, count: 1 } })
+  })
+})
+
+describe('dayStatus (dashboard)', () => {
+  const logs = [
+    L('2026-11-10', 'breakfast', 300, { protein_g: 10, carbs_g: 40, fat_g: 8 }),
+    L('2026-11-10', 'lunch', 500, { protein_g: 25, carbs_g: 60, fat_g: 15 }),
+    L('2026-11-09', 'dinner', 900),
+  ]
+  it('totals only the requested day and reports progress against the calorie target', () => {
+    const s = dayStatus(logs, { calorie_goal: 2000 }, '2026-11-10')
+    expect(s).toMatchObject({ count: 2, logged: true, hasCalorieGoal: true, percent: 40, remaining: 1200 })
+    expect(s.totals).toMatchObject({ kcal: 800, protein_g: 35, carbs_g: 100, fat_g: 23 })
+  })
+  it('shows negative remaining when over the target', () => {
+    expect(dayStatus(logs, { calorie_goal: 700 }, '2026-11-10').remaining).toBe(-100)
+  })
+  it('a missing target is null, not 0%, and an empty day is not "logged"', () => {
+    const s = dayStatus(logs, null, '2026-11-10')
+    expect(s).toMatchObject({ hasCalorieGoal: false, percent: null, remaining: null })
+    expect(dayStatus([], null, '2026-11-10')).toMatchObject({ logged: false, count: 0 })
   })
 })

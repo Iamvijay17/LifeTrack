@@ -411,6 +411,26 @@ export function calendarTotals(logs, from, to) {
   return out
 }
 
+/**
+ * What the dashboard shows for a day: totals, targets and how far along the calorie target is. `percent` / `remaining` are null without a
+ * calorie target (a missing target is not "0%"). `logged` is false until something has been eaten that day.
+ */
+export function dayStatus(logs, settingsRow, date) {
+  const entries = entriesOn(logs, date)
+  const totals = sumNutrition(entries)
+  const goals = goalsOf(settingsRow)
+  return {
+    count: entries.length,
+    logged: entries.length > 0,
+    totals,
+    goals,
+    hasCalorieGoal: goals.kcal > 0,
+    percent: percentOfGoal(totals.kcal, goals.kcal),
+    remaining: remainingOf(totals.kcal, goals.kcal),
+    macros: macroSplit(totals),
+  }
+}
+
 // -------------------------------------------------------------------- formatting
 export const fmtKcal = (n) => `${Math.round(num(n)).toLocaleString('en-IN')} kcal`
 export const fmtGrams = (n) => `${round(n).toLocaleString('en-IN', { maximumFractionDigits: 1 })} g`

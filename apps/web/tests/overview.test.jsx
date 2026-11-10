@@ -6,6 +6,8 @@ import { MemoryRouter } from 'react-router-dom'
 import { PrioritiesCard } from '@/features/overview/PrioritiesCard'
 import { TodayStats } from '@/features/overview/TodayStats'
 import { SpendingCard } from '@/features/overview/SpendingCard'
+import { NutritionCard } from '@/features/overview/NutritionCard'
+import { dayStatus } from '@/domain/nutrition'
 import { GoalsCard } from '@/features/overview/GoalsCard'
 import { ActivityCard } from '@/features/overview/ActivityCard'
 import { CustomizeDialog } from '@/features/overview/CustomizeDialog'
@@ -93,6 +95,27 @@ describe('SpendingCard', () => {
   })
 })
 
+describe('NutritionCard', () => {
+  const log = (kcal) => ({ log_date: '2026-11-10', meal_type: 'lunch', kcal, protein_g: 20, carbs_g: 50, fat_g: 10, fiber_g: 0 })
+  const show = (logs, settings) => wrap(<NutritionCard status={dayStatus(logs, settings, '2026-11-10')} />)
+  it('shows calories eaten, the target and what is left, linking to Nutrition', () => {
+    show([log(600)], { calorie_goal: 2000 })
+    expect(screen.getByTestId('food-kcal')).toHaveTextContent('600 kcal')
+    expect(screen.getByText(/30% of target · 1400 kcal left/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Nutrition' })).toHaveAttribute('href', '/nutrition')
+  })
+  it('shows how far over the target', () => {
+    show([log(2300)], { calorie_goal: 2000 })
+    expect(screen.getByText(/300 kcal over/)).toBeInTheDocument()
+  })
+  it('without a target it says so rather than showing 0%, and an empty day offers Log food', () => {
+    show([], null)
+    expect(screen.getByText(/Nothing logged yet/)).toBeInTheDocument()
+    expect(screen.queryByText(/% of target/)).toBeNull()
+    expect(screen.getByRole('link', { name: 'Log food' })).toBeInTheDocument()
+  })
+})
+
 describe('GoalsCard', () => {
   it('lists goals with their percent', () => {
     wrap(<GoalsCard rows={[{ goal: { id: 'a', title: 'Learn Go' }, progress: { percent: 40 } }]} />)
@@ -135,6 +158,6 @@ describe('CustomizeDialog arranging', () => {
     render(<CustomizeDialog open onOpenChange={() => {}} prefs={{ order: ['quick', 'score'] }} onToggle={() => {}} onReorder={() => {}} />)
     const names = screen.getAllByRole('switch').map((s) => s.getAttribute('aria-label'))
     expect(names.slice(0, 2)).toEqual(['Quick actions', 'Daily score'])
-    expect(names).toHaveLength(12)
+    expect(names).toHaveLength(13)
   })
 })

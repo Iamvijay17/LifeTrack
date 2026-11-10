@@ -10,7 +10,7 @@ import { useToday } from '@/hooks/useToday'
 import { monthTransactions, resolveBudget, summarize } from '@/domain/finance'
 import { monthKey, monthStart } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
-import { download, toCsv, TX_COLUMNS } from '@/services/csv'
+import { download, toCsv, txColumns } from '@/services/csv'
 import { MonthNav } from './MonthNav'
 import { FinanceStats } from './FinanceStats'
 import { BudgetAlert } from './BudgetAlert'
@@ -57,7 +57,7 @@ export default function FinancePage() {
               variant="outline"
               size="sm"
               disabled={!data.transactions.length}
-              onClick={() => download('lifetrack-transactions.csv', toCsv(data.transactions, TX_COLUMNS))}
+              onClick={() => download('lifetrack-transactions.csv', toCsv(data.transactions, txColumns(settings.currency)))}
             >
               <Download className="h-4 w-4" />
               CSV

@@ -15,6 +15,7 @@ import { averageScore, dailyScore } from '@/domain/score'
 import { activeDayStreak } from '@/domain/streaks'
 import { dashboardGoals, greetingFor, recentActivity, todayHeadlines, weekScoreSeries } from '@/domain/dashboard'
 import { resolveBudget, summarize } from '@/domain/finance'
+import { dayStatus } from '@/domain/nutrition'
 import { WIDGETS_NEEDING_DATA, gettingStartedSteps, isBrandNew } from '@lifetrack/core/dashboard'
 import { upcomingItems } from '@lifetrack/core/upcoming'
 import { todayAgenda } from '@lifetrack/core/agenda'
@@ -33,6 +34,7 @@ import { PrioritiesCard } from './PrioritiesCard'
 import { ProgressCard } from './ProgressCard'
 import { QuickActionsGrid } from './QuickActionsGrid'
 import { ScoreCard } from './ScoreCard'
+import { NutritionCard } from './NutritionCard'
 import { SpendingCard } from './SpendingCard'
 import { TodayStats } from './TodayStats'
 import { TodayCard } from './TodayCard'
@@ -78,6 +80,9 @@ export default function OverviewPage() {
   const { data, loading, error, refetch } = useTables(...TABLES)
   // Read on its own: until migration 0008 is applied the table is missing, and that must not take the whole dashboard down.
   const { rows: recurringRules } = useTable('recurring_rules')
+  // Same for the nutrition tables (migration 0009).
+  const { rows: foodLogs } = useTable('food_logs')
+  const { rows: nutritionSettings } = useTable('nutrition_settings')
   const { habits, logs: habitLogs, stats: habitStats, loading: habitsLoading, error: habitsError } = useHabits(today, weekStartsOn)
 
   const [toggleWidget] = useAction((key, value) => saveSettings({ dashboard_widgets: { ...settings.dashboard_widgets, [key]: value } }))
@@ -162,6 +167,7 @@ export default function OverviewPage() {
       summarize(data.transactions, monthKey(today), resolveBudget(data.budgets, monthStart(today), settings.monthly_budget_paise).paise),
     [data.transactions, data.budgets, today, settings.monthly_budget_paise],
   )
+  const nutrition = useMemo(() => dayStatus(foodLogs, nutritionSettings[0] ?? null, today), [foodLogs, nutritionSettings, today])
   const upcoming = useMemo(
     () =>
       upcomingItems(
@@ -293,6 +299,7 @@ export default function OverviewPage() {
     ),
     goals: (cls) => <GoalsCard rows={goals} className={cls} />,
     spending: (cls) => <SpendingCard sum={monthSum} money={money} className={cls} />,
+    nutrition: (cls) => <NutritionCard status={nutrition} className={cls} />,
     weekly: (cls) => <WeeklyScoreCard series={weekScores} today={today} streak={streak} className={cls} />,
     activity: (cls) => <ActivityCard items={activity} className={cls} />,
     quick: () => <QuickActionsGrid onOpen={quick.open} />,

@@ -4,13 +4,14 @@ import { arrangeWidgets, widgetOrder } from '../src/dashboard'
 describe('widgetOrder', () => {
   it('uses the default order when nothing is saved', () => {
     expect(widgetOrder({})[0]).toBe('getting_started')
-    expect(widgetOrder(undefined)).toHaveLength(12)
+    expect(widgetOrder(undefined)).toHaveLength(13)
+    expect(widgetOrder(undefined)).toContain('nutrition')
   })
   it('keeps the saved order, drops unknown keys and appends widgets the user has not placed yet', () => {
     const order = widgetOrder({ order: ['quick', 'gone', 'today'] })
     expect(order.slice(0, 2)).toEqual(['quick', 'today'])
     expect(order).not.toContain('gone')
-    expect(order).toHaveLength(12)
+    expect(order).toHaveLength(13)
   })
   it('ignores a malformed saved order', () => {
     expect(widgetOrder({ order: 'today' })).toEqual(widgetOrder({}))

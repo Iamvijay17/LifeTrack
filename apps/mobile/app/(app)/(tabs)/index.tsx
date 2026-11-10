@@ -109,6 +109,9 @@ export default function Dashboard() {
   const [customize, setCustomize] = useState(false)
   // Read on its own: until migration 0008 is applied the table is missing, and that must not take the whole dashboard down.
   const { rows: recurringRules } = useTable('recurring_rules')
+  // Same for the nutrition tables (migration 0009).
+  const { rows: foodLogs } = useTable('food_logs')
+  const { rows: nutritionSettings } = useTable('nutrition_settings')
   const { data, loading, refreshing, error, refetch } = useTables('tasks', 'study_sessions', 'workouts', 'health_logs', 'transactions', 'job_applications', 'application_history', 'interview_events', 'goals', 'milestones', 'habits', 'habit_logs', 'budgets', 'reminders', 'routines', 'learning_topics')
   const [complete] = useAction((t: any) => api.setTaskStatus(t, 'done', today))
   // Ticking a row in Today: tasks and habits can be completed (and un-ticked) in place.
@@ -120,7 +123,7 @@ export default function Dashboard() {
   const cur = settings.currency
   const money = (p: number) => formatMoney(p, cur)
 
-  const d: any = useMemo(() => dashboardData({ tasks: data.tasks, studySessions: data.study_sessions, workouts: data.workouts, healthLogs: data.health_logs, transactions: data.transactions, applications: data.job_applications, history: data.application_history, interviews: data.interview_events, goals: data.goals, milestones: data.milestones, habits: data.habits, habitLogs: data.habit_logs, budgets: data.budgets, reminders: data.reminders, recurringRules, routines: data.routines, topics: data.learning_topics }, { settings, today }), [data, recurringRules, settings, today])
+  const d: any = useMemo(() => dashboardData({ tasks: data.tasks, studySessions: data.study_sessions, workouts: data.workouts, healthLogs: data.health_logs, transactions: data.transactions, applications: data.job_applications, history: data.application_history, interviews: data.interview_events, goals: data.goals, milestones: data.milestones, habits: data.habits, habitLogs: data.habit_logs, budgets: data.budgets, reminders: data.reminders, recurringRules, routines: data.routines, topics: data.learning_topics, foodLogs, nutritionSettings: nutritionSettings[0] ?? null }, { settings, today }), [data, recurringRules, foodLogs, nutritionSettings, settings, today])
   // A brand-new account sees the guide rather than rows of zeros; everything appears after the first real entry.
   const fresh = isWidgetOn(settings.dashboard_widgets, 'getting_started') && isBrandNew(data.tasks, data.habits, data.goals, data.transactions, data.health_logs, data.study_sessions, data.workouts, data.job_applications)
   const on = (k: string) => isWidgetOn(settings.dashboard_widgets, k) && !(fresh && WIDGETS_NEEDING_DATA.includes(k))
@@ -260,6 +263,23 @@ export default function Dashboard() {
                 <ProgressBar value={Math.min(100, d.month.budgetUsed * 100)} color={d.month.budgetUsed > 1 ? colors.danger : d.month.budgetUsed > 0.8 ? colors.warning : colors.success} label="Budget used" />
                 <Txt variant="small" muted>{Math.round(d.month.budgetUsed * 100)}% used · {d.month.remaining >= 0 ? `${money(d.month.remaining)} left` : `${money(-d.month.remaining)} over`}</Txt>
               </>) : <Txt variant="small" muted>Income {money(d.month.income)} · set a budget in Finance to track usage.</Txt>}
+            </Card>
+          ) : null,
+    nutrition: on('nutrition') ? (
+            <Card>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Txt variant="heading">Food today</Txt>
+                <Pressable accessibilityRole="link" onPress={() => router.navigate('/module/nutrition')} hitSlop={8}><Text style={{ color: colors.secondary }}>{d.nutrition.logged ? 'Nutrition' : 'Log food'}</Text></Pressable>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <AnimatedNumber value={`${Math.round(d.nutrition.totals.kcal).toLocaleString('en-IN')} kcal`} style={{ color: colors.foreground, fontSize: 24, fontWeight: '700', letterSpacing: -0.5 }} />
+                {d.nutrition.hasCalorieGoal ? <Txt variant="small" muted>of {d.nutrition.goals.kcal.toLocaleString('en-IN')} kcal</Txt> : null}
+              </View>
+              {d.nutrition.hasCalorieGoal ? (<>
+                <ProgressBar value={Math.min(100, d.nutrition.percent)} color={d.nutrition.remaining < 0 ? colors.danger : colors.primary} label="Calories today" />
+                <Txt variant="small" muted>{Math.round(d.nutrition.percent)}% of target · {d.nutrition.remaining >= 0 ? `${Math.round(d.nutrition.remaining)} kcal left` : `${Math.round(-d.nutrition.remaining)} kcal over`}</Txt>
+              </>) : <Txt variant="small" muted>{d.nutrition.logged ? `${d.nutrition.count} ${d.nutrition.count === 1 ? 'entry' : 'entries'} logged.` : 'Nothing logged yet.'} Set a calorie target in Nutrition to track it.</Txt>}
+              {d.nutrition.logged ? <Txt variant="small" muted>Protein {Math.round(d.nutrition.totals.protein_g)} g · Carbs {Math.round(d.nutrition.totals.carbs_g)} g · Fat {Math.round(d.nutrition.totals.fat_g)} g</Txt> : null}
             </Card>
           ) : null,
     weekly: on('weekly') ? (
