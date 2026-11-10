@@ -7,7 +7,7 @@ One Supabase backend (Postgres, Auth, Row Level Security, Realtime) behind two a
 
 | Area | Modules |
 | --- | --- |
-| Overview | Dashboard with Today agenda, daily score, upcoming deadlines, customisable widgets |
+| Overview | Life Command Center: Today agenda, Life Score with trends, module summaries, upcoming deadlines, resizable and reorderable widgets |
 | Productivity | Daily Planner (recurring tasks), Focus timer, Habits and streaks, Notes & Journal |
 | Growth | Career & Learning (study timer, goals, topics), Job Switch (board, interviews, insights), Goals & Milestones |
 | Wellness | Gym & Fitness (routines, workout logging, records, **876-exercise database with photos**), Sleep & Health, **Food & Nutrition (293 Indian foods, Tamil search, water, analytics)** |

@@ -81,7 +81,7 @@ Legend: **PK** primary key · **FK** foreign key · **U** unique · defaults in 
 `user_settings` columns: `timezone` ('Asia/Kolkata'), `currency` ('INR'), `theme` ('dark'; `dark|light|system`), `daily_study_target_minutes` (120; 0–1440),
 `monthly_budget_paise` (0), `water_goal_ml` (3000; 0–20000), `steps_goal` (8000; 0–200000), `week_starts_on` (1; `0|1`), `habit_prefs` jsonb (`{}`; also holds the
 sleep goal), `workout_plan` jsonb (`{}`; `{"0".."6": routine uuid | "rest" | null}`), `defaults_seeded` (false), `score_weights` jsonb
-(`{"learning":25,"career":25,"fitness":20,"habits":15,"health":15}`), `dashboard_widgets` jsonb (`{}`; `{key:false}` hides a widget, `order` lists keys),
+(`{"learning":25,"career":25,"fitness":20,"habits":15,"health":15}`), `dashboard_widgets` jsonb (`{}`; `{key:false}` hides a widget, `order` lists keys, `sizes` maps a key to `sm|md|lg|full`),
 `notification_prefs` jsonb (all kinds `true`), `focus_prefs` jsonb (`{"short_break":5,"long_break":15,"long_every":4}`).
 
 `device_push_tokens`: `token` (U; must match `^(Expo|Exponent)PushToken\[[^\]]+\]$`), `platform` (`ios|android`), `device_name` (≤ 80), `last_seen_at`.

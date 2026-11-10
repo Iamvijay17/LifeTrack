@@ -8,7 +8,7 @@
 | Area | What exists |
 | --- | --- |
 | Platform | Web PWA, iOS/Android app, shared packages, Supabase backend with RLS, Realtime sync, JSON/CSV export, account deletion |
-| Productivity | Dashboard (13 widgets, Today agenda, daily score, customisation), Planner with recurrence, Focus timer, Habits, Notes & Journal, Goals & Milestones |
+| Productivity | Dashboard (18 widgets, Today agenda, Life Score with trends, module summaries, resizable and reorderable widgets), Planner with recurrence, Focus timer, Habits, Notes & Journal, Goals & Milestones |
 | Growth | Career & Learning (timer, goals, topics, revisions), Job Switch (board, interviews, insights, status history) |
 | Wellness | Gym & Fitness (plan, routines, logging, PRs, progress, body metrics, 876-exercise database with photos), Sleep & Health, **Food & Nutrition** (293 foods, Tamil search, custom weights, water, analytics) |
 | Money | Transactions, budgets with alerts, savings goals, recurring rules |

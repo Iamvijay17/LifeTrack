@@ -67,14 +67,26 @@ original path in router state. A DB trigger creates `profiles` and `user_setting
 | --- | --- | --- |
 | Hero with live clock, greeting, active-day streak (`DashboardHero`) | ✅ | |
 | Today agenda (`today`) | ✅ | One ordered list: interviews and reminders by time, tasks, habits, planned workout, revisions, follow-ups, bills due; tasks/habits can be ticked |
-| Daily score (`score`), Weekly score chart (`weekly`) | ✅ | See below |
+| Key numbers under the greeting (`KpiStrip`): Life Score, today's completion, tasks today, overdue, upcoming events | ✅ web | Dashes, not zeros, when nothing is planned |
+| Life Score (`score`), Life Score trends (`weekly`) | ✅ web · daily score and weekly chart on mobile | See below |
+| Career & learning (`learning`), Job switch (`jobs`), Gym & fitness (`fitness`), Sleep & health (`sleep`), Habits & routine (`habits`) | ✅ web | Module summaries from `snapshots.js`; steps and calories only once logged |
 | Today's progress (`progress`), Today at a glance (`stats`) | ✅ | |
 | Top priorities & tasks (`priorities`), Upcoming deadlines (`upcoming`) | ✅ | Upcoming includes recurring bills |
-| Goal progress (`goals`), Monthly spending (`spending`), Food & nutrition (`nutrition`) | ✅ | Food widget: calories vs target, protein, carbs, fat |
+| Goal progress (`goals`), Finance (`spending`), Food & nutrition (`nutrition`) | ✅ | Finance: spent, budget left, income, recent transactions. Food widget: calories vs target, protein, carbs, fat |
 | Recent activity (`activity`), Quick actions (`quick`), Getting-started guide (`getting_started`) | ✅ | Guide ticks off with real data and hides itself |
-| Customize (hide/show, drag reorder; arrows on mobile) saved to `user_settings.dashboard_widgets` | ✅ | `CustomizeDialog.jsx` |
+| Customize (hide/show, size S/M/L/Full, drag or arrow reorder, restore default with Undo) saved to `user_settings.dashboard_widgets` | ✅ web · hide/show and arrows on mobile | `CustomizeDialog.jsx`, `useDashboardLayout.js`, `commandCenter.js` |
 | Undo after completing a task | ✅ web · ❌ mobile | |
 | Confetti on real achievements | ✅ | `lib/celebrate.js` |
+
+**Life Score** (`lifeScore.js`, shown on the Dashboard): the daily score rolled up over Today, 7 days or 30 days. A day only counts if something was planned or recorded
+(otherwise it has no score and is left out of the average); each category's *points* are its average completion times the share of the score it carried, so the
+points add up to the score; a category you do not track never lowers it. The change is against the same-length period before, and only shown when both have a score.
+Trends chart the last 14 days, 8 weeks or 6 months (the current week or month covers only the days so far); a period with no scored day is a gap, not a zero.
+
+**Layout** (`commandCenter.js`): `dashboard_widgets` holds `{ [key]: false }` to hide, `order: [keys]` and `sizes: { [key]: 'sm'|'md'|'lg'|'full' }` (4, 6, 8 or 12 of 12 columns
+from `lg`; one column below that). A row that ends short is stretched so there is never a hole. Widgets that need room only offer the larger sizes.
+There is no "course" or "skill" record: *courses* are active Learning goals and *skills* are topics studied in the last 30 days. Workouts do not record calories burned, so the
+Fitness widget shows calories **eaten** (from Nutrition) once food is logged.
 
 **Daily score** (`score.js`): five categories (Learning, Career, Fitness, Habits, Sleep & Health) each give a 0–1 fraction from what was planned/recorded; categories
 with nothing planned or recorded are *not applicable*, weights are re-normalised over the applicable ones, and `null` ("—") means nothing applied. Default weights

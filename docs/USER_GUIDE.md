@@ -61,7 +61,8 @@ If a reminder did not fire, see the FAQ below.
 
 ## 8. Insights
 
-- **Daily score** (Dashboard): a 0–100 blend of Learning, Career, Fitness, Habits and Sleep & Health. Only the parts that apply to your day are counted, so a rest day or a day without job-search plans is not a zero; "—" means nothing applied. Tune the weights in Settings → Daily score weights.
+- **Life Score** (Dashboard): a 0–100 blend of Learning, Career, Fitness, Habits and Sleep & Health, for today, the last 7 days or the last 30 days, with how many points each part earned and how it compares with the period before. Only the parts that apply are counted, so a rest day, a day without job-search plans or a night you did not log is never a zero; "—" means nothing applied. The trend chart shows it by day, week or month. Tune the weights in Settings → Daily score weights.
+- **Customize the Dashboard**: the Customize button lets you show or hide each widget, pick its width (Small, Medium, Large, Full width), move it up or down (or drag it), and Restore default layout. It is saved to your account, so it is the same on every device.
 - **Analytics:** trends over week/month/year/custom ranges. **Reports** (web): printable summary and CSV for a range.
 
 ## 9. Your data
