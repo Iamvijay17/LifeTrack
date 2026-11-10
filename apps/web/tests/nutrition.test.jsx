@@ -108,11 +108,14 @@ describe('CalorieHero', () => {
     expect(screen.getByText('Over your goal by')).toBeInTheDocument()
     expect(screen.getByText(/300 kcal/)).toBeInTheDocument()
   })
-  it('without a goal it shows only what was eaten and offers to set targets (a missing goal is not 0%)', async () => {
+  it("without a goal it shows what was eaten, fills the bars with each macro's share (not 0%), and offers to set targets", async () => {
     const edit = vi.fn()
     render(<CalorieHero totals={TOTALS} goals={NO_GOALS} isToday onEditGoals={edit} />)
     expect(screen.getByText('kcal eaten')).toBeInTheDocument()
-    expect(screen.getByRole('progressbar', { name: 'Protein today' })).toHaveAttribute('aria-valuenow', '0')
+    expect(screen.queryByRole('progressbar', { name: 'Protein today' })).toBeNull() // that name is for a real target
+    const protein = screen.getByRole('progressbar', { name: 'Protein, share of macro calories' })
+    expect(Number(protein.getAttribute('aria-valuenow'))).toBeGreaterThan(0)
+    expect(screen.getByRole('progressbar', { name: 'Fibre against a general guide' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: /set daily targets/i }))
     expect(edit).toHaveBeenCalled()
   })
