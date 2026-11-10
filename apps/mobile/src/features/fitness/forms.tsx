@@ -9,6 +9,7 @@ import { useZodForm } from '../../hooks/useZodForm'
 import { useTheme } from '../../providers/ThemeProvider'
 import { Sheet } from '../../ui/Sheet'
 import { ChipGroup, DateField, SelectField } from '../../ui/controls'
+import { ExercisePickerField } from './ExercisePickerField'
 import { Button, Field } from '../../ui'
 
 const multiline = { multiline: true, numberOfLines: 2, style: { minHeight: 64, textAlignVertical: 'top' as const, paddingTop: 12 } }
@@ -44,7 +45,7 @@ export function RoutineForm({ visible, routine, library, onClose }: { visible: b
       <Text style={{ color: colors.foreground, fontWeight: '500' }}>Exercises</Text>
       {rows.map((r, i) => (
         <View key={i} style={{ gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10 }}>
-          <SelectField label={`Exercise ${i + 1} (from library)`} value="" placeholder="Pick from library…" options={library.map((e) => ({ value: e.name, label: e.name, group: e.muscle_group || 'Other' }))} onChange={(v) => edit(i, { name: v })} />
+          <ExercisePickerField label={`Exercise ${i + 1} (from library)`} library={library} onChange={(v) => edit(i, { name: v })} />
           <Field label="Name" value={r.name} onChangeText={(t) => edit(i, { name: t })} maxLength={80} />
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <View style={{ flex: 1 }}><Field label="Sets" value={String(r.sets ?? '')} onChangeText={(t) => edit(i, { sets: t })} keyboardType="number-pad" maxLength={2} /></View>
@@ -99,7 +100,7 @@ export function WorkoutForm({ visible, workout, sets, routines, library, today, 
       {kind !== 'cardio' ? (<>
         {ex.map((e, i) => (
           <View key={i} style={{ gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10 }}>
-            <SelectField label={`Exercise ${i + 1} (from library)`} value="" placeholder="Pick from library…" options={library.map((l) => ({ value: l.name, label: l.name, group: l.muscle_group || 'Other' }))} onChange={(v) => editEx(i, { name: v })} />
+            <ExercisePickerField label={`Exercise ${i + 1} (from library)`} library={library} onChange={(v) => editEx(i, { name: v })} />
             <Field label="Name" value={e.name} onChangeText={(t) => editEx(i, { name: t })} maxLength={80} />
             {e.sets.map((s: any, k: number) => (
               <View key={k} style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}>
