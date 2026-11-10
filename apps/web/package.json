@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "exercises:sync": "node ../../scripts/sync-exercise-db.mjs",
+    "exercises:check": "node ../../scripts/sync-exercise-db.mjs --check",
+    "prebuild": "node ../../scripts/sync-exercise-db.mjs",
     "build": "vite build",
     "preview": "vite preview --port 4173",
     "test": "vitest run",
