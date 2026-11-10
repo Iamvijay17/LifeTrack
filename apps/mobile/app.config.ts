@@ -19,7 +19,7 @@ const config: ExpoConfig = {
   name: 'LifeTrack',
   slug: 'lifetrack',
   scheme: 'lifetrack',
-  version: '2.1.0',
+  version: '2.3.0',
   // Native-compatibility fingerprint. Over-the-air JS updates are NOT enabled (no expo-updates yet): every change ships through a store build.
   runtimeVersion: { policy: 'appVersion' },
   orientation: 'portrait',
