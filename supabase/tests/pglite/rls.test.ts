@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { FIXTURES, OPTIONAL_LINKS } from './fixtures'
 import { createDb, type Q } from './helpers'
@@ -176,6 +177,22 @@ describe('nutrition: water functions and constraints', () => {
     await ins(`insert into foods(name) values ('Mine')`)
     await ins(`insert into foods(name) values ('Mine')`) // custom foods may share a name
     await ctx.asUser(B, (q) => q(`insert into foods(name, base_key) values ('Idli', 'idli')`)) // another user may edit the same starter food
+  })
+  it('0010: other names and the source note are optional, bounded, and rows from before it get empty defaults', async () => {
+    const ins = (sql: string, params: unknown[] = []) => ctx.asUser(A, (q) => q(sql, params))
+    await ins(`insert into foods(name) values ('Plain')`)
+    expect((await ins(`select aliases, source from foods where name = 'Plain'`)).rows[0]).toEqual({ aliases: [], source: '' })
+    await ins(`insert into foods(name, aliases, source) values ('Amma sambar', array['அம்மா சாம்பார்','home sambar'], 'my recipe')`)
+    expect((await ins(`select aliases, source from foods where name = 'Amma sambar'`)).rows[0]).toEqual({ aliases: ['அம்மா சாம்பார்', 'home sambar'], source: 'my recipe' })
+    const many = Array.from({ length: 13 }, (_, i) => `n${i}`)
+    expect(await ctx.fails(ins(`insert into foods(name, aliases) values ('x', $1::text[])`, [many]))).toMatch(/violates check constraint/i)
+    expect(await ctx.fails(ins(`insert into foods(name, aliases) values ('x', array[repeat('a', 900)])`))).toMatch(/violates check constraint/i)
+    expect(await ctx.fails(ins(`insert into foods(name, source) values ('x', repeat('s', 81))`))).toMatch(/violates check constraint/i)
+  })
+  it('0010 can be run again on a database that already has it, without touching rows', async () => {
+    await ctx.asUser(A, (q) => q(`insert into foods(name, aliases, source) values ('Keep me', array['kept'], 'label')`))
+    await ctx.db.exec(readFileSync(new URL('../../migrations/0010_food_database.sql', import.meta.url), 'utf8'))
+    expect((await ctx.asUser(A, (q) => q(`select aliases, source from foods where name = 'Keep me'`))).rows[0]).toEqual({ aliases: ['kept'], source: 'label' })
   })
   it('deleting a food keeps the entries logged with it', async () => {
     const food = await makeRow('foods', A)

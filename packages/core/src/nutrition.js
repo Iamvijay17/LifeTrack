@@ -67,18 +67,54 @@ const normalizeServings = (servings) =>
 const normalizeVariants = (variants) =>
   (Array.isArray(variants) ? variants : []).filter((x) => x && x.label).map((x) => ({ label: String(x.label), ...pickNutrition(x) }))
 
+/** Categories used before the food list was expanded. Foods saved under them keep working: they map onto today's categories. */
+export const LEGACY_CATEGORIES = {
+  Tiffin: 'South Indian',
+  'Rice & Grains': 'Rice & Biryani',
+  'Roti & Bread': 'North Indian',
+  'Curries & Dal': 'Vegetarian',
+  'Egg, Meat & Fish': 'Non-Vegetarian',
+  'Nuts & Snacks': 'Snacks',
+}
+export const canonicalCategory = (category) => LEGACY_CATEGORIES[category] ?? (category || 'Other')
+
+export const MAX_ALIASES = 12
+/** Other names for a food, trimmed, without repeats or blanks (also accepts the comma/newline text typed in the form). */
+export function normalizeAliases(aliases, limit = MAX_ALIASES) {
+  const list = Array.isArray(aliases) ? aliases : String(aliases ?? '').split(/[,\n]/)
+  const seen = new Set()
+  const out = []
+  for (const a of list) {
+    const t = String(a ?? '').trim().slice(0, 60)
+    const k = t.toLowerCase()
+    if (t && !seen.has(k)) {
+      seen.add(k)
+      out.push(t)
+    }
+  }
+  return out.slice(0, limit)
+}
+
 /** A starter or stored food as the one shape the UI works with. */
 export function toCatalogFood(raw, source) {
   const starter = source === 'starter'
   const key = starter ? raw.key : raw.base_key
+  const derived = starter || !!raw.base_key
   return {
     ref: starter ? starterRef(raw.key) : customRef(raw.id),
     id: starter ? null : raw.id,
     base_key: key ?? null,
     source: starter ? 'starter' : raw.base_key ? 'edited' : 'custom',
-    approximate: starter || !!raw.base_key,
+    approximate: derived,
+    // How firm the number is (see ESTIMATE_BASIS); the user's own foods are whatever the user says they are.
+    basis: derived ? raw.basis ?? 'recipe' : 'user',
     name: raw.name,
-    category: raw.category || 'Other',
+    category: canonicalCategory(raw.category),
+    tags: Array.isArray(raw.tags) ? raw.tags : [],
+    aliases: normalizeAliases(raw.aliases, 60), // every name it can be found by (built-in foods carry more than a user may type)
+    // Only what the user typed for this food (an edited copy's aliases above also include the built-in food's), and where they say the numbers came from.
+    own_aliases: starter ? [] : normalizeAliases(raw.own_aliases ?? raw.aliases),
+    numbers_from: starter ? '' : String(raw.source ?? ''),
     meals: raw.meals ?? [],
     serving_label: raw.serving_label || '1 serving',
     serving_g: raw.serving_g != null ? Number(raw.serving_g) : null,
@@ -89,13 +125,26 @@ export function toCatalogFood(raw, source) {
   }
 }
 
-/** Starter foods plus the user's own. A user's edited copy of a starter food replaces that starter food, so nothing shows twice. */
+/**
+ * Starter foods plus the user's own. A user's edited copy of a starter food replaces that starter food, so nothing shows twice; it keeps the
+ * starter's other names, extra categories and usual meals so searching and filtering still find it.
+ */
 export function buildCatalog(customFoods, starter) {
   const edited = new Map(customFoods.filter((f) => f.base_key).map((f) => [f.base_key, f]))
   const starters = starter.filter((s) => !edited.has(s.key)).map((s) => toCatalogFood(s, 'starter'))
   const mine = customFoods.map((f) => {
     const original = f.base_key ? starter.find((s) => s.key === f.base_key) : null
-    return toCatalogFood({ ...f, meals: original?.meals ?? [] }, 'custom')
+    return toCatalogFood(
+      {
+        ...f,
+        meals: original?.meals ?? [],
+        tags: original?.tags ?? [],
+        basis: original?.basis,
+        own_aliases: f.aliases,
+        aliases: [...(Array.isArray(f.aliases) ? f.aliases : []), ...(original?.aliases ?? [])].slice(0, 40),
+      },
+      'custom',
+    )
   })
   return [...mine, ...starters].sort((a, b) => a.name.localeCompare(b.name))
 }
@@ -103,8 +152,43 @@ export function buildCatalog(customFoods, starter) {
 /** The starter food a stored copy was made from, so "reset to original" has something to restore. */
 export const starterOf = (food, starter) => (food?.base_key ? starter.find((s) => s.key === food.base_key) ?? null : null)
 
-/** Serving sizes to choose from: the base serving first. */
-export const servingOptions = (food) => [{ label: food.serving_label, factor: 1 }, ...food.servings.filter((s) => s.label !== food.serving_label)]
+/**
+ * Categories that have at least one food, in the order given (a food belongs to its category and to each extra category it is tagged with).
+ * @param {any[]} foods
+ * @param {string[]} order
+ * @returns {string[]}
+ */
+export const categoriesInUse = (foods, order) => order.filter((c) => foods.some((f) => inCategory(f, c)))
+export const inCategory = (food, category) => category === 'all' || food.category === category || (food.tags ?? []).includes(category)
+
+/** "ml" for drinks (their serving is described in ml), otherwise "g". */
+export const servingUnit = (food) => (/\bml\b/i.test(food?.serving_label ?? '') ? 'ml' : 'g')
+
+/**
+ * Serving sizes to choose from: the base serving first, then the food's own sizes, then a plain 100 g (or 100 ml) whenever the weight of the
+ * base serving is known, so every such food can be logged by weight.
+ */
+export function servingOptions(food) {
+  const own = [{ label: food.serving_label, factor: 1 }, ...food.servings.filter((s) => s.label !== food.serving_label)]
+  const grams = Number(food.serving_g)
+  if (!(grams > 0)) return own
+  const unit = servingUnit(food)
+  const hundred = `100 ${unit === 'ml' ? 'ml' : 'grams'}`
+  if (own.some((o) => o.label === hundred) || Math.abs(grams - 100) < 1e-6) return own // a base serving of exactly 100 g already is one
+  return [...own, { label: hundred, factor: round(100 / grams, 4) }]
+}
+
+/** Whether a food can be logged by an exact weight (it knows how much one serving weighs). */
+export const supportsCustomWeight = (food) => Number(food?.serving_g) > 0
+
+/** A serving of exactly `amount` grams (or ml) of the food, as a serving option, or null when the amount or the food's weight is unknown. */
+export function customServing(food, amount) {
+  const a = Number(amount)
+  const g = Number(food?.serving_g)
+  if (!(a > 0) || !(g > 0) || a > 50000) return null
+  const unit = servingUnit(food)
+  return { label: `${round(a, 1)} ${unit}`, factor: round(a / g, 4), custom: true }
+}
 
 /** Nutrition of ONE base serving, with a preparation variant applied if one is chosen. */
 export function foodNutrition(food, variantLabel = '') {
@@ -157,35 +241,156 @@ export function perServing(entry) {
 }
 
 // ----------------------------------------------------------------------- search
-const norm = (s) => String(s ?? '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim()
+const MARKS = /[̀-ͯ]/g
+const norm = (s) =>
+  String(s ?? '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(MARKS, '')
+    .replace(/[^a-z0-9஀-௿ ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+/** How a word sounds, roughly: so "kuzhambu"/"kulambu", "briyani"/"biryani", "idly"/"idli" and "thosai"/"dosai" land close together. Latin only. */
+const skeleton = (word) =>
+  /[஀-௿]/.test(word)
+    ? word
+    : word
+        .replace(/zh/g, 'l')
+        .replace(/ph/g, 'f')
+        .replace(/(th|dh|kh|gh|bh)/g, (m) => m[0])
+        .replace(/ee/g, 'i')
+        .replace(/oo/g, 'u')
+        .replace(/aa/g, 'a')
+        .replace(/w/g, 'v')
+        .replace(/y$/g, 'i')
+        .replace(/(.)\1+/g, '$1')
+
+/** Edit distance, but gives up (returns max + 1) as soon as it must exceed `max`. */
+function within(a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return max + 1
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i]
+    let low = i
+    for (let j = 1; j <= b.length; j++) {
+      const v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+      cur.push(v)
+      if (v < low) low = v
+    }
+    if (low > max) return max + 1
+    prev = cur
+  }
+  return prev[b.length]
+}
+
+const wordsOf = (text) => (text ? text.split(' ') : [])
+const indexCache = new WeakMap()
+/** What a food can be found by: its name, its other names, and its category / variation words. Built once per food object. */
+function indexOf(food) {
+  let idx = indexCache.get(food)
+  if (!idx) {
+    const name = norm(food.name)
+    const aliases = (food.aliases ?? []).map(norm).filter(Boolean)
+    const other = norm([food.category, ...(food.tags ?? []), ...food.variants.map((v) => v.label)].join(' '))
+    idx = {
+      name,
+      aliases,
+      fields: [wordsOf(name), aliases.flatMap(wordsOf), wordsOf(other)],
+      squashed: [name, ...aliases].map((t) => t.replace(/ /g, '')),
+    }
+    indexCache.set(food, idx)
+  }
+  return idx
+}
+
+// Cost of one search word against one food: 4 per field it is found in (name < other names < category / variations) plus how loosely it matches.
+const FIELD_COST = 4
+function wordCost(w, idx) {
+  let best = Infinity
+  const sk = skeleton(w)
+  const maxEdit = sk.length >= 8 ? 2 : sk.length >= 4 ? 1 : 0
+  for (let f = 0; f < idx.fields.length; f++) {
+    for (const hw of idx.fields[f]) {
+      let tier = Infinity
+      if (hw === w) tier = 0
+      else if (hw.startsWith(w)) tier = 1
+      else if (w.length >= 2 && hw.includes(w)) tier = 2
+      else if (maxEdit > 0) {
+        const hs = skeleton(hw)
+        if (hs === sk || hs.startsWith(sk) || within(sk, hs, maxEdit) <= maxEdit || (sk.length >= 5 && within(sk, hs.slice(0, sk.length), maxEdit) <= maxEdit)) tier = 3
+      }
+      if (tier !== Infinity) best = Math.min(best, f * FIELD_COST + tier)
+    }
+  }
+  return best
+}
 
 /**
- * Finds foods by name (and category/variant words). Names that start with the search come first, then ones with a word that does,
- * then the rest. `scope` is 'all' | 'favorites' | 'recent'.
+ * Finds foods by name, other names (Tamil script included), spelling variations, category and variation words. Every word you type must
+ * match; partial words work ("chick" finds chicken), and near-misses are forgiven ("briyani", "dosai", "kozhi kulambu"). Best matches come
+ * first: exact names, then names that start with the search, then the rest. `scope` is 'all' | 'favorites' | 'recent'.
  * @param {any[]} foods
  * @param {{ query?: string, category?: string, scope?: string, favorites?: string[], recentRefs?: string[] }} [opts]
  */
 export function searchFoods(foods, { query = '', category = 'all', scope = 'all', favorites = [], recentRefs = [] } = {}) {
   const q = norm(query)
-  const words = q ? q.split(' ') : []
+  const words = wordsOf(q)
+  const squashedQuery = q.replace(/ /g, '')
   const fav = new Set(favorites)
   const recent = new Map(recentRefs.map((r, i) => [r, i]))
   const scored = []
   for (const f of foods) {
-    if (category !== 'all' && f.category !== category) continue
+    if (!inCategory(f, category)) continue
     if (scope === 'favorites' && !fav.has(f.ref)) continue
     if (scope === 'recent' && !recent.has(f.ref)) continue
     let score = 0
     if (words.length) {
-      const name = norm(f.name)
-      const hay = `${name} ${norm(f.category)} ${f.variants.map((v) => norm(v.label)).join(' ')}`
-      if (!words.every((w) => hay.includes(w))) continue
-      score = name.startsWith(q) ? 0 : name.split(' ').some((w) => w.startsWith(words[0])) ? 1 : name.includes(words[0]) ? 2 : 3
+      const idx = indexOf(f)
+      let total = 0
+      for (const w of words) {
+        const c = wordCost(w, idx)
+        if (c === Infinity) {
+          total = Infinity
+          break
+        }
+        total += c
+      }
+      if (total === Infinity) {
+        // "panipuri" for "pani puri", "chicken65" for "chicken 65".
+        if (squashedQuery.length >= 4 && idx.squashed.some((t) => t.includes(squashedQuery))) total = 12
+        else continue
+      }
+      score = total
+      if (idx.name === q) score -= 100
+      else if (idx.aliases.includes(q)) score -= 80
+      else if (idx.name.startsWith(q)) score -= 50
+      else if (idx.aliases.some((a) => a.startsWith(q))) score -= 30
     }
     scored.push({ food: f, score, order: scope === 'recent' ? recent.get(f.ref) : 0 })
   }
   scored.sort((a, b) => a.score - b.score || a.order - b.order || a.food.name.localeCompare(b.food.name))
   return scored.map((s) => s.food)
+}
+
+/**
+ * An existing food a new or renamed one would duplicate: same name or same other name as a food already in the catalogue (spelling and
+ * letter case ignored). `exceptRef` is the food being edited, which can of course keep its own name.
+ * @param {any[]} foods
+ * @param {string} name
+ * @param {{ exceptRef?: string | null, aliases?: string[] }} [opts]
+ */
+export function findDuplicateFood(foods, name, { exceptRef = null, aliases = [] } = {}) {
+  const wanted = [name, ...aliases].map(norm).filter(Boolean)
+  if (!wanted.length) return null
+  for (const f of foods) {
+    if (f.ref === exceptRef) continue
+    const own = [f.name, ...(f.aliases ?? [])].map(norm)
+    // The name must not equal another food's name or other name; extra aliases only clash with another food's NAME (aliases may overlap).
+    if (own.includes(wanted[0])) return f
+    if (wanted.slice(1).includes(norm(f.name))) return f
+  }
+  return null
 }
 
 /** Foods that suit a meal first (starter foods list the meals they are usually eaten at). */
@@ -205,6 +410,26 @@ export function dayMeals(logs, date) {
   })
 }
 export const dayTotals = (logs, date) => sumNutrition(entriesOn(logs, date))
+
+/**
+ * What the dashboard shows for a day: totals, targets and how far along the calorie target is. `percent` / `remaining` are null without a
+ * calorie target (a missing target is not "0%"). `logged` is false until something has been eaten that day.
+ */
+export function dayStatus(logs, settingsRow, date) {
+  const entries = entriesOn(logs, date)
+  const totals = sumNutrition(entries)
+  const goals = goalsOf(settingsRow)
+  return {
+    count: entries.length,
+    logged: entries.length > 0,
+    totals,
+    goals,
+    hasCalorieGoal: goals.kcal > 0,
+    percent: percentOfGoal(totals.kcal, goals.kcal),
+    remaining: remainingOf(totals.kcal, goals.kcal),
+    macros: macroSplit(totals),
+  }
+}
 
 /** The meal that probably comes next, from the hour of the day in the user's timezone (0-23). Only a default: the form lets you change it. */
 export function guessMeal(hour) {

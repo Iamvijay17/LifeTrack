@@ -439,6 +439,21 @@ export function parseServings(text: string): { servings: { label: string; factor
 }
 export const servingsToText = (servings: { label: string; factor: number }[] | null | undefined) => (servings ?? []).map((s) => `${s.label} = ${s.factor}`).join('\n')
 
+/** Other names typed as text (commas or new lines), each at most 60 characters, at most 12. */
+export function parseAliases(text: string): { aliases: string[]; error: string | null } {
+  const seen = new Set<string>()
+  const aliases: string[] = []
+  for (const raw of String(text ?? '').split(/[,\n]/)) {
+    const t = raw.trim()
+    if (!t || seen.has(t.toLowerCase())) continue
+    seen.add(t.toLowerCase())
+    aliases.push(t)
+  }
+  if (aliases.some((a) => a.length > 60)) return { aliases, error: 'Each other name can be up to 60 characters' }
+  if (aliases.length > 12) return { aliases, error: 'At most 12 other names' }
+  return { aliases, error: null }
+}
+
 export const customFoodFormSchema = z.object({
   name: z.string().trim().min(1, 'Name the food').max(80, 'Keep it under 80 characters'),
   category: z.string().trim().min(1, 'Choose a category').max(40),
@@ -447,24 +462,28 @@ export const customFoodFormSchema = z.object({
   kcal: nutrientField('Calories', 5000), protein_g: nutrientField('Protein', 500), carbs_g: nutrientField('Carbs', 1000),
   fat_g: nutrientField('Fat', 500), fiber_g: nutrientField('Fibre', 200),
   servings: z.string().max(1000),
+  aliases: z.string().max(800, 'Too many other names'),
+  source: z.string().trim().max(80, 'Keep it under 80 characters'),
   notes: z.string().max(300),
 }).superRefine((v, ctx) => {
   if (v.kcal === '') ctx.addIssue({ code: 'custom', path: ['kcal'], message: 'Enter the calories (0 if none)' })
+  const names = parseAliases(v.aliases)
+  if (names.error) ctx.addIssue({ code: 'custom', path: ['aliases'], message: names.error })
   const { error } = parseServings(v.servings)
   if (error) ctx.addIssue({ code: 'custom', path: ['servings'], message: error })
 })
 export type CustomFoodForm = z.infer<typeof customFoodFormSchema>
-export const blankCustomFood = (): CustomFoodForm => ({ name: '', category: 'Other', serving_label: '1 serving', serving_g: '', kcal: '', protein_g: '', carbs_g: '', fat_g: '', fiber_g: '', servings: '', notes: '' })
-type FoodRow = { name: string; category?: string | null; serving_label?: string | null; serving_g?: number | string | null; kcal?: number | string | null; protein_g?: number | string | null; carbs_g?: number | string | null; fat_g?: number | string | null; fiber_g?: number | string | null; servings?: { label: string; factor: number }[] | null; notes?: string | null }
+export const blankCustomFood = (): CustomFoodForm => ({ name: '', category: 'Other', serving_label: '1 serving', serving_g: '', kcal: '', protein_g: '', carbs_g: '', fat_g: '', fiber_g: '', servings: '', aliases: '', source: '', notes: '' })
+type FoodRow = { name: string; category?: string | null; serving_label?: string | null; serving_g?: number | string | null; kcal?: number | string | null; protein_g?: number | string | null; carbs_g?: number | string | null; fat_g?: number | string | null; fiber_g?: number | string | null; servings?: { label: string; factor: number }[] | null; aliases?: string[] | null; source?: string | null; notes?: string | null }
 export const customFoodToForm = (f: FoodRow): CustomFoodForm => ({
   name: f.name, category: f.category || 'Other', serving_label: f.serving_label || '1 serving', serving_g: f.serving_g != null ? String(Number(f.serving_g)) : '',
   kcal: String(Number(f.kcal ?? 0)), protein_g: String(Number(f.protein_g ?? 0)), carbs_g: String(Number(f.carbs_g ?? 0)), fat_g: String(Number(f.fat_g ?? 0)),
-  fiber_g: String(Number(f.fiber_g ?? 0)), servings: servingsToText(f.servings), notes: f.notes ?? '',
+  fiber_g: String(Number(f.fiber_g ?? 0)), servings: servingsToText(f.servings), aliases: (f.aliases ?? []).join(', '), source: f.source ?? '', notes: f.notes ?? '',
 })
 export const customFoodToPayload = (v: CustomFoodForm) => ({
   name: v.name.trim(), category: v.category.trim(), serving_label: v.serving_label.trim(), serving_g: v.serving_g === '' ? null : Number(v.serving_g),
   kcal: Number(v.kcal || 0), protein_g: Number(v.protein_g || 0), carbs_g: Number(v.carbs_g || 0), fat_g: Number(v.fat_g || 0), fiber_g: Number(v.fiber_g || 0),
-  servings: parseServings(v.servings).servings, notes: v.notes,
+  servings: parseServings(v.servings).servings, aliases: parseAliases(v.aliases).aliases, source: v.source.trim(), notes: v.notes,
 })
 
 const goalField = (label: string, min: number, max: number) =>

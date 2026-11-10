@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { EXPORTABLE, JOB_COLUMNS, TX_COLUMNS, download, tableToCsv, toCsv } from '@/services/csv'
+import { EXPORTABLE, JOB_COLUMNS, TX_COLUMNS, download, tableToCsv, toCsv, txColumns } from '@/services/csv'
 import { db } from '@/services/db'
 import { setUserId } from '@/services/session'
 
@@ -47,6 +47,15 @@ describe('module column sets', () => {
     }
     expect(toCsv([job], JOB_COLUMNS).split('\r\n')[1]).toContain('18.5')
     expect(toCsv([{ ...job, salary_paise: null }], JOB_COLUMNS).split('\r\n')[1]).toContain(',,') // no package → empty cell
+  })
+  it('names the amount column after the account currency', () => {
+    expect(TX_COLUMNS[4].header).toBe('Amount (INR)')
+    expect(txColumns('USD')[4].header).toBe('Amount (USD)')
+  })
+  it('every module table in a backup can also be exported as CSV (except the profile-level settings and job history rows)', async () => {
+    const { TABLES } = await import('@lifetrack/constants/schema')
+    const skipped = ['application_history'] // exported inside the application detail/JSON backup
+    expect(TABLES.filter((t) => !skipped.includes(t) && !EXPORTABLE.some(([e]) => e === t))).toEqual([])
   })
   it('lists the exportable tables with friendly names', () => {
     expect(EXPORTABLE.length).toBeGreaterThan(15)

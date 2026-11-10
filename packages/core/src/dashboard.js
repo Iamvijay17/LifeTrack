@@ -11,6 +11,7 @@ import { todayAgenda } from './agenda'
 import { activeDayStreak } from './streaks'
 import { countedMinutes } from './learning'
 import { byPriority, isOpen } from './tasks'
+import { dayStatus } from './nutrition'
 
 export const WIDGETS = [
   { key: 'today', label: 'Today agenda' },
@@ -21,6 +22,7 @@ export const WIDGETS = [
   { key: 'stats', label: 'Today at a glance' },
   { key: 'goals', label: 'Goal progress' },
   { key: 'spending', label: 'Monthly spending' },
+  { key: 'nutrition', label: 'Food & nutrition' },
   { key: 'weekly', label: 'Weekly score chart' },
   { key: 'activity', label: 'Recent activity' },
   { key: 'quick', label: 'Quick actions' },
@@ -47,8 +49,8 @@ export const isBrandNew = (...tables) => tables.every((rows) => !rows?.length)
 export const isWidgetOn = (prefs, key) => prefs?.[key] !== false
 
 /** The order widgets appear in until the user arranges them, and how wide each wants to be on a 12-column grid. */
-const DEFAULT_ORDER = ['getting_started', 'today', 'score', 'progress', 'priorities', 'stats', 'weekly', 'upcoming', 'goals', 'spending', 'activity', 'quick']
-const WIDGET_SPAN = { getting_started: 12, today: 7, score: 5, progress: 7, priorities: 5, stats: 12, weekly: 7, upcoming: 5, goals: 4, spending: 4, activity: 4, quick: 12 }
+const DEFAULT_ORDER = ['getting_started', 'today', 'score', 'progress', 'priorities', 'stats', 'weekly', 'upcoming', 'goals', 'spending', 'nutrition', 'activity', 'quick']
+const WIDGET_SPAN = { getting_started: 12, today: 7, score: 5, progress: 7, priorities: 5, stats: 12, weekly: 7, upcoming: 5, goals: 4, spending: 4, nutrition: 4, activity: 4, quick: 12 }
 
 /** Every widget key in the user's order. Saved keys come first; widgets added to the app later join in their default place. */
 export function widgetOrder(prefs) {
@@ -120,7 +122,7 @@ export function recentActivity({ tasks, sessions, workouts, transactions, histor
 }
 
 /**
- * @param d { tasks, studySessions, workouts, healthLogs, transactions, applications, history, interviews, goals, milestones, habits, habitLogs }
+ * @param d { tasks, studySessions, workouts, healthLogs, transactions, applications, history, interviews, goals, milestones, habits, habitLogs, foodLogs?, nutritionSettings? }
  */
 export function dashboardData(d, { settings, today, tz = settings.timezone, nowMs = Date.now() }) {
   const w = settings.week_starts_on
@@ -146,6 +148,7 @@ export function dashboardData(d, { settings, today, tz = settings.timezone, nowM
     weekAvg: averageScore(weekScores.filter((x) => x.score != null).map((x) => ({ score: x.score }))).avg,
     activeGoals: d.goals.filter((g) => g.status === 'active').map((g) => ({ g, p: goalPercent(g, d.milestones, d.studySessions) }))
       .sort((a, b) => (a.g.due_date ?? '9999').localeCompare(b.g.due_date ?? '9999')).slice(0, 4),
+    nutrition: dayStatus(d.foodLogs ?? [], d.nutritionSettings ?? null, today),
     month: summarize(d.transactions, monthKey(today), budgetForMonth(d.budgets, monthStart(today), settings.monthly_budget_paise)),
     agenda: todayAgenda({ tasks: d.tasks, habits: d.habits, habitLogs: d.habitLogs, workouts: d.workouts, routines: d.routines, interviews: d.interviews, applications: d.applications, reminders: d.reminders, topics: d.topics, recurringRules: d.recurringRules }, { today, tz, weekStartsOn: w, workoutPlan: settings.workout_plan }),
     upcoming: upcomingItems({ tasks: d.tasks, interviews: d.interviews, applications: d.applications, goals: d.goals, milestones: d.milestones, reminders: d.reminders, recurring: d.recurringRules }, { today, tz, nowMs }),

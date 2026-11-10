@@ -18,14 +18,16 @@ export function download(filename, text, type = 'text/csv;charset=utf-8') {
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
-export const TX_COLUMNS = [
+/** Transaction columns; the amount header names the account's currency (amounts are always stored as minor units). */
+export const txColumns = (currency = 'INR') => [
   { header: 'Date', value: (r) => r.txn_date },
   { header: 'Type', value: (r) => r.type },
   { header: 'Category', value: (r) => r.category },
   { header: 'Payment method', value: (r) => r.payment_method },
-  { header: 'Amount (INR)', value: (r) => (r.amount_paise / 100).toFixed(2) },
+  { header: `Amount (${currency})`, value: (r) => (r.amount_paise / 100).toFixed(2) },
   { header: 'Note', value: (r) => r.note },
 ]
+export const TX_COLUMNS = txColumns('INR')
 export const JOB_COLUMNS = [
   { header: 'Company', value: (r) => r.company },
   { header: 'Title', value: (r) => r.job_title },
@@ -63,6 +65,14 @@ export const EXPORTABLE = [
   ['goals', 'Goals'],
   ['milestones', 'Milestones'],
   ['reminders', 'Reminders'],
+  ['notifications', 'Notifications'],
+  ['learning_topics', 'Learning topics'],
+  ['exercises', 'My exercises'],
+  ['routines', 'Routines'],
+  ['foods', 'Foods'],
+  ['food_logs', 'Food log'],
+  ['water_logs', 'Water entries'],
+  ['nutrition_settings', 'Nutrition targets'],
 ]
 const cell = (v) => (v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : v)
 /** CSV of an entire table read straight from the database (owner id omitted). Returns '' when the table is empty. */

@@ -99,7 +99,8 @@ const insertShapes = {
     name: str(1, 80), category: str(1, 40).optional(), base_key: str(1, 60).nullable().optional(), serving_label: str(1, 60).optional(),
     serving_g: z.number().positive().nullable().optional(), kcal: z.number().min(0).max(5000).optional(), protein_g: z.number().min(0).max(500).optional(),
     carbs_g: z.number().min(0).max(1000).optional(), fat_g: z.number().min(0).max(500).optional(), fiber_g: z.number().min(0).max(200).optional(),
-    servings: z.array(foodServing).max(12).optional(), variants: z.array(foodVariant).max(12).optional(), notes: str(0, 300).optional(),
+    servings: z.array(foodServing).max(12).optional(), variants: z.array(foodVariant).max(12).optional(),
+    aliases: z.array(str(1, 60)).max(12).optional(), source: str(0, 80).optional(), notes: str(0, 300).optional(),
   },
   food_logs: {
     log_date: day, log_time: time.nullable().optional(), meal_type: z.enum(MEAL_TYPES), name: str(1, 120), category: str(1, 40).optional(),

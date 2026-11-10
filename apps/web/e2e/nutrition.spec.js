@@ -38,6 +38,35 @@ test.describe('food & nutrition', () => {
     await expect(breakfast(page)).toContainText('348')
   })
 
+  test('the Indian food database: Tamil and alternate-spelling search, categories, and an exact-weight serving', async ({ page }) => {
+    await register(page)
+    await page.goto('/nutrition')
+    await page.getByRole('button', { name: 'Log food' }).first().click()
+    const dlg = page.getByRole('dialog')
+    const list = dlg.getByRole('list', { name: 'Foods' })
+    const search = dlg.getByLabel('Search foods')
+    await search.fill('தோசை')
+    await expect(list.getByRole('button').first()).toContainText('Plain dosa')
+    await search.fill('briyani')
+    await expect(list.getByRole('button').first()).toContainText('biryani')
+    await search.fill('kothu')
+    await expect(list.getByRole('button').first()).toContainText('Kothu parotta')
+    await search.fill('')
+    await dlg.getByRole('button', { name: 'Non-Vegetarian', exact: true }).click()
+    await search.fill('chicken biryani')
+    await list.getByRole('button').first().click()
+    await expect(dlg.getByText('Rough estimate')).toBeVisible()
+    await dlg.getByRole('button', { name: 'Custom weight' }).click()
+    await dlg.getByLabel('Amount in grams').fill('175')
+    await expect(dlg.getByText('310 kcal', { exact: false })).toBeVisible() // half of the 350 g plate
+    await dlg.getByRole('tab', { name: 'Lunch' }).click()
+    await dlg.getByRole('button', { name: 'Add to Lunch' }).click()
+    await expect(dlg).toHaveCount(0)
+    await expect(page.getByTestId('meal-lunch')).toContainText('Chicken biryani')
+    await expect(page.getByTestId('meal-lunch')).toContainText('175 g')
+    await expect(page.getByTestId('meal-lunch')).toContainText('310')
+  })
+
   test('targets drive the ring; deleting asks first; water can be added and undone', async ({ page }) => {
     await register(page)
     await page.goto('/nutrition')
@@ -101,7 +130,7 @@ test.describe('food & nutrition', () => {
     await page.getByRole('tab', { name: 'Foods' }).click()
     await expect(page.getByText(/approximate estimates/)).toBeVisible()
     await page.getByLabel('Search foods').fill('paneer')
-    await expect(page.getByRole('list', { name: 'Food list' }).getByRole('listitem')).toHaveCount(1)
+    await expect(page.getByRole('list', { name: 'Food list' }).getByRole('listitem').first()).toContainText('Paneer') // the plain food first, then paneer dishes
   })
 
   test('every tab and the picker, detail and entry dialogs have no serious accessibility violations', async ({ page }) => {

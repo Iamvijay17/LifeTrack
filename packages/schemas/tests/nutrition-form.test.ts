@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { STARTER_FOODS } from '../../constants/src/foods.js'
-import { scaleNutrition } from '../../core/src/nutrition.js'
+import { buildCatalog, scaleNutrition } from '../../core/src/nutrition.js'
 import {
   blankCustomFood, customFoodFormSchema, customFoodToForm, customFoodToPayload, foodLogDraftToForm, foodLogFormSchema, foodLogFormToPayload, foodLogFormTotals,
-  insertSchemas, nutritionGoalsFormSchema, nutritionGoalsToForm, nutritionGoalsToPayload, parseServings, servingsToText, waterAmountSchema,
+  insertSchemas, nutritionGoalsFormSchema, nutritionGoalsToForm, nutritionGoalsToPayload, parseAliases, parseServings, servingsToText, waterAmountSchema,
 } from '../src'
 
 const draft = { name: 'Idli', category: 'Tiffin', meal_type: 'breakfast' as const, log_date: '2026-11-02', quantity: 3, serving_label: '1 idli (40 g)', per: { kcal: 58, protein_g: 2, carbs_g: 12, fat_g: 0.4, fiber_g: 0.6 } }
@@ -63,13 +63,27 @@ describe('custom food form', () => {
     expect(servingsToText(parseServings('a = 1.5\nb = 2').servings)).toBe('a = 1.5\nb = 2')
   })
   it('every starter food edits through the form into a payload the database accepts', () => {
-    for (const f of STARTER_FOODS) {
-      const row = { ...f, id: 'x' }
-      const v = customFoodFormSchema.parse(customFoodToForm(row))
-      const p = { ...customFoodToPayload(v), variants: f.variants, base_key: f.key }
+    // Exactly what the dialog does: it starts from the catalogue food and shows only the other names the user typed (the built-in ones are kept by the app).
+    for (const f of buildCatalog([], STARTER_FOODS)) {
+      const v = customFoodFormSchema.parse(customFoodToForm({ ...f, aliases: f.own_aliases, source: f.numbers_from }))
+      const p = { ...customFoodToPayload(v), variants: f.variants, base_key: f.base_key }
       expect(insertSchemas.foods.safeParse(p).success, f.name).toBe(true)
       expect(p.kcal).toBe(f.kcal)
+      expect(p.aliases).toEqual([])
     }
+  })
+  it('other names: commas or new lines, trimmed, no repeats, at most 12 of 60 characters, and they reach the payload', () => {
+    expect(parseAliases(' kozhi , Kozhi\nchicken curry,, ').aliases).toEqual(['kozhi', 'chicken curry'])
+    expect(parseAliases('').aliases).toEqual([])
+    expect(parseAliases(Array.from({ length: 13 }, (_, i) => `n${i}`).join(',')).error).toBeTruthy()
+    expect(parseAliases('x'.repeat(61)).error).toBeTruthy()
+    const form = { ...blankCustomFood(), name: 'Amma sambar', kcal: '70', aliases: 'அம்மா சாம்பார், home sambar', source: ' my recipe ' }
+    expect(customFoodFormSchema.safeParse(form).success).toBe(true)
+    expect(customFoodFormSchema.safeParse({ ...form, aliases: Array.from({ length: 13 }, (_, i) => `n${i}`).join(',') }).success).toBe(false)
+    const p = customFoodToPayload(customFoodFormSchema.parse(form))
+    expect(p).toMatchObject({ aliases: ['அம்மா சாம்பார்', 'home sambar'], source: 'my recipe' })
+    expect(insertSchemas.foods.safeParse(p).success).toBe(true)
+    expect(customFoodToForm({ name: 'x', aliases: ['a', 'b'], source: 's' })).toMatchObject({ aliases: 'a, b', source: 's' })
   })
 })
 
