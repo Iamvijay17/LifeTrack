@@ -148,6 +148,11 @@
   --mod-2: 99 102 241;
   --mod-text: 15 118 110;
 }
+[data-module='help'] {
+  --mod: 14 165 233;
+  --mod-2: 99 102 241;
+  --mod-text: 3 105 161;
+}
 .dark,
 .dark [data-module='dashboard'] {
   --mod-text: 167 139 250;
@@ -211,6 +216,10 @@
 .dark[data-module='export'],
 .dark [data-module='export'] {
   --mod-text: 94 234 212;
+}
+.dark[data-module='help'],
+.dark [data-module='help'] {
+  --mod-text: 125 211 252;
 }
 
 @layer base {

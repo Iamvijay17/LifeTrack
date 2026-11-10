@@ -28,6 +28,7 @@ const Goals = page(() => import('@/features/goals/GoalsPage'))
 const Reports = page(() => import('@/features/reports/ReportsPage'))
 const Notifications = page(() => import('@/features/notifications/NotificationsPage'))
 const ExportPage = page(() => import('@/features/export/ExportPage'))
+const Help = page(() => import('@/features/help/HelpPage'))
 const Settings = page(() => import('@/features/settings/SettingsPage'))
 
 function Protected({ children }) {
@@ -76,6 +77,7 @@ export default function App() {
                 <Route path="notifications" element={<Notifications />} />
                 <Route path="export" element={<ExportPage />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="help" element={<Help />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
