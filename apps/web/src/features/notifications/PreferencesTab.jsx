@@ -16,6 +16,10 @@ export function PreferencesTab({ prefs, onChange }) {
             <Switch checked={isKindEnabled(prefs, k.value)} onChange={(v) => onChange(k.value, v)} label={`${k.label} reminders`} />
           </div>
         ))}
+        <div className="flex items-center justify-between rounded-md px-3 py-2.5 hover:bg-muted/40">
+          <span className="text-sm">Calendar event and task alerts</span>
+          <Switch checked={isKindEnabled(prefs, 'event')} onChange={(v) => onChange('event', v)} label="Calendar event and task alerts" />
+        </div>
       </CardContent>
     </Card>
   )

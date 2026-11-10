@@ -11,6 +11,7 @@ import { dayStatus } from '@/domain/nutrition'
 import { GoalsCard } from '@/features/overview/GoalsCard'
 import { ActivityCard } from '@/features/overview/ActivityCard'
 import { CustomizeDialog } from '@/features/overview/CustomizeDialog'
+import { COMMAND_WIDGETS } from '@lifetrack/core/commandCenter'
 
 const wrap = (ui) => render(<MemoryRouter>{ui}</MemoryRouter>)
 const money = (p) => `₹${p / 100}`
@@ -131,7 +132,7 @@ describe('GoalsCard', () => {
 describe('ActivityCard', () => {
   it('renders every activity kind without crashing', () => {
     const at = new Date().toISOString()
-    const items = ['task', 'study', 'workout', 'money', 'job', 'habit'].map((kind) => ({ kind, at, text: `item-${kind}` }))
+    const items = ['task', 'study', 'workout', 'money', 'job', 'habit', 'sleep'].map((kind) => ({ kind, at, text: `item-${kind}` }))
     render(<ActivityCard items={items} />)
     for (const i of items) expect(screen.getByText(i.text)).toBeInTheDocument()
   })
@@ -145,7 +146,7 @@ describe('CustomizeDialog', () => {
   it('reflects prefs (default on) and reports toggles', async () => {
     const onToggle = vi.fn()
     render(<CustomizeDialog open onOpenChange={() => {}} prefs={{ score: false }} onToggle={onToggle} />)
-    const score = screen.getByRole('switch', { name: 'Daily score' })
+    const score = screen.getByRole('switch', { name: 'Life Score' })
     expect(score).toHaveAttribute('aria-checked', 'false')
     expect(screen.getByRole('switch', { name: "Today's progress" })).toHaveAttribute('aria-checked', 'true')
     await userEvent.click(score)
@@ -157,7 +158,7 @@ describe('CustomizeDialog arranging', () => {
   it('lists widgets in the saved order, with the rest after them', () => {
     render(<CustomizeDialog open onOpenChange={() => {}} prefs={{ order: ['quick', 'score'] }} onToggle={() => {}} onReorder={() => {}} />)
     const names = screen.getAllByRole('switch').map((s) => s.getAttribute('aria-label'))
-    expect(names.slice(0, 2)).toEqual(['Quick actions', 'Daily score'])
-    expect(names).toHaveLength(13)
+    expect(names.slice(0, 2)).toEqual(['Quick actions', 'Life Score'])
+    expect(names).toHaveLength(COMMAND_WIDGETS.length)
   })
 })

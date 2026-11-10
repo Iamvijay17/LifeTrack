@@ -48,6 +48,8 @@ export const FIXTURES: Record<string, Fixture> = {
   savings_goals: { insert: (r, o, f) => one(r, `insert into savings_goals(user_id, name, target_paise) values ($1,'Fund',1000)`, [o]) },
   reminders: { insert: (r, o) => one(r, `insert into reminders(user_id, title, remind_date) values ($1,'Pay rent','2026-11-02')`, [o]) },
   notifications: { insert: (r, o) => one(r, `insert into notifications(user_id, title) values ($1,'Hello')`, [o]) },
+  calendar_events: { insert: (r, o, f) => one(r, `insert into calendar_events(user_id, title, starts_at, ends_at, goal_id, topic_id, application_id, routine_id) values ($1,'Standup','2026-11-05T04:00:00Z','2026-11-05T04:30:00Z',$2,$3,$4,$5)`, [o, f.goal_id ?? null, f.topic_id ?? null, f.application_id ?? null, f.routine_id ?? null]) },
+  calendar_event_exceptions: { parents: { event_id: 'calendar_events' }, insert: (r, o, f) => one(r, `insert into calendar_event_exceptions(user_id, event_id, occurrence_date, status) values ($1,$2,'2026-11-05','cancelled')`, [o, f.event_id]) },
 }
 
 /** Foreign keys from a user-owned child table to another user-owned parent, as inserted by the fixtures. Optional links are listed
@@ -64,4 +66,8 @@ export const OPTIONAL_LINKS: { child: string; column: string; parent: string }[]
   { child: 'notes', column: 'task_id', parent: 'tasks' },
   { child: 'food_logs', column: 'food_id', parent: 'foods' },
   { child: 'transactions', column: 'recurring_rule_id', parent: 'recurring_rules' },
+  { child: 'calendar_events', column: 'goal_id', parent: 'goals' },
+  { child: 'calendar_events', column: 'topic_id', parent: 'learning_topics' },
+  { child: 'calendar_events', column: 'application_id', parent: 'job_applications' },
+  { child: 'calendar_events', column: 'routine_id', parent: 'routines' },
 ]

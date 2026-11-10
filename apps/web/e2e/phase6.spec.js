@@ -67,10 +67,14 @@ test.describe('navigation, search, dashboard', () => {
     await page.goto('/')
     await expect(page.getByTestId('score-value')).toHaveText('100') // only Career applies: the study target waits until you study
     await page.getByRole('button', { name: 'How is this calculated?' }).click()
-    await expect(page.getByText(/Career 100% × 100%/)).toBeVisible()
+    await expect(page.getByText(/Career 100\.0 = 100/)).toBeVisible() // the 7-day Life Score: points per category
+    await page.keyboard.press('Escape')
+    await page.getByRole('tab', { name: 'Today' }).click()
+    await page.getByRole('button', { name: 'How is this calculated?' }).click()
+    await expect(page.getByText(/Career 100% × 100%/)).toBeVisible() // today's score: fraction × weight
     await page.keyboard.press('Escape')
     await page.getByRole('button', { name: 'Customize' }).click()
-    await page.getByRole('switch', { name: 'Daily score' }).click()
+    await page.getByRole('switch', { name: 'Life Score', exact: true }).click()
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('score-card')).toHaveCount(0)
     await page.reload()

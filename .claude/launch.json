@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-local",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd apps/web && VITE_LOCAL_MODE=true ./node_modules/.bin/vite --port 5173 --strictPort"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "web-e2e",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd apps/web && VITE_LOCAL_MODE=true ./node_modules/.bin/vite preview --port 4173 --strictPort --outDir dist-perf"
+      ],
+      "port": 4173
+    }
+  ]
+}

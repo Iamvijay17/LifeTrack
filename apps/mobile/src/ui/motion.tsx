@@ -126,16 +126,29 @@ export function IconTile({ name, size = 40, module, soft }: { name: IconName; si
 export function Hero({ children, module, style }: { children: ReactNode; module?: ModuleName; style?: StyleProp<ViewStyle> }) {
   const { colors, radius } = useTheme()
   const a = useAccent(module)
+  // Measure the card and draw the glow in real pixels. Percentage-sized SVG gradients on Android render as a hard-edged box that stops short
+  // of the card's edges, so the gradients are userSpaceOnUse circles centred on the card's corners and clipped by the card itself.
+  const [size, setSize] = useState({ w: 0, h: 0 })
+  const { w, h } = size
+  const reach = Math.max(w, h)
   return (
-    <View style={[{ backgroundColor: colors.card, borderRadius: radius.xxl, borderWidth: 1, borderColor: colors.border, padding: 18, overflow: 'hidden' }, style]}>
-      <Svg pointerEvents="none" style={StyleSheet.absoluteFill} width="100%" height="100%">
-        <Defs>
-          <RadialGradient id="a" cx="10%" cy="0%" r="75%"><Stop offset="0" stopColor={a.from} stopOpacity={0.26} /><Stop offset="1" stopColor={a.from} stopOpacity={0} /></RadialGradient>
-          <RadialGradient id="b" cx="95%" cy="100%" r="70%"><Stop offset="0" stopColor={a.to} stopOpacity={0.18} /><Stop offset="1" stopColor={a.to} stopOpacity={0} /></RadialGradient>
-        </Defs>
-        <Rect width="100%" height="100%" fill="url(#a)" />
-        <Rect width="100%" height="100%" fill="url(#b)" />
-      </Svg>
+    <View
+      onLayout={(e) => { const { width, height } = e.nativeEvent.layout; setSize((p) => (Math.abs(p.w - width) < 0.5 && Math.abs(p.h - height) < 0.5 ? p : { w: width, h: height })) }}
+      style={[{ backgroundColor: colors.card, borderRadius: radius.xxl, borderWidth: 1, borderColor: colors.border, padding: 18, overflow: 'hidden' }, style]}>
+      {w > 0 && h > 0 ? (
+        <Svg pointerEvents="none" style={StyleSheet.absoluteFill} width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+          <Defs>
+            <RadialGradient id="heroGlowA" gradientUnits="userSpaceOnUse" cx={w * 0.1} cy={0} r={reach * 0.75}>
+              <Stop offset="0" stopColor={a.from} stopOpacity={0.22} /><Stop offset="0.5" stopColor={a.from} stopOpacity={0.07} /><Stop offset="1" stopColor={a.from} stopOpacity={0} />
+            </RadialGradient>
+            <RadialGradient id="heroGlowB" gradientUnits="userSpaceOnUse" cx={w * 0.95} cy={h} r={reach * 0.7}>
+              <Stop offset="0" stopColor={a.to} stopOpacity={0.16} /><Stop offset="0.5" stopColor={a.to} stopOpacity={0.05} /><Stop offset="1" stopColor={a.to} stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Rect x={0} y={0} width={w} height={h} fill="url(#heroGlowA)" />
+          <Rect x={0} y={0} width={w} height={h} fill="url(#heroGlowB)" />
+        </Svg>
+      ) : null}
       {children}
     </View>
   )

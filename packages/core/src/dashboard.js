@@ -53,9 +53,9 @@ const DEFAULT_ORDER = ['getting_started', 'today', 'score', 'progress', 'priorit
 const WIDGET_SPAN = { getting_started: 12, today: 7, score: 5, progress: 7, priorities: 5, stats: 12, weekly: 7, upcoming: 5, goals: 4, spending: 4, nutrition: 4, activity: 4, quick: 12 }
 
 /** Every widget key in the user's order. Saved keys come first; widgets added to the app later join in their default place. */
-export function widgetOrder(prefs) {
-  const saved = Array.isArray(prefs?.order) ? prefs.order.filter((k) => DEFAULT_ORDER.includes(k)) : []
-  const missing = DEFAULT_ORDER.filter((k) => !saved.includes(k))
+export function widgetOrder(prefs, defaults = DEFAULT_ORDER) {
+  const saved = Array.isArray(prefs?.order) ? [...new Set(prefs.order.filter((k) => defaults.includes(k)))] : []
+  const missing = defaults.filter((k) => !saved.includes(k))
   return [...saved, ...missing]
 }
 
@@ -63,7 +63,7 @@ export function widgetOrder(prefs) {
  * Lays visible widgets out in rows of 12 columns: each widget keeps its preferred width while it fits, and a row that ends short is stretched
  * to fill, so hiding or moving a widget never leaves a hole. Returns [{ key, span }] in display order.
  */
-export function arrangeWidgets(keys) {
+export function arrangeWidgets(keys, spanOf = (key) => WIDGET_SPAN[key]) {
   const out = []
   let row = []
   let used = 0
@@ -71,14 +71,14 @@ export function arrangeWidgets(keys) {
     if (!row.length) return
     const extra = 12 - used
     const each = Math.floor(extra / row.length)
-    row.forEach((key, i) => out.push({ key, span: WIDGET_SPAN[key] + each + (i < extra - each * row.length ? 1 : 0) }))
+    row.forEach((key, i) => out.push({ key, span: spanOf(key) + each + (i < extra - each * row.length ? 1 : 0) }))
     row = []
     used = 0
   }
   for (const key of keys) {
-    if (used + WIDGET_SPAN[key] > 12) flush()
+    if (used + spanOf(key) > 12) flush()
     row.push(key)
-    used += WIDGET_SPAN[key]
+    used += spanOf(key)
   }
   flush()
   return out

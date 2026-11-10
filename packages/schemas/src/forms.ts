@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { dateStrInTz, isValidDay, lpaToPaise, paiseToInput, paiseToLpa, parseMoney, parseTags, sleepMinutes, timeStrInTz, zonedToIso } from '@lifetrack/utils'
-import { MEAL_TYPES, RECURRING_FREQUENCIES, TASK_CATEGORIES } from './tables'
+import { MEAL_TYPES, PRIORITY_VALUES, RECURRING_FREQUENCIES, TASK_CATEGORIES, TASK_RECURRENCES } from './tables'
 
 // Form-level validation + payload mapping shared by web and mobile. Forms hold strings ('' = empty);
 // *ToPayload converts them to the exact shape the database accepts (validated in tests against insertSchemas).
@@ -12,9 +12,9 @@ export const taskFormSchema = z.object({
   title: z.string().trim().min(1, 'Give the task a title').max(200, 'Keep it under 200 characters'),
   notes: z.string().max(2000),
   category: z.enum(TASK_CATEGORIES),
-  priority: z.enum(['low', 'medium', 'high']),
+  priority: z.enum(PRIORITY_VALUES),
   due_date: day,
-  recurrence: z.enum(['none', 'daily', 'weekdays', 'weekly', 'monthly']),
+  recurrence: z.enum(TASK_RECURRENCES),
   recurrence_until: day,
 }).superRefine((v, ctx) => {
   if (v.recurrence !== 'none' && !v.due_date) ctx.addIssue({ code: 'custom', path: ['due_date'], message: 'Repeating tasks need a due date' })

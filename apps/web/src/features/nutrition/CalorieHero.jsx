@@ -3,7 +3,7 @@ import { AnimatedValue, ProgressRing } from '@/components/motion/primitives'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/misc'
-import { fmtGrams, percentOfGoal, remainingOf, round } from '@/domain/nutrition'
+import { fmtGrams, macroSplit, percentOfGoal, remainingOf, round } from '@/domain/nutrition'
 import { cn } from '@/lib/utils'
 
 const MACROS = [
@@ -13,22 +13,30 @@ const MACROS = [
   { key: 'fiber_g', label: 'Fibre', tone: 'success' },
 ]
 
-function Macro({ label, value, goal, tone }) {
-  const percent = percentOfGoal(value, goal)
+/** A general fibre guide, used only to give the Fibre bar a scale while no target is set. */
+const FIBRE_GUIDE_G = 30
+
+/**
+ * One nutrient bar. With a target the bar shows progress towards it. Without one it would sit empty, so instead protein, carbs and fat show their
+ * share of the day's macro calories, and fibre is measured against a general 30 g guide. `share` is that percentage (null when a target is set).
+ */
+function Macro({ label, value, goal, tone, share, guide }) {
+  const percent = goal ? percentOfGoal(value, goal) : guide ? (value / guide) * 100 : share
+  const note = goal ? ` / ${goal} g` : guide ? ` / ${guide} g guide` : share != null ? ` g · ${share}%` : ' g'
   return (
     <div className="min-w-0">
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-xs font-medium text-muted-foreground">{label}</span>
         <span className="text-xs tabular-nums text-muted-foreground">
           <b className="text-sm font-semibold text-foreground">{round(value)}</b>
-          {goal ? ` / ${goal} g` : ' g'}
+          {note}
         </span>
       </div>
       <Progress
-        value={percent ?? 0}
-        tone={percent != null && percent > 110 ? 'danger' : tone}
+        value={Math.min(100, percent ?? 0)}
+        tone={goal && percent != null && percent > 110 ? 'danger' : tone}
         className="mt-1.5"
-        label={`${label} today`}
+        label={goal ? `${label} today` : share != null ? `${label}, share of macro calories` : `${label} against a general guide`}
       />
     </div>
   )
@@ -43,6 +51,7 @@ export function CalorieHero({ totals, goals, isToday, onEditGoals }) {
   const percent = percentOfGoal(totals.kcal, goal)
   const left = remainingOf(totals.kcal, goal)
   const over = left != null && left < 0
+  const shares = Object.fromEntries(macroSplit(totals).map((m) => [m.key, m.percent]))
   return (
     <Card className="relative isolate flex flex-col justify-center overflow-hidden lg:col-span-2">
       <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(60%_80%_at_0%_0%,rgb(var(--mod)/0.12),transparent)]" />
@@ -82,7 +91,15 @@ export function CalorieHero({ totals, goals, isToday, onEditGoals }) {
           </div>
           <div className="grid grid-cols-2 gap-x-5 gap-y-3">
             {MACROS.map((m) => (
-              <Macro key={m.key} label={m.label} value={totals[m.key]} goal={goals[m.key]} tone={m.tone} />
+              <Macro
+                key={m.key}
+                label={m.label}
+                value={totals[m.key]}
+                goal={goals[m.key]}
+                tone={m.tone}
+                share={m.key in shares ? shares[m.key] : null}
+                guide={m.key === 'fiber_g' ? FIBRE_GUIDE_G : null}
+              />
             ))}
           </div>
           <p className="sr-only">

@@ -5,7 +5,8 @@ import { afterPost, dueOccurrences, dueRules, occurrenceRow, togglePatch as recu
 import { MIN_RECORD_SECONDS } from '@lifetrack/core/focus'
 import { DEFAULT_TOPICS, DEFAULT_EXERCISES } from '@lifetrack/constants/defaults'
 import { CONFLICT_KEYS } from '@lifetrack/constants/schema'
-import { uid } from '@lifetrack/utils'
+import { uid, localDayMinutes } from '@lifetrack/utils'
+import { exceptionOverrides, expandEvent, isOccurrenceDate, normalizeRule, ruleBefore, ruleFrom, shiftSeries } from '@lifetrack/core/calendarRecurrence'
 import { AppError } from './errors'
 
 /**
@@ -276,5 +277,150 @@ export function createApi(store) {
     return unread.length
   }
 
-  return { saveRow, deleteRow, createTask, setTaskStatus, setHabitStatus, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, logWater, removeWaterLog, saveNutritionGoals, saveFavoriteFoods, saveFoodCopy, deleteFood, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, postDueRecurring, toggleRecurringRule, fireDueReminders, toggleReminder, clearReadNotifications, markNotificationRead, markAllRead }
+  // ---------------------------------------------------------------- calendar
+  // Events are `calendar_events` rows; tasks, interviews and reminders keep living in their own tables and are only rescheduled from the calendar.
+  // Editing a repeating event comes in three scopes: 'this' (one occurrence: an override row in calendar_event_exceptions), 'following' (the series is cut
+  // at that occurrence and a new one continues from it) and 'all'. Multi-row scopes undo what they did if a later step fails, like saveWorkout.
+  const EVENT_FIELDS = ['title', 'description', 'location', 'category', 'category_label', 'priority', 'color', 'all_day', 'starts_at', 'ends_at', 'timezone', 'rrule', 'alert_minutes', 'goal_id', 'topic_id', 'application_id', 'routine_id']
+  const pickEvent = (values) => Object.fromEntries(EVENT_FIELDS.filter((k) => k in values).map((k) => [k, values[k]]))
+  const sameJson = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+  const seriesDate = (event) => localDayMinutes(event.starts_at, event.timezone || 'Asia/Kolkata').date
+  const BLANK_OVERRIDES = { title: null, description: null, location: null, category: null, priority: null, color: null, all_day: null, starts_at: null, ends_at: null, alert_minutes: null }
+
+  /** Another device may have changed (or deleted) the event since this screen read it; refuse to overwrite blindly. */
+  function freshEvent(event) {
+    const now = store.peek('calendar_events').find((e) => e.id === event.id)
+    if (!now) throw new AppError('This event was deleted on another device.')
+    if (event.updated_at && now.updated_at && now.updated_at !== event.updated_at)
+      throw new AppError('This event was changed on another device. Review the latest version and try again.')
+    return now
+  }
+  const exceptionsOf = (event) => store.peek('calendar_event_exceptions').filter((x) => x.event_id === event.id)
+
+  /** Creates an event. Pass `id` (a fresh uuid made when the form opened) and a retry or a double submit can never create two. */
+  async function createCalendarEvent(values) {
+    const row = { id: uid(), ...pickEvent(values) }
+    row.id = values.id ?? row.id
+    try {
+      return await store.insert('calendar_events', row)
+    } catch (e) {
+      if (e?.code !== '23505') throw e
+      await store.refetch('calendar_events') // the first attempt went through
+      const mine = store.peek('calendar_events').find((r) => r.id === row.id)
+      if (mine) return mine
+      throw e
+    }
+  }
+
+  /**
+   * Saves an edit to an event.
+   * @param event the series row as the screen last saw it
+   * @param values the edited fields of the OCCURRENCE being edited (starts_at/ends_at are that occurrence's times), plus the series `rrule`
+   * @param opts.scope 'all' | 'this' | 'following' (ignored for events that do not repeat)
+   * @param opts.occurrenceDate the local date the series generated for the edited occurrence
+   */
+  async function saveCalendarEvent(event, values, { scope = 'all', occurrenceDate = null } = {}) {
+    await Promise.all([store.load('calendar_events'), store.load('calendar_event_exceptions')])
+    event = freshEvent(event)
+    const first = seriesDate(event)
+    const repeats = !!event.rrule
+    const date = occurrenceDate ?? first
+    if (repeats && scope === 'following' && date <= first) scope = 'all' // from the very first occurrence on, that IS the whole series
+
+    if (!repeats || scope === 'all') {
+      let patch = pickEvent(values)
+      if (repeats && occurrenceDate && values.starts_at && values.ends_at)
+        patch = { ...patch, ...shiftSeries(event, date, Date.parse(values.starts_at), Date.parse(values.ends_at), values.all_day ?? event.all_day) }
+      const next = { ...event, ...patch }
+      const moved = repeats && (!sameJson(normalizeRule(event.rrule, first), normalizeRule(next.rrule, seriesDate(next))) || seriesDate(next) !== first)
+      const row = await store.update('calendar_events', event.id, patch)
+      if (moved) {
+        // Overrides are keyed by the date the old rule produced; after the rule or start date changes they would attach to the wrong days.
+        const stale = exceptionsOf(event).map((x) => x.id)
+        if (stale.length) await store.removeMany('calendar_event_exceptions', stale)
+      }
+      return row
+    }
+
+    if (scope === 'this') {
+      const [base] = expandEvent(event, [], date, date).filter((o) => o.occurrenceDate === date)
+      if (!base) throw new AppError('That occurrence no longer exists.')
+      // Fields the caller leaves out keep this occurrence's own values (never the series' first-occurrence times).
+      const overrides = exceptionOverrides({ ...event, starts_at: base.startsAt, ends_at: base.endsAt }, { ...event, starts_at: base.startsAt, ends_at: base.endsAt, ...pickEvent(values) })
+      const existing = exceptionsOf(event).find((x) => x.occurrence_date === date)
+      if (Object.values(overrides).every((v) => v == null)) {
+        if (existing) await store.remove('calendar_event_exceptions', existing.id) // edited back to the series' values: drop the override
+        return event
+      }
+      await store.upsert('calendar_event_exceptions', { event_id: event.id, occurrence_date: date, status: 'modified', ...BLANK_OVERRIDES, ...overrides }, { onConflict: CONFLICT_KEYS.calendar_event_exceptions })
+      return event
+    }
+
+    // 'following': cut the old series just before this occurrence and start a new one here
+    const unchangedRule = sameJson(normalizeRule(event.rrule, first), normalizeRule(values.rrule, first))
+    const tail = {
+      ...pickEvent(event),
+      ...pickEvent(values),
+      id: uid(),
+      timezone: event.timezone,
+      rrule: values.rrule && unchangedRule ? ruleFrom(values.rrule, first, date) : values.rrule ?? null,
+    }
+    const created = await store.insert('calendar_events', tail)
+    try {
+      await store.update('calendar_events', event.id, { rrule: ruleBefore(event.rrule, first, date) })
+    } catch (e) {
+      await store.remove('calendar_events', created.id).catch(() => {}) // never leave two overlapping series behind
+      throw e
+    }
+    const later = exceptionsOf(event).filter((x) => x.occurrence_date >= date)
+    const superseded = later.filter((x) => x.occurrence_date === date).map((x) => x.id) // the new series replaces this occurrence's own override
+    const carry = later.filter((x) => x.occurrence_date !== date)
+    if (superseded.length) await store.removeMany('calendar_event_exceptions', superseded)
+    for (const x of carry) await store.update('calendar_event_exceptions', x.id, { event_id: created.id })
+    return created
+  }
+
+  /** Deletes an event, one occurrence of it, or it and everything after. Cancelling one occurrence keeps an override row so it stays gone. */
+  async function deleteCalendarEvent(event, { scope = 'all', occurrenceDate = null } = {}) {
+    await Promise.all([store.load('calendar_events'), store.load('calendar_event_exceptions')])
+    event = store.peek('calendar_events').find((e) => e.id === event.id)
+    if (!event) return null // already gone (another device)
+    const first = seriesDate(event)
+    const date = occurrenceDate ?? first
+    if (!event.rrule || scope === 'all' || (scope === 'following' && date <= first)) return store.remove('calendar_events', event.id)
+    if (scope === 'this') {
+      if (!isOccurrenceDate(event.rrule, first, date)) return null
+      return store.upsert('calendar_event_exceptions', { event_id: event.id, occurrence_date: date, status: 'cancelled', ...BLANK_OVERRIDES }, { onConflict: CONFLICT_KEYS.calendar_event_exceptions })
+    }
+    await store.update('calendar_events', event.id, { rrule: ruleBefore(event.rrule, first, date) })
+    const gone = exceptionsOf(event).filter((x) => x.occurrence_date >= date).map((x) => x.id)
+    if (gone.length) await store.removeMany('calendar_event_exceptions', gone)
+    return null
+  }
+
+  /**
+   * Applies a change planned by the calendar's drag-and-drop (planMove / planResize / planSchedule in @lifetrack/core/calendar).
+   * Tasks, interviews and reminders are rescheduled in their own tables; events go through saveCalendarEvent with the chosen scope.
+   */
+  async function applyCalendarChange(change, { scope = 'all' } = {}) {
+    if (change.table === 'calendar_events') return saveCalendarEvent(change.event, change.values, { scope, occurrenceDate: change.occurrenceDate })
+    const current = store.peek(change.table).find((r) => r.id === change.id)
+    if (!current) throw new AppError('That item no longer exists. It may have been deleted on another device.')
+    return store.update(change.table, change.id, change.patch)
+  }
+
+  /**
+   * Raises one calendar alert as a notification. The dedupe key names the occurrence and the offset, and is unique per user, so with the app open on
+   * several devices (or tabs) only the first insert wins. Resolves to the notification, or null if another device already raised it.
+   */
+  async function raiseCalendarAlert({ key, title, body, link }) {
+    try {
+      return await store.insert('notifications', { kind: 'event', title: title.slice(0, 200), body, link, dedupe_key: key })
+    } catch (e) {
+      if (e?.code === '23505') return null
+      throw e
+    }
+  }
+
+  return { saveRow, deleteRow, createTask, setTaskStatus, setHabitStatus, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, logWater, removeWaterLog, saveNutritionGoals, saveFavoriteFoods, saveFoodCopy, deleteFood, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, postDueRecurring, toggleRecurringRule, fireDueReminders, toggleReminder, clearReadNotifications, markNotificationRead, markAllRead, createCalendarEvent, saveCalendarEvent, deleteCalendarEvent, applyCalendarChange, raiseCalendarAlert }
 }

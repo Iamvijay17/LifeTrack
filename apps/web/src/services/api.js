@@ -35,4 +35,9 @@ export const {
   clearReadNotifications,
   markNotificationRead,
   markAllRead,
+  createCalendarEvent,
+  saveCalendarEvent,
+  deleteCalendarEvent,
+  applyCalendarChange,
+  raiseCalendarAlert,
 } = createApi(store)
