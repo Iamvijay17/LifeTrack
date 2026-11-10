@@ -11,6 +11,10 @@ describe('cardio → steps estimate', () => {
     expect(cardioSteps([W({ cardio_minutes: 30 })], D)).toBe(3000)
     expect(cardioSteps([W({ cardio_minutes: 30, workout_date: '2026-11-09' }), W({ cardio_minutes: 30, status: 'skipped' }), W({})], D)).toBe(0)
   })
+  it('falls back to Duration for a Cardio-type workout, but not for strength', () => {
+    expect(cardioSteps([W({ kind: 'cardio', duration_minutes: 30 })], D)).toBe(3000)
+    expect(cardioSteps([W({ kind: 'strength', duration_minutes: 60 })], D)).toBe(0)
+  })
   it('adds to manually logged steps', () => {
     expect(stepsForDay({ steps: 1000 }, [W({ cardio_minutes: 20 })], D)).toBe(3000)
     expect(stepsForDay(null, [], D)).toBe(0)
@@ -19,6 +23,7 @@ describe('cardio → steps estimate', () => {
     const p = dailyProgress({ date: D, workouts: [W({ cardio_minutes: 40 })], settings: { steps_goal: 8000 } })
     const s = p.items.find((i) => i.key === 'steps')
     expect(s.done).toBeCloseTo(0.5)
-    expect(s.detail).toBe('4000/8000 (incl. cardio)')
+    expect(s.detail).toBe('4000/8000')
+    expect(s.note).toMatch(/4,000 steps estimated from cardio/)
   })
 })
