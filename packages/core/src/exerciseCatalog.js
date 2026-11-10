@@ -121,3 +121,31 @@ export function inLibrary(entry, library) {
   const key = normalizeName(entry.name)
   return (library ?? []).find((l) => normalizeName(l.name) === key) ?? null
 }
+
+/**
+ * Suggestions for an exercise-name field: the user's own exercises that match `query` (all of them when it is empty), each with its
+ * catalog entry for the photo, then up to `dbLimit` more exercises from the database (only once 2+ characters are typed) that the user
+ * does not already have. Each item: { kind: 'mine' | 'database', key, name, detail, entry }.
+ */
+export function suggestExercises({ library, catalog, query = '', dbLimit = 8, mineLimit = 40 }) {
+  const q = normalizeName(query)
+  const index = catalog ? catalogIndex(catalog) : null
+  const mine = (library ?? [])
+    .filter((l) => !q || normalizeName(l.name).includes(q))
+    .slice(0, mineLimit)
+    .map((l) => ({
+      kind: 'mine',
+      key: `m${l.id}`,
+      name: l.name,
+      detail: [l.muscle_group, l.equipment].filter(Boolean).join(' · '),
+      entry: index ? matchCatalog(index, l.name) : null,
+    }))
+  if (!catalog || q.length < 2) return mine
+  const known = new Set((library ?? []).map((l) => normalizeName(l.name)))
+  for (const m of mine) if (m.entry) known.add(normalizeName(m.entry.name))
+  const db = searchCatalog(catalog, { query })
+    .filter((e) => !known.has(normalizeName(e.name)))
+    .slice(0, dbLimit)
+    .map((e) => ({ kind: 'database', key: `d${e.id}`, name: e.name, detail: `${e.category} · ${e.equipment}`, entry: e }))
+  return [...mine, ...db]
+}

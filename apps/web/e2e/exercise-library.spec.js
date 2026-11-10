@@ -97,6 +97,33 @@ test.describe('exercise library (Free Exercise DB)', () => {
   })
 })
 
+test('Log workout: exercise suggestions show a photo next to each name and still accept free text', async ({ page }) => {
+  await register(page)
+  await page.goto('/fitness')
+  await page.getByRole('button', { name: 'Log workout' }).first().click()
+  const dlg = page.getByRole('dialog')
+  await dlg.getByRole('button', { name: 'Add exercise' }).click()
+  const field = dlg.getByLabel('Exercise 1')
+  await field.fill('plank')
+  const list = page.getByRole('listbox', { name: 'Exercise suggestions' })
+  const plank = list.getByRole('option', { name: /^Plank/ }).first()
+  await expect(plank).toBeVisible()
+  const img = plank.locator('img')
+  await expect.poll(() => img.evaluate((i) => i.complete && i.naturalWidth > 0)).toBe(true)
+  await plank.click()
+  await expect(field).toHaveValue('Plank')
+  await expect(list).toHaveCount(0)
+  await expect(dlg).toBeVisible()
+  // A name that is in neither list is kept as typed and logs as before.
+  await dlg.getByRole('button', { name: 'Add exercise' }).click()
+  await dlg.getByLabel('Exercise 2').fill('Zercher squat')
+  await expect(dlg.getByLabel('Exercise 2')).toHaveValue('Zercher squat')
+  await page.keyboard.press('Escape')
+  await dlg.getByLabel('Set 1 weight').first().fill('20')
+  await dlg.getByRole('button', { name: 'Log workout' }).click()
+  await expect(page.getByText('Workout logged').first()).toBeVisible()
+})
+
 test('the exercise database and an exercise page have no serious accessibility violations', async ({ page }) => {
   await register(page)
   await openDatabase(page)

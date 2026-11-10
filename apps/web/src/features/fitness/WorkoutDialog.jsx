@@ -4,6 +4,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Select, Textarea } from '@/components/ui/form'
+import { ExercisePicker } from './catalog/ExercisePicker'
 import { formExercisesToLogs, groupSets, routineToFormExercises } from '@/domain/fitness'
 import { nonNegativeNumber, optionalNumber, requiredDay } from '@/lib/validation'
 import { useAction } from '@/hooks/useAction'
@@ -158,15 +159,15 @@ export function WorkoutDialog({ open, onOpenChange, workout, sets = [], routines
       )}
       {kind !== 'cardio' && (
         <div className="space-y-3">
-          <datalist id="lib-ex2">
-            {library.map((e) => (
-              <option key={e.id} value={e.name} />
-            ))}
-          </datalist>
           {fields.map((f, i) => (
             <div key={f.id} className="space-y-2 rounded-md border border-border p-3">
               <div className="flex items-center gap-2">
-                <Input list="lib-ex2" aria-label={`Exercise ${i + 1}`} placeholder="Exercise" {...register(`exercises.${i}.name`)} />
+                <ExercisePicker
+                  library={library}
+                  aria-label={`Exercise ${i + 1}`}
+                  placeholder="Exercise"
+                  {...register(`exercises.${i}.name`)}
+                />
                 <Button type="button" variant="ghost" size="icon-sm" aria-label="Remove exercise" onClick={() => remove(i)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>

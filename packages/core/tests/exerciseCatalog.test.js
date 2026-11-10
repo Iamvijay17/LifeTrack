@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { CATALOG_CATEGORIES, STARTER_ALIASES, catalogIndex, categoryCounts, facetValues, hasImages, imagePair, inLibrary, libraryRowFor, matchCatalog, normalizeName, searchCatalog } from '../src/exerciseCatalog'
+import { CATALOG_CATEGORIES, STARTER_ALIASES, catalogIndex, categoryCounts, facetValues, hasImages, imagePair, inLibrary, libraryRowFor, matchCatalog, normalizeName, searchCatalog, suggestExercises } from '../src/exerciseCatalog'
 
 const dir = new URL('../../../apps/web/public/exercises/', import.meta.url)
 const catalog = JSON.parse(readFileSync(new URL('catalog.json', dir), 'utf8'))
@@ -112,5 +112,31 @@ describe('adding to the library', () => {
     expect(inLibrary(index.byId.get('Pushups'), [{ id: 'a', name: 'pushups' }])?.id).toBe('a')
     expect(inLibrary(index.byId.get('Plank'), [])).toBeNull()
     expect(inLibrary(index.byId.get('Plank'), undefined)).toBeNull()
+  })
+})
+
+describe('suggestExercises (the exercise-name picker)', () => {
+  const lib = [{ id: 'a', name: 'Bench Press', muscle_group: 'Chest', equipment: 'Barbell' }, { id: 'b', name: 'My cable thing', muscle_group: 'Back', equipment: 'Cable' }]
+  it('lists your exercises first, each with its photo entry when the database knows it', () => {
+    const r = suggestExercises({ library: lib, catalog: all, query: '' })
+    expect(r.map((x) => x.name)).toEqual(['Bench Press', 'My cable thing']) // empty query: only your own
+    expect(r[0]).toMatchObject({ kind: 'mine', detail: 'Chest · Barbell' })
+    expect(r[0].entry.id).toBe('Barbell_Bench_Press_-_Medium_Grip') // via the starter alias
+    expect(r[1].entry).toBeNull() // custom exercise: no photo, still listed
+  })
+  it('adds database matches after two characters, without repeating what you have', () => {
+    expect(suggestExercises({ library: lib, catalog: all, query: 'b' }).every((x) => x.kind === 'mine')).toBe(true)
+    const r = suggestExercises({ library: lib, catalog: all, query: 'bench press' })
+    expect(r[0].kind).toBe('mine')
+    const db = r.filter((x) => x.kind === 'database')
+    expect(db.length).toBeGreaterThan(0)
+    expect(db.length).toBeLessThanOrEqual(8)
+    expect(db.some((x) => x.entry.id === 'Barbell_Bench_Press_-_Medium_Grip')).toBe(false) // already yours as Bench Press
+    expect(db.every((x) => x.entry.images.length === 2 || x.entry.images.length === 0)).toBe(true)
+  })
+  it('still works before the database has loaded, and with no library', () => {
+    expect(suggestExercises({ library: lib, catalog: null, query: 'bench' }).map((x) => x.name)).toEqual(['Bench Press'])
+    expect(suggestExercises({ library: undefined, catalog: all, query: 'plank' })[0]).toMatchObject({ kind: 'database', name: 'Plank' })
+    expect(suggestExercises({ library: [], catalog: all, query: 'zzzzqq' })).toEqual([])
   })
 })

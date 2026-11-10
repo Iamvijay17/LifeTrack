@@ -8,7 +8,7 @@ import { exerciseImageUrl } from './useCatalog'
  * object-contain so portrait and wide originals are letterboxed, never cropped or stretched.
  * Falls back to a labelled placeholder when there is no image or it fails to load.
  */
-export function ExerciseImage({ path, alt, priority = false, className, label = 'No demonstration image' }) {
+export function ExerciseImage({ path, alt, priority = false, compact = false, className, label = 'No demonstration image' }) {
   const [state, setState] = useState('loading') // loading | loaded | failed
   const ref = useRef(null)
   const src = exerciseImageUrl(path)
@@ -47,8 +47,8 @@ export function ExerciseImage({ path, alt, priority = false, className, label = 
         </>
       ) : (
         <div role="img" aria-label={label} className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-neutral-600">
-          <ImageOff className="h-6 w-6" aria-hidden />
-          <span className="px-3 text-center text-xs">{label}</span>
+          <ImageOff className={compact ? 'h-4 w-4' : 'h-6 w-6'} aria-hidden />
+          {!compact && <span className="px-3 text-center text-xs">{label}</span>}
         </div>
       )}
     </div>

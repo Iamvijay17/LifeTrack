@@ -21,6 +21,7 @@ import { ExerciseBrowser } from '@/features/fitness/catalog/ExerciseBrowser'
 import { ExerciseImage } from '@/features/fitness/catalog/ExerciseImage'
 import ExerciseDetailPage from '@/features/fitness/catalog/ExerciseDetailPage'
 import { LibraryTab } from '@/features/fitness/LibraryTab'
+import { ExercisePicker } from '@/features/fitness/catalog/ExercisePicker'
 
 let fetchCalls
 beforeEach(() => {
@@ -243,5 +244,55 @@ describe('LibraryTab', () => {
     expect(await screen.findByRole('searchbox', { name: 'Search exercises' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('tab', { name: 'My exercises' }))
     expect(screen.getByText('My custom move')).toBeInTheDocument()
+  })
+})
+
+describe('ExercisePicker (workout / routine exercise field)', () => {
+  const library = [
+    { id: 'a', name: 'Pushups', muscle_group: 'Chest', equipment: 'Bodyweight' },
+    { id: 'b', name: 'My custom move', muscle_group: 'Back', equipment: '' },
+  ]
+  const field = (onChange = vi.fn()) => {
+    render(<ExercisePicker library={library} aria-label="Exercise 1" name="x" onChange={onChange} />)
+    return onChange
+  }
+  it('opens on focus with your exercises and their photos next to the names', async () => {
+    field()
+    await userEvent.click(screen.getByLabelText('Exercise 1'))
+    const list = await screen.findByRole('listbox', { name: 'Exercise suggestions' })
+    const opts = within(list).getAllByRole('option')
+    expect(opts.map((o) => o.textContent)).toEqual(['Pushups' + 'Chest · Bodyweight', 'My custom move' + 'Back'])
+    expect(list.querySelector('img[src="/exercises/Pushups/0.jpg"]')).not.toBeNull() // matched to the database: its start photo
+    expect(opts[1].querySelector('img')).toBeNull() // custom exercise: placeholder frame, still selectable
+    expect(opts[1].querySelector('[data-testid=exercise-frame]')).not.toBeNull()
+  })
+  it('adds database matches (with photos) as you type, and choosing one fills the box', async () => {
+    const onChange = field()
+    const input = screen.getByLabelText('Exercise 1')
+    await userEvent.type(input, 'treadmill')
+    const list = await screen.findByRole('listbox')
+    expect(within(list).getByText('From the exercise database')).toBeInTheDocument()
+    await userEvent.click(within(list).getByRole('option', { name: /Running, Treadmill/ }))
+    expect(input).toHaveValue('Running, Treadmill')
+    expect(onChange).toHaveBeenCalled()
+    expect(screen.queryByRole('listbox')).toBeNull()
+  })
+  it('stays a free text box: unknown names are kept, and Enter without a highlighted suggestion does nothing special', async () => {
+    field()
+    const input = screen.getByLabelText('Exercise 1')
+    await userEvent.type(input, 'Zercher squat{Enter}')
+    expect(input).toHaveValue('Zercher squat')
+  })
+  it('works from the keyboard: arrows move, Enter picks, Escape closes', async () => {
+    field()
+    const input = screen.getByLabelText('Exercise 1')
+    await userEvent.click(input)
+    await userEvent.keyboard('{ArrowDown}{ArrowDown}{Enter}')
+    expect(input).toHaveValue('My custom move')
+    await userEvent.clear(input)
+    await userEvent.type(input, 'push')
+    expect(await screen.findByRole('listbox')).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('listbox')).toBeNull()
   })
 })
