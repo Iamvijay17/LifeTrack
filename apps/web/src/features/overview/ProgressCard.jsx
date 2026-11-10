@@ -33,7 +33,7 @@ export function ProgressCard({ progress, className }) {
             </p>
           </div>
           {progress.items.map((i) => (
-            <div key={i.key} data-module={MODULE[i.key]} className="grid grid-cols-[3.75rem_1fr_5.75rem] items-center gap-3 text-xs">
+            <div key={i.key} title={i.note} data-module={MODULE[i.key]} className="grid grid-cols-[3.75rem_1fr_5.75rem] items-center gap-3 text-xs">
               <span className="text-muted-foreground">{i.label}</span>
               <Progress value={(i.done / i.total) * 100} tone={i.done >= i.total ? 'success' : 'primary'} label={i.label} />
               <span className="whitespace-nowrap text-right tabular-nums text-muted-foreground">{i.detail ?? `${i.done}/${i.total}`}</span>

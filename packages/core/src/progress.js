@@ -75,12 +75,14 @@ export function dailyProgress({
   }
   if ((settings.steps_goal ?? 0) > 0) {
     const steps = stepsForDay(health, workouts, date)
+    const fromCardio = cardioSteps(workouts, date)
     items.push({
       key: 'steps',
       label: 'Steps',
       done: Math.min(1, steps / settings.steps_goal),
       total: 1,
-      detail: `${steps}/${settings.steps_goal}${cardioSteps(workouts, date) > 0 ? ' (incl. cardio)' : ''}`,
+      detail: `${steps}/${settings.steps_goal}`,
+      ...(fromCardio > 0 && { note: `Includes ~${fromCardio.toLocaleString('en-IN')} steps estimated from cardio` }),
     })
   }
 

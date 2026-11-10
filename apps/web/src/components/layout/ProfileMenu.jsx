@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Download, LogOut, Moon, Settings, Sun, User } from 'lucide-react'
+import { Download, LifeBuoy, LogOut, Moon, Settings, Sun, User } from 'lucide-react'
 import { Menu } from '@/components/ui/menu'
 import { useAuth } from '@/hooks/useAuth'
 import { useSettings } from '@/hooks/useSettings'
@@ -22,6 +22,7 @@ export function ProfileMenu() {
       items={[
         { label: 'Settings', icon: Settings, onClick: () => nav('/settings') },
         { label: 'Data export', icon: Download, onClick: () => nav('/export') },
+        { label: 'Help', icon: LifeBuoy, onClick: () => nav('/help') },
         { label: dark ? 'Light theme' : 'Dark theme', icon: dark ? Sun : Moon, onClick: () => save({ theme: dark ? 'light' : 'dark' }) },
         { label: 'Sign out', icon: LogOut, onClick: () => auth.signOut() },
       ]}
