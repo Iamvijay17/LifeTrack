@@ -127,10 +127,12 @@ describe('LifeTabBar', () => {
   const routes = ['index', 'planner', 'habits', 'finance', 'more'].map(route)
   const descriptors = Object.fromEntries(routes.map((r) => [r.key, { options: { title: r.name === 'index' ? 'Dashboard' : r.name, tabBarIcon: () => null } }]))
   it('marks the active tab and navigates to another one', async () => {
-    const navigation = { emit: jest.fn(() => ({ defaultPrevented: false })), navigate: jest.fn() }
-    await render(<SafeAreaProvider initialMetrics={metrics}><ThemeProvider><LifeTabBar state={{ index: 2, routes }} descriptors={descriptors} navigation={navigation} /></ThemeProvider></SafeAreaProvider>)
+    // expo-router passes the navigator's emitter and navigateToTab (no `navigation`), so the test mirrors exactly that.
+    const emitter = { emit: jest.fn(() => ({ defaultPrevented: false })) }
+    const navigateToTab = jest.fn()
+    await render(<SafeAreaProvider initialMetrics={metrics}><ThemeProvider><LifeTabBar state={{ index: 2, routes }} descriptors={descriptors} emitter={emitter} navigateToTab={navigateToTab} insets={{ top: 0, right: 0, bottom: 0, left: 0 }} /></ThemeProvider></SafeAreaProvider>)
     expect(screen.getByRole('tab', { name: 'habits' })).toBeSelected()
     await fireEvent.press(screen.getByRole('tab', { name: 'finance' }))
-    expect(navigation.navigate).toHaveBeenCalledWith('finance', undefined)
+    expect(navigateToTab).toHaveBeenCalledWith('finance')
   })
 })
