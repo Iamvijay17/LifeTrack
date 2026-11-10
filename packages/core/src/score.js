@@ -9,6 +9,7 @@
 import { addDays, weekday } from '@lifetrack/utils'
 import { countedMinutes, isStudying } from './learning'
 import { habitDay } from './progress'
+import { stepsForDay } from './fitness'
 import { DEFAULT_SLEEP_GOAL_MINUTES, sleepGoalOf } from './sleep'
 
 export const SCORE_CATEGORIES = [
@@ -96,7 +97,7 @@ export function dailyScore({
   const off = dayWorkouts.some((w) => w.status === 'rest' || w.status === 'skipped') && !didWorkout
   const workoutPlanned = !off && (didWorkout || (plan && plan !== 'rest'))
   if (workoutPlanned) cats.fitness.push({ label: 'Workout', fraction: didWorkout ? 1 : 0, detail: didWorkout ? 'done' : 'planned' })
-  const steps = health?.steps ?? 0
+  const steps = stepsForDay(health, workouts, date)
   if ((settings.steps_goal ?? 0) > 0 && (steps > 0 || workoutPlanned))
     cats.fitness.push({ label: 'Steps', fraction: frac(steps, settings.steps_goal), detail: `${steps} / ${settings.steps_goal}` })
 

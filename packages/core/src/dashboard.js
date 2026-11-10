@@ -2,6 +2,7 @@
 import { addDays, eachDay, fmtDay, fmtDuration, formatMoney, monthKey, monthStart, startOfWeek, weekday } from '@lifetrack/utils'
 import { habitStats } from './habits'
 import { activeDates, dailyProgress } from './progress'
+import { cardioSteps, stepsForDay } from './fitness'
 import { averageScore, dailyScore } from './score'
 import { goalPercent } from './goals'
 import { budgetForMonth, summarize } from './finance'
@@ -154,6 +155,8 @@ export function dashboardData(d, { settings, today, tz = settings.timezone, nowM
     hasTasksToday: todayTasks.length > 0,
     topTasks: todayTasks.filter(isOpen).sort(byPriority).slice(0, 3),
     health,
+    stepsToday: stepsForDay(health, d.workouts, today),
+    cardioStepsToday: cardioSteps(d.workouts, today),
     studyMin: countedMinutes(d.studySessions.filter((s) => s.session_date === today)),
     timerRunning: d.studySessions.some((s) => s.status === 'running'),
     weekApps: d.applications.filter((a) => a.applied_date && a.applied_date >= weekStart && a.applied_date <= addDays(weekStart, 6)).length,
