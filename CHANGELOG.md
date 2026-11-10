@@ -6,6 +6,7 @@ store build numbers are auto-incremented by EAS. Add new entries under **Unrelea
 ## [Unreleased]
 See `docs/UX_AUDIT.md` for the full audit behind these changes, and `docs/DESIGN_SYSTEM.md` for the design and motion system.
 ### Changed
+- Settings (web): the page is regrouped into five labelled sections (Profile & appearance, Region & daily goals, Scoring & focus, Notifications & data, Account & security), with the group label in a left rail on wide screens and above the cards on phones. Preferences fields are grouped (region & calendar; daily goals & budget), and Notifications gets its own card beside Your data. No setting was added or removed.
 - **A full visual redesign, on web and mobile.** Dark-first, with violet and indigo accents, new surfaces and elevation, and rounder corners. Every module now has its own colour and character: the whole app, including charts and progress, takes on the colour of the module you're in. No feature, API or data changes.
 - Motion throughout, using Motion on the web and React Native's own Animated on mobile (no new native module): page transitions, a sliding navigation indicator, staggered content, numbers that count up, rings and bars that fill, animated dialogs, tabs, checkboxes and switches, and bottom sheets you can drag to dismiss. Everything respects the reduced-motion setting.
 - Charts: gradient fills, softer grids, a shared 650 ms rhythm instead of the 1.5 s default.

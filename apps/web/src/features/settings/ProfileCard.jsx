@@ -34,7 +34,7 @@ export function ProfileCard() {
   )
 
   return (
-    <SettingsSection icon={User} title="Profile">
+    <SettingsSection headingAs="h3" icon={User} title="Profile">
       <form className="flex items-start gap-2" noValidate onSubmit={handleSubmit(save)}>
         <Field label="Display name" className="flex-1" error={errors.name?.message}>
           <Input maxLength={80} {...register('name')} />

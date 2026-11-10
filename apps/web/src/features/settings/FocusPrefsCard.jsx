@@ -34,7 +34,7 @@ export function FocusPrefsCard() {
   )
 
   return (
-    <SettingsSection icon={Timer} title="Focus mode" desc="Break lengths for the Pomodoro timer.">
+    <SettingsSection headingAs="h3" icon={Timer} title="Focus mode" desc="Break lengths for the Pomodoro timer.">
       <form noValidate className="space-y-4" onSubmit={handleSubmit(submit)}>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Field label="Short break (min)" error={errors.short_break?.message}>
