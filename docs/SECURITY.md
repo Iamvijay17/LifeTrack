@@ -1,0 +1,113 @@
+# Authentication & Security
+
+This is the technical security review. The vulnerability-disclosure policy is [../SECURITY.md](../SECURITY.md); the pre-release findings table is [RELEASE_AUDIT.md](RELEASE_AUDIT.md).
+Statuses: ✅ in place and covered by code/tests · 🟡 in place but depends on hosted configuration or is unproven · ❌ absent.
+
+## 1. Security model in one paragraph
+
+Clients hold only the public Supabase URL and anon key. Every user table has Row Level Security (`user_id = auth.uid()`), enforced by the database even if the client is modified. There is no
+application server to attack: the attack surface is Supabase Auth, PostgREST (limited by RLS), 8 RPC functions, and one Edge Function protected by a shared secret.
+
+## 2. Authentication
+
+| Aspect | Implementation | Status |
+| --- | --- | --- |
+| Identity provider | Supabase Auth, email + password (`signUp`, `signInWithPassword`) in `packages/data/src/auth.js` | ✅ |
+| Password rules in the app | 8–72 characters, confirmation must match (`packages/schemas/src/auth.ts`). 72 matches bcrypt's input limit | ✅ client-side |
+| Password rules on the server | Minimum length, leaked-password protection and email confirmation are **dashboard settings, not in the repo**; `supabase/config.toml` (local only) turns confirmation **off** for tests | 🟡 must be checked in the hosted project ([RELEASE.md](RELEASE.md) §2) |
+| Password storage | Handled by Supabase Auth (bcrypt). The app never stores or logs passwords | ✅ |
+| Sign-in errors | "invalid login" is shown as a generic "Incorrect email or password." (no user enumeration from the message) | ✅ |
+| PKCE | Web `flowType: 'pkce'`, `detectSessionInUrl: true`; mobile `pkce`, `detectSessionInUrl: false` + explicit `exchangeCodeForSession` | ✅ |
+| Session storage | Web: supabase-js `localStorage` (default). Mobile: OS keychain/keystore via `expo-secure-store`, chunked because sessions exceed the per-value limit | ✅ |
+| Token refresh | `autoRefreshToken: true`; JWT lifetime 3600 s in the local config | ✅ |
+| Sign-out / account switch | `resetStore()` clears the in-memory cache when the user id changes; mobile `signOutCleanly` | ✅ |
+| Password reset | Email link → `PASSWORD_RECOVERY` (web) / `lifetrack://reset-password?code=` (mobile) → `updateUser`. Invalid/expired links show a generic message | ✅ |
+| MFA, social login, magic links, session list/revoke UI | — | ❌ |
+| Account deletion | RPC `delete_my_account` (definer; `auth.uid()` required) cascades all data; typed confirmation in the UI (required by the App Store) | ✅ |
+| DEV-only local auth | `services/auth.js` `local`: users in `localStorage`, unsalted SHA-256 (`lt:`+password). **Insecure by design**; compiled out of production bundles (`__BACKEND__`), guarded by `verify:bundles` and a build that refuses to run without credentials | ✅ dev-only |
+
+## 3. Authorisation
+
+- Policy `owner_all` (`for all to authenticated using/with check (user_id = (select auth.uid()))`) on 31 of the 32 tables (`profiles` is keyed on `id`); `device_push_tokens` has SELECT and DELETE policies only.
+- `enable` + `force row level security` (the table owner is also subject to policies); `revoke all … from anon` on every table.
+- **Cross-table ownership**: RLS only looks at a row's own `user_id`, so a child row could point at another user's parent. Triggers `check_fk_owner` / `check_same_owner` reject that (10 tables, 11+ foreign
+  keys; `supabase/tests/pglite` fails for any new foreign key without a fixture).
+- RPCs: `revoke all … from public, anon`, `grant execute … to authenticated`. Four are `SECURITY DEFINER` and set `search_path = ''`; all check `auth.uid()` (or are trigger-only).
+  `register_push_token` re-assigns a token to the caller so a shared phone moves between accounts without opening a write policy.
+- The service-role key is used only inside the Edge Function (injected by Supabase). `scripts/check-no-secrets.mjs` scans client sources and the web **and** mobile bundles in CI; production mobile builds throw if the public
+  key looks like a secret (`/service[_-]?role|sb_secret_/`).
+- There are no roles beyond "authenticated user": no admin, no sharing, no organisation model.
+
+## 4. API and transport security
+
+| Control | Detail | Status |
+| --- | --- | --- |
+| HTTPS | Enforced by hosts; HSTS `max-age=63072000; includeSubDomains` | ✅ |
+| Content-Security-Policy | `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'` — from `apps/web/vercel.json` and `public/_headers` | ✅ (`'unsafe-inline'` for styles only) |
+| Other headers | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()` | ✅ |
+| CORS | Managed by Supabase; the apps call the API directly from the browser | 🟡 hosted config |
+| Rate limiting / abuse | Relies on Supabase Auth and API gateway limits; no app-level limiter | 🟡 accepted ([RELEASE_AUDIT.md](RELEASE_AUDIT.md) S11) |
+| Edge Function | `Authorization: Bearer CRON_SECRET`, constant-time compare, **fails closed** if the secret is unset; deployed `--no-verify-jwt` (so the secret is the only gate); tested under Deno | ✅ (live run 🟡) |
+| Edge Function secret handling | Scheduler stores the secret in Supabase Vault (`vault.create_secret`) per [NATIVE.md](NATIVE.md); not part of any migration | 🟡 manual step |
+| Mobile permissions | Notifications and vibration only; no location, camera, contacts or microphone | ✅ |
+
+## 5. Input validation and output encoding
+
+| Layer | What |
+| --- | --- |
+| Forms | Zod schemas (`packages/schemas/src/forms.ts`, `apps/web/src/lib/validation.js`) with length/range limits mirroring the database |
+| Database | `CHECK` constraints on lengths, ranges and enums; unique indexes; same-owner triggers — the final authority |
+| Money | Parsed with string math to integer paise (`parseMoney`), rejects more than two decimals |
+| Rendering | React escapes by default. A search found **no** `dangerouslySetInnerHTML`/`innerHTML`. Notes use `parseBlocks`/`tokenizeInline` (`packages/core/src/notes.js`) to build React elements; links limited to `http(s)://` and `mailto:` (`isSafeUrl`) |
+| CSV export | Cells starting with `= + - @ TAB CR` are prefixed with `'` to prevent spreadsheet formula injection (`services/csv.js`) |
+| Backup import | `parseBackup`: ≤ 50 MB, ≤ 200,000 rows per table, `app === 'lifetrack'`, version ≤ current, only known tables, each row needs an `id`; **ownership is re-stamped** (`user_id` stripped), RLS and CHECKs still apply |
+| Routing | The app only navigates to paths it builds itself; `react-router` is on 7.18+ (open-redirect advisory fixed) |
+| Deep links | `lifetrack://auth-callback?code=` only accepts a PKCE code that Supabase validates; unknown links go to a not-found screen |
+
+## 6. Data protection
+
+- **At rest/in transit:** provided by Supabase (TLS, encrypted storage). The repository adds no application-level encryption; notes, journal and finance data are stored in plaintext columns.
+- **Local storage:** web — Supabase session and a few preferences (`lifetrack:theme`, `lifetrack:sidebar`); mobile — session in SecureStore. No health, finance or note data is persisted on-device. The PWA never caches API responses.
+- **Privacy:** no analytics, tracking or advertising SDKs in the dependency lists. Store data-safety answers are drafted in `docs/legal/STORE_DATA_SAFETY.md`.
+- **Data minimisation for push:** the Edge Function sends the notification title, body and link only.
+- **Export/erase:** user-initiated JSON/CSV export and erase are web-only ([BACKUP_RECOVERY.md](BACKUP_RECOVERY.md)).
+- **Secrets hygiene:** root `.env`, `.env.local`, `*.apk` and credential files are git-ignored; `.env.example` files contain placeholders only; no secrets are written in these documents.
+
+## 7. Supply chain and CI
+
+Dependabot (grouped weekly) ignores Expo SDK/React so they move together; `pnpm audit:gate` fails on a new production advisory not allow-listed with a reason and review date (`.audit-allowlist.json`: two `@expo/cli`
+build-time advisories, review by 2027-02-01); workflows request `contents: read` only; actions are pinned by major tag, **not by SHA** ([CI.md](CI.md)); the lockfile is committed; `CODEOWNERS` exists.
+
+## 8. Verification that exists
+
+`supabase/tests` (RLS isolation for every table and FK, anonymous role denied, concurrency, migration-safety rules), `check:secrets` (sources + bundles), `verify:bundles` (no dev backend in production),
+`check:migrations` (no destructive SQL without a marker), Deno tests for the function, `e2e/auth.spec.js`, `a11y.spec.js`, and `apps/web/tests/noSecrets.test.js`, `legalReady.test.js`. See [TESTING.md](TESTING.md).
+No external penetration test or threat model has been performed.
+
+## 9. Known limitations and risks
+
+| # | Limitation | Impact |
+| --- | --- | --- |
+| 1 | Hosted Auth settings (email confirmation, leaked-password protection, min length, redirect allow-list, "allow new users to sign up") are outside the repo | A mis-set project could allow weak passwords or open sign-up; verify per [RELEASE.md](RELEASE.md) |
+| 2 | No size limit on free-text columns (`notes.body`, `journal_entries.content`, `tasks.notes`) or JSON columns (`user_settings.*`, `routines.exercises`) | An authenticated user can store large rows (storage abuse against their own project) |
+| 3 | `application_history` and `notifications` are directly writable by their owner | A user can forge their own history/inbox; no cross-user impact |
+| 4 | Web session in `localStorage` | Readable by any script on the origin; mitigated by strict CSP (`script-src 'self'`) and no HTML injection sinks |
+| 5 | CSP `style-src 'unsafe-inline'` | Needed by current styling; allows inline-style injection if another bug exists |
+| 6 | Edge Function accepts any HTTP method and has no IP allow-list | Only the shared secret protects it; rotate `CRON_SECRET` if leaked |
+| 7 | No MFA, no device/session management, no login-attempt UI | Account takeover resistance equals password strength + Supabase limits |
+| 8 | Plaintext app-level data, no client-side encryption | Supabase operators/anyone with DB access can read user data |
+| 9 | Backup files are unencrypted JSON | Users must protect downloaded files |
+| 10 | The GitHub Actions workflows, real-Supabase API/RLS suite, Maestro flows and push delivery have never run in a live environment | Treat as unproven until first green runs (`README.md`) |
+| 11 | `SECURITY.md` still contains the placeholder `[security contact email]` | Researchers have no contact until it is filled; `check-legal-ready.mjs` covers the legal pages only |
+| 12 | `docs/RELEASE_AUDIT.md` S5 says 5 `SECURITY DEFINER` functions; the migrations define 4 | Documentation drift, not a code issue |
+
+## 10. Recommended improvements
+
+1. Set and verify hosted Auth settings; add the security contact email; consider enabling MFA when the provider flow is needed.
+2. Add `CHECK (char_length(...))` caps to unbounded text and `pg_column_size`-style limits to JSON columns.
+3. Make `application_history` write-protected (select-only policy + trigger-owned insert) and keep restore through a definer function.
+4. Pin GitHub Actions to commit SHAs after the first green run.
+5. Restrict the Edge Function to `POST` and add a replay window or HMAC timestamp.
+6. Remove `'unsafe-inline'` from `style-src` if the styling pipeline can emit hashed/nonced styles.
+7. Offer an encrypted backup option; add session/device management and an account-activity view.
+8. Run the unrun suites (real-Supabase API tests, EAS build, Maestro) and record results.
