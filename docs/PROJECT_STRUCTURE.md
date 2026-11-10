@@ -111,7 +111,7 @@ See [DATABASE.md](DATABASE.md) and [API.md](API.md). `functions/send-reminders/`
 
 ## 6. `docs/`
 
-Index and map: [README.md](README.md). Generated-by-hand reference documents (this set) sit beside earlier runbooks ([SETUP.md](SETUP.md), [DEPLOY.md](DEPLOY.md), [RELEASE.md](RELEASE.md), [NATIVE.md](NATIVE.md), [CI.md](CI.md), [PARITY.md](PARITY.md),
+Index and map: [README.md](README.md). The reference documents written in the 2026-11-10 documentation pass sit beside earlier runbooks ([SETUP.md](SETUP.md), [DEPLOY.md](DEPLOY.md), [RELEASE.md](RELEASE.md), [NATIVE.md](NATIVE.md), [CI.md](CI.md), [PARITY.md](PARITY.md),
 [UX_AUDIT.md](UX_AUDIT.md), [RELEASE_AUDIT.md](RELEASE_AUDIT.md), [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), [QUICKSTART.md](QUICKSTART.md)), `legal/` (privacy policy, terms, store data-safety — drafts rendered at `/privacy` and `/terms`) and `store/` (listing text, screenshot instructions).
 
 ## 7. Notable conventions

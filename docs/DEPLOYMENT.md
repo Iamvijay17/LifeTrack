@@ -40,7 +40,7 @@ No workflow needs the Supabase service-role key. Put required reviewers on the `
 | Mobile (cloud) | `eas build --profile production --platform all` via *Mobile build (EAS)* | Android App Bundle / iOS archive; `autoIncrement` build numbers; `appVersionSource: remote` | `app.config.ts` throws if `EAS_PROJECT_ID`, URL, anon key or `EXPO_PUBLIC_WEB_URL` is missing, or the "public" key looks secret |
 | Mobile (local APK) | `scripts/release-android.sh [--publish]` | Signed APK; `--publish` creates a GitHub Release | Needs the signing key and `.env.local` |
 
-Versions: `apps/mobile/app.config.ts` `version` (currently `2.3.0`, an uncommitted change on top of `2.1.0` in git at the time of writing); `apps/web/package.json` is still `1.0.0` and `CHANGELOG.md` has no per-version
+Versions: `apps/mobile/app.config.ts` `version` (currently `2.3.0`, tagged `v2.3.0`); `apps/web/package.json` is still `1.0.0` and `CHANGELOG.md` has no per-version
 sections after `1.0.0` ([KNOWN_ISSUES.md](KNOWN_ISSUES.md)). Over-the-air updates are **not** enabled (`expo-updates` not installed); every change ships through a store build.
 
 ## 4. Hosting requirements

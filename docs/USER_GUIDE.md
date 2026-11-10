@@ -27,7 +27,7 @@ LifeTrack needs an internet connection. Offline you see a banner and changes can
 | --- | --- |
 | Plan the day | **Planner** → add tasks with a due date, priority and category; make them repeat daily/weekdays/weekly/monthly. Overdue tasks appear first; *Move to today* (web). The top three priorities are highlighted |
 | See the whole day | **Dashboard → Today**: interviews and reminders by time, tasks, habits, planned workout, revisions, follow-ups and bills due. Tick tasks and habits right there |
-| Build habits | **Habits** → New habit (daily, X times a week, or chosen weekdays). Tap to check in; long-press/menu for *skipped* or *rest*. Streaks and the heatmap update immediately |
+| Build habits | **Habits** → New habit (daily, X times a week, or chosen weekdays). Tap to check in; the row menu has *Skip this day* and *Rest day*, *Edit*, *Archive*. Streaks and the heatmap update immediately |
 | Focus | **Focus** → pick 25/50 minutes or your own, optionally link a task or topic, Start. Breaks follow your Settings. Sessions under a minute are not recorded |
 | Study | **Career & Learning** → Start study (one timer at a time) or add a session manually; set goals in hours and topics with revision dates |
 | Write | **Notes & Journal** → notes (Markdown, tags, pin, link to a goal/task) and one journal entry per day with mood and wins |

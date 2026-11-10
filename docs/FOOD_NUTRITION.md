@@ -134,7 +134,7 @@ so the list always adds up.
 
 | View | What it shows | Function |
 | --- | --- | --- |
-| Today | Calorie ring, nutrient bars vs targets, water, quick-add, meals | `dayMeals`, `dayStatus` |
+| Today | Calorie ring, nutrient bars, water, quick-add, meals. With a target a bar shows progress towards it (turns red past 110 %); **without one**, protein/carbs/fat show their share of the day's macro calories and fibre is measured against a general 30 g guide (`CalorieHero.jsx`, web) | `dayMeals`, `dayStatus`, `macroSplit` |
 | Calendar / History | Month grid with calories per day; **days with nothing logged flagged** (only after your first log and never in the future); selected day's meals editable | `calendarTotals`, `missingDays` |
 | Analytics / Insights | Daily (14 days), weekly (8 weeks), monthly (calendar month) views: averages **per logged day** (unlogged days are unknown, not zero), macro split, calories by meal, standout days (closest to target, highest, lowest), top foods, weekly trend | `analyze`, `viewRange`, `weeklyTrend`, `mealDistribution`, `standoutDays`, `topFoods` |
 | Dashboard "Food" widget | Calories against target, protein, carbs, fat | `dayStatus` |

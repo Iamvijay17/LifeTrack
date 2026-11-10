@@ -191,7 +191,7 @@ See [BACKUP_RECOVERY.md](BACKUP_RECOVERY.md).
 
 ## 19. Help & Support ✅
 
-Getting-started steps and an FAQ, on web and mobile (`features/help/HelpPage.jsx`, `app/(app)/help.tsx`).
+Web: searchable help centre with per-module guides ("How it works", "Good to know"), quick-start tiles, FAQ categories and a keyboard-shortcut list (`features/help/HelpPage.jsx`, content in `helpContent.js`). Mobile: `app/(app)/help.tsx`.
 
 ## 20. Legal pages ✅ (drafts)
 

@@ -26,7 +26,7 @@ uncompressed JS in total, 1.9 MB `dist`. The Phase 8A audit reports main 63 KB, 
 - **Refresh traffic.** The web store refetches loaded tables on focus/visibility/online (rate-limited by `MIN_SYNC_GAP`), after Realtime reconnects and every 90 s as a safety net when Realtime is not connected. Realtime INSERT/UPDATE
   events are applied directly to the cache (no refetch); DELETE events remove by id.
 - **Write path.** One request per write; multi-row operations are single RPCs. Burst refetches are debounced (250 ms).
-- **Lists.** Long web lists render a page at a time with "Show more" (`useShowMore`, default step 50; Notes and Job applications use 40). The mobile Planner uses a `SectionList`/`FlatList`; I found no windowing code in the web Planner, although the Phase 8A audit calls the planner virtualised. Finance, Fitness history and Health history are paged/capped per the audit.
+- **Lists.** Long web lists render a page at a time with "Show more" (`useShowMore`, default step 50; Notes and Job applications use 40). The mobile Planner uses a `SectionList`/`FlatList`; I found no windowing code in the web Planner, and the later UX audit (finding P3 in [UX_AUDIT.md](UX_AUDIT.md)) confirms that the Phase 8A statement that the planner is virtualised is wrong. Finance, Fitness history and Health history are paged/capped per the audit.
 - **Search.** Food search runs over ≈ 300 foods in memory with per-food cached indexes (`WeakMap`) and a bounded edit distance; global search scans the loaded tables on the device.
 
 ## 3. Rendering and animation

@@ -104,7 +104,7 @@ flowchart TD
 | Server state | Custom external-store cache: per-table `{rows, status, error}`, `useSyncExternalStore`, versioned writes so a stale in-flight fetch is discarded, Realtime events applied directly, refetch on focus/online/reconnect and a 90 s safety poll | `src/hooks/store.js` |
 | Mutations | `store.insert/update/upsert/remove/rpc/patch` + `services/api.js` (`createApi`). UI never calls Supabase directly | `src/services/api.js`, `src/hooks/useAction.js` |
 | Forms | React Hook Form + Zod through `useDialogForm` / `useEntityForm` / `useRecordForm`; validators in `lib/validation.js` | `src/hooks/*`, `src/lib/validation.js` |
-| Backend selection | Decided at **build time** (`__BACKEND__`): `supabase`, `local` (dev/E2E only) or `none` (a production build without credentials shows `ConfigError`). The unused backend is tree-shaken | `scripts/resolve-backend.js`, `src/lib/backend.js`, `src/services/db.js` |
+| Backend selection | Decided at **build time** (`__BACKEND__`): `supabase`, `local` (dev/E2E only) or `none` (a production build without credentials shows `ConfigError`). The unused backend is tree-shaken | `apps/web/scripts/resolve-backend.js`, `src/lib/backend.js`, `src/services/db.js` |
 | Styling | Tailwind with CSS-variable tokens, `[data-module]` accent system, Inter variable font | `tailwind.config.js`, `src/index.css` |
 | Charts / motion | Recharts in a lazy chunk; Motion with `LazyMotion` | `components/shared/charts.jsx`, `components/motion/*` |
 | PWA | `vite-plugin-pwa`, autoUpdate, shell-only precache, runtime cache for exercise photos and catalog | `vite.config.js` |
