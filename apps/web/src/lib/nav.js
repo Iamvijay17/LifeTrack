@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   CalendarCheck,
+  CalendarDays,
   Timer,
   Repeat,
   NotebookPen,
@@ -25,6 +26,7 @@ export const NAV_GROUPS = [
     title: 'Productivity',
     items: [
       { to: '/planner', module: 'planner', label: 'Daily Planner', short: 'Planner', icon: CalendarCheck },
+      { to: '/calendar', module: 'calendar', label: 'Calendar', icon: CalendarDays },
       { to: '/focus', module: 'focus', label: 'Focus Mode', short: 'Focus', icon: Timer },
       { to: '/habits', module: 'habits', label: 'Habits', icon: Repeat },
       { to: '/notes', module: 'notes', label: 'Notes & Journal', short: 'Notes', icon: NotebookPen },

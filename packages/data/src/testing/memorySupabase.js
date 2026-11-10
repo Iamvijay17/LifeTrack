@@ -8,8 +8,14 @@ import { getUserId } from '../session'
 export const MAX_ROWS = 1000
 const err = (code, message) => ({ code, message })
 const clone = (v) => (v == null ? v : structuredClone(v))
-const CASCADE = { habits: [['habit_logs', 'habit_id']], job_applications: [['application_history', 'application_id'], ['interview_events', 'application_id']], workouts: [['exercise_logs', 'workout_id']], goals: [['milestones', 'goal_id']] }
-const SET_NULL = { recurring_rules: [['transactions', 'recurring_rule_id']] }
+const CASCADE = { habits: [['habit_logs', 'habit_id']], job_applications: [['application_history', 'application_id'], ['interview_events', 'application_id']], workouts: [['exercise_logs', 'workout_id']], goals: [['milestones', 'goal_id']], calendar_events: [['calendar_event_exceptions', 'event_id']] }
+const SET_NULL = {
+  recurring_rules: [['transactions', 'recurring_rule_id']],
+  goals: [['calendar_events', 'goal_id']],
+  learning_topics: [['calendar_events', 'topic_id']],
+  job_applications: [['calendar_events', 'application_id']],
+  routines: [['calendar_events', 'routine_id']],
+}
 const NOW_COLUMNS = { application_history: ['changed_at'], study_sessions: ['started_at'], focus_sessions: ['started_at'] }
 const owner = (table, row) => (table === 'profiles' ? row.id : row.user_id)
 
@@ -74,6 +80,7 @@ export function createMemorySupabase({ currentUser = getUserId } = {}) {
         for (const input of this.payload) {
           if (input.user_id && input.user_id !== uid) return { data: null, error: err('42501', 'new row violates row-level security policy for table "' + t + '"') }
           const row = build(t, input, uid)
+          if (rows(t).some((r) => r.id === row.id) || staged.some((r) => r.id === row.id)) return { data: null, error: err('23505', 'duplicate key value violates unique constraint "' + t + '_pkey"') } // primary key
           if (violatesUnique(t, row, null) || staged.some((s) => (UNIQUES[t] ?? []).some((u) => (!u.when || (u.when(s) && u.when(row))) && u.cols.every((c) => s[c] === row[c])))) return { data: null, error: err('23505', 'duplicate key value violates unique constraint') }
           staged.push(row)
         }

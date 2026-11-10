@@ -32,6 +32,8 @@ export const TABLES = [
   'savings_goals',
   'reminders',
   'notifications',
+  'calendar_events',
+  'calendar_event_exceptions',
 ]
 export const ALL_TABLES = ['user_settings', ...TABLES]
 
@@ -45,6 +47,7 @@ export const CONFLICT_KEYS = {
   learning_topics: 'user_id,group_name,name',
   exercises: 'user_id,name',
   nutrition_settings: 'user_id',
+  calendar_event_exceptions: 'event_id,occurrence_date',
 }
 
 const s = ''
@@ -65,6 +68,7 @@ export const DEFAULTS = {
     dashboard_widgets: {},
     notification_prefs: { task: true, study: true, workout: true, habit: true, bill: true, custom: true },
     focus_prefs: { short_break: 5, long_break: 15, long_every: 4 },
+    calendar_prefs: {},
   },
   learning_topics: { notes: s, revision_dates: [], archived: false },
   goals: {
@@ -90,6 +94,11 @@ export const DEFAULTS = {
     recurrence: 'none',
     recurrence_until: null,
     series_id: null,
+    start_time: null,
+    end_time: null,
+    color: null,
+    location: s,
+    alert_minutes: [],
   },
   habits: { description: s, color: '#8B5CF6', frequency: 'daily', days_of_week: [], weekly_target: 3, archived_at: null },
   habit_logs: { status: 'done', note: s },
@@ -185,6 +194,35 @@ export const DEFAULTS = {
   savings_goals: { saved_paise: 0, target_date: null },
   reminders: { kind: 'custom', remind_time: '09:00', repeat: 'none', active: true, last_fired_on: null },
   notifications: { kind: 'custom', body: s, link: s, dedupe_key: null, read_at: null },
+  calendar_events: {
+    description: s,
+    location: s,
+    category: 'personal',
+    category_label: s,
+    priority: 'medium',
+    color: null,
+    all_day: false,
+    timezone: 'Asia/Kolkata',
+    rrule: null,
+    alert_minutes: [],
+    goal_id: null,
+    topic_id: null,
+    application_id: null,
+    routine_id: null,
+  },
+  calendar_event_exceptions: {
+    status: 'modified',
+    title: null,
+    description: null,
+    location: null,
+    category: null,
+    priority: null,
+    color: null,
+    all_day: null,
+    starts_at: null,
+    ends_at: null,
+    alert_minutes: null,
+  },
 }
 
 /** Unique constraints (mirrors the SQL). `when` makes a constraint partial. */
@@ -203,4 +241,5 @@ export const UNIQUES = {
   budgets: [{ cols: ['user_id', 'month', 'category'] }],
   journal_entries: [{ cols: ['user_id', 'entry_date'] }],
   notifications: [{ cols: ['user_id', 'dedupe_key'], when: (r) => r.dedupe_key != null }],
+  calendar_event_exceptions: [{ cols: ['event_id', 'occurrence_date'] }],
 }

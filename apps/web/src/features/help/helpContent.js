@@ -67,6 +67,22 @@ export const GUIDES = [
     ],
   },
   {
+    module: 'calendar',
+    summary: 'One calendar for your tasks, events, interviews, reminders and deadlines. Day, week, month and agenda views.',
+    steps: [
+      'Click an empty slot (or press N) to add an event or a task. Tasks you add here are the same tasks you see in the Planner.',
+      'Drag anything to another day or time, or drag its top or bottom edge to change how long it lasts. Every change is saved straight away.',
+      'Drag a task from Unscheduled onto a day or a time slot to plan it.',
+      'Repeat an event daily, weekly, monthly, yearly or on your own schedule. When you change one that repeats, choose this event, this and following, or all events.',
+      'Add alerts to an event or task. They appear in your notifications, and as a browser notification if you turn that on in Calendar settings.',
+    ],
+    tips: [
+      'Keys: T today, D / W / M / A switch view, J and K (or the arrow keys) move back and forward, N new, / search, G go to a date, ? all shortcuts.',
+      'Interviews, reminders, goal deadlines, follow-ups, bills and revision dates show up on their own. Interviews and reminders can be dragged too; the rest open their page.',
+      'On a phone, press and hold an item for a moment, then drag it. Tap a day in Month view to see its schedule.',
+    ],
+  },
+  {
     module: 'focus',
     summary: 'A Pomodoro-style timer. Every finished block is saved to your account.',
     steps: [

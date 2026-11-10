@@ -12,8 +12,14 @@ const int = () => z.number().int()
 const paise = () => z.number().int().nonnegative()
 const json = <T extends z.ZodTypeAny>(t: T) => t
 const text = () => z.string()
+const hex = z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Expected #RRGGBB')
+/** Minutes before the start of an item at which to alert (at most five, up to four weeks ahead). */
+const alerts = z.array(z.number().int().min(0).max(40320)).max(5)
 
-export const TASK_CATEGORIES = ['Learning', 'Job Search', 'Gym', 'Health', 'Personal', 'Finance'] as const
+export const TASK_CATEGORIES = ['Learning', 'Job Search', 'Gym', 'Health', 'Personal', 'Finance', 'Routine', 'Custom'] as const
+export const PRIORITY_VALUES = ['low', 'medium', 'high', 'urgent'] as const
+export const TASK_RECURRENCES = ['none', 'daily', 'weekdays', 'weekly', 'monthly', 'yearly'] as const
+export const CALENDAR_CATEGORIES = ['learning', 'jobs', 'fitness', 'health', 'finance', 'routine', 'personal', 'custom'] as const
 export const JOB_STATUSES = ['interested', 'preparing', 'applied', 'assessment', 'interview', 'selected', 'offer', 'rejected', 'withdrawn'] as const
 export const PAYMENT_METHODS = ['Cash', 'UPI', 'Credit card', 'Debit card', 'Bank transfer', 'Other'] as const
 export const REMINDER_KINDS = ['task', 'study', 'workout', 'habit', 'bill', 'custom'] as const
@@ -26,6 +32,21 @@ const foodServing = z.object({ label: z.string().min(1).max(60), factor: z.numbe
 /** A preparation style with its own nutrition per base serving (foods.variants). */
 const foodVariant = z.object({ label: z.string().min(1).max(60), kcal: nutrient(5000), protein_g: nutrient(500), carbs_g: nutrient(1000), fat_g: nutrient(500), fiber_g: nutrient(200) })
 
+/**
+ * A recurrence rule (calendar_events.rrule), expanded by packages/core/src/calendarRecurrence.js.
+ * `byWeekday` (0 = Sunday) applies to weekly rules; `monthlyBy: 'weekday'` repeats on the same nth weekday of the month as the first occurrence.
+ * `until` is inclusive; `count` is the total number of occurrences including the first. At most one of them is meaningful: `until` wins.
+ */
+export const rruleSchema = z.object({
+  freq: z.enum(RECURRING_FREQUENCIES),
+  interval: int().min(1).max(99).optional(),
+  byWeekday: z.array(int().min(0).max(6)).min(1).max(7).optional(),
+  monthlyBy: z.enum(['date', 'weekday']).optional(),
+  until: day.nullable().optional(),
+  count: int().min(1).max(999).nullable().optional(),
+})
+export type RRule = z.infer<typeof rruleSchema>
+
 /** Writable columns per table. Optional = has a DB default or is nullable. */
 const insertShapes = {
   profiles: { display_name: str(0, 80).optional() },
@@ -34,6 +55,7 @@ const insertShapes = {
     daily_study_target_minutes: int().min(0).max(1440).optional(), monthly_budget_paise: paise().optional(),
     water_goal_ml: int().min(0).max(20000).optional(), steps_goal: int().min(0).max(200000).optional(),
     week_starts_on: z.union([z.literal(0), z.literal(1)]).optional(),
+    calendar_prefs: json(z.record(z.string(), z.any())).optional(),
     habit_prefs: json(z.record(z.string(), z.any())).optional(), workout_plan: json(z.record(z.string(), z.any())).optional(), defaults_seeded: z.boolean().optional(),
     score_weights: json(z.record(z.string(), z.number())).optional(), dashboard_widgets: json(z.record(z.string(), z.any())).optional(),
     notification_prefs: json(z.record(z.string(), z.boolean())).optional(), focus_prefs: json(z.record(z.string(), z.number())).optional(),
@@ -46,10 +68,11 @@ const insertShapes = {
     manual_progress: int().min(0).max(100).optional(), completed_at: ts.nullable().optional(),
   },
   tasks: {
-    title: str(1, 200), notes: text().optional(), category: z.enum(TASK_CATEGORIES).optional(), priority: z.enum(['low', 'medium', 'high']).optional(),
+    title: str(1, 200), notes: text().optional(), category: z.enum(TASK_CATEGORIES).optional(), priority: z.enum(PRIORITY_VALUES).optional(),
     status: z.enum(['pending', 'in_progress', 'done', 'skipped', 'cancelled']).optional(), due_date: day.nullable().optional(),
     started_at: ts.nullable().optional(), completed_at: ts.nullable().optional(),
-    recurrence: z.enum(['none', 'daily', 'weekdays', 'weekly', 'monthly']).optional(), recurrence_until: day.nullable().optional(), series_id: uuid.nullable().optional(),
+    recurrence: z.enum(TASK_RECURRENCES).optional(), recurrence_until: day.nullable().optional(), series_id: uuid.nullable().optional(),
+    start_time: time.nullable().optional(), end_time: time.nullable().optional(), color: hex.nullable().optional(), location: str(0, 200).optional(), alert_minutes: alerts.optional(),
   },
   habits: {
     name: str(1, 80), description: text().optional(), color: text().optional(), frequency: z.enum(['daily', 'weekly', 'custom']).optional(),
@@ -141,8 +164,20 @@ const insertShapes = {
   },
   device_push_tokens: { token: z.string().regex(/^(Expo|Exponent)PushToken\[[^\]]+\]$/), platform: z.enum(['ios', 'android']), device_name: str(0, 80).optional(), last_seen_at: ts.optional() },
   notifications: {
-    kind: z.enum([...REMINDER_KINDS, 'system']).optional(), title: str(1, 200), body: text().optional(), link: text().optional(),
+    kind: z.enum([...REMINDER_KINDS, 'system', 'event']).optional(), title: str(1, 200), body: text().optional(), link: text().optional(),
     dedupe_key: text().nullable().optional(), read_at: ts.nullable().optional(),
+  },
+  calendar_events: {
+    title: str(1, 200), description: str(0, 4000).optional(), location: str(0, 200).optional(), category: z.enum(CALENDAR_CATEGORIES).optional(),
+    category_label: str(0, 40).optional(), priority: z.enum(PRIORITY_VALUES).optional(), color: hex.nullable().optional(), all_day: z.boolean().optional(),
+    starts_at: ts, ends_at: ts, timezone: str(1, 64).optional(), rrule: rruleSchema.nullable().optional(), alert_minutes: alerts.optional(),
+    goal_id: uuid.nullable().optional(), topic_id: uuid.nullable().optional(), application_id: uuid.nullable().optional(), routine_id: uuid.nullable().optional(),
+  },
+  calendar_event_exceptions: {
+    event_id: uuid, occurrence_date: day, status: z.enum(['modified', 'cancelled']).optional(),
+    title: str(1, 200).nullable().optional(), description: str(0, 4000).nullable().optional(), location: str(0, 200).nullable().optional(),
+    category: z.enum(CALENDAR_CATEGORIES).nullable().optional(), priority: z.enum(PRIORITY_VALUES).nullable().optional(), color: hex.nullable().optional(),
+    all_day: z.boolean().nullable().optional(), starts_at: ts.nullable().optional(), ends_at: ts.nullable().optional(), alert_minutes: alerts.nullable().optional(),
   },
 } satisfies Record<string, z.ZodRawShape>
 

@@ -269,13 +269,16 @@ describe('RemindersTab and PreferencesTab', () => {
     const user = userEvent.setup()
     const onChange = vi.fn()
     render(<PreferencesTab prefs={{ bill: false }} onChange={onChange} />)
-    expect(screen.getAllByRole('switch')).toHaveLength(6)
+    expect(screen.getAllByRole('switch')).toHaveLength(7) // six reminder kinds, plus calendar event and task alerts
+    expect(screen.getByRole('switch', { name: 'Calendar event and task alerts' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('switch', { name: 'Bill reminders' })).toHaveAttribute('aria-checked', 'false')
     expect(screen.getByRole('switch', { name: 'Task reminders' })).toHaveAttribute('aria-checked', 'true')
     await user.click(screen.getByRole('switch', { name: 'Bill reminders' }))
     expect(onChange).toHaveBeenCalledWith('bill', true)
     await user.click(screen.getByRole('switch', { name: 'Task reminders' }))
     expect(onChange).toHaveBeenCalledWith('task', false)
+    await user.click(screen.getByRole('switch', { name: 'Calendar event and task alerts' }))
+    expect(onChange).toHaveBeenCalledWith('event', false)
   })
 })
 

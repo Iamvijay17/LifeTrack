@@ -6,6 +6,7 @@ export const RECURRENCES = [
   { value: 'weekdays', label: 'Weekdays (Mon–Fri)' },
   { value: 'weekly', label: 'Every week' },
   { value: 'monthly', label: 'Every month' },
+  { value: 'yearly', label: 'Every year' },
 ]
 
 export function nextDueDate(due, recurrence) {
@@ -24,6 +25,13 @@ export function nextDueDate(due, recurrence) {
       const first = addMonths(due, 1)
       const last = Number(monthEnd(first).slice(8))
       return first.slice(0, 8) + String(Math.min(day, last)).padStart(2, '0')
+    }
+    case 'yearly': {
+      // 29 Feb falls on 28 Feb in years without one. Like monthly, each occurrence is derived from the previous one, so it stays on the 28th afterwards.
+      const y = Number(due.slice(0, 4)) + 1
+      const m = due.slice(5, 7)
+      const last = Number(monthEnd(`${y}-${m}-01`).slice(8))
+      return `${y}-${m}-${String(Math.min(Number(due.slice(8)), last)).padStart(2, '0')}`
     }
     default:
       return null

@@ -172,12 +172,14 @@ export const localAdapter = {
       ],
       workouts: [['exercise_logs', 'workout_id']],
       goals: [['milestones', 'goal_id']],
+      calendar_events: [['calendar_event_exceptions', 'event_id']],
     }
     for (const [child, col] of cascade[table] ?? []) db[child] = (db[child] ?? []).filter((r) => !set.has(r[col]))
     const setNull = {
       goals: [
         ['study_sessions', 'goal_id'],
         ['notes', 'goal_id'],
+        ['calendar_events', 'goal_id'],
       ],
       tasks: [
         ['notes', 'task_id'],
@@ -187,10 +189,15 @@ export const localAdapter = {
         ['study_sessions', 'topic_id'],
         ['goals', 'topic_id'],
         ['focus_sessions', 'topic_id'],
+        ['calendar_events', 'topic_id'],
       ],
-      routines: [['workouts', 'routine_id']],
+      routines: [
+        ['workouts', 'routine_id'],
+        ['calendar_events', 'routine_id'],
+      ],
       foods: [['food_logs', 'food_id']],
       recurring_rules: [['transactions', 'recurring_rule_id']],
+      job_applications: [['calendar_events', 'application_id']],
     }
     for (const [child, col] of setNull[table] ?? []) db[child] = (db[child] ?? []).map((r) => (set.has(r[col]) ? { ...r, [col]: null } : r))
     write(db)
