@@ -39,6 +39,23 @@ export function fakeDb() {
         const row = { ...(DEFAULTS as any).health_logs, id: newId(), user_id: 'u1', log_date: args.p_date, water_ml: Math.max(0, args.p_ml) } as any
         rows('health_logs').push(row); return { ...row }
       }
+      if (fn === 'log_water' || fn === 'delete_water_log') { // migration 0009: the entry and health_logs.water_ml change together
+        const add = (date: string, ml: number) => {
+          const ex = rows('health_logs').find((x) => x.log_date === date)
+          if (ex) { ex.water_ml = Math.max(0, ex.water_ml + ml); return { ...ex } }
+          const row = { ...(DEFAULTS as any).health_logs, id: newId(), user_id: 'u1', log_date: date, water_ml: Math.max(0, ml) } as any
+          rows('health_logs').push(row); return { ...row }
+        }
+        if (fn === 'log_water') {
+          const entry = { ...(DEFAULTS as any).water_logs, id: newId(), user_id: 'u1', log_date: args.p_date, log_time: args.p_time ?? null, amount_ml: args.p_ml }
+          rows('water_logs').push(entry)
+          return { entry: { ...entry }, health: add(args.p_date, args.p_ml) }
+        }
+        const found = rows('water_logs').find((x) => x.id === args.p_id)
+        if (!found) throw new Error('water entry not found')
+        tables.water_logs = rows('water_logs').filter((x) => x.id !== args.p_id)
+        return add(found.log_date, -found.amount_ml)
+      }
       if (fn === 'add_savings') {
         const ex = rows('savings_goals').find((x) => x.id === args.p_goal)
         if (!ex) throw new Error('Savings goal not found.')

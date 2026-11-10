@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate } from '@/components/shared/states'
@@ -45,7 +46,10 @@ export default function FitnessPage() {
     'body_measurements',
     'health_logs',
   )
-  const [tab, setTab] = useState('week')
+  // The tab lives in the URL (?tab=), so Back from an exercise's page lands where you were.
+  const [params, setParams] = useSearchParams()
+  const tab = TABS.some((t) => t.value === params.get('tab')) ? params.get('tab') : 'week'
+  const setTab = (t) => setParams(t === 'week' ? {} : { tab: t }, { replace: true })
   const [workoutDlg, setWorkoutDlg] = useState({ open: false, workout: null, date: today, routineId: null })
   const [routineDlg, setRoutineDlg] = useState({ open: false, routine: null })
   const [exerciseDlg, setExerciseDlg] = useState(false)

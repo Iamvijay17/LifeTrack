@@ -34,6 +34,10 @@ export const FIXTURES: Record<string, Fixture> = {
   exercise_logs: { parents: { workout_id: 'workouts' }, insert: (r, o, f) => one(r, `insert into exercise_logs(user_id, workout_id, exercise_name, exercise_id) values ($1,$2,'Bench',$3)`, [o, f.workout_id, f.exercise_id ?? null]) },
   body_measurements: { insert: (r, o) => one(r, `insert into body_measurements(user_id, measured_on, waist_cm) values ($1,'2026-11-02',82)`, [o]) },
   health_logs: { insert: (r, o) => one(r, `insert into health_logs(user_id, log_date) values ($1,'2026-11-02')`, [o]) },
+  foods: { insert: (r, o) => one(r, `insert into foods(user_id, name, kcal) values ($1,'Idli',58)`, [o]) },
+  food_logs: { insert: (r, o, f) => one(r, `insert into food_logs(user_id, log_date, meal_type, name, food_id) values ($1,'2026-11-02','breakfast','Idli',$2)`, [o, f.food_id ?? null]) },
+  water_logs: { insert: (r, o) => one(r, `insert into water_logs(user_id, log_date, amount_ml) values ($1,'2026-11-02',250)`, [o]) },
+  nutrition_settings: { insert: (r, o) => one(r, `insert into nutrition_settings(user_id, calorie_goal) values ($1,2000)`, [o]) },
   recurring_rules: { insert: (r, o) => one(r, `insert into recurring_rules(user_id, type, amount_paise, anchor_day, next_date) values ($1,'expense',100,2,'2026-11-02')`, [o]) },
   transactions: { insert: (r, o, f) => one(r, `insert into transactions(user_id, type, amount_paise, txn_date, recurring_rule_id, recurring_date) values ($1,'expense',100,'2026-11-02',$2,$3)`, [o, f.recurring_rule_id ?? null, f.recurring_rule_id ? '2026-11-02' : null]) },
   budgets: { insert: (r, o) => one(r, `insert into budgets(user_id, month, amount_paise) values ($1,'2026-11-01',100)`, [o]) },
@@ -58,5 +62,6 @@ export const OPTIONAL_LINKS: { child: string; column: string; parent: string }[]
   { child: 'focus_sessions', column: 'topic_id', parent: 'learning_topics' },
   { child: 'notes', column: 'goal_id', parent: 'goals' },
   { child: 'notes', column: 'task_id', parent: 'tasks' },
+  { child: 'food_logs', column: 'food_id', parent: 'foods' },
   { child: 'transactions', column: 'recurring_rule_id', parent: 'recurring_rules' },
 ]

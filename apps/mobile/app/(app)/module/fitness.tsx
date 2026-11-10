@@ -10,6 +10,7 @@ import { useSettings } from '../../../src/hooks/useSettings'
 import { useToday } from '../../../src/hooks/useToday'
 import { useAction } from '../../../src/hooks/useAction'
 import { useTheme } from '../../../src/providers/ThemeProvider'
+import { ExerciseDatabase } from '../../../src/features/fitness/ExerciseDatabase'
 import { ExerciseForm, MeasurementForm, RoutineForm, WorkoutForm } from '../../../src/features/fitness/forms'
 import { BarChart, LineChart } from '../../../src/ui/charts'
 import { ModuleHeader } from '../../../src/ui/ModuleHeader'
@@ -27,6 +28,7 @@ export default function Fitness() {
   const w = settings.week_starts_on
   const { data, loading, refreshing, error, refetch } = useTables('workouts', 'exercise_logs', 'routines', 'exercises', 'body_measurements', 'health_logs')
   const [tab, setTab] = useState<Tab>('week')
+  const [libView, setLibView] = useState<'mine' | 'database'>('mine')
   const [wForm, setWForm] = useState<{ open: boolean; workout: any | null; date: string; routineId: string | null }>({ open: false, workout: null, date: today, routineId: null })
   const [rForm, setRForm] = useState<{ open: boolean; routine: any | null }>({ open: false, routine: null })
   const [eForm, setEForm] = useState(false)
@@ -168,7 +170,10 @@ export default function Fitness() {
             })) : null}
 
           {tab === 'library' ? (<>
-            <Button title="New exercise" variant="ghost" onPress={() => setEForm(true)} />
+            <Segmented value={libView} onChange={setLibView} options={[{ value: 'mine', label: 'My exercises' }, { value: 'database', label: 'Exercise database' }]} />
+            {libView === 'database' ? <ExerciseDatabase library={lib} /> : null}
+            {libView === 'mine' ? <Button title="New exercise" variant="ghost" onPress={() => setEForm(true)} /> : null}
+            {libView === 'mine' ? <>
             {groups.map(({ group, items }: any) => (
               <View key={group} style={{ gap: 6 }}>
                 <Text accessibilityRole="header" style={{ color: colors.mutedForeground, fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 }}>{group}</Text>
@@ -179,7 +184,8 @@ export default function Fitness() {
                 ))}
               </View>
             ))}
-            {lib.length === 0 ? <EmptyState title="No exercises" description="Add the exercises you use." /> : null}
+            {lib.length === 0 ? <EmptyState title="No exercises" description="Add the exercises you use, or browse the exercise database." action={{ label: 'Browse the database', onPress: () => setLibView('database') }} /> : null}
+            </> : null}
           </>) : null}
 
           {tab === 'body' ? (<>

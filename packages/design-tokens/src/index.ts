@@ -35,7 +35,7 @@ export const chartPalette = ['#8B5CF6', '#22C55E', '#F59E0B', '#3B82F6', '#EC489
  * `text` is the shade that stays readable on that theme's surfaces. Web mirrors these as CSS variables in apps/web/src/index.css.
  */
 export type ModuleName =
-  | 'dashboard' | 'planner' | 'focus' | 'habits' | 'notes' | 'learning' | 'jobs' | 'goals' | 'fitness' | 'health' | 'finance'
+  | 'dashboard' | 'planner' | 'focus' | 'habits' | 'notes' | 'learning' | 'jobs' | 'goals' | 'fitness' | 'health' | 'nutrition' | 'finance'
   | 'analytics' | 'reports' | 'notifications' | 'settings' | 'export'
 export const moduleAccents: Record<ModuleName, { from: string; to: string; text: { light: string; dark: string } }> = {
   dashboard: { from: '#8B5CF6', to: '#6366F1', text: { light: '#6D28D9', dark: '#A78BFA' } },
@@ -48,6 +48,7 @@ export const moduleAccents: Record<ModuleName, { from: string; to: string; text:
   goals: { from: '#EC4899', to: '#8B5CF6', text: { light: '#BE185D', dark: '#F9A8D4' } },
   fitness: { from: '#F97316', to: '#EF4444', text: { light: '#C2410C', dark: '#FDBA74' } },
   health: { from: '#38BDF8', to: '#6366F1', text: { light: '#0369A1', dark: '#7DD3FC' } },
+  nutrition: { from: '#84CC16', to: '#22C55E', text: { light: '#3F6212', dark: '#BEF264' } },
   finance: { from: '#10B981', to: '#14B8A6', text: { light: '#047857', dark: '#6EE7B7' } },
   analytics: { from: '#6366F1', to: '#8B5CF6', text: { light: '#4338CA', dark: '#A5B4FC' } },
   reports: { from: '#64748B', to: '#6366F1', text: { light: '#475569', dark: '#CBD5E1' } },

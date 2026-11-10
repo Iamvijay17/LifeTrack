@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { register } from './helpers'
 
-const PAGES = ['/', '/planner', '/learning', '/jobs', '/fitness', '/health', '/finance', '/habits', '/analytics', '/settings']
+const PAGES = ['/', '/planner', '/learning', '/jobs', '/fitness', '/health', '/nutrition', '/finance', '/habits', '/analytics', '/settings']
 
 test('mobile: bottom nav + quick-add button, no horizontal overflow on any page', async ({ page }) => {
   await register(page)

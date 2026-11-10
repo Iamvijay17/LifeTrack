@@ -112,6 +112,55 @@ export function createApi(store) {
     return row
   }
 
+  // ---------------------------------------------------------------- nutrition
+  /**
+   * Logs one drink of water. The database writes the entry AND raises the day's total in health_logs in one transaction, so the entry list
+   * and Sleep & Health can never disagree and two devices adding at once never lose an increment.
+   * @param {string} date
+   * @param {number} ml
+   * @param {string | null} [time] HH:mm, in the user's timezone
+   */
+  async function logWater(date, ml, time = null) {
+    if (!Number.isInteger(ml) || ml < 1 || ml > 5000) throw new AppError('Enter an amount between 1 and 5000 ml.')
+    const { entry, health } = await store.rpc('log_water', { p_date: date, p_ml: ml, p_time: time })
+    store.patch('water_logs', [entry])
+    store.patch('health_logs', [health]) // the function also raised the day's total there
+    return entry
+  }
+  /** Removes one water entry and takes its amount off the day's total (same transaction). Use this, never a plain delete. */
+  async function removeWaterLog(entry) {
+    const health = await store.rpc('delete_water_log', { p_id: entry.id })
+    store.patchGroup('water_logs', (w) => w.id === entry.id, [])
+    if (health) store.patch('health_logs', [health])
+    return health
+  }
+  /** Saves the user's targets; empty goals are stored as null ("not set"). `waterGoalMl` lives in user_settings, shared with Sleep & Health. */
+  async function saveNutritionGoals(settings, waterGoalMl) {
+    const row = await store.upsert('nutrition_settings', settings, { onConflict: CONFLICT_KEYS.nutrition_settings })
+    if (waterGoalMl !== undefined) await store.upsert('user_settings', { water_goal_ml: waterGoalMl ?? 0 }, { onConflict: 'user_id' })
+    return row
+  }
+  /** Replaces the favourite foods list (refs like "starter:idli" or "custom:<id>"). */
+  const saveFavoriteFoods = (favorites) => store.upsert('nutrition_settings', { favorite_foods: favorites }, { onConflict: CONFLICT_KEYS.nutrition_settings })
+  /**
+   * Saves the user's own copy of a built-in starter food (edit it, or favourite-and-tweak). One copy per starter food: if it already exists
+   * it is updated, so double clicks or two devices never create two.
+   */
+  async function saveFoodCopy(baseKey, values) {
+    const existing = store.peek('foods').find((f) => f.base_key === baseKey)
+    if (existing) return store.update('foods', existing.id, values)
+    try { return await store.insert('foods', { ...values, base_key: baseKey }) }
+    catch (e) {
+      if (e?.code !== '23505') throw e // another device saved a copy first: update that one instead
+      await store.refetch('foods')
+      const theirs = store.peek('foods').find((f) => f.base_key === baseKey)
+      if (!theirs) throw e
+      return store.update('foods', theirs.id, values)
+    }
+  }
+  /** Deleting a user's copy of a starter food brings the original back; deleting a custom food keeps the entries already logged with it. */
+  const deleteFood = (food) => store.remove('foods', food.id)
+
   // ---------------------------------------------------------------- job board
   function setApplicationStatus(app, status, today) {
     const patch = { status }
@@ -227,5 +276,5 @@ export function createApi(store) {
     return unread.length
   }
 
-  return { saveRow, deleteRow, createTask, setTaskStatus, setHabitStatus, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, postDueRecurring, toggleRecurringRule, fireDueReminders, toggleReminder, clearReadNotifications, markNotificationRead, markAllRead }
+  return { saveRow, deleteRow, createTask, setTaskStatus, setHabitStatus, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, logWater, removeWaterLog, saveNutritionGoals, saveFavoriteFoods, saveFoodCopy, deleteFood, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, postDueRecurring, toggleRecurringRule, fireDueReminders, toggleReminder, clearReadNotifications, markNotificationRead, markAllRead }
 }

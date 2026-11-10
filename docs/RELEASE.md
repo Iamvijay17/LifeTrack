@@ -12,7 +12,7 @@ Tick the boxes in the release PR/issue as you go.
 ## 1. Legal and store content (blocks production builds)
 - [ ] **YOU**: fill every `[placeholder]` and remove the DRAFT banners in `docs/legal/*.md` after review; `node scripts/check-legal-ready.mjs` must pass
   (the production web and mobile workflows run it and will fail otherwise)
-- [ ] **YOU**: choose the public web URL; set `EXPO_PUBLIC_WEB_URL` (mobile links to `/privacy` and `/terms`)
+- [ ] **YOU**: choose the public web URL; set `EXPO_PUBLIC_WEB_URL` (mobile links to `/privacy` and `/terms`, and loads the exercise database catalog and photos from `/exercises/`, so that site must serve them)
 - [ ] **YOU**: `LICENSE` and `SECURITY.md` placeholders filled; support email exists and is monitored
 - [ ] **YOU**: final app icon approved and replaced in `apps/mobile/assets` and `apps/web/public`
 - [ ] Store listing text (`docs/store/LISTING.md`) and data-safety answers (`docs/store/STORE_DATA_SAFETY.md`) reviewed; screenshots captured (`docs/store/SCREENSHOTS.md`)

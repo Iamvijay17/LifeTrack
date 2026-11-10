@@ -35,6 +35,23 @@ export default defineConfig(({ command, mode }) => ({
         // Only the Latin font subsets are precached; other scripts are fetched on demand.
         globIgnores: ['**/*-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2'],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+        // Exercise demonstration photos are static and large in number: cache each on first view (not precached), newest 600, 30 days.
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/exercises/') && url.pathname.endsWith('.jpg'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'exercise-images',
+              expiration: { maxEntries: 600, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
+            urlPattern: ({ url }) => url.pathname === '/exercises/catalog.json',
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'exercise-catalog' },
+          },
+        ],
       },
     }),
   ],

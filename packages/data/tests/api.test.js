@@ -152,6 +152,70 @@ describe('study timer across devices', () => {
   })
 })
 
+describe('nutrition', () => {
+  it('logWater writes an entry AND raises the day total in health_logs; removeWaterLog takes exactly that amount back', async () => {
+    await store.load('health_logs'); await store.load('water_logs')
+    const a = await api.logWater(TODAY, 250, '09:00')
+    const b = await api.logWater(TODAY, 500)
+    expect(db('water_logs').map((w) => w.amount_ml)).toEqual([250, 500])
+    expect(db('health_logs')[0].water_ml).toBe(750)
+    expect(store.peek('health_logs')[0].water_ml).toBe(750) // the cache shows the new total without a reload
+    const after = await api.removeWaterLog(b)
+    expect(after.water_ml).toBe(250)
+    expect(db('water_logs')).toHaveLength(1)
+    expect(store.peek('water_logs').map((w) => w.id)).toEqual([a.id])
+    expect(store.peek('health_logs')[0].water_ml).toBe(250)
+  })
+  it('refuses amounts the database would refuse, before calling it', async () => {
+    for (const ml of [0, -250, 5001, 2.5, NaN]) await expect(api.logWater(TODAY, ml)).rejects.toThrow(/between 1 and 5000/)
+    expect(db('water_logs')).toHaveLength(0)
+  })
+  it('water that was typed into Sleep & Health stays when an entry is removed', async () => {
+    await api.saveHealth(TODAY, { water_ml: 1000 })
+    const e = await api.logWater(TODAY, 250)
+    expect(db('health_logs')[0].water_ml).toBe(1250)
+    await api.removeWaterLog(e)
+    expect(db('health_logs')[0].water_ml).toBe(1000)
+  })
+  it('targets: one row per user, empty goals are stored as null, and the water goal goes to user_settings', async () => {
+    await store.insert('user_settings', { water_goal_ml: 3000 }).catch(() => {})
+    await api.saveNutritionGoals({ calorie_goal: 1800, protein_goal_g: null }, 2500)
+    await api.saveNutritionGoals({ calorie_goal: 2000, protein_goal_g: 80 }, 2500)
+    expect(db('nutrition_settings')).toHaveLength(1)
+    expect(db('nutrition_settings')[0]).toMatchObject({ calorie_goal: 2000, protein_goal_g: 80, carbs_goal_g: null })
+    expect(db('user_settings').find((r) => r.user_id === A).water_goal_ml).toBe(2500)
+  })
+  it('favourites are saved on the same row as the targets, without erasing them', async () => {
+    await api.saveNutritionGoals({ calorie_goal: 1800 })
+    await api.saveFavoriteFoods(['starter:idli', 'custom:abc'])
+    expect(db('nutrition_settings')).toHaveLength(1)
+    expect(db('nutrition_settings')[0]).toMatchObject({ calorie_goal: 1800, favorite_foods: ['starter:idli', 'custom:abc'] })
+  })
+  it('editing a starter food saves ONE copy per user, however many times (or from how many devices) it is saved', async () => {
+    await store.load('foods')
+    const base = { name: 'Idli', kcal: 60, category: 'Tiffin' }
+    const first = await api.saveFoodCopy('idli', base)
+    const again = await api.saveFoodCopy('idli', { ...base, kcal: 65 })
+    expect(again.id).toBe(first.id)
+    expect(db('foods')).toHaveLength(1)
+    expect(db('foods')[0]).toMatchObject({ base_key: 'idli', kcal: 65 })
+    // another device that has not seen the copy yet: its insert collides on (user, base_key) and falls back to updating the existing one
+    await adapter.remove('foods', first.id); await store.refetch('foods')
+    const stale = makeStore(adapter); const staleApi = createApi(stale); await stale.load('foods') // this device sees no copy yet
+    await api.saveFoodCopy('idli', { ...base, kcal: 70 }) // meanwhile the first device writes one
+    const raced = await staleApi.saveFoodCopy('idli', { ...base, kcal: 75 })
+    expect(db('foods')).toHaveLength(1)
+    expect(raced.kcal).toBe(75)
+  })
+  it('a logged entry keeps its nutrition when the food it came from is deleted', async () => {
+    const [food] = await store.insert('foods', [{ name: 'Mom sambar', kcal: 70 }])
+    const [entry] = await store.insert('food_logs', [{ log_date: TODAY, meal_type: 'lunch', name: 'Mom sambar', food_id: food.id, kcal: 140, quantity: 2 }])
+    await api.deleteFood(food)
+    expect(db('foods')).toHaveLength(0)
+    expect(db('food_logs')[0]).toMatchObject({ id: entry.id, kcal: 140 })
+  })
+})
+
 describe('health, water, jobs, goals, focus', () => {
   it('saveHealth is one row per day; addWater accumulates and never goes below zero', async () => {
     await store.load('health_logs')

@@ -189,6 +189,7 @@ export const localAdapter = {
         ['focus_sessions', 'topic_id'],
       ],
       routines: [['workouts', 'routine_id']],
+      foods: [['food_logs', 'food_id']],
       recurring_rules: [['transactions', 'recurring_rule_id']],
     }
     for (const [child, col] of setNull[table] ?? []) db[child] = (db[child] ?? []).map((r) => (set.has(r[col]) ? { ...r, [col]: null } : r))
@@ -213,6 +214,39 @@ export const localAdapter = {
       write(db)
       notify('health_logs')
       return clone(row)
+    }
+    if (name === 'log_water' || name === 'delete_water_log') {
+      // Emulates public.log_water / public.delete_water_log (supabase/migrations/0009_nutrition.sql): the entry and health_logs.water_ml change together.
+      const db = read()
+      const logs = (db.water_logs ??= [])
+      let date, delta, entry
+      if (name === 'log_water') {
+        if (!Number.isInteger(args.p_ml) || args.p_ml < 1 || args.p_ml > 5000) throw new AppError('amount must be between 1 and 5000 ml')
+        entry = buildRow('water_logs', { log_date: args.p_date, log_time: args.p_time ?? null, amount_ml: args.p_ml })
+        logs.push(entry)
+        date = args.p_date
+        delta = args.p_ml
+      } else {
+        const i = logs.findIndex((w) => w.id === args.p_id)
+        if (i < 0) throw new AppError('That record could not be found.', { code: 'P0002' })
+        ;[entry] = logs.splice(i, 1)
+        date = entry.log_date
+        delta = -entry.amount_ml
+      }
+      const health = (db.health_logs ??= [])
+      const h = health.findIndex((r) => r.log_date === date)
+      let row
+      if (h >= 0) {
+        row = { ...health[h], water_ml: Math.max(0, Math.min(20000, (health[h].water_ml ?? 0) + delta)), updated_at: monotonicNow() }
+        health[h] = row
+      } else {
+        row = buildRow('health_logs', { log_date: date, water_ml: Math.max(0, Math.min(20000, delta)) })
+        health.push(row)
+      }
+      write(db)
+      notify('water_logs')
+      notify('health_logs')
+      return clone(name === 'log_water' ? { entry, health: row } : row)
     }
     if (name === 'replace_exercise_logs') {
       const db = read()

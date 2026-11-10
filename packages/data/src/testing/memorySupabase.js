@@ -135,7 +135,7 @@ export function createMemorySupabase({ currentUser = getUserId } = {}) {
     tables,
     from: (t) => new Query(t),
     /** The database functions the app calls (add_water, add_savings, replace_exercise_logs). Single-threaded here, so trivially atomic. */
-    rpc: async (fn, args) => {
+    rpc: async function rpc(fn, args) {
       const uid = currentUser()
       if (!uid) return { data: null, error: err('42501', 'permission denied for function ' + fn) }
       const own = (t) => rows(t).filter((r) => r.user_id === uid)
@@ -145,6 +145,19 @@ export function createMemorySupabase({ currentUser = getUserId } = {}) {
         return cur
           ? new Query('health_logs').update({ water_ml: clamp(cur.water_ml + args.p_ml) }).eq('id', cur.id).select().single()
           : new Query('health_logs').insert({ log_date: args.p_date, water_ml: clamp(args.p_ml) }).select().single()
+      }
+      if (fn === 'log_water') {
+        if (!Number.isInteger(args.p_ml) || args.p_ml < 1 || args.p_ml > 5000) return { data: null, error: err('22023', 'amount must be between 1 and 5000 ml') }
+        const entry = new Query('water_logs').insert({ log_date: args.p_date, log_time: args.p_time ?? null, amount_ml: args.p_ml }).select().single().run()
+        if (entry.error) return entry
+        const added = await rpc('add_water', { p_date: args.p_date, p_ml: args.p_ml })
+        return added.error ? added : { data: { entry: entry.data, health: added.data }, error: null }
+      }
+      if (fn === 'delete_water_log') {
+        const cur = own('water_logs').find((r) => r.id === args.p_id)
+        if (!cur) return { data: null, error: err('P0002', 'water entry not found') }
+        new Query('water_logs').delete().eq('id', cur.id).run()
+        return rpc('add_water', { p_date: cur.log_date, p_ml: -cur.amount_ml })
       }
       if (fn === 'add_savings') {
         if (!Number.isInteger(args.p_paise) || args.p_paise <= 0) return { data: null, error: err('P0001', 'Enter an amount greater than 0.') }

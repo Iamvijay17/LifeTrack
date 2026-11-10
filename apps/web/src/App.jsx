@@ -18,7 +18,9 @@ const Planner = page(() => import('@/features/planner/PlannerPage'))
 const Learning = page(() => import('@/features/learning/LearningPage'))
 const Jobs = page(() => import('@/features/jobs/JobsPage'))
 const Fitness = page(() => import('@/features/fitness/FitnessPage'))
+const ExerciseDetail = page(() => import('@/features/fitness/catalog/ExerciseDetailPage'))
 const Health = page(() => import('@/features/health/HealthPage'))
+const Nutrition = page(() => import('@/features/nutrition/NutritionPage'))
 const Finance = page(() => import('@/features/finance/FinancePage'))
 const Habits = page(() => import('@/features/habits/HabitsPage'))
 const Analytics = page(() => import('@/features/analytics/AnalyticsPage'))
@@ -66,7 +68,9 @@ export default function App() {
                 <Route path="learning" element={<Learning />} />
                 <Route path="jobs" element={<Jobs />} />
                 <Route path="fitness" element={<Fitness />} />
+                <Route path="fitness/exercises/:id" element={<ExerciseDetail />} />
                 <Route path="health" element={<Health />} />
+                <Route path="nutrition" element={<Nutrition />} />
                 <Route path="finance" element={<Finance />} />
                 <Route path="habits" element={<Habits />} />
                 <Route path="analytics" element={<Analytics />} />
