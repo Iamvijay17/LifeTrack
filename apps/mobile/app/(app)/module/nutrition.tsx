@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { FOOD_CATEGORIES } from '@lifetrack/constants/foods'
+import { ESTIMATE_BASIS, FOOD_CATEGORIES } from '@lifetrack/constants/foods'
 import { eachDay, fmtDay, monthEnd, monthStart, timeStrInTz } from '@lifetrack/utils'
 import {
   MEAL_LABEL, analyze, calendarTotals, dayMeals, dayTotals, duplicateDraft, entriesOn, entryRow, firstLogDate, fmtKcal, frequentFoods, guessMeal, missingDays,
-  percentOfGoal, perServing, recentFoods, remainingOf, round, searchFoods, toggleFavorite as toggleFav, viewRange, waterDay, weeklyTrend,
+  categoriesInUse, percentOfGoal, perServing, recentFoods, remainingOf, round, searchFoods, toggleFavorite as toggleFav, viewRange, waterDay, weeklyTrend,
 } from '@lifetrack/core/nutrition'
 import { foodLogDraftToForm, type FoodLogForm } from '@lifetrack/schemas'
 import { api, store } from '../../../src/data/client'
@@ -178,7 +178,7 @@ export default function Nutrition() {
         onDetails={(draft) => { closeFlow(); afterSheetClose(() => setFlow({ mode: 'form', entry: null, title: 'Add food entry', values: foodLogDraftToForm(draft) })) }} />
       <EntryForm visible={!!form} entry={form?.entry ?? null} values={form?.values ?? blankValues(today, 'breakfast')} title={form?.title ?? 'Add food entry'} categories={categories} onClose={closeFlow} />
       <GoalsForm visible={goalsOpen} settingsRow={n.settingsRow} onClose={() => setGoalsOpen(false)} />
-      <FoodForm visible={foodDialog.open} food={foodDialog.food} categories={categories} onClose={() => setFoodDialog((d) => ({ ...d, open: false }))} />
+      <FoodForm visible={foodDialog.open} food={foodDialog.food} catalog={n.catalog} categories={categories} onClose={() => setFoodDialog((d) => ({ ...d, open: false }))} />
     </SafeAreaView>
   )
 }
@@ -281,9 +281,11 @@ function Foods({ n, categories, toggleFavorite, onCreate, onEdit, onRemove }: { 
   const [category, setCategory] = useState('all')
   const [menu, setMenu] = useState<any | null>(null)
   const foods = useMemo(() => searchFoods(scope === 'mine' ? n.catalog.filter((f: any) => f.source !== 'starter') : n.catalog, { query, category, scope: scope === 'favorites' ? 'favorites' : 'all', favorites: n.favorites }), [n.catalog, n.favorites, query, scope, category])
-  const cats = FOOD_CATEGORIES.filter((c) => categories.includes(c) && n.catalog.some((f: any) => f.category === c))
+  const cats = categoriesInUse(n.catalog, FOOD_CATEGORIES)
+  const [shown, setShown] = useState(40)
+  useEffect(() => setShown(40), [query, scope, category])
   return (<>
-    <Card><Txt variant="small" muted>The starter foods are approximate estimates for typical home portions. Recipes, oil and portion size change the real numbers, so edit any food to match yours.</Txt></Card>
+    <Card><Txt variant="small" muted>The built-in foods are approximate estimates for typical portions. Recipes, oil and portion size change the real numbers, and restaurant dishes vary most, so edit any food to match yours.</Txt></Card>
     <Button title="Create food" onPress={onCreate} />
     <Field label="Search foods" value={query} onChangeText={setQuery} placeholder="Search" />
     <Segmented value={scope} onChange={setScope} options={[{ value: 'all', label: 'All' }, { value: 'mine', label: 'Mine' }, { value: 'favorites', label: 'Favourites' }]} />
@@ -293,12 +295,12 @@ function Foods({ n, categories, toggleFavorite, onCreate, onEdit, onRemove }: { 
     </View>
     {foods.length === 0 ? <EmptyState title={scope === 'mine' ? 'No foods of your own yet' : scope === 'favorites' ? 'No favourites yet' : 'No match'} description={scope === 'mine' ? 'Create a food, or edit a starter food to make it yours.' : 'Try another spelling.'} /> : (
       <Card>
-        {foods.map((f: any) => (
+        {foods.slice(0, shown).map((f: any) => (
           <View key={f.ref} style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Pressable accessibilityRole="button" accessibilityLabel={`${f.name}, ${Math.round(f.kcal)} calories. Actions`} onPress={() => setMenu(f)} style={{ flex: 1, minHeight: 60, paddingVertical: 6, justifyContent: 'center' }}>
               <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                 <Text style={{ color: colors.foreground, fontWeight: '500', fontSize: 16 }}>{f.name}</Text>
-                {f.source === 'custom' ? <Badge tone="primary">Yours</Badge> : f.source === 'edited' ? <Badge tone="primary">Edited</Badge> : <Badge>≈ estimate</Badge>}
+                {f.source === 'custom' ? <Badge tone="primary">Yours</Badge> : f.source === 'edited' ? <Badge tone="primary">Edited</Badge> : <Badge>≈ {((ESTIMATE_BASIS as any)[f.basis]?.label ?? 'estimate').toLowerCase()}</Badge>}
               </View>
               <Txt variant="small" muted>{f.category} · {f.serving_label}</Txt>
               <Txt variant="small" muted>P {f.protein_g} · C {f.carbs_g} · F {f.fat_g} · Fibre {f.fiber_g}</Txt>
@@ -309,6 +311,8 @@ function Foods({ n, categories, toggleFavorite, onCreate, onEdit, onRemove }: { 
         ))}
       </Card>
     )}
+    {foods.length > shown ? <Button title={`Show more (${foods.length - shown} more)`} variant="ghost" onPress={() => setShown((c: number) => c + 40)} /> : null}
+    <Txt variant="small" muted>{foods.length} food{foods.length === 1 ? '' : 's'}</Txt>
     <ActionSheet visible={!!menu} title={menu?.name ?? ''} onClose={() => setMenu(null)} actions={menu ? [
       { label: 'Edit', onPress: () => onEdit(menu) },
       { label: 'Reset to original', hidden: menu.source !== 'edited', onPress: () => onRemove(menu) },

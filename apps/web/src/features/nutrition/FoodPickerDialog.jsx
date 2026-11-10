@@ -6,10 +6,12 @@ import { Input } from '@/components/ui/form'
 import { Badge, Segmented } from '@/components/ui/misc'
 import { EmptyState } from '@/components/shared/states'
 import { useAction } from '@/hooks/useAction'
-import { FOOD_CATEGORIES } from '@lifetrack/constants/foods'
+import { ESTIMATE_BASIS, FOOD_CATEGORIES } from '@lifetrack/constants/foods'
 import {
   MEALS,
   MEAL_LABEL,
+  categoriesInUse,
+  customServing,
   entryDraftFromFood,
   entryRow,
   foodNutrition,
@@ -17,6 +19,8 @@ import {
   scaleNutrition,
   searchFoods,
   servingOptions,
+  servingUnit,
+  supportsCustomWeight,
 } from '@/domain/nutrition'
 import { cn } from '@/lib/utils'
 import { logEntry } from './logEntry'
@@ -60,17 +64,23 @@ export function Stars({ on, onToggle, name }) {
   )
 }
 
+const CUSTOM_WEIGHT = '__custom_weight__'
+const PAGE = 60
 const macroLine = (f) => `P ${f.protein_g} · C ${f.carbs_g} · F ${f.fat_g}`
 
 function Detail({ food, ctx, onBack, onSaved, onDetails, favorite, onToggleFavorite }) {
   const [variant, setVariant] = useState('')
   const options = servingOptions(food)
   const [servingLabel, setServingLabel] = useState(options[0].label)
+  const [grams, setGrams] = useState('')
   const [qty, setQty] = useState('1')
   const [meal, setMeal] = useState(ctx.meal)
-  const serving = options.find((o) => o.label === servingLabel) ?? options[0]
+  const byWeight = servingLabel === CUSTOM_WEIGHT
+  const unit = servingUnit(food)
+  const customOption = byWeight ? customServing(food, grams) : null
+  const serving = byWeight ? (customOption ?? options[0]) : (options.find((o) => o.label === servingLabel) ?? options[0])
   const q = Number(qty)
-  const valid = q > 0 && q <= 100
+  const valid = q > 0 && q <= 100 && (!byWeight || !!customOption)
   const per = scaleNutrition(foodNutrition(food, variant), 1, serving.factor)
   const total = scaleNutrition(per, valid ? q : 0)
   const draft = () =>
@@ -90,8 +100,14 @@ function Detail({ food, ctx, onBack, onSaved, onDetails, favorite, onToggleFavor
           <h3 className="text-base font-semibold tracking-tight">{food.name}</h3>
           <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
             {food.category}
-            {food.approximate && <Badge tone="warning">Approximate</Badge>}
+            {food.approximate && <Badge tone="warning">{ESTIMATE_BASIS[food.basis]?.label ?? 'Approximate'}</Badge>}
+            {food.numbers_from && <span>· from {food.numbers_from}</span>}
           </p>
+          {food.approximate && (
+            <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+              {ESTIMATE_BASIS[food.basis]?.hint ?? ESTIMATE_BASIS.recipe.hint} You can change the numbers when you add it.
+            </p>
+          )}
         </div>
         <Stars on={favorite} onToggle={onToggleFavorite} name={food.name} />
       </div>
@@ -120,7 +136,30 @@ function Detail({ food, ctx, onBack, onSaved, onDetails, favorite, onToggleFavor
               {o.label}
             </Chip>
           ))}
+          {supportsCustomWeight(food) && (
+            <Chip active={byWeight} onClick={() => setServingLabel(CUSTOM_WEIGHT)}>
+              Custom weight
+            </Chip>
+          )}
         </div>
+        {byWeight && (
+          <div className="mt-2 flex items-center gap-2">
+            <Input
+              inputMode="decimal"
+              autoFocus
+              aria-label={`Amount in ${unit === 'ml' ? 'millilitres' : 'grams'}`}
+              className="w-28 tabular-nums"
+              placeholder="e.g. 175"
+              value={grams}
+              onChange={(e) => setGrams(e.target.value)}
+              aria-invalid={(grams !== '' && !customOption) || undefined}
+            />
+            <span className="text-sm text-muted-foreground">{unit === 'ml' ? 'ml' : 'grams'}</span>
+            <span className="text-xs text-muted-foreground">
+              (1 serving = {food.serving_g} {unit})
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-3">
@@ -190,8 +229,10 @@ export function FoodPickerDialog({ open, onOpenChange, catalog, favorites, logs,
       setScope('all')
       setCategory('all')
       setPicked(null)
+      setShown(PAGE)
     }
   }, [open])
+  useEffect(() => setShown(PAGE), [query, scope, category])
   const recentRefs = useMemo(
     () =>
       recentFoods(logs, 40)
@@ -199,7 +240,8 @@ export function FoodPickerDialog({ open, onOpenChange, catalog, favorites, logs,
         .filter(Boolean),
     [logs],
   )
-  const categories = useMemo(() => FOOD_CATEGORIES.filter((c) => catalog.some((f) => f.category === c)), [catalog])
+  const categories = useMemo(() => categoriesInUse(catalog, FOOD_CATEGORIES), [catalog])
+  const [shown, setShown] = useState(PAGE)
   const results = useMemo(() => {
     const found = searchFoods(catalog, { query, category, scope, favorites, recentRefs })
     if (query.trim() || scope !== 'all') return found
@@ -234,7 +276,7 @@ export function FoodPickerDialog({ open, onOpenChange, catalog, favorites, logs,
             <Input
               autoFocus
               className="pl-9"
-              placeholder="Search idli, dal, paneer…"
+              placeholder="Search idli, biryani, இட்லி…"
               aria-label="Search foods"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -265,7 +307,7 @@ export function FoodPickerDialog({ open, onOpenChange, catalog, favorites, logs,
             />
           ) : (
             <ul className="-mx-2 divide-y divide-border/50" aria-label="Foods">
-              {results.map((f) => (
+              {results.slice(0, shown).map((f) => (
                 <li key={f.ref} className="flex items-center">
                   <button
                     type="button"
@@ -292,8 +334,15 @@ export function FoodPickerDialog({ open, onOpenChange, catalog, favorites, logs,
               ))}
             </ul>
           )}
+          {results.length > shown && (
+            <Button variant="ghost" size="sm" className="w-full" onClick={() => setShown((n) => n + PAGE)}>
+              Show more ({results.length - shown} more)
+            </Button>
+          )}
           <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
-            <p className="text-xs text-muted-foreground">Starter values are approximate. Edit any food in the Foods tab.</p>
+            <p className="text-xs text-muted-foreground">
+              {results.length} food{results.length === 1 ? '' : 's'} · Built-in values are approximate. Edit any food in the Foods tab.
+            </p>
             <Button variant="outline" size="sm" onClick={() => onManual(query.trim())}>
               Enter manually
             </Button>

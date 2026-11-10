@@ -80,19 +80,20 @@ describe('catalogue', () => {
     expect(catalog.filter((f) => f.name === 'Idli')).toHaveLength(1)
     expect(catalog.find((f) => f.name === 'Idli')).toMatchObject({ source: 'edited', kcal: 65, ref: 'custom:c2', base_key: 'idli' })
     expect(catalog.find((f) => f.name === 'Mom sambar')).toMatchObject({ source: 'custom', approximate: false })
-    expect(catalog.find((f) => f.name === 'Dosa')).toMatchObject({ source: 'starter', approximate: true, ref: 'starter:dosa' })
+    expect(catalog.find((f) => f.name === 'Plain dosa')).toMatchObject({ source: 'starter', approximate: true, ref: 'starter:dosa' })
     expect(catalog).toHaveLength(STARTER_FOODS.length + 1)
   })
   it('an edited starter copy keeps the original meal hints', () => {
     expect(catalog.find((f) => f.name === 'Idli').meals).toContain('breakfast')
   })
   it('serving options start with the base serving; variants swap the nutrition', () => {
-    const dosa = catalog.find((f) => f.name === 'Dosa')
+    const dosa = catalog.find((f) => f.name === 'Plain dosa')
     expect(servingOptions(dosa)[0]).toEqual({ label: dosa.serving_label, factor: 1 })
     expect(servingOptions(dosa).map((o) => o.label)).toContain('2 dosas')
     expect(foodNutrition(dosa).kcal).toBe(133)
-    expect(foodNutrition(dosa, 'Masala dosa (with potato filling)').kcal).toBe(240)
-    expect(foodNutrition(dosa, 'no such variant').kcal).toBe(133)
+    const masala = catalog.find((f) => f.name === 'Masala dosa')
+    expect(foodNutrition(masala, 'Restaurant style (more oil / butter)').kcal).toBe(390)
+    expect(foodNutrition(masala, 'no such variant').kcal).toBe(masala.kcal)
   })
   it('turns a picked food + choices into a stored row with exact totals', () => {
     const idli = STARTER_FOODS.find((f) => f.key === 'idli')
@@ -102,8 +103,8 @@ describe('catalogue', () => {
     const row = entryRow(draft)
     expect(row).toMatchObject({ name: 'Idli', meal_type: 'breakfast', log_date: '2026-11-02', log_time: '08:15', base_key: 'idli', food_id: null, quantity: 1.5, serving_label: '3 idlis', kcal: 261, protein_g: 9, carbs_g: 54, fat_g: 1.8 })
     expect(idli.kcal * 3 * 1.5).toBeCloseTo(row.kcal, 5)
-    const masala = entryDraftFromFood(buildCatalog([], STARTER_FOODS).find((f) => f.ref === 'starter:dosa'), { variant: 'Ghee roast', quantity: 2, meal: 'dinner', date: '2026-11-02' })
-    expect(entryRow(masala)).toMatchObject({ name: 'Dosa (Ghee roast)', variant: 'Ghee roast', kcal: 440 })
+    const gheeRoast = entryDraftFromFood(buildCatalog([], STARTER_FOODS).find((f) => f.ref === 'starter:ghee-dosa'), { variant: 'Ghee roast (large, crisp)', quantity: 2, meal: 'dinner', date: '2026-11-02' })
+    expect(entryRow(gheeRoast)).toMatchObject({ name: 'Ghee dosa (Ghee roast (large, crisp))', variant: 'Ghee roast (large, crisp)', kcal: 480 })
   })
   it('a stored entry rescales per serving and back without drifting', () => {
     for (const [total, qty] of [[58, 3], [100, 3], [0.7, 7], [348, 2]]) {
@@ -129,10 +130,10 @@ describe('search', () => {
     expect(searchFoods(foods, { query: 'zzzz' })).toEqual([])
   })
   it('matches preparation names and filters by category', () => {
-    expect(searchFoods(foods, { query: 'masala' }).map((f) => f.name)).toContain('Dosa')
+    expect(searchFoods(foods, { query: 'masala' }).map((f) => f.name)).toContain('Masala dosa')
     const dairy = searchFoods(foods, { category: 'Dairy' })
     expect(dairy.length).toBeGreaterThan(2)
-    expect(dairy.every((f) => f.category === 'Dairy')).toBe(true)
+    expect(dairy.every((f) => f.category === 'Dairy' || f.tags.includes('Dairy'))).toBe(true) // a food also belongs to the extra categories it is tagged with
     expect(searchFoods(foods, { query: 'milk', category: 'Dairy' }).map((f) => f.name)).toContain('Milk')
   })
   it('favourites and recent scopes', () => {

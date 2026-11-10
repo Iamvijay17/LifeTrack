@@ -154,6 +154,8 @@ export const DEFAULTS = {
     fiber_g: 0,
     servings: [],
     variants: [],
+    aliases: [],
+    source: s,
     notes: s,
   },
   food_logs: {

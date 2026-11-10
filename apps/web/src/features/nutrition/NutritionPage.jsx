@@ -160,6 +160,7 @@ export default function NutritionPage() {
         open={foodDialog.open}
         onOpenChange={(o) => setFoodDialog((d) => ({ ...d, open: o }))}
         food={foodDialog.food}
+        catalog={n.catalog}
         categories={categories}
       />
     </>

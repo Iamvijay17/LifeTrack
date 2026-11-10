@@ -52,6 +52,7 @@ import { MealSection } from '@/features/nutrition/MealSection'
 import { WaterCard } from '@/features/nutrition/WaterCard'
 import { FoodPickerDialog } from '@/features/nutrition/FoodPickerDialog'
 import { GoalsDialog } from '@/features/nutrition/GoalsDialog'
+import { CustomFoodDialog } from '@/features/nutrition/CustomFoodDialog'
 import { FoodEntryForm } from '@/features/nutrition/FoodEntryForm'
 import { blankEntryValues } from '@/features/nutrition/FoodEntryFlow'
 import NutritionPage from '@/features/nutrition/NutritionPage'
@@ -226,9 +227,52 @@ describe('food picker', () => {
     open()
     await user.type(screen.getByLabelText('Search foods'), 'idli')
     const list = screen.getByRole('list', { name: 'Foods' })
-    expect(within(list).getAllByRole('listitem')).toHaveLength(1)
-    expect(within(list).getByText('58')).toBeInTheDocument()
-    expect(within(list).getByText('P 2 · C 12 · F 0.4')).toBeInTheDocument()
+    const items = within(list).getAllByRole('listitem')
+    expect(items.length).toBeGreaterThan(3) // idli, mini idli, sambar idli, rava idli, ...
+    expect(within(items[0]).getByText('Idli')).toBeInTheDocument() // the exact dish comes first
+    expect(within(items[0]).getByText('58')).toBeInTheDocument()
+    expect(within(items[0]).getByText('P 2 · C 12 · F 0.4')).toBeInTheDocument()
+  })
+  it('finds foods by Tamil name, other spelling, and partly typed words', async () => {
+    const user = userEvent.setup()
+    open()
+    const firstName = () =>
+      within(within(screen.getByRole('list', { name: 'Foods' })).getAllByRole('listitem')[0]).getByText(/./, { selector: 'p.text-sm' })
+        .textContent
+    await user.type(screen.getByLabelText('Search foods'), 'தோசை')
+    expect(firstName()).toMatch(/^Plain dosa/)
+    await user.clear(screen.getByLabelText('Search foods'))
+    await user.type(screen.getByLabelText('Search foods'), 'briyani')
+    expect(firstName()).toMatch(/biryani/i)
+    await user.clear(screen.getByLabelText('Search foods'))
+    await user.type(screen.getByLabelText('Search foods'), 'kothu')
+    expect(firstName()).toMatch(/kothu parotta/i)
+  })
+  it('lists every category in use, and only shows the first page of a long list until asked', async () => {
+    const user = userEvent.setup()
+    open()
+    for (const c of [
+      'South Indian',
+      'North Indian',
+      'Non-Vegetarian',
+      'Vegetarian',
+      'Rice & Biryani',
+      'Fast Food',
+      'Street Food',
+      'Snacks',
+      'Fruits',
+      'Vegetables',
+      'Dairy',
+      'Beverages',
+      'Desserts',
+      'Protein Foods',
+    ]) {
+      expect(screen.getByRole('button', { name: c }), c).toBeInTheDocument()
+    }
+    const list = screen.getByRole('list', { name: 'Foods' })
+    expect(within(list).getAllByRole('listitem')).toHaveLength(60)
+    await user.click(screen.getByRole('button', { name: /show more/i }))
+    expect(within(list).getAllByRole('listitem').length).toBeGreaterThan(100)
   })
   it('shows an empty state with a way forward when nothing matches', async () => {
     const onManual = vi.fn()
@@ -286,15 +330,46 @@ describe('food picker', () => {
   it('a preparation variant changes the nutrition; an invalid quantity blocks adding', async () => {
     const user = userEvent.setup()
     open()
-    await user.type(screen.getByLabelText('Search foods'), 'dosa')
+    await user.type(screen.getByLabelText('Search foods'), 'masala dosa')
     await pickFirst(user)
-    await user.click(screen.getByRole('button', { name: 'Ghee roast' }))
-    expect(screen.getByText('220')).toBeInTheDocument()
+    expect(screen.getByText('290')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Restaurant style (more oil / butter)' }))
+    expect(screen.getByText('390')).toBeInTheDocument()
     await user.clear(screen.getByLabelText('Quantity'))
     await user.type(screen.getByLabelText('Quantity'), '0')
     expect(screen.getByRole('button', { name: /add to breakfast/i })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: /add to breakfast/i }))
     expect(mocks.saveRow).not.toHaveBeenCalled()
+  })
+  it('shows how firm a number is, and lets a serving be chosen by exact weight', async () => {
+    const user = userEvent.setup()
+    open()
+    await user.type(screen.getByLabelText('Search foods'), 'chicken biryani')
+    await pickFirst(user)
+    expect(screen.getByText('Rough estimate')).toBeInTheDocument() // restaurant dish
+    expect(screen.getByText(/Restaurant, street or fast food/)).toBeInTheDocument()
+    expect(screen.getByText('620')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Custom weight' }))
+    const grams = screen.getByLabelText('Amount in grams')
+    await user.type(grams, '175')
+    expect(screen.getByText('310')).toBeInTheDocument() // half of the 350 g plate
+    await user.clear(screen.getByLabelText('Quantity'))
+    await user.type(screen.getByLabelText('Quantity'), '2')
+    expect(screen.getByText('620')).toBeInTheDocument() // 2 x 175 g
+    await user.clear(grams)
+    expect(screen.getByRole('button', { name: /add to breakfast/i })).toBeDisabled() // no weight yet
+    await user.click(screen.getByRole('button', { name: '100 grams' }))
+    await user.clear(screen.getByLabelText('Quantity'))
+    await user.type(screen.getByLabelText('Quantity'), '1')
+    expect(screen.getByText('177')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /add to breakfast/i }))
+    await waitFor(() =>
+      expect(mocks.saveRow).toHaveBeenCalledWith(
+        'food_logs',
+        null,
+        expect.objectContaining({ name: 'Chicken biryani', serving_label: '100 grams', quantity: 1, kcal: 177.1 }),
+      ),
+    )
   })
   it('a double click adds the entry once', async () => {
     let finish
@@ -307,6 +382,51 @@ describe('food picker', () => {
     await user.dblClick(add)
     expect(mocks.saveRow).toHaveBeenCalledTimes(1)
     finish({ id: 'x', name: 'Banana', meal_type: 'breakfast' })
+  })
+})
+
+describe('create / edit food dialog', () => {
+  const catalog = buildCatalog([], STARTER_FOODS)
+  const open = (props = {}) => render(<CustomFoodDialog open onOpenChange={vi.fn()} food={null} catalog={catalog} {...props} />)
+  const fill = async (user, name, kcal = '120') => {
+    await user.type(screen.getByLabelText('Name'), name)
+    await user.type(screen.getByLabelText('Calories (kcal)'), kcal)
+  }
+  it('refuses a name a food in the list already has, including its other names, and points to the food', async () => {
+    const user = userEvent.setup()
+    open()
+    await fill(user, 'Thosai')
+    await user.click(screen.getByRole('button', { name: /save|create/i }))
+    expect(await screen.findByText(/"Plain dosa" is already in your food list/)).toBeInTheDocument()
+    expect(mocks.saveRow).not.toHaveBeenCalled()
+  })
+  it('saves a new food with its other names and where the numbers came from', async () => {
+    const user = userEvent.setup()
+    open()
+    await fill(user, 'Amma sambar', '70')
+    await user.type(screen.getByLabelText('Other names (optional)'), 'அம்மா சாம்பார், home sambar')
+    await user.type(screen.getByLabelText('Where are these numbers from? (optional)'), 'my recipe')
+    await user.click(screen.getByRole('button', { name: /save|create/i }))
+    await waitFor(() =>
+      expect(mocks.saveRow).toHaveBeenCalledWith(
+        'foods',
+        null,
+        expect.objectContaining({ name: 'Amma sambar', aliases: ['அம்மா சாம்பார்', 'home sambar'], source: 'my recipe', kcal: 70 }),
+      ),
+    )
+  })
+  it('editing a built-in food does not trip over its own name, and shows only the names you added', async () => {
+    const user = userEvent.setup()
+    const idli = catalog.find((f) => f.base_key === 'idli')
+    mocks.saveFoodCopy.mockResolvedValue({ id: 'copy' })
+    open({ food: idli })
+    expect(screen.getByLabelText('Other names (optional)')).toHaveValue('')
+    await user.clear(screen.getByLabelText('Calories (kcal)'))
+    await user.type(screen.getByLabelText('Calories (kcal)'), '62')
+    await user.click(screen.getByRole('button', { name: /save|create/i }))
+    await waitFor(() =>
+      expect(mocks.saveFoodCopy).toHaveBeenCalledWith('idli', expect.objectContaining({ name: 'Idli', kcal: 62, aliases: [] })),
+    )
   })
 })
 
@@ -477,6 +597,6 @@ describe('Food & Nutrition page', () => {
     expect(screen.getByText('Calories per day')).toBeInTheDocument()
     await user.click(screen.getByRole('tab', { name: 'Foods' }))
     expect(await screen.findByText(/approximate estimates/)).toBeInTheDocument()
-    expect(screen.getAllByText('≈ estimate').length).toBeGreaterThan(10)
+    expect(screen.getAllByText(/^≈ /).length).toBeGreaterThan(10)
   })
 })

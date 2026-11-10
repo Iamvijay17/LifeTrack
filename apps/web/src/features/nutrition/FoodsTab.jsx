@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Info, Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react'
 import { EmptyState } from '@/components/shared/states'
 import { useConfirm } from '@/components/shared/Confirm'
@@ -7,13 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/form'
 import { Menu } from '@/components/ui/menu'
 import { Badge, Segmented } from '@/components/ui/misc'
-import { FOOD_CATEGORIES } from '@lifetrack/constants/foods'
+import { ESTIMATE_BASIS, FOOD_CATEGORIES, NUTRITION_SOURCE } from '@lifetrack/constants/foods'
 import { useAction } from '@/hooks/useAction'
 import { deleteFood } from '@/services/api'
-import { searchFoods } from '@/domain/nutrition'
+import { categoriesInUse, searchFoods } from '@/domain/nutrition'
 import { cn } from '@/lib/utils'
 import { Stars } from './FoodPickerDialog'
 
+const PAGE = 60
 const SCOPES = [
   { value: 'all', label: 'All' },
   { value: 'mine', label: 'Mine' },
@@ -31,7 +32,9 @@ export function FoodsTab({ n, onCreate, onEdit, toggleFavorite }) {
     const pool = scope === 'mine' ? n.catalog.filter((f) => f.source !== 'starter') : n.catalog
     return searchFoods(pool, { query, category, scope: scope === 'favorites' ? 'favorites' : 'all', favorites: n.favorites })
   }, [n.catalog, n.favorites, query, scope, category])
-  const categories = useMemo(() => FOOD_CATEGORIES.filter((c) => n.catalog.some((f) => f.category === c)), [n.catalog])
+  const categories = useMemo(() => categoriesInUse(n.catalog, FOOD_CATEGORIES), [n.catalog])
+  const [shown, setShown] = useState(PAGE)
+  useEffect(() => setShown(PAGE), [query, scope, category])
 
   const askRemove = async (food) => {
     const reset = food.source === 'edited'
@@ -50,8 +53,8 @@ export function FoodsTab({ n, onCreate, onEdit, toggleFavorite }) {
       <div className="flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning/5 px-3.5 py-2.5 text-[13px] text-muted-foreground">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
         <p>
-          The starter foods are <b className="text-foreground">approximate estimates</b> for typical home portions. Recipes, oil and portion
-          size change the real numbers, so edit any food to match yours.
+          The built-in foods are <b className="text-foreground">approximate estimates</b> for typical portions. Recipes, oil and portion
+          size change the real numbers, and restaurant dishes vary most, so edit any food to match yours. {NUTRITION_SOURCE.split('. ')[0]}.
         </p>
       </div>
       <Card>
@@ -109,14 +112,18 @@ export function FoodsTab({ n, onCreate, onEdit, toggleFavorite }) {
             />
           ) : (
             <ul className="-mx-2 divide-y divide-border/50" aria-label="Food list">
-              {foods.map((f) => (
+              {foods.slice(0, shown).map((f) => (
                 <li key={f.ref} className="flex items-center gap-1 px-2 py-2">
                   <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
                       <span className="truncate">{f.name}</span>
                       {f.source === 'custom' && <Badge tone="primary">Yours</Badge>}
                       {f.source === 'edited' && <Badge tone="primary">Edited</Badge>}
-                      {f.source === 'starter' && <Badge>≈ estimate</Badge>}
+                      {f.source === 'starter' && (
+                        <Badge title={ESTIMATE_BASIS[f.basis]?.hint}>
+                          ≈ {(ESTIMATE_BASIS[f.basis]?.label ?? 'estimate').toLowerCase()}
+                        </Badge>
+                      )}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
                       {f.category} · {f.serving_label}
@@ -143,6 +150,14 @@ export function FoodsTab({ n, onCreate, onEdit, toggleFavorite }) {
               ))}
             </ul>
           )}
+          {foods.length > shown && (
+            <Button variant="ghost" size="sm" className="w-full" onClick={() => setShown((c) => c + PAGE)}>
+              Show more ({foods.length - shown} more)
+            </Button>
+          )}
+          <p className="text-xs text-muted-foreground">
+            {foods.length} food{foods.length === 1 ? '' : 's'}
+          </p>
         </CardContent>
       </Card>
     </div>
