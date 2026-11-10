@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { fmtDay, fmtDuration, sleepMinutes } from '@lifetrack/utils'
+import { cardioSteps } from '@lifetrack/core/fitness'
 import { healthSummary, historyLine, signedKg } from '@lifetrack/core/health'
 import { averageEnergy, sleepConsistency, sleepGoalOf } from '@lifetrack/core/sleep'
 import { healthFormSchema, healthFormToPayload, healthToForm } from '@lifetrack/schemas'
@@ -48,7 +49,7 @@ export default function Health() {
   const { colors } = useTheme()
   const today = useToday()
   const { settings } = useSettings()
-  const { data, loading, refreshing, error, refetch } = useTables('health_logs')
+  const { data, loading, refreshing, error, refetch } = useTables('health_logs', 'workouts')
   const [date, setDate] = useState<string | null>(null)
   const day = date ?? today
   const [water, setWater] = useState(false)
@@ -64,6 +65,8 @@ export default function Health() {
   })
   const [del] = useAction((id: string) => store.remove('health_logs', id))
   const h: any = useMemo(() => healthSummary(data.health_logs, today), [data.health_logs, today])
+  const cardio = cardioSteps(data.workouts, today)
+  const stepsToday = (h.todayLog?.steps ?? 0) + cardio
   const sleepData = h.week.map((w: any) => ({ label: w.label, value: w.sleep }))
   const waterData = h.week.map((w: any) => ({ label: w.label, value: w.water }))
   const sleepGoal = sleepGoalOf(settings)
@@ -85,7 +88,7 @@ export default function Health() {
           />
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
             <StatTile label="Water today" value={`${h.todayLog?.water_ml ?? 0} ml`} sub={settings.water_goal_ml ? `goal ${settings.water_goal_ml} ml` : undefined} progress={settings.water_goal_ml ? ((h.todayLog?.water_ml ?? 0) / settings.water_goal_ml) * 100 : null} />
-            <StatTile label="Steps today" value={(h.todayLog?.steps ?? 0).toLocaleString('en-IN')} sub={settings.steps_goal ? `goal ${settings.steps_goal.toLocaleString('en-IN')}` : undefined} progress={settings.steps_goal ? ((h.todayLog?.steps ?? 0) / settings.steps_goal) * 100 : null} />
+            <StatTile label="Steps today" value={stepsToday.toLocaleString('en-IN')} sub={settings.steps_goal ? `goal ${settings.steps_goal.toLocaleString('en-IN')}${cardio > 0 ? ` · incl. ~${cardio.toLocaleString('en-IN')} cardio` : ''}` : undefined} progress={settings.steps_goal ? (stepsToday / settings.steps_goal) * 100 : null} />
             <StatTile label="Latest weight" value={h.latestWeight != null ? `${h.latestWeight} kg` : '—'} sub={h.weightChange != null ? `${signedKg(h.weightChange)} since first log` : undefined} />
           </View>
 

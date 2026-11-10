@@ -1,5 +1,6 @@
 import { weekday, dateStrInTz } from '@lifetrack/utils'
 import { isScheduled } from './streaks'
+import { cardioSteps, stepsForDay } from './fitness'
 import { countedMinutes, isStudying } from './learning'
 
 const EXCLUDED_TASK = ['cancelled', 'skipped']
@@ -73,13 +74,13 @@ export function dailyProgress({
     })
   }
   if ((settings.steps_goal ?? 0) > 0) {
-    const steps = health?.steps ?? 0
+    const steps = stepsForDay(health, workouts, date)
     items.push({
       key: 'steps',
       label: 'Steps',
       done: Math.min(1, steps / settings.steps_goal),
       total: 1,
-      detail: `${steps}/${settings.steps_goal}`,
+      detail: `${steps}/${settings.steps_goal}${cardioSteps(workouts, date) > 0 ? ' (incl. cardio)' : ''}`,
     })
   }
 

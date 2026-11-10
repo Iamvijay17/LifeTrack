@@ -7,6 +7,7 @@ import { useTables } from '@/hooks/store'
 import { useSettings } from '@/hooks/useSettings'
 import { useToday } from '@/hooks/useToday'
 import { averageSleep, healthWeek, recentLogs, weightSeries } from '@/domain/health'
+import { cardioSteps } from '@lifetrack/core/fitness'
 import { averageEnergy, sleepConsistency, sleepGoalOf } from '@lifetrack/core/sleep'
 import { DailyLogForm } from './DailyLogForm'
 import { HealthCharts } from './HealthCharts'
@@ -17,7 +18,7 @@ import { WaterDialog } from './WaterDialog'
 export default function HealthPage() {
   const today = useToday()
   const { settings } = useSettings()
-  const { data, loading, error, refetch } = useTables('health_logs')
+  const { data, loading, error, refetch } = useTables('health_logs', 'workouts')
   const [date, setDate] = useState(null)
   const day = date ?? today
   const [waterOpen, setWaterOpen] = useState(false)
@@ -28,6 +29,7 @@ export default function HealthPage() {
   const weight = useMemo(() => weightSeries(logs, 30), [logs])
   const history = useMemo(() => recentLogs(logs), [logs])
   const todayLog = logs.find((h) => h.log_date === today)
+  const cardio = cardioSteps(data.workouts, today)
   const sleepGoal = sleepGoalOf(settings)
   // Consistency over the last 14 logged days, so one late night doesn't define the picture.
   const recent = useMemo(() => recentLogs(logs).slice(0, 14), [logs])
@@ -57,6 +59,7 @@ export default function HealthPage() {
             sleep={sleep}
             weight={weight}
             todayLog={todayLog}
+            cardioSteps={cardio}
             settings={settings}
             sleepGoal={sleepGoal}
             week={week}

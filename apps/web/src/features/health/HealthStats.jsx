@@ -126,9 +126,9 @@ function WaterCard({ water, goal }) {
 }
 
 /** `sleep` = averageSleep(); `weight` = weightSeries(); `todayLog` = today's health log or undefined; `week` = healthWeek(); `energy` = averageEnergy(). */
-export function HealthStats({ sleep, weight, todayLog, settings, sleepGoal, week, energy }) {
+export function HealthStats({ sleep, weight, todayLog, cardioSteps = 0, settings, sleepGoal, week, energy }) {
   const water = todayLog?.water_ml ?? 0
-  const steps = todayLog?.steps ?? 0
+  const steps = (todayLog?.steps ?? 0) + cardioSteps
   const change = weight.change
   const stepsPercent = percentOfGoal(steps, settings.steps_goal)
   return (
@@ -145,7 +145,7 @@ export function HealthStats({ sleep, weight, todayLog, settings, sleepGoal, week
             <AnimatedValue value={steps.toLocaleString('en-IN')} />
           </div>
           {settings.steps_goal ? (
-            <div className="mt-0.5 text-xs text-muted-foreground">{`goal ${settings.steps_goal.toLocaleString('en-IN')}`}</div>
+            <div className="mt-0.5 text-xs text-muted-foreground">{`goal ${settings.steps_goal.toLocaleString('en-IN')}${cardioSteps > 0 ? ` · incl. ~${cardioSteps.toLocaleString('en-IN')} from cardio` : ''}`}</div>
           ) : null}
         </div>
         {stepsPercent != null && <ProgressRing value={Math.min(100, stepsPercent)} size={48} stroke={6} className="max-sm:hidden" />}
