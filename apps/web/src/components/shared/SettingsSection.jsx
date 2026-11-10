@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-/** A titled card for a group of related controls (Settings, Data Export). */
-export function SettingsSection({ title, desc, icon: Icon, children }) {
+/** A titled card for a group of related controls (Settings, Data Export). `headingAs` sets the title's heading level when the page nests cards under its own headings. */
+export function SettingsSection({ title, desc, icon: Icon, headingAs, children }) {
   return (
     <Card>
       <CardHeader className="items-start justify-start gap-3">
@@ -11,7 +11,7 @@ export function SettingsSection({ title, desc, icon: Icon, children }) {
           </span>
         )}
         <div className="min-w-0">
-          <CardTitle>{title}</CardTitle>
+          <CardTitle as={headingAs}>{title}</CardTitle>
           {desc && <p className="mt-0.5 text-xs text-muted-foreground">{desc}</p>}
         </div>
       </CardHeader>

@@ -18,7 +18,7 @@ export function AppearanceCard() {
     await save({ theme })
   })
   return (
-    <SettingsSection icon={Palette} title="Appearance" desc="Follows your account on every device.">
+    <SettingsSection headingAs="h3" icon={Palette} title="Appearance" desc="Follows your account on every device.">
       <Segmented value={settings.theme} onChange={setTheme} options={THEMES} />
     </SettingsSection>
   )
