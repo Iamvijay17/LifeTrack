@@ -37,6 +37,7 @@ test('main pages have no serious accessibility violations', async ({ page }) => 
     '/jobs',
     '/fitness',
     '/health',
+    '/nutrition',
     '/finance',
     '/habits',
     '/analytics',

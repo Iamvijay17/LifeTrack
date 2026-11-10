@@ -9,6 +9,7 @@ import {
   Target,
   Dumbbell,
   HeartPulse,
+  Salad,
   Wallet,
   BarChart3,
   FileText,
@@ -42,6 +43,7 @@ export const NAV_GROUPS = [
     items: [
       { to: '/fitness', module: 'fitness', label: 'Gym & Fitness', short: 'Gym', icon: Dumbbell },
       { to: '/health', module: 'health', label: 'Sleep & Health', short: 'Health', icon: HeartPulse },
+      { to: '/nutrition', module: 'nutrition', label: 'Food & Nutrition', short: 'Food', icon: Salad },
     ],
   },
   { title: 'Money', items: [{ to: '/finance', module: 'finance', label: 'Finance', icon: Wallet }] },

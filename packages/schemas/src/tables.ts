@@ -18,6 +18,13 @@ export const JOB_STATUSES = ['interested', 'preparing', 'applied', 'assessment',
 export const PAYMENT_METHODS = ['Cash', 'UPI', 'Credit card', 'Debit card', 'Bank transfer', 'Other'] as const
 export const REMINDER_KINDS = ['task', 'study', 'workout', 'habit', 'bill', 'custom'] as const
 export const RECURRING_FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly'] as const
+export const MEAL_TYPES = ['breakfast', 'lunch', 'snack', 'dinner'] as const
+
+const nutrient = (max: number) => z.number().min(0).max(max)
+/** Another serving size of a food, as a multiple of its base serving (foods.servings). */
+const foodServing = z.object({ label: z.string().min(1).max(60), factor: z.number().positive().max(100) })
+/** A preparation style with its own nutrition per base serving (foods.variants). */
+const foodVariant = z.object({ label: z.string().min(1).max(60), kcal: nutrient(5000), protein_g: nutrient(500), carbs_g: nutrient(1000), fat_g: nutrient(500), fiber_g: nutrient(200) })
 
 /** Writable columns per table. Optional = has a DB default or is nullable. */
 const insertShapes = {
@@ -87,6 +94,25 @@ const insertShapes = {
     log_date: day, bedtime: time.nullable().optional(), wake_time: time.nullable().optional(), sleep_minutes: int().min(0).max(1440).nullable().optional(),
     water_ml: int().min(0).max(20000).optional(), steps: int().min(0).max(200000).optional(), energy_level: int().min(1).max(5).nullable().optional(),
     weight_kg: z.number().min(20).max(500).nullable().optional(), notes: text().optional(),
+  },
+  foods: {
+    name: str(1, 80), category: str(1, 40).optional(), base_key: str(1, 60).nullable().optional(), serving_label: str(1, 60).optional(),
+    serving_g: z.number().positive().nullable().optional(), kcal: z.number().min(0).max(5000).optional(), protein_g: z.number().min(0).max(500).optional(),
+    carbs_g: z.number().min(0).max(1000).optional(), fat_g: z.number().min(0).max(500).optional(), fiber_g: z.number().min(0).max(200).optional(),
+    servings: z.array(foodServing).max(12).optional(), variants: z.array(foodVariant).max(12).optional(), notes: str(0, 300).optional(),
+  },
+  food_logs: {
+    log_date: day, log_time: time.nullable().optional(), meal_type: z.enum(MEAL_TYPES), name: str(1, 120), category: str(1, 40).optional(),
+    food_id: uuid.nullable().optional(), base_key: str(1, 60).nullable().optional(), variant: str(0, 60).optional(),
+    quantity: z.number().positive().max(1000).optional(), serving_label: str(1, 60).optional(),
+    kcal: z.number().min(0).max(20000).optional(), protein_g: z.number().min(0).max(2000).optional(), carbs_g: z.number().min(0).max(4000).optional(),
+    fat_g: z.number().min(0).max(2000).optional(), fiber_g: z.number().min(0).max(1000).optional(), notes: str(0, 300).optional(),
+  },
+  water_logs: { log_date: day, log_time: time.nullable().optional(), amount_ml: int().min(1).max(5000) },
+  nutrition_settings: {
+    calorie_goal: int().min(500).max(10000).nullable().optional(), protein_goal_g: int().min(1).max(1000).nullable().optional(),
+    carbs_goal_g: int().min(1).max(2000).nullable().optional(), fat_goal_g: int().min(1).max(1000).nullable().optional(),
+    fiber_goal_g: int().min(1).max(500).nullable().optional(), favorite_foods: z.array(z.string().min(1).max(80)).max(200).optional(),
   },
   transactions: {
     type: z.enum(['income', 'expense', 'savings']), amount_paise: z.number().int().positive(), category: text().optional(), txn_date: day,

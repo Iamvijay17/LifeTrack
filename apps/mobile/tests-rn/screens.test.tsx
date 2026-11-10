@@ -12,6 +12,7 @@ import Planner from '../app/(app)/(tabs)/planner'
 import More from '../app/(app)/(tabs)/more'
 import Fitness from '../app/(app)/module/fitness'
 import Health from '../app/(app)/module/health'
+import Nutrition from '../app/(app)/module/nutrition'
 import Learning from '../app/(app)/module/learning'
 import Jobs from '../app/(app)/module/jobs'
 import Focus from '../app/(app)/module/focus'
@@ -54,7 +55,11 @@ jest.mock('../src/features/notifications', () => ({
 jest.mock('../src/features/notifications/PushDeviceCard', () => ({ PushDeviceCard: () => null }))
 jest.mock('../src/providers/AuthProvider', () => ({ useAuth: () => ({ session: {}, loading: false, email: 'ann@example.com', displayName: 'Ann Lee' }) }))
 
-const { TABLES, SETTINGS } = require('../../../packages/core/tests/fixtures/dataset.js')
+const { TABLES, SETTINGS, TODAY } = require('../../../packages/core/tests/fixtures/dataset.js')
+const FOOD = [
+  { id: 'f1', created_at: `${TODAY}T08:00:00Z`, log_date: TODAY, log_time: '08:15:00', meal_type: 'breakfast', name: 'Idli', category: 'Tiffin', food_id: null, base_key: 'idli', variant: '', quantity: 2, serving_label: '1 idli (40 g)', kcal: 116, protein_g: 4, carbs_g: 24, fat_g: 0.8, fiber_g: 1.2, notes: '' },
+  { id: 'f2', created_at: `${TODAY}T13:00:00Z`, log_date: TODAY, log_time: null, meal_type: 'lunch', name: 'Dal (toor, cooked)', category: 'Curries & Dal', food_id: null, base_key: 'dal', variant: '', quantity: 1, serving_label: '1 katori (150 g)', kcal: 160, protein_g: 8.5, carbs_g: 22, fat_g: 4, fiber_g: 5, notes: '' },
+]
 
 const SCREENS: [string, React.ComponentType, string, string][] = [
   ['Dashboard', Dashboard, 'index', 'Customize'],
@@ -64,6 +69,7 @@ const SCREENS: [string, React.ComponentType, string, string][] = [
   ['More', More, 'more', 'More'],
   ['Fitness', Fitness, 'fitness', 'Gym & Fitness'],
   ['Health', Health, 'health', 'Sleep & Health'],
+  ['Nutrition', Nutrition, 'nutrition', 'Food & Nutrition'],
   ['Learning', Learning, 'learning', 'Career & Learning'],
   ['Jobs', Jobs, 'jobs', 'Job Switch'],
   ['Focus', Focus, 'focus', 'Focus Timer'],
@@ -96,7 +102,7 @@ afterEach(async () => {
 afterAll(() => new Promise((done) => setTimeout(done, 1200)))
 
 describe.each([
-  ['with a realistic account', () => ({ ...TABLES, user_settings: [{ id: 's', user_id: 'u', ...SETTINGS }] })],
+  ['with a realistic account', () => ({ ...TABLES, user_settings: [{ id: 's', user_id: 'u', ...SETTINGS }], food_logs: FOOD, nutrition_settings: [{ id: 'n', user_id: 'u', calorie_goal: 1800, protein_goal_g: 90, carbs_goal_g: null, fat_goal_g: null, fiber_goal_g: null, favorite_foods: ['starter:idli'] }], water_logs: [{ id: 'w', user_id: 'u', log_date: TODAY, log_time: '09:00:00', amount_ml: 250 }] })],
   ['with a brand-new account', () => ({})],
 ])('%s', (_name, tables) => {
   beforeEach(() => {

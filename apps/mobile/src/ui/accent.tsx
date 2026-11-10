@@ -20,7 +20,7 @@ export function useAccent(override?: ModuleName) {
 
 const ROUTE_MODULE: Record<string, ModuleName> = {
   index: 'dashboard', planner: 'planner', habits: 'habits', finance: 'finance', more: 'settings',
-  learning: 'learning', jobs: 'jobs', fitness: 'fitness', health: 'health', focus: 'focus', notes: 'notes', goals: 'goals',
+  learning: 'learning', jobs: 'jobs', fitness: 'fitness', health: 'health', nutrition: 'nutrition', focus: 'focus', notes: 'notes', goals: 'goals',
   analytics: 'analytics', notifications: 'notifications', settings: 'settings', help: 'settings',
 }
 /** Which module a route belongs to, from the last segment of its path. */

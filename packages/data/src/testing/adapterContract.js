@@ -31,6 +31,22 @@ export function adapterContract(t, label, setup) {
       as(B)
       expect((await adapter.rpc('add_water', { p_date: '2026-11-02', p_ml: 100 })).water_ml).toBe(100)
     })
+    it('rpc log_water / delete_water_log: the entry and the day total in health_logs move together, and bad amounts are refused', async () => {
+      const { entry: a, health } = await adapter.rpc('log_water', { p_date: '2026-11-02', p_ml: 250, p_time: '09:30' })
+      expect(a).toMatchObject({ log_date: '2026-11-02', amount_ml: 250, user_id: A })
+      expect(health).toMatchObject({ log_date: '2026-11-02', water_ml: 250 })
+      const { entry: b, health: after } = await adapter.rpc('log_water', { p_date: '2026-11-02', p_ml: 500, p_time: null })
+      expect(after.water_ml).toBe(750)
+      expect((await adapter.list('health_logs'))[0].water_ml).toBe(750)
+      expect(await adapter.list('water_logs')).toHaveLength(2)
+      expect((await adapter.rpc('delete_water_log', { p_id: b.id })).water_ml).toBe(250)
+      expect(await adapter.list('water_logs')).toHaveLength(1)
+      for (const bad of [0, -5, 5001, 1.5]) await failsWith(expect, adapter.rpc('log_water', { p_date: '2026-11-02', p_ml: bad }))
+      await failsWith(expect, adapter.rpc('delete_water_log', { p_id: b.id })) // already gone
+      as(B)
+      await failsWith(expect, adapter.rpc('delete_water_log', { p_id: a.id })) // someone else's entry
+      expect(await adapter.list('water_logs')).toEqual([])
+    })
     it('rpc add_savings: adds, rejects non-positive amounts, and cannot touch another user\'s goal', async () => {
       const [g] = await adapter.insert('savings_goals', [{ name: 'Fund', target_paise: 100000, saved_paise: 1000 }])
       expect((await adapter.rpc('add_savings', { p_goal: g.id, p_paise: 2500 })).saved_paise).toBe(3500)

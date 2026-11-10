@@ -9,6 +9,7 @@ export const MODULES: { slug: string; title: string; icon: IconName; href: strin
   { slug: 'jobs', title: 'Job Switch Tracker', icon: 'briefcase-outline', href: '/module/jobs' },
   { slug: 'fitness', title: 'Fitness', icon: 'barbell-outline', href: '/module/fitness' },
   { slug: 'health', title: 'Sleep & Health', icon: 'heart-outline', href: '/module/health' },
+  { slug: 'nutrition', title: 'Food & Nutrition', icon: 'nutrition-outline', href: '/module/nutrition' },
   { slug: 'finance', title: 'Finance', icon: 'wallet-outline', href: '/finance' },
   { slug: 'habits', title: 'Habits', icon: 'repeat-outline', href: '/habits' },
   { slug: 'focus', title: 'Focus Timer', icon: 'timer-outline', href: '/module/focus' },

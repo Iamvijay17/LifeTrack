@@ -118,6 +118,11 @@
   --mod-2: 99 102 241;
   --mod-text: 3 105 161;
 }
+[data-module='nutrition'] {
+  --mod: 132 204 22;
+  --mod-2: 34 197 94;
+  --mod-text: 63 98 18;
+}
 [data-module='finance'] {
   --mod: 16 185 129;
   --mod-2: 20 184 166;
@@ -192,6 +197,10 @@
 .dark[data-module='health'],
 .dark [data-module='health'] {
   --mod-text: 125 211 252;
+}
+.dark[data-module='nutrition'],
+.dark [data-module='nutrition'] {
+  --mod-text: 190 242 100;
 }
 .dark[data-module='finance'],
 .dark [data-module='finance'] {
