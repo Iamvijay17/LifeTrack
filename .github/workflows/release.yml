@@ -1,0 +1,123 @@
+name: Publish a release
+
+# Builds the web app (and optionally the Android APK through EAS) and attaches them to a GitHub Release, so they can be downloaded
+# from the repository's Releases page at any time. Manual only.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release tag, e.g. v1.0.0'
+        type: string
+        required: true
+      android:
+        description: 'Also build the Android APK with EAS and attach it (needs the EXPO_TOKEN secret and a finished eas init, see docs/NATIVE.md)'
+        type: boolean
+        default: false
+      prerelease:
+        description: 'Mark as a pre-release (a full release also requires the legal documents to be finished)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write # create the release and upload the files
+
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: false
+
+env:
+  VERSION: ${{ inputs.version }}
+
+jobs:
+  web:
+    name: Web bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # PUBLIC values only. Without them the build has no database and would show a configuration error screen.
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+    steps:
+      - name: Check inputs
+        run: |
+          case "$VERSION" in v[0-9]*) ;; *) echo "::error::version must look like v1.0.0"; exit 1;; esac
+          [ -n "$VITE_SUPABASE_URL" ] && [ -n "$VITE_SUPABASE_ANON_KEY" ] || { echo "::error::Set the repository variables VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (public values) first"; exit 1; }
+          case "$VITE_SUPABASE_ANON_KEY" in sb_secret_*) echo "::error::That is a secret key, not the public one"; exit 1;; esac
+      - uses: actions/checkout@v7
+      - name: Legal documents are finished (full releases only)
+        if: ${{ !inputs.prerelease }}
+        run: node scripts/check-legal-ready.mjs
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v7
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm --filter @lifetrack/web test
+      - run: pnpm build
+      - run: node scripts/check-no-secrets.mjs apps/web/dist
+      - name: Zip the web bundle
+        run: |
+          mkdir -p out
+          (cd apps/web/dist && zip -qr "../../../out/lifetrack-web-${VERSION}.zip" .)
+      - uses: actions/upload-artifact@v4
+        with: { name: release-web, path: out/*.zip, retention-days: 7 }
+
+  android:
+    name: Android APK (EAS)
+    if: ${{ inputs.android }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check prerequisites
+        env:
+          HAS_TOKEN: ${{ secrets.EXPO_TOKEN != '' }}
+        run: |
+          if [ "$HAS_TOKEN" != "true" ]; then
+            echo "::error title=EXPO_TOKEN is missing::Add the EXPO_TOKEN repository secret and finish 'eas init' (docs/NATIVE.md), or run this workflow without the Android option."
+            exit 1
+          fi
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v7
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - uses: expo/expo-github-action@v9
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Build on EAS and wait (the free plan can queue for a while)
+        working-directory: apps/mobile
+        run: eas build --profile preview --platform android --non-interactive --wait --json > "$RUNNER_TEMP/build.json"
+      - name: Download the APK
+        run: |
+          url=$(jq -r '.[0].artifacts.buildUrl // .[0].artifacts.applicationArchiveUrl' "$RUNNER_TEMP/build.json")
+          [ -n "$url" ] && [ "$url" != "null" ] || { echo "::error::EAS did not return a download URL"; cat "$RUNNER_TEMP/build.json"; exit 1; }
+          mkdir -p out
+          curl -fsSL "$url" -o "out/lifetrack-${VERSION}.apk"
+          ls -l out
+      - uses: actions/upload-artifact@v4
+        with: { name: release-android, path: out/*.apk, retention-days: 7 }
+
+  publish:
+    name: Create the GitHub Release
+    needs: [web, android]
+    # Publish when the web bundle succeeded and the Android build either succeeded or was not requested.
+    if: ${{ always() && needs.web.result == 'success' && (needs.android.result == 'success' || needs.android.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v4
+        with: { path: files, merge-multiple: true }
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          ls -l files
+          flags=""
+          [ "$PRERELEASE" = "true" ] && flags="--prerelease"
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            gh release upload "$VERSION" files/* --clobber
+          else
+            gh release create "$VERSION" files/* --target "$GITHUB_SHA" --title "LifeTrack $VERSION" --generate-notes $flags
+          fi
