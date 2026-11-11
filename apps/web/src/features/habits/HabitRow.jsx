@@ -39,7 +39,7 @@ function RecentDots({ logs, date, color }) {
 }
 
 /** One habit for `date`: check-in button, streak, 30-day rate and the actions menu. `s` is a buildHabitStats() row. */
-export function HabitRow({ s, date, onEdit }) {
+export function HabitRow({ s, date, onEdit, ctxProps }) {
   const { habit } = s
   const log = s.logs.find((l) => l.log_date === date)
   const done = log?.status === 'done'
@@ -75,7 +75,7 @@ export function HabitRow({ s, date, onEdit }) {
   }
 
   return (
-    <div className={cn('lt-card lt-lift flex items-center gap-3 p-3', habit.archived_at && 'opacity-60')}>
+    <div {...ctxProps} className={cn('lt-card lt-lift flex items-center gap-3 p-3', habit.archived_at && 'opacity-60')}>
       <CheckButton
         size="lg"
         done={done}

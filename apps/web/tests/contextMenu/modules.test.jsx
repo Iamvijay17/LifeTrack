@@ -483,3 +483,95 @@ describe('Finance', () => {
     await waitFor(async () => expect(await rows('transactions')).toHaveLength(0))
   })
 })
+
+describe('Habits & Routine', () => {
+  it('a habit: complete / incomplete, view streak, reset progress (undo), archive; the page adds one', async () => {
+    const user = userEvent.setup()
+    const [h] = await db.insert('habits', [{ name: 'Meditate', frequency: 'daily', color: '#8B5CF6', start_date: TODAY }])
+    renderApp('/habits')
+    const card = async () =>
+      (await screen.findAllByText('Meditate', {}, { timeout: 40_000 }))
+        .map((e) => e.closest('.lt-card'))
+        .find((c) => c?.querySelector('button[aria-label$="Meditate"]'))
+
+    await card()
+    rightClick(screen.getByRole('main'))
+    await user.click(await item('New habit'))
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+    rightClick(await card())
+    await user.click(await item('Mark complete'))
+    await waitFor(async () => expect((await rows('habit_logs')).map((l) => [l.habit_id, l.status])).toEqual([[h.id, 'done']]))
+
+    rightClick(await card())
+    await user.click(await item('View streak'))
+    expect(await screen.findByText(/Current streak/)).toBeInTheDocument()
+
+    rightClick(await card())
+    await user.click(await item('Reset progress'))
+    await user.click(await within(await screen.findByRole('dialog')).findByRole('button', { name: 'Reset progress' }))
+    await waitFor(async () => expect(await rows('habit_logs')).toHaveLength(0))
+    await user.click(await screen.findByRole('button', { name: 'Undo' }))
+    await waitFor(async () => expect(await rows('habit_logs')).toHaveLength(1))
+
+    rightClick(await card())
+    await user.click(await item('Mark incomplete'))
+    await waitFor(async () => expect(await rows('habit_logs')).toHaveLength(0))
+
+    rightClick(await card())
+    await user.click(await item('Archive'))
+    await waitFor(async () => expect((await rows('habits'))[0].archived_at).toBeTruthy())
+  })
+})
+
+describe('Notes (a generic card list)', () => {
+  it('a note: pin, rename, duplicate, copy, export, delete; selected notes are exported together', async () => {
+    const user = userEvent.setup()
+    const writeText = vi.fn().mockResolvedValue()
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    URL.createObjectURL = vi.fn(() => 'blob:x')
+    URL.revokeObjectURL = vi.fn()
+    await db.insert('notes', [
+      { title: 'Ideas', body: 'Ship the menu', category: 'General', tags: [] },
+      { title: 'Groceries', body: 'Milk', category: 'General', tags: [] },
+    ])
+    renderApp('/notes')
+    const card = async (t) => (await screen.findByText(t, {}, { timeout: 40_000 })).closest('.lt-card')
+
+    rightClick(await card('Ideas'))
+    await user.click(await item('Pin to top'))
+    await waitFor(async () => expect((await rows('notes')).find((n) => n.title === 'Ideas').pinned).toBe(true))
+
+    rightClick(await card('Ideas'))
+    await user.click(await item('Rename'))
+    const dialog = await screen.findByRole('dialog', { name: 'Rename note' })
+    await user.clear(within(dialog).getByLabelText('Title'))
+    await user.type(within(dialog).getByLabelText('Title'), 'Big ideas')
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await waitFor(async () => expect((await rows('notes')).map((n) => n.title)).toContain('Big ideas'))
+
+    rightClick(await card('Big ideas'))
+    await user.click(await item('Copy as Markdown'))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('# Big ideas\n\nShip the menu'))
+
+    rightClick(await card('Big ideas'))
+    await user.click(await item('Duplicate'))
+    await waitFor(async () => expect(await rows('notes')).toHaveLength(3))
+
+    await user.keyboard('{Control>}')
+    await user.click(await card('Groceries'))
+    await user.click(await card('Big ideas'))
+    await user.keyboard('{/Control}')
+    rightClick(await card('Groceries'))
+    await user.click(await item('Export 2 notes as Markdown'))
+    expect(URL.createObjectURL).toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Clear selection' }))
+    rightClick(await card('Groceries'))
+    await user.click(await item('Delete note'))
+    await user.click(await within(await screen.findByRole('dialog')).findByRole('button', { name: 'Delete' }))
+    await waitFor(async () => expect((await rows('notes')).map((n) => n.title)).not.toContain('Groceries'))
+  })
+})

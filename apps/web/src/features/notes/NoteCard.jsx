@@ -7,9 +7,9 @@ import { fmtDay } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
 /** One note in the grid. Pure presentation: every action is a callback from the page. */
-export function NoteCard({ note: n, goalName, taskName, onOpen, onEdit, onTogglePin, onDelete, onTag }) {
+export function NoteCard({ note: n, goalName, taskName, onOpen, onEdit, onTogglePin, onDelete, onTag, ctxProps }) {
   return (
-    <Card interactive className={cn(n.pinned && 'border-mod/40 bg-gradient-to-b from-mod/[0.06] to-transparent')}>
+    <Card interactive {...ctxProps} className={cn(n.pinned && 'border-mod/40 bg-gradient-to-b from-mod/[0.06] to-transparent')}>
       <CardContent className="space-y-2 p-4">
         <div className="flex items-start justify-between gap-2">
           <button onClick={() => onOpen(n)} className="min-h-8 min-w-0 flex-1 rounded text-left">
