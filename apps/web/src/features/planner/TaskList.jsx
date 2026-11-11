@@ -13,7 +13,7 @@ import { useConfirm } from '@/components/shared/Confirm'
 const PRIORITY_TONE = { high: 'danger', medium: 'warning', low: 'neutral' }
 const PRIORITY_MARK = { high: 'bg-danger', medium: 'bg-warning', low: 'bg-muted-foreground/40' }
 
-export function TaskRow({ task, today, onEdit, showDue }) {
+export function TaskRow({ task, today, onEdit, showDue, rowProps }) {
   const confirm = useConfirm()
   const [setStatus, pending] = useAction((s) => setTaskStatus(task, s, today))
   const [del] = useAction(() => store.remove('tasks', task.id), { success: 'Task deleted' })
@@ -27,6 +27,7 @@ export function TaskRow({ task, today, onEdit, showDue }) {
       layout="position"
       layoutId={`task-${task.id}`}
       transition={spring.snappy}
+      {...rowProps}
       className={cn(
         'group relative flex items-center gap-3 rounded-lg border border-transparent px-2 py-2 transition-colors duration-150 hover:border-border hover:bg-muted/30',
         pending && 'opacity-60',
@@ -112,7 +113,7 @@ export function TaskRow({ task, today, onEdit, showDue }) {
   )
 }
 
-export function TaskSection({ title, tasks, today, onEdit, showDue, hint, empty }) {
+export function TaskSection({ title, tasks, today, onEdit, showDue, hint, empty, rowProps }) {
   if (!tasks.length && !empty) return null
   return (
     <section>
@@ -124,7 +125,7 @@ export function TaskSection({ title, tasks, today, onEdit, showDue, hint, empty 
       {tasks.length ? (
         <ul>
           {tasks.map((t) => (
-            <TaskRow key={t.id} task={t} today={today} onEdit={onEdit} showDue={showDue} />
+            <TaskRow key={t.id} task={t} today={today} onEdit={onEdit} showDue={showDue} rowProps={rowProps?.(t)} />
           ))}
         </ul>
       ) : (
