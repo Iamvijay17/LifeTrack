@@ -241,6 +241,20 @@ export const GUIDES = [
     tips: ['Changing your timezone changes what “today” means across the app.'],
   },
   {
+    module: 'security',
+    summary: 'Your password, the app lock, fingerprint or face unlock, and the devices signed in to your account.',
+    steps: [
+      'Turn on App lock and choose a 4 or 6 digit PIN. LifeTrack then locks itself when you are idle or come back to it, and asks for the PIN again.',
+      'Add fingerprint or face unlock to open it faster with your device’s own sensor. The PIN always works as a fallback.',
+      'Change your account password here. You must enter the current one, and your other devices are signed out afterwards.',
+      'Review “Where you’re signed in” and sign out any device you do not recognise.',
+    ],
+    tips: [
+      'Forgot your PIN? Choose “Forgot PIN?” on the lock screen and enter your account password.',
+      'Five wrong PINs in a row pause PIN entry for a while, and the wait grows each time.',
+    ],
+  },
+  {
     module: 'export',
     summary: 'Download, back up, restore or erase your data.',
     steps: [
@@ -255,6 +269,21 @@ export const GUIDES = [
 export const FAQ_CATEGORIES = ['All', 'Basics', 'Data & privacy', 'Score & goals', 'Reminders', 'Troubleshooting']
 
 export const FAQ = [
+  {
+    cat: 'Data & privacy',
+    q: 'Does LifeTrack see my fingerprint or face?',
+    a: 'No. Fingerprint and face unlock uses your device’s own sensor through the browser’s passkey support (Touch ID, Windows Hello, Android biometrics). The sensor never leaves your device. LifeTrack only receives a signed “yes, the owner confirmed” and checks the signature.',
+  },
+  {
+    cat: 'Data & privacy',
+    q: 'What does the app lock protect?',
+    a: 'While it is locked, nobody can open the app on that device, and on the server your finance, journal and notes stay closed to that device too, even if someone has a copy of your sign-in. Your PIN is stored only as a salted hash and is never sent anywhere else.',
+  },
+  {
+    cat: 'Troubleshooting',
+    q: 'I forgot my PIN.',
+    a: 'On the lock screen choose “Forgot PIN?” and enter your account password. That opens LifeTrack, and you can set a new PIN in Security & Privacy.',
+  },
   {
     cat: 'Basics',
     q: 'Where is everything?',

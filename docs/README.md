@@ -76,6 +76,7 @@ Money is stored as integer paise, dates as `yyyy-MM-dd` strings in the user's ow
 | Document | What it covers |
 | --- | --- |
 | [SECURITY.md](SECURITY.md) | Authentication, RLS, input handling, limitations ([../SECURITY.md](../SECURITY.md) is the disclosure policy) |
+| [APP_SECURITY.md](APP_SECURITY.md) | Security & Privacy: password rules, PIN app lock, fingerprint / face unlock (WebAuthn), sessions, how the lock is enforced, deployment, mobile plan |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Build, host, database, functions, mobile; runbooks in [DEPLOY.md](DEPLOY.md), [RELEASE.md](RELEASE.md) |
 | [BACKUP_RECOVERY.md](BACKUP_RECOVERY.md) | Backup, restore, erase, account deletion |
 | [TESTING.md](TESTING.md) | All test layers and how to run them |

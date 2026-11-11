@@ -27,3 +27,9 @@ enabled = true
 double_confirm_changes = true
 # Off for tests so sign-up returns a session immediately. Keep confirmation ON in the hosted project.
 enable_confirmations = false
+
+# Optional: per-account password lockout (5 wrong passwords block sign-in for 1 min, doubling to 15 min). Off here so the API tests can sign in freely;
+# on a hosted project turn it on in the dashboard (Authentication > Hooks). See docs/APP_SECURITY.md section 3.
+# [auth.hook.password_verification_attempt]
+# enabled = true
+# uri = "pg-functions://postgres/public/hook_password_verification_attempt"

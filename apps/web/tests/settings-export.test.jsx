@@ -2,6 +2,7 @@ import '@testing-library/jest-dom/vitest'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { DEFAULT_WEIGHTS, weightShares, normalizeWeights } from '@/domain/score'
 import { TABLES } from '@lifetrack/constants/schema'
 
@@ -288,29 +289,21 @@ describe('FocusPrefsCard', () => {
 })
 
 describe('AccountCard', () => {
-  it('password: min 8, must match, then updates and clears', async () => {
-    const user = userEvent.setup()
-    render(<AccountCard />)
-    const change = screen.getByRole('button', { name: 'Change password' })
-    expect(change).toBeDisabled()
-    await user.type(screen.getByLabelText('New password'), 'short')
-    await user.click(change)
-    expect(await screen.findByText('Use at least 8 characters.')).toBeInTheDocument()
-    await user.clear(screen.getByLabelText('New password'))
-    await user.type(screen.getByLabelText('New password'), 'longenough1')
-    await user.type(screen.getByLabelText('Confirm'), 'different1')
-    await user.click(change)
-    expect(await screen.findByText('Passwords do not match.')).toBeInTheDocument()
-    expect(mocks.updatePassword).not.toHaveBeenCalled()
-    await user.clear(screen.getByLabelText('Confirm'))
-    await user.type(screen.getByLabelText('Confirm'), 'longenough1')
-    await user.click(change)
-    await waitFor(() => expect(mocks.updatePassword).toHaveBeenCalledWith('longenough1'))
-    await waitFor(() => expect(screen.getByLabelText('New password')).toHaveValue(''))
+  const renderCard = () =>
+    render(
+      <MemoryRouter>
+        <AccountCard />
+      </MemoryRouter>,
+    )
+  it('no longer carries its own password form: passwords are changed on Security & Privacy, where the current one is checked', () => {
+    renderCard()
+    expect(screen.queryByLabelText('New password')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Change password' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Security & Privacy/ })).toHaveAttribute('href', '/security')
   })
   it('deleting the account needs the typed word and then calls deleteAccount', async () => {
     const user = userEvent.setup()
-    render(<AccountCard />)
+    renderCard()
     await user.click(screen.getByRole('button', { name: /Delete account/ }))
     expect(screen.getByRole('button', { name: 'Delete everything' })).toBeDisabled()
     await user.type(screen.getByLabelText('Type DELETE to confirm'), 'DELETE')
@@ -319,7 +312,7 @@ describe('AccountCard', () => {
   })
   it('shows the email and signs out', async () => {
     const user = userEvent.setup()
-    render(<AccountCard />)
+    renderCard()
     expect(screen.getByText('v@x.com')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Sign out' }))
     expect(mocks.signOut).toHaveBeenCalled()

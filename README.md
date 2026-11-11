@@ -55,7 +55,7 @@ Database: run `supabase/setup-all.sql` (migrations 0001–0010) in a Supabase pr
 | Design | [ARCHITECTURE](docs/ARCHITECTURE.md) · [DATA_FLOW](docs/DATA_FLOW.md) · [DATABASE](docs/DATABASE.md) · [API](docs/API.md) · [UI_UX](docs/UI_UX.md) · [DESIGN_SYSTEM](docs/DESIGN_SYSTEM.md) · [ERROR_HANDLING](docs/ERROR_HANDLING.md) · [PERFORMANCE](docs/PERFORMANCE.md) |
 | Modules | [FOOD_NUTRITION](docs/FOOD_NUTRITION.md) · [GYM_FITNESS](docs/GYM_FITNESS.md) · [PARITY](docs/PARITY.md) (web vs mobile) |
 | Run and operate | [INSTALLATION](docs/INSTALLATION.md) · [DEPLOYMENT](docs/DEPLOYMENT.md) · [DEPLOY](docs/DEPLOY.md) · [RELEASE](docs/RELEASE.md) · [NATIVE](docs/NATIVE.md) · [CI](docs/CI.md) · [BACKUP_RECOVERY](docs/BACKUP_RECOVERY.md) · [SETUP](docs/SETUP.md) · [QUICKSTART](docs/QUICKSTART.md) |
-| Quality and security | [TESTING](docs/TESTING.md) · [SECURITY](docs/SECURITY.md) · [SECURITY policy](SECURITY.md) · [DEPENDENCIES](docs/DEPENDENCIES.md) · [RELEASE_AUDIT](docs/RELEASE_AUDIT.md) · [UX_AUDIT](docs/UX_AUDIT.md) |
+| Quality and security | [TESTING](docs/TESTING.md) · [SECURITY](docs/SECURITY.md) · [APP_SECURITY](docs/APP_SECURITY.md) · [SECURITY policy](SECURITY.md) · [DEPENDENCIES](docs/DEPENDENCIES.md) · [RELEASE_AUDIT](docs/RELEASE_AUDIT.md) · [UX_AUDIT](docs/UX_AUDIT.md) |
 | Project | [ROADMAP](docs/ROADMAP.md) · [CHANGELOG](CHANGELOG.md) · [docs changelog summary](docs/CHANGELOG.md) · [KNOWN_ISSUES](docs/KNOWN_ISSUES.md) · [CONTRIBUTING](docs/CONTRIBUTING.md) |
 | Legal and store | [docs/legal](docs/legal) · [docs/store](docs/store) |
 

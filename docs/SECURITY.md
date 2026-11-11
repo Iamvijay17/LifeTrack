@@ -6,14 +6,15 @@ Statuses: ✅ in place and covered by code/tests · 🟡 in place but depends on
 ## 1. Security model in one paragraph
 
 Clients hold only the public Supabase URL and anon key. Every user table has Row Level Security (`user_id = auth.uid()`), enforced by the database even if the client is modified. There is no
-application server to attack: the attack surface is Supabase Auth, PostgREST (limited by RLS), 8 RPC functions, and one Edge Function protected by a shared secret.
+application server to attack: the attack surface is Supabase Auth, PostgREST (limited by RLS), the RPC functions (8 originals, plus the app-lock and session functions of migration 0012), and two Edge Functions:
+`send-reminders` (protected by a shared secret) and `webauthn` (signed-in users only). The optional **app lock** adds a second, per-session gate on the most private tables; see [APP_SECURITY.md](APP_SECURITY.md).
 
 ## 2. Authentication
 
 | Aspect | Implementation | Status |
 | --- | --- | --- |
 | Identity provider | Supabase Auth, email + password (`signUp`, `signInWithPassword`) in `packages/data/src/auth.js` | ✅ |
-| Password rules in the app | 8–72 characters, confirmation must match (`packages/schemas/src/auth.ts`). 72 matches bcrypt's input limit | ✅ client-side |
+| Password rules in the app | New passwords (sign-up, reset, change): 8 to 72 bytes (bcrypt's limit), not a common password or a small variation of one, not built from the name or email, no runs or repeats; confirmation must match (`packages/core/src/security.js`, `features/auth/authForm.jsx`). Signing in is never checked, so older accounts keep working | ✅ client-side |
 | Password rules on the server | Minimum length, leaked-password protection and email confirmation are **dashboard settings, not in the repo**; `supabase/config.toml` (local only) turns confirmation **off** for tests | 🟡 must be checked in the hosted project ([RELEASE.md](RELEASE.md) §2) |
 | Password storage | Handled by Supabase Auth (bcrypt). The app never stores or logs passwords | ✅ |
 | Sign-in errors | "invalid login" is shown as a generic "Incorrect email or password." (no user enumeration from the message) | ✅ |
@@ -22,9 +23,14 @@ application server to attack: the attack surface is Supabase Auth, PostgREST (li
 | Token refresh | `autoRefreshToken: true`; JWT lifetime 3600 s in the local config | ✅ |
 | Sign-out / account switch | `resetStore()` clears the in-memory cache when the user id changes; mobile `signOutCleanly` | ✅ |
 | Password reset | Email link → `PASSWORD_RECOVERY` (web) / `lifetrack://reset-password?code=` (mobile) → `updateUser`. Invalid/expired links show a generic message | ✅ |
-| MFA, social login, magic links, session list/revoke UI | — | ❌ |
+| Change password | `/security`: asks for the current password (checked by GoTrue on a throwaway client), then signs the other devices out. GoTrue itself lets any valid session change the password: turn on *Secure password change* ([APP_SECURITY.md §3](APP_SECURITY.md)) | ✅ app · 🟡 server setting |
+| Per-account password lockout | `hook_password_verification_attempt` (0012): 5 wrong passwords block sign-in for 1 min, doubling to 15 min. **Inactive until the hook is enabled in the dashboard** | 🟡 |
+| App lock (PIN), auto-lock, lock when returning | `user_security`, `app_unlocks`, restrictive policy `app_lock_gate` on finance, journal and notes; bcrypt PIN; progressive lockout that ends the session. Enforced by the database per session | ✅ |
+| Fingerprint / face unlock | WebAuthn passkeys verified by the `webauthn` Edge Function (single-use challenges, origin / RP ID / UV / signature / counter checks). Needs the function deployed and configured | 🟡 |
+| Session list / sign out one, others, everywhere | `/security`, `list_my_sessions`, `revoke_session`, GoTrue `signOut({ scope })` | ✅ |
+| MFA at sign-in, social login, magic links | — (passkeys unlock the app for an already signed-in session; they are not a second sign-in factor) | ❌ |
 | Account deletion | RPC `delete_my_account` (definer; `auth.uid()` required) cascades all data; typed confirmation in the UI (required by the App Store) | ✅ |
-| DEV-only local auth | `services/auth.js` `local`: users in `localStorage`, unsalted SHA-256 (`lt:`+password). **Insecure by design**; compiled out of production bundles (`__BACKEND__`), guarded by `verify:bundles` and a build that refuses to run without credentials | ✅ dev-only |
+| DEV-only local auth | `services/auth.js` `local`: users in `localStorage`, salted PBKDF2-SHA256 (accounts made with the old unsalted SHA-256 are upgraded when they sign in), per-account lockout. **Still insecure by design** (the data is plain `localStorage`); compiled out of production bundles (`__BACKEND__`), guarded by `verify:bundles` and a build that refuses to run without credentials | ✅ dev-only |
 
 ## 3. Authorisation
 
@@ -32,7 +38,8 @@ application server to attack: the attack surface is Supabase Auth, PostgREST (li
 - `enable` + `force row level security` (the table owner is also subject to policies); `revoke all … from anon` on every table.
 - **Cross-table ownership**: RLS only looks at a row's own `user_id`, so a child row could point at another user's parent. Triggers `check_fk_owner` / `check_same_owner` reject that (10 tables, 11+ foreign
   keys; `supabase/tests/pglite` fails for any new foreign key without a fixture).
-- RPCs: `revoke all … from public, anon`, `grant execute … to authenticated`. Four are `SECURITY DEFINER` and set `search_path = ''`; all check `auth.uid()` (or are trigger-only).
+- **App-lock gate (0012):** a RESTRICTIVE policy `app_lock_gate` on `transactions`, `budgets`, `savings_goals`, `recurring_rules`, `journal_entries` and `notes` asks `app_session_unlocked()` on every query. It only ever takes access away, and only from a session that has the lock on and has not unlocked. The five lock tables (`user_security`, `app_unlocks`, `passkeys`, `webauthn_challenges`, `password_attempts`) have RLS and **no policies**: clients reach them only through functions; the `pk_*` functions are callable by the service role alone.
+- RPCs: `revoke all … from public, anon`, `grant execute … to authenticated`. Four of the originals are `SECURITY DEFINER` and set `search_path = ''`; all check `auth.uid()` (or are trigger-only). The 0012 functions follow the same rules.
   `register_push_token` re-assigns a token to the caller so a shared phone moves between accounts without opening a write policy.
 - The service-role key is used only inside the Edge Function (injected by Supabase). `scripts/check-no-secrets.mjs` scans client sources and the web **and** mobile bundles in CI; production mobile builds throw if the public
   key looks like a secret (`/service[_-]?role|sb_secret_/`).
@@ -47,7 +54,8 @@ application server to attack: the attack surface is Supabase Auth, PostgREST (li
 | Other headers | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()` | ✅ |
 | CORS | Managed by Supabase; the apps call the API directly from the browser | 🟡 hosted config |
 | Rate limiting / abuse | Relies on Supabase Auth and API gateway limits; no app-level limiter | 🟡 accepted ([RELEASE_AUDIT.md](RELEASE_AUDIT.md) S11) |
-| Edge Function | `Authorization: Bearer CRON_SECRET`, constant-time compare, **fails closed** if the secret is unset; deployed `--no-verify-jwt` (so the secret is the only gate); tested under Deno | ✅ (live run 🟡) |
+| Edge Function `send-reminders` | `Authorization: Bearer CRON_SECRET`, constant-time compare, **fails closed** if the secret is unset; deployed `--no-verify-jwt` (so the secret is the only gate); tested under Deno | ✅ (live run 🟡) |
+| Edge Function `webauthn` | JWT verification **on**, and the user is re-checked with GoTrue (the session must still exist); CORS only for `WEBAUTHN_ORIGINS`; **fails closed** (`not_configured`) without `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGINS`; decisions tested in Node ([APP_SECURITY.md §5](APP_SECURITY.md)) | ✅ (not run under Deno or against a live project 🟡) |
 | Edge Function secret handling | Scheduler stores the secret in Supabase Vault (`vault.create_secret`) per [NATIVE.md](NATIVE.md); not part of any migration | 🟡 manual step |
 | Mobile permissions | Notifications and vibration only; no location, camera, contacts or microphone | ✅ |
 
@@ -94,7 +102,10 @@ No external penetration test or threat model has been performed.
 | 4 | Web session in `localStorage` | Readable by any script on the origin; mitigated by strict CSP (`script-src 'self'`) and no HTML injection sinks |
 | 5 | CSP `style-src 'unsafe-inline'` | Needed by current styling; allows inline-style injection if another bug exists |
 | 6 | Edge Function accepts any HTTP method and has no IP allow-list | Only the shared secret protects it; rotate `CRON_SECRET` if leaked |
-| 7 | No MFA, no device/session management, no login-attempt UI | Account takeover resistance equals password strength + Supabase limits |
+| 7 | No MFA at sign-in. Sessions can be listed and ended and the app can be locked, but **the lock does not protect the account itself**: GoTrue lets any valid session change the password or email | Account takeover resistance equals password strength + Supabase limits + *Secure password change* + session lifetimes ([APP_SECURITY.md §12](APP_SECURITY.md)) |
+| 13 | A 4 or 6 digit PIN cannot survive an offline attack on a leaked database, whatever the hash; the online lockout is its protection | The PIN guards a stolen device or session, not a database leak |
+| 14 | Tables other than the six gated ones are hidden by the lock screen but not closed on the server | A copied token could still read tasks, habits, health… |
+| 15 | The mobile app has no lock screen: with the lock on, its session loses Finance, Journal and Notes until it is marked trusted | Documented workaround ([APP_SECURITY.md §4, §9](APP_SECURITY.md)) |
 | 8 | Plaintext app-level data, no client-side encryption | Supabase operators/anyone with DB access can read user data |
 | 9 | Backup files are unencrypted JSON | Users must protect downloaded files |
 | 10 | The GitHub Actions workflows, real-Supabase API/RLS suite, Maestro flows and push delivery have never run in a live environment | Treat as unproven until first green runs (`README.md`) |
@@ -103,11 +114,11 @@ No external penetration test or threat model has been performed.
 
 ## 10. Recommended improvements
 
-1. Set and verify hosted Auth settings; add the security contact email; consider enabling MFA when the provider flow is needed.
+1. Set and verify hosted Auth settings (including *Secure password change* and the password-verification hook); add the security contact email; consider enabling MFA when the provider flow is needed.
 2. Add `CHECK (char_length(...))` caps to unbounded text and `pg_column_size`-style limits to JSON columns.
 3. Make `application_history` write-protected (select-only policy + trigger-owned insert) and keep restore through a definer function.
 4. Pin GitHub Actions to commit SHAs after the first green run.
 5. Restrict the Edge Function to `POST` and add a replay window or HMAC timestamp.
 6. Remove `'unsafe-inline'` from `style-src` if the styling pipeline can emit hashed/nonced styles.
-7. Offer an encrypted backup option; add session/device management and an account-activity view.
+7. Offer an encrypted backup option; add an account-activity (security events) view and sign-in alert emails (session/device management now exists).
 8. Run the unrun suites (real-Supabase API tests, EAS build, Maestro) and record results.

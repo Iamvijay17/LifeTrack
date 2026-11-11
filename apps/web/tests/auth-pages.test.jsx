@@ -13,8 +13,9 @@ vi.mock('@/services/auth', () => ({ auth: mocks.auth }))
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ ...mocks.state, clearRecovery: mocks.clearRecovery }) }))
 
 const { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } = await import('@/features/auth/AuthPages')
-const { email, newPasswordPair, passwordsMatch } = await import('@/features/auth/authForm')
+const { email, newPasswordPair, passwordsMatch, passwordStrong } = await import('@/features/auth/authForm')
 const { z } = await import('zod')
+const STRONG = 'Violet-Harbor-42' // passes the new-password rules
 
 const at = (path, el) =>
   render(
@@ -41,9 +42,23 @@ describe('auth schemas', () => {
   it('new password: 8–72 chars and must match its confirmation, reported on the confirm field', () => {
     expect(newPasswordPair.safeParse({ password: 'short', confirm: 'short' }).error.issues[0].message).toBe('Use at least 8 characters')
     expect(newPasswordPair.safeParse({ password: 'x'.repeat(73), confirm: 'x'.repeat(73) }).error.issues[0].message).toBe('Too long')
-    const bad = newPasswordPair.safeParse({ password: 'longenough', confirm: 'different1' })
+    const bad = newPasswordPair.safeParse({ password: STRONG, confirm: 'different1' })
     expect(bad.error.issues[0]).toMatchObject({ message: 'Passwords do not match', path: ['confirm'] })
-    expect(newPasswordPair.safeParse({ password: 'longenough', confirm: 'longenough' }).success).toBe(true)
+    expect(newPasswordPair.safeParse({ password: STRONG, confirm: STRONG }).success).toBe(true)
+  })
+  it('new password: easy-to-guess ones are refused with the reason, at the password field; signing in is never checked', () => {
+    for (const weak of ['password123', 'Welcome2024!', 'abcd1234', '12345678', 'aaaaaaaa']) {
+      const r = newPasswordPair.safeParse({ password: weak, confirm: weak })
+      expect(r.success, weak).toBe(false)
+      expect(r.error.issues[0].path, weak).toEqual(['password'])
+    }
+    expect(newPasswordPair.safeParse({ password: 'password123', confirm: 'password123' }).error.issues[0].message).toMatch(/most common/)
+  })
+  it('a password built from the name or email in the same form is refused', () => {
+    const schema = passwordStrong(z.object({ name: z.string(), email: z.string(), password: z.string(), confirm: z.string() }))
+    const r = schema.safeParse({ name: 'Ananya Rao', email: 'a@b.co', password: 'Ananya-2031-x', confirm: 'Ananya-2031-x' })
+    expect(r.error.issues[0]).toMatchObject({ path: ['password'], message: expect.stringMatching(/name or email/) })
+    expect(schema.safeParse({ name: 'Ananya Rao', email: 'a@b.co', password: STRONG, confirm: STRONG }).success).toBe(true)
   })
   it('passwordsMatch works on a wider schema too', () => {
     const s = passwordsMatch(z.object({ name: z.string(), password: z.string(), confirm: z.string() }))
@@ -86,27 +101,27 @@ describe('RegisterPage', () => {
   const fill = async (confirm) => {
     await userEvent.type(screen.getByLabelText('Name'), 'Vee')
     await userEvent.type(screen.getByLabelText('Email'), 'vee@test.dev')
-    await userEvent.type(screen.getByLabelText('Password'), 'password123')
+    await userEvent.type(screen.getByLabelText('Password'), STRONG)
     await userEvent.type(screen.getByLabelText('Confirm password'), confirm)
     await userEvent.click(screen.getByRole('button', { name: 'Create account' }))
   }
   it('rejects mismatched passwords at the confirm field without calling the server', async () => {
     at('/register', <RegisterPage />)
-    await fill('password124')
+    await fill(`${STRONG}x`)
     expect(await screen.findByText('Passwords do not match')).toBeInTheDocument()
     expect(mocks.auth.signUp).not.toHaveBeenCalled()
   })
   it('creates the account and goes home', async () => {
     mocks.auth.signUp.mockResolvedValue({ needsConfirmation: false })
     at('/register', <RegisterPage />)
-    await fill('password123')
-    await waitFor(() => expect(mocks.auth.signUp).toHaveBeenCalledWith('vee@test.dev', 'password123', 'Vee'))
+    await fill(STRONG)
+    await waitFor(() => expect(mocks.auth.signUp).toHaveBeenCalledWith('vee@test.dev', STRONG, 'Vee'))
     expect(await screen.findByText('home')).toBeInTheDocument()
   })
   it('when email confirmation is required it says so instead of navigating', async () => {
     mocks.auth.signUp.mockResolvedValue({ needsConfirmation: true })
     at('/register', <RegisterPage />)
-    await fill('password123')
+    await fill(STRONG)
     expect(await screen.findByRole('status')).toHaveTextContent(/Check your email/)
     expect(screen.queryByText('home')).not.toBeInTheDocument()
   })
@@ -147,14 +162,14 @@ describe('ResetPasswordPage', () => {
     mocks.state.recovery = true
     mocks.auth.updatePassword.mockResolvedValue()
     at('/reset-password', <ResetPasswordPage />)
-    await userEvent.type(screen.getByLabelText('New password'), 'password123')
+    await userEvent.type(screen.getByLabelText('New password'), STRONG)
     await userEvent.type(screen.getByLabelText('Confirm password'), 'nope')
     await userEvent.click(screen.getByRole('button', { name: 'Update password' }))
     expect(await screen.findByText('Passwords do not match')).toBeInTheDocument()
     await userEvent.clear(screen.getByLabelText('Confirm password'))
-    await userEvent.type(screen.getByLabelText('Confirm password'), 'password123')
+    await userEvent.type(screen.getByLabelText('Confirm password'), STRONG)
     await userEvent.click(screen.getByRole('button', { name: 'Update password' }))
-    await waitFor(() => expect(mocks.auth.updatePassword).toHaveBeenCalledWith('password123'))
+    await waitFor(() => expect(mocks.auth.updatePassword).toHaveBeenCalledWith(STRONG))
     expect(mocks.clearRecovery).toHaveBeenCalled()
     expect(await screen.findByText('home')).toBeInTheDocument()
   })

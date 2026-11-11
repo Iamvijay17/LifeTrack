@@ -6,7 +6,7 @@ import { AuthLayout } from './AuthLayout'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/form'
 import { auth } from '@/services/auth'
-import { Err, Note, NewPasswordFields, email, newPasswordPair, password, passwordsMatch, useSubmit } from './authForm'
+import { Err, Note, NewPasswordFields, email, newPasswordPair, password, passwordStrong, passwordsMatch, useSubmit } from './authForm'
 import { useAuth } from '@/hooks/useAuth'
 
 export function LoginPage() {
@@ -61,10 +61,11 @@ export function RegisterPage() {
   const { session } = useAuth()
   const nav = useNavigate()
   const schema = passwordsMatch(
-    z.object({ name: z.string().trim().min(1, 'Enter your name').max(80), email, password, confirm: z.string() }),
+    passwordStrong(z.object({ name: z.string().trim().min(1, 'Enter your name').max(80), email, password, confirm: z.string() })),
   )
   const {
     register,
+    watch,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(schema) })
@@ -96,7 +97,12 @@ export function RegisterPage() {
         <Field label="Email" error={errors.email?.message}>
           <Input type="email" autoComplete="email" inputMode="email" {...register('email')} />
         </Field>
-        <NewPasswordFields register={register} errors={errors} hint="At least 8 characters" />
+        <NewPasswordFields
+          register={register}
+          errors={errors}
+          watch={watch}
+          hint="At least 8 characters. A few unrelated words works well."
+        />
         <Button type="submit" className="w-full" loading={isSubmitting}>
           Create account
         </Button>
@@ -144,6 +150,7 @@ export function ResetPasswordPage() {
   const nav = useNavigate()
   const {
     register,
+    watch,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(newPasswordPair) })
@@ -168,7 +175,7 @@ export function ResetPasswordPage() {
     <AuthLayout title="Choose a new password" subtitle={recovery ? undefined : 'You are signed in. Set a new password below.'}>
       <form onSubmit={handleSubmit(submit)} noValidate className="space-y-4">
         <Err>{error}</Err>
-        <NewPasswordFields register={register} errors={errors} passwordLabel="New password" />
+        <NewPasswordFields register={register} errors={errors} watch={watch} passwordLabel="New password" email={session?.user?.email} />
         <Button type="submit" className="w-full" loading={isSubmitting}>
           Update password
         </Button>
