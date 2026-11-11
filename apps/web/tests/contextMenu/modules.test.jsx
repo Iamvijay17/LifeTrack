@@ -108,7 +108,14 @@ describe('Tasks (Daily Planner)', () => {
     rightClick(await taskRow('Two'))
     await user.click(await item('Priority'))
     await user.click(await choice('Low'))
-    await waitFor(async () => expect((await rows('tasks')).filter((t) => t.priority === 'low').map((t) => t.title).sort()).toEqual(['One', 'Two']))
+    await waitFor(async () =>
+      expect(
+        (await rows('tasks'))
+          .filter((t) => t.priority === 'low')
+          .map((t) => t.title)
+          .sort(),
+      ).toEqual(['One', 'Two']),
+    )
     rightClick(await taskRow('One'))
     await user.click(await item('Delete 2 tasks'))
     await user.click(await within(await screen.findByRole('dialog')).findByRole('button', { name: 'Delete 2' }))
