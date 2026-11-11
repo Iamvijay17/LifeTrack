@@ -38,6 +38,9 @@ if (!window.IntersectionObserver)
     }
   }
 if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {}
+// sonner captures the pointer when a toast is pressed (to swipe it away); jsdom has no pointer capture.
+if (!Element.prototype.setPointerCapture) Element.prototype.setPointerCapture = () => {}
+if (!Element.prototype.releasePointerCapture) Element.prototype.releasePointerCapture = () => {}
 
 // Our Select / date / time pickers keep their value in a hidden <input> next to the trigger button.
 expect.extend({

@@ -1,11 +1,15 @@
 import { useEffect, useRef } from 'react'
-import { toast } from 'sonner'
 import { fireDueReminders } from '@/services/api'
 import { useSettings } from '@/hooks/useSettings'
 import { timeStrInTz, todayStr } from '@/lib/dates'
 import { clientNowTime } from '@lifetrack/core/reminders'
 
-/** While the app is open: every minute (and on focus) turn due reminders into notifications. Idempotent across devices. */
+/**
+ * While the app is open: every minute (and on focus) turn due reminders into notifications. Idempotent across devices.
+ * It does not announce anything itself: the notification it creates is announced by useNotificationDelivery like any other, so quiet hours,
+ * priority and browser notifications apply in one place. A reminder that came due while every device was off is created late and carries the time
+ * it was meant for (`due_at`), so the inbox can show it as missed.
+ */
 export function useReminderRunner() {
   const { settings, row } = useSettings()
   const busy = useRef(false)
@@ -19,8 +23,7 @@ export function useReminderRunner() {
       busy.current = true
       try {
         // Wait a short grace period: the server job fires first (and also pushes to phones); this is only the fallback.
-        const n = await fireDueReminders(todayStr(tz), clientNowTime(timeStrInTz(new Date(), tz)), prefs.current)
-        if (n > 0) toast(`${n} new reminder${n > 1 ? 's' : ''}`, { description: 'Open the bell to see them.' })
+        await fireDueReminders(todayStr(tz), clientNowTime(timeStrInTz(new Date(), tz)), prefs.current, { tz })
       } catch {
         /* a failed check is retried on the next tick; nothing is lost */
       } finally {

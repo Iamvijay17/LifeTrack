@@ -166,14 +166,15 @@ test.describe('reminders & notifications', () => {
     await page.getByRole('button', { name: 'Set reminder' }).click()
     await expect(page.getByTestId('unread-count')).toHaveText('1')
     await page.getByRole('tab', { name: /Inbox/ }).click()
-    await expect(page.getByText('Pay electricity bill')).toHaveCount(1)
+    await expect(page.getByTestId('notification').filter({ hasText: 'Pay electricity bill' })).toHaveCount(1) // (the toast that announced it says the same words)
     await page.reload() // must not fire again
     await expect(page.getByTestId('unread-count')).toHaveText('1')
-    await page.getByRole('button', { name: 'Mark read' }).click()
+    await page.getByTestId('notification').hover()
+    await page.getByRole('button', { name: 'Mark Pay electricity bill as read' }).click()
     await expect(page.getByTestId('unread-count')).toHaveCount(0)
     // silence bill reminders, add another, expect no new notification
     await page.getByRole('tab', { name: 'Preferences' }).click()
-    await page.getByRole('switch', { name: 'Bill reminders' }).click()
+    await page.getByRole('switch', { name: 'Finance' }).click() // bills are the Finance category
     await page.getByRole('tab', { name: 'Reminders' }).click()
     await page.getByRole('button', { name: 'New reminder' }).first().click()
     await page.getByLabel('Remind me to').fill('Pay water bill')

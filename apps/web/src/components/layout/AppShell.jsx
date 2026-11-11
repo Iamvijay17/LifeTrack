@@ -14,6 +14,8 @@ import { GlobalSearch } from './GlobalSearch'
 import { NotificationBell } from './NotificationBell'
 import { ProfileMenu } from './ProfileMenu'
 import { useReminderRunner } from '@/features/notifications/useReminderRunner'
+import { useNotificationDelivery } from '@/features/notifications/useNotificationDelivery'
+import { useSmartNotifications } from '@/features/notifications/useSmartNotifications'
 import { useRecurringRunner } from '@/features/finance/useRecurringRunner'
 import { QuickAddMenu, QuickFab, QuickActionsProvider } from '@/features/quick/QuickActions'
 import { useSettings } from '@/hooks/useSettings'
@@ -95,6 +97,8 @@ export function AppShell() {
   const main = useRef(null)
   useThemeSync()
   useReminderRunner()
+  useSmartNotifications()
+  useNotificationDelivery()
   useRecurringRunner()
 
   // First sign-in on any device: create default topics / exercise library once (idempotent via unique keys).

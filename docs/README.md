@@ -69,6 +69,7 @@ Money is stored as integer paise, dates as `yyyy-MM-dd` strings in the user's ow
 | [FEATURES.md](FEATURES.md) | Every module, sub-feature and its status |
 | [FOOD_NUTRITION.md](FOOD_NUTRITION.md) | Food database, search, calculations, logging, analytics |
 | [GYM_FITNESS.md](GYM_FITNESS.md) | Exercise library, routines, workout logging, progress |
+| [NOTIFICATIONS.md](NOTIFICATIONS.md) | Notification & Reminder Center: inbox, drawer, snooze/dismiss, quiet hours, desktop notifications, nudges from modules |
 
 **Operations**
 

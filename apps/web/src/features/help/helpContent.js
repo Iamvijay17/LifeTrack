@@ -31,7 +31,7 @@ export const QUICK_START = [
   {
     id: 'reminders',
     title: 'Never miss a thing',
-    body: 'Create reminders for tasks, study, workouts, habits and bills. They turn into notifications while LifeTrack is open.',
+    body: 'Create reminders for tasks, study, workouts, habits and bills. The bell opens your inbox, where you can snooze, dismiss or search what you have been told.',
     to: '/notifications',
   },
   {
@@ -218,13 +218,17 @@ export const GUIDES = [
   },
   {
     module: 'notifications',
-    summary: 'Reminders, alerts and your inbox.',
+    summary: 'Reminders, alerts, nudges from your other modules, and one inbox for all of them.',
     steps: [
-      'Open Reminders and add one: choose a type (task, study, workout, habit, bill or custom), a date and time, and how often it repeats.',
-      'When it is due, it lands in your Inbox and the bell in the top bar shows an unread count.',
-      'Use Preferences to turn off the kinds of reminder you do not want.',
+      'Open Reminders and add one: choose a type, a priority, a date and time, and how often it repeats.',
+      'When it is due, it lands in your Inbox and the bell in the top bar shows an unread count. Click the bell for the drawer.',
+      'On a notification, Snooze it, Dismiss it (it moves to History, and you can Undo) or mark it read or unread. Search and filter by category and priority.',
+      'Use Preferences for quiet hours, desktop notifications, the times of the daily summaries, and to turn off categories you do not want.',
     ],
-    tips: ['Reminders fire while LifeTrack is open on any of your devices, not when the app is closed.'],
+    tips: [
+      'Reminders fire while LifeTrack is open on any of your devices, and from the server to the phone app. Summaries from your other modules need an open app.',
+      'Urgent reminders come through quiet hours; everything else waits in your inbox and is summed up when they end.',
+    ],
   },
   {
     module: 'settings',
@@ -329,7 +333,7 @@ export const FAQ = [
   {
     cat: 'Reminders',
     q: 'Why did my reminder not go off?',
-    a: 'Reminders fire while LifeTrack is open in a browser or the app, on any of your devices. If it is closed, you will see the reminder in your Inbox the next time you open it. Also check that the reminder’s type is switched on under Preferences in Notifications.',
+    a: 'Reminders fire while LifeTrack is open in a browser or the app, on any of your devices. If it is closed, you will see the reminder in your Inbox the next time you open it, marked as missed with the time it was due. Also check that the reminder’s type is switched on under Preferences in Notifications, and that quiet hours are not holding the pop-up (the notification is still in your Inbox).',
   },
   {
     cat: 'Reminders',

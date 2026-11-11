@@ -39,6 +39,9 @@ Each item states how it was verified. Severity: **High** (can break a release or
 | B11 | Mobile exercise database | Depends on the web deployment (`EXPO_PUBLIC_WEB_URL`) being up and serving `/exercises/` | Medium | by design |
 | B12 | Exercise catalog | 3 of 876 exercises have no photos | Low | upstream |
 | B13 | Job Switch (mobile) | List instead of board; no month calendar | Low | deliberate |
+| B20 | Notification Center | Smart notifications (tasks, habits, fitness, finance, jobs, learning, goals) and calendar alerts are made only while LifeTrack is open on some device; no server job makes them, so nothing arrives for a closed app (reminders do, via the Edge Function, still unproven live: U3) | Medium | 🟡 gap |
+| B21 | Notification Center | Desktop notifications need an open browser tab (no Web Push: no service-worker handler, VAPID keys or sender) | Medium | by design |
+| B22 | Notification Center | The mobile app has no priority picker, snooze or quiet-hours screen (quiet hours are applied by the server to its pushes); a notification deleted from History can be made again today by a device that never saw it | Low | gap |
 | B14 | Seed data | New accounts get default learning topics oriented to a software career (Frontend, Backend, DSA, AI, Projects) | Low | product choice |
 
 ## 3. Incomplete / unproven (written, never run live)

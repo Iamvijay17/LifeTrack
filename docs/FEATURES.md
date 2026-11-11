@@ -187,9 +187,14 @@ averages, no AI and no estimates. Reports do not include nutrition 🟡.
 
 ## 16. Notifications & Reminders ✅
 
-Inbox (unread count, mark read, clear read), Reminders (kind task/study/workout/habit/bill/custom, date, time, repeat none/daily/weekly/monthly, pause/resume),
-Preferences (per-kind switches; mobile adds a per-device push switch). Reminders fire (a) from the server every minute via the Edge Function (🟡 never run live) and (b) as a
-fallback from any open app 2 minutes after their time; duplicates are prevented by `dedupe_key`. Local notifications are used only for the focus timer (mobile).
+**Web** (the Notification & Reminder Center, see [NOTIFICATIONS.md](NOTIFICATIONS.md)): one inbox for reminders, calendar alerts and nudges from tasks, habits, fitness,
+finance, jobs, learning and goals; an animated drawer from the bell; priorities (low/normal/high/urgent); snooze, dismiss (kept in History), reschedule, undo, mark read/unread;
+search and category/priority/status filters; **quiet hours**; browser (desktop) notifications asked for only when you turn them on; missed and overdue marking; a History of
+everything. Reminders have a kind, date, time, a note, a priority and repeat none/daily/weekdays/weekly/monthly/yearly, with pause/resume and reschedule. Preferences: desktop
+notifications, quiet hours, smart-notification times and one switch per category. Duplicates are prevented by the unique `dedupe_key` and by each device announcing an arrival once.
+**Mobile**: inbox, reminders and per-kind switches with a per-device push switch (no priority picker, snooze or quiet-hours screen yet). Reminders fire (a) from the server every
+minute via the Edge Function (🟡 never run live; it applies quiet hours to pushes) and (b) as a fallback from any open app 2 minutes after their time. Nudges from the other modules
+and calendar alerts need an open app. Local notifications are used only for the focus timer (mobile).
 
 ## 17. Settings ✅
 

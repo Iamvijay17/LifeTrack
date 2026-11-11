@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { dateStrInTz, isValidDay, lpaToPaise, paiseToInput, paiseToLpa, parseMoney, parseTags, sleepMinutes, timeStrInTz, zonedToIso } from '@lifetrack/utils'
-import { MEAL_TYPES, PRIORITY_VALUES, RECURRING_FREQUENCIES, TASK_CATEGORIES, TASK_RECURRENCES } from './tables'
+import { MEAL_TYPES, NOTIFICATION_PRIORITIES, PRIORITY_VALUES, RECURRING_FREQUENCIES, REMINDER_REPEATS, TASK_CATEGORIES, TASK_RECURRENCES } from './tables'
 
 // Form-level validation + payload mapping shared by web and mobile. Forms hold strings ('' = empty);
 // *ToPayload converts them to the exact shape the database accepts (validated in tests against insertSchemas).
@@ -359,20 +359,23 @@ export const DELETE_CONFIRM_WORD = 'DELETE'
 
 // ---------------------------------------------------------------- reminders
 export const REMINDER_KIND_VALUES = ['task', 'study', 'workout', 'habit', 'bill', 'custom'] as const
-export const REMINDER_REPEAT_VALUES = ['none', 'daily', 'weekly', 'monthly'] as const
+export const REMINDER_REPEAT_VALUES = REMINDER_REPEATS
+export const REMINDER_PRIORITY_VALUES = NOTIFICATION_PRIORITIES
 export const reminderFormSchema = z.object({
   kind: z.enum(REMINDER_KIND_VALUES),
   title: z.string().trim().min(1, 'What should we remind you about?').max(160, 'Keep it under 160 characters'),
   remind_date: z.string().refine(isValidDay, 'Pick a date'),
   remind_time: z.string().regex(/^\d{2}:\d{2}$/, 'Pick a time'),
   repeat: z.enum(REMINDER_REPEAT_VALUES),
+  priority: z.enum(REMINDER_PRIORITY_VALUES),
+  body: z.string().trim().max(500, 'Keep the note under 500 characters'),
 })
 export type ReminderForm = z.infer<typeof reminderFormSchema>
-export const blankReminder = (today: string): ReminderForm => ({ kind: 'custom', title: '', remind_date: today, remind_time: '09:00', repeat: 'none' })
-export const reminderToForm = (r: { kind: ReminderForm['kind']; title: string; remind_date: string; remind_time: string; repeat: ReminderForm['repeat'] }): ReminderForm =>
-  ({ kind: r.kind, title: r.title, remind_date: r.remind_date, remind_time: r.remind_time.slice(0, 5), repeat: r.repeat })
+export const blankReminder = (today: string): ReminderForm => ({ kind: 'custom', title: '', remind_date: today, remind_time: '09:00', repeat: 'none', priority: 'normal', body: '' })
+export const reminderToForm = (r: { kind: ReminderForm['kind']; title: string; remind_date: string; remind_time: string; repeat: ReminderForm['repeat']; priority?: ReminderForm['priority']; body?: string }): ReminderForm =>
+  ({ kind: r.kind, title: r.title, remind_date: r.remind_date, remind_time: r.remind_time.slice(0, 5), repeat: r.repeat, priority: r.priority ?? 'normal', body: r.body ?? '' })
 /** Saving (new or edited) re-arms the reminder: active again and not yet fired. */
-export const reminderToPayload = (v: ReminderForm) => ({ ...v, title: v.title.trim(), active: true, last_fired_on: null })
+export const reminderToPayload = (v: ReminderForm) => ({ ...v, title: v.title.trim(), body: v.body.trim(), active: true, last_fired_on: null })
 
 // ---------------------------------------------------------------- nutrition
 // Forms hold strings. A food entry is edited as PER-SERVING nutrition times a quantity; the stored row holds the totals (quantity applied),

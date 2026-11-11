@@ -42,7 +42,8 @@ Ordered by how often the existing audits flagged them.
 | Low | Archive for notes and tasks | UX_AUDIT | Schema/UI |
 | Low | Native tablet layout and orientation | UX_AUDIT | Mobile UI |
 | Low | Recipes / meal plans, barcode scanning, imports from other apps | Common nutrition-app features; not in code | Larger scope, licensing for data |
-| Low | Web push notifications | Only mobile push exists | Service worker + VAPID |
+| Low | Web push notifications | Desktop notifications work in an open tab only ([NOTIFICATIONS.md](NOTIFICATIONS.md)); only mobile push reaches a closed app | Service worker + VAPID |
+| Medium | Server job for smart notifications and calendar alerts, and mobile snooze / priority / quiet hours | [NOTIFICATIONS.md](NOTIFICATIONS.md) §8 | Edge Function + cron; mobile UI |
 
 ## 4. Technical improvements (suggestions)
 

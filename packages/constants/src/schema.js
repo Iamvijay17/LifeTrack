@@ -67,6 +67,7 @@ export const DEFAULTS = {
     score_weights: { learning: 25, career: 25, fitness: 20, habits: 15, health: 15 },
     dashboard_widgets: {},
     notification_prefs: { task: true, study: true, workout: true, habit: true, bill: true, custom: true },
+    notification_settings: {},
     focus_prefs: { short_break: 5, long_break: 15, long_every: 4 },
     calendar_prefs: {},
   },
@@ -192,8 +193,8 @@ export const DEFAULTS = {
   focus_sessions: { kind: 'focus', actual_seconds: 0, completed: false, task_id: null, topic_id: null, label: s },
   notes: { title: s, body: s, category: 'General', tags: [], pinned: false, goal_id: null, task_id: null },
   savings_goals: { saved_paise: 0, target_date: null },
-  reminders: { kind: 'custom', remind_time: '09:00', repeat: 'none', active: true, last_fired_on: null },
-  notifications: { kind: 'custom', body: s, link: s, dedupe_key: null, read_at: null },
+  reminders: { kind: 'custom', remind_time: '09:00', repeat: 'none', active: true, last_fired_on: null, priority: 'normal', body: s },
+  notifications: { kind: 'custom', body: s, link: s, dedupe_key: null, read_at: null, priority: 'normal', due_at: null, snoozed_until: null, dismissed_at: null },
   calendar_events: {
     description: s,
     location: s,

@@ -148,8 +148,10 @@ sleep goal), `workout_plan` jsonb (`{}`; `{"0".."6": routine uuid | "rest" | nul
 
 | Table | Key columns and constraints | Indexes |
 | --- | --- | --- |
-| `reminders` | `kind` (`task|study|workout|habit|bill|custom`); `title` 1–160; `remind_date`; `remind_time` ('09:00'); `repeat` (`none|daily|weekly|monthly`); `active`; `last_fired_on` | `(user_id, remind_date)` |
-| `notifications` | `kind` (adds `system`); `title` 1–200; `body`; `link`; `dedupe_key`; `read_at`. **U** `(user_id, dedupe_key)` where not null | `(user_id, created_at desc)` |
+| `reminders` | `kind` (`task|study|workout|habit|bill|custom`); `title` 1–160; `remind_date`; `remind_time` ('09:00'); `repeat` (`none|daily|weekdays|weekly|monthly|yearly`); `priority` (`low|normal|high|urgent`); `body` ≤ 500; `active`; `last_fired_on` | `(user_id, remind_date)` |
+| `notifications` | `kind` (adds `system`, `event`, `job`, `goal`); `title` 1–200; `body`; `link`; `priority`; `due_at` (when it was meant to happen); `snoozed_until`; `dismissed_at`; `dedupe_key`; `read_at`. **U** `(user_id, dedupe_key)` where not null | `(user_id, created_at desc)`; partial `(user_id, created_at desc) where dismissed_at is null`, `(user_id, snoozed_until) where snoozed_until is not null` |
+
+`user_settings.notification_settings` (object) holds quiet hours, desktop notifications and the smart-notification times; see [NOTIFICATIONS.md](NOTIFICATIONS.md).
 
 ## 4. Functions and triggers
 
@@ -203,6 +205,7 @@ All RPCs: `revoke all … from public, anon; grant execute … to authenticated`
 | `0008_recurring_rules.sql` | `recurring_rules`; `transactions.recurring_*` | Recurring transactions |
 | `0009_nutrition.sql` | `foods`, `food_logs`, `water_logs`, `nutrition_settings`, `log_water`, `delete_water_log` | **Food & Nutrition, dashboard Food widget, backup of nutrition tables** |
 | `0010_food_database.sql` | `foods.aliases`, `foods.source`, 3 indexes | Custom foods with other names |
+| `0013_notification_center.sql` | `reminders.priority/body`, `weekdays`/`yearly` repeats; `notifications.priority/due_at/snoozed_until/dismissed_at`, kinds `job`/`goal`, 2 partial indexes; `user_settings.notification_settings` | **Notification & Reminder Center** (see [NOTIFICATIONS.md](NOTIFICATIONS.md)). Numbered 0013 because `0012` is reserved for the Security & Privacy migration |
 
 Operational notes:
 

@@ -1,87 +1,152 @@
-import { Bell, CheckCheck, Trash2 } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { Bell, BellOff, CheckCheck, ChevronDown, Inbox } from 'lucide-react'
+import { categoryCounts, countUnread, filterNotifications, inInbox, isSnoozed, sortNotifications } from '@lifetrack/core/notifications'
+import { AnimatePresence, m } from '@/components/motion/primitives'
 import { EmptyState } from '@/components/shared/states'
-import { useConfirm } from '@/components/shared/Confirm'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/misc'
-import { useShowMore } from '@/hooks/useShowMore'
-import { ShowMore } from '@/components/shared/ShowMore'
-import { relativeTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { FilterBar } from './FilterBar'
+import { NotificationList } from './NotificationList'
 
-function NotificationRow({ n, onRead, onDelete }) {
-  return (
-    <li className={cn('flex items-start gap-3 px-4 py-3 transition-colors md:px-5', !n.read_at && 'bg-mod/[0.06]')}>
-      <span className="relative mt-1.5 flex h-2 w-2 shrink-0" aria-hidden>
-        {!n.read_at && <span className="lt-pulse-ring absolute inset-0 rounded-full bg-mod" />}
-        <span className={cn('relative h-2 w-2 rounded-full', n.read_at ? 'bg-muted' : 'bg-mod')} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium">
-          {!n.read_at && <span className="sr-only">Unread: </span>}
-          {n.title}
-        </p>
-        <p className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-          <Badge>{n.kind}</Badge>
-          {relativeTime(n.created_at)}
-          {n.link && (
-            <Link to={n.link} onClick={() => onRead(n)} className="-m-2 rounded-md p-2 text-mod-text underline underline-offset-2">
-              Open
-            </Link>
-          )}
-        </p>
-      </div>
-      {!n.read_at && (
-        <Button variant="ghost" size="sm" onClick={() => onRead(n)}>
-          Mark read
-        </Button>
-      )}
-      <Button variant="ghost" size="icon-sm" aria-label="Delete notification" onClick={() => onDelete(n.id)}>
-        <Trash2 className="h-4 w-4" />
-      </Button>
-    </li>
+const BLANK = { query: '', kind: 'all', priority: 'all', status: 'inbox', sort: 'newest' }
+
+/**
+ * What needs your attention: everything that is not dismissed and not snoozed. `rows` is every notification; the tab narrows it itself so the
+ * counts on the category chips stay right while you search. Snoozed ones wait in a section underneath and can be brought back early.
+ */
+export function InboxTab({ rows, now, tz, swipe, actions, onOpen, onPickTime, onCreateReminder }) {
+  const [filter, setFilter] = useState(BLANK)
+  const [showSnoozed, setShowSnoozed] = useState(false)
+  const patch = (p) => setFilter((f) => ({ ...f, ...p }))
+
+  const view = { ...filter, status: 'inbox' }
+  const items = useMemo(() => sortNotifications(filterNotifications(rows, view, now), filter.sort, now), [rows, filter, now]) // eslint-disable-line react-hooks/exhaustive-deps
+  const counts = useMemo(() => categoryCounts(rows, view, now), [rows, filter, now]) // eslint-disable-line react-hooks/exhaustive-deps
+  const snoozed = useMemo(
+    () =>
+      sortNotifications(
+        rows.filter((n) => isSnoozed(n, now)),
+        'newest',
+        now,
+      ).reverse(),
+    [rows, now],
   )
-}
+  const inbox = rows.filter((n) => inInbox(n, now))
+  const unread = countUnread(rows, now)
+  const read = inbox.filter((n) => n.read_at)
+  const filtering = !!filter.query || filter.kind !== 'all' || filter.priority !== 'all'
 
-/** `inbox` is notifications, newest first. */
-export function InboxTab({ inbox, unread, readingAll, onRead, onReadAll, onDelete, onClearRead, onCreateReminder }) {
-  const confirm = useConfirm()
-  const page = useShowMore(inbox)
-  const askClear = async () => {
-    if (await confirm({ title: 'Clear read notifications?', description: 'Unread ones are kept.', confirmLabel: 'Clear' })) onClearRead()
-  }
+  if (!rows.length)
+    return (
+      <EmptyState
+        icon={Bell}
+        title="No notifications"
+        description="Reminders you set, calendar alerts, and nudges from your tasks, habits and bills show up here."
+        action={
+          <Button size="sm" onClick={onCreateReminder}>
+            Set a reminder
+          </Button>
+        }
+      />
+    )
+
   return (
-    <div className="space-y-3">
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" size="sm" disabled={!unread} loading={readingAll} onClick={onReadAll}>
-          <CheckCheck className="h-4 w-4" />
-          Mark all read
-        </Button>
-        <Button variant="ghost" size="sm" disabled={!inbox.some((n) => n.read_at)} onClick={askClear}>
-          Clear read
-        </Button>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground" aria-live="polite">
+          {unread ? (
+            <>
+              <span className="font-semibold text-foreground">{unread}</span> unread
+            </>
+          ) : (
+            'You’re all caught up'
+          )}
+          {snoozed.length > 0 && ` · ${snoozed.length} snoozed`}
+        </p>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" disabled={!unread} onClick={() => actions.readAll()}>
+            <CheckCheck className="h-4 w-4" />
+            Mark all read
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={!read.length}
+            onClick={() => actions.dismissAll(read, 'Read notifications dismissed')}
+          >
+            Dismiss read
+          </Button>
+        </div>
       </div>
-      {inbox.length === 0 ? (
+
+      <FilterBar value={filter} onChange={patch} counts={counts} />
+
+      {items.length === 0 ? (
         <EmptyState
-          icon={Bell}
-          title="No notifications"
-          description="Create a reminder and it will show up here when it is due."
+          icon={filtering ? BellOff : Inbox}
+          title={filtering ? 'Nothing matches' : 'Inbox zero'}
+          description={
+            filtering
+              ? 'Try a different search, category or priority.'
+              : 'Everything has been dealt with. Dismissed notifications are kept in History.'
+          }
           action={
-            <Button size="sm" onClick={onCreateReminder}>
-              Set a reminder
-            </Button>
+            filtering ? (
+              <Button variant="outline" size="sm" onClick={() => setFilter(BLANK)}>
+                Clear filters
+              </Button>
+            ) : undefined
           }
         />
       ) : (
-        <Card>
-          <ul className="divide-y divide-border/70">
-            {page.visible.map((n) => (
-              <NotificationRow key={n.id} n={n} onRead={onRead} onDelete={onDelete} />
-            ))}
-          </ul>
-          <ShowMore more={page.more} onClick={page.showMore} />
-        </Card>
+        <NotificationList
+          items={items}
+          now={now}
+          tz={tz}
+          swipe={swipe}
+          grouped={filter.sort === 'newest'}
+          actions={actions}
+          onOpen={onOpen}
+          onPickTime={onPickTime}
+          resetKey={`${filter.query}|${filter.kind}|${filter.priority}|${filter.sort}`}
+        />
+      )}
+
+      {snoozed.length > 0 && (
+        <section className="pt-2">
+          <button
+            type="button"
+            aria-expanded={showSnoozed}
+            onClick={() => setShowSnoozed((s) => !s)}
+            className="flex w-full items-center justify-between rounded-lg px-1 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <span>Snoozed ({snoozed.length})</span>
+            <ChevronDown className={cn('h-4 w-4 transition-transform', showSnoozed && 'rotate-180')} aria-hidden />
+          </button>
+          <AnimatePresence initial={false}>
+            {showSnoozed && (
+              <m.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="pt-1">
+                  <NotificationList
+                    items={snoozed}
+                    now={now}
+                    tz={tz}
+                    view="snoozed"
+                    grouped={false}
+                    actions={actions}
+                    onOpen={onOpen}
+                    onPickTime={onPickTime}
+                  />
+                </div>
+              </m.div>
+            )}
+          </AnimatePresence>
+        </section>
       )}
     </div>
   )

@@ -22,7 +22,7 @@ and every **deliberate** difference. Anything not listed as a difference is expe
 | `/settings` | More → Settings | ✅ | Includes in-app account deletion (App Store requirement). |
 | `/reports` | — | ⏸ not built | Planned as a light add-on (folded into Analytics). |
 | `/export` (JSON backup/restore, CSV) | — | ⏸ not built | Desktop-oriented; planned as a later add-on. |
-| `/notifications` (inbox, reminders, preferences) | More → Notifications & Reminders | ✅ | Adds a per-device **push** toggle (see `docs/NATIVE.md`). |
+| `/notifications` (inbox, reminders, preferences) | More → Notifications & Reminders | 🟡 | Adds a per-device **push** toggle (see `docs/NATIVE.md`). The web **Notification Center** (drawer, priorities, snooze/dismiss/history, search, quiet hours, nudges from other modules, see `docs/NOTIFICATIONS.md`) is not on mobile; mobile pushes honour quiet hours (server side). |
 | Global search (Ctrl+K) | — | ⏸ not built | Mobile uses per-screen search (Notes, Jobs, Finance). |
 | `/login` `/register` `/forgot-password` `/reset-password` | Sign-in, Sign-up, Forgot, Reset | ✅ | Mobile uses PKCE deep links (`lifetrack://…`). |
 

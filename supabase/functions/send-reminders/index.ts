@@ -4,7 +4,8 @@
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided to Edge Functions by Supabase itself and never leave the server.
 import { createClient } from '@supabase/supabase-js'
 import { runReminders } from './logic.js'
-import { afterFire, dueReminders, KIND_LINK } from '../_shared/reminders.js'
+import { afterFire, dueReminders, reminderNotification } from '../_shared/reminders.js'
+import { mayInterrupt, notificationSettings } from '../_shared/notifications.js'
 import { timeStrInTz, todayStr } from '../_shared/dates.ts'
 
 const timingSafeEqual = (a: string, b: string) => {
@@ -26,7 +27,7 @@ Deno.serve(async (req) => {
     listActiveReminders: async (maxDate: string) => must(await sb.from('reminders').select('*').eq('active', true).lte('remind_date', maxDate)),
     listSettings: async (ids: string[]) => {
       if (!ids.length) return new Map()
-      const rows = must(await sb.from('user_settings').select('user_id,timezone,notification_prefs').in('user_id', ids)) as any[]
+      const rows = must(await sb.from('user_settings').select('user_id,timezone,notification_prefs,notification_settings').in('user_id', ids)) as any[]
       return new Map(rows.map((r) => [r.user_id, r]))
     },
     insertNotification: async (row: Record<string, unknown>) => {
@@ -52,7 +53,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const stats = await runReminders({ db, push, core: { afterFire, dueReminders, KIND_LINK, timeStrInTz, todayStr } })
+    const stats = await runReminders({ db, push, core: { afterFire, dueReminders, reminderNotification, notificationSettings, mayInterrupt, timeStrInTz, todayStr } })
     return new Response(JSON.stringify(stats), { headers: { 'Content-Type': 'application/json' } })
   } catch (e) {
     return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500, headers: { 'Content-Type': 'application/json' } })

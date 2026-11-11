@@ -23,6 +23,8 @@ export const CALENDAR_CATEGORIES = ['learning', 'jobs', 'fitness', 'health', 'fi
 export const JOB_STATUSES = ['interested', 'preparing', 'applied', 'assessment', 'interview', 'selected', 'offer', 'rejected', 'withdrawn'] as const
 export const PAYMENT_METHODS = ['Cash', 'UPI', 'Credit card', 'Debit card', 'Bank transfer', 'Other'] as const
 export const REMINDER_KINDS = ['task', 'study', 'workout', 'habit', 'bill', 'custom'] as const
+export const REMINDER_REPEATS = ['none', 'daily', 'weekdays', 'weekly', 'monthly', 'yearly'] as const
+export const NOTIFICATION_PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const
 export const RECURRING_FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly'] as const
 export const MEAL_TYPES = ['breakfast', 'lunch', 'snack', 'dinner'] as const
 
@@ -58,7 +60,7 @@ const insertShapes = {
     calendar_prefs: json(z.record(z.string(), z.any())).optional(),
     habit_prefs: json(z.record(z.string(), z.any())).optional(), workout_plan: json(z.record(z.string(), z.any())).optional(), defaults_seeded: z.boolean().optional(),
     score_weights: json(z.record(z.string(), z.number())).optional(), dashboard_widgets: json(z.record(z.string(), z.any())).optional(),
-    notification_prefs: json(z.record(z.string(), z.boolean())).optional(), focus_prefs: json(z.record(z.string(), z.number())).optional(),
+    notification_prefs: json(z.record(z.string(), z.boolean())).optional(), notification_settings: json(z.record(z.string(), z.any())).optional(), focus_prefs: json(z.record(z.string(), z.number())).optional(),
   },
   learning_topics: { group_name: str(1, 60), name: str(1, 80), notes: text().optional(), revision_dates: z.array(day).optional(), archived: z.boolean().optional() },
   goals: {
@@ -160,12 +162,14 @@ const insertShapes = {
   savings_goals: { name: str(1, 80), target_paise: z.number().int().positive(), saved_paise: paise().optional(), target_date: day.nullable().optional() },
   reminders: {
     kind: z.enum(REMINDER_KINDS).optional(), title: str(1, 160), remind_date: day, remind_time: time.optional(),
-    repeat: z.enum(['none', 'daily', 'weekly', 'monthly']).optional(), active: z.boolean().optional(), last_fired_on: day.nullable().optional(),
+    repeat: z.enum(REMINDER_REPEATS).optional(), active: z.boolean().optional(), last_fired_on: day.nullable().optional(),
+    priority: z.enum(NOTIFICATION_PRIORITIES).optional(), body: str(0, 500).optional(),
   },
   device_push_tokens: { token: z.string().regex(/^(Expo|Exponent)PushToken\[[^\]]+\]$/), platform: z.enum(['ios', 'android']), device_name: str(0, 80).optional(), last_seen_at: ts.optional() },
   notifications: {
-    kind: z.enum([...REMINDER_KINDS, 'system', 'event']).optional(), title: str(1, 200), body: text().optional(), link: text().optional(),
-    dedupe_key: text().nullable().optional(), read_at: ts.nullable().optional(),
+    kind: z.enum([...REMINDER_KINDS, 'system', 'event', 'job', 'goal']).optional(), title: str(1, 200), body: text().optional(), link: text().optional(),
+    dedupe_key: text().nullable().optional(), read_at: ts.nullable().optional(), priority: z.enum(NOTIFICATION_PRIORITIES).optional(),
+    due_at: ts.nullable().optional(), snoozed_until: ts.nullable().optional(), dismissed_at: ts.nullable().optional(),
   },
   calendar_events: {
     title: str(1, 200), description: str(0, 4000).optional(), location: str(0, 200).optional(), category: z.enum(CALENDAR_CATEGORIES).optional(),

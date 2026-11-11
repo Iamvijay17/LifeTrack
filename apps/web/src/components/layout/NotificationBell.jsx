@@ -1,45 +1,43 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { Bell } from 'lucide-react'
-import { AnimatePresence, ease, m, spring } from '@/components/motion/primitives'
+import { countUnread } from '@lifetrack/core/notifications'
+import { AnimatePresence, m, spring } from '@/components/motion/primitives'
+import { NotificationDrawer } from '@/features/notifications/NotificationDrawer'
+import { toggleNotificationDrawer, useNotificationDrawerOpen } from '@/features/notifications/drawerState'
 import { useTable } from '@/hooks/store'
-import { markAllRead, markNotificationRead } from '@/services/api'
-import { unreadCount } from '@lifetrack/core/reminders'
-import { useAction } from '@/hooks/useAction'
-import { cn } from '@/lib/utils'
-import { relativeTime } from '@/lib/format'
+import { useNow } from '@/hooks/useNow'
 
+/** The bell in the header: opens the notification drawer, shows how many you haven't seen, and rings when a new one arrives. */
 export function NotificationBell() {
   const { rows } = useTable('notifications')
-  const [open, setOpen] = useState(false)
-  const ref = useRef(null)
-  const [readAll] = useAction(markAllRead)
-  const [read] = useAction(markNotificationRead)
+  const open = useNotificationDrawerOpen()
+  const now = useNow(15_000) // a snoozed notification comes back on its own, so the count has to be re-read
+  const unread = countUnread(rows, now)
+  const before = useRef(unread)
+  const [rings, setRings] = useState(0)
   useEffect(() => {
-    if (!open) return
-    const off = (e) => {
-      if (!ref.current?.contains(e.target)) setOpen(false)
-    }
-    const esc = (e) => e.key === 'Escape' && setOpen(false)
-    document.addEventListener('mousedown', off)
-    document.addEventListener('keydown', esc)
-    return () => {
-      document.removeEventListener('mousedown', off)
-      document.removeEventListener('keydown', esc)
-    }
-  }, [open])
-  const unread = unreadCount(rows)
-  const latest = [...rows].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 6)
+    if (unread > before.current) setRings((r) => r + 1)
+    before.current = unread
+  }, [unread])
   return (
-    <div ref={ref} className="relative">
+    <>
       <button
-        onClick={() => setOpen((o) => !o)}
+        type="button"
+        data-notification-bell
+        onClick={toggleNotificationDrawer}
         aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
         aria-expanded={open}
-        aria-haspopup="true"
+        aria-haspopup="dialog"
         className="lt-press group relative grid h-10 w-10 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground md:h-9 md:w-9"
       >
-        <Bell className="h-4 w-4 origin-top transition-transform duration-200 group-hover:rotate-12" />
+        <m.span
+          key={rings}
+          className="origin-top"
+          animate={rings ? { rotate: [0, -16, 14, -10, 6, 0] } : undefined}
+          transition={{ duration: 0.7 }}
+        >
+          <Bell className="h-4 w-4 transition-transform duration-200 group-hover:rotate-12" />
+        </m.span>
         <AnimatePresence>
           {unread > 0 && (
             <m.span
@@ -56,63 +54,7 @@ export function NotificationBell() {
           )}
         </AnimatePresence>
       </button>
-      <AnimatePresence>
-        {open && (
-          <m.div
-            initial={{ opacity: 0, scale: 0.97, y: -6 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.1 } }}
-            transition={{ duration: 0.18, ease: ease.out }}
-            style={{ transformOrigin: 'top right' }}
-            className="absolute right-0 z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border bg-card shadow-overlay max-md:fixed max-md:inset-x-4 max-md:top-14 max-md:w-auto max-md:max-w-none"
-          >
-            <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
-              <span className="text-sm font-semibold tracking-tight">Notifications</span>
-              <button
-                disabled={!unread}
-                onClick={() => readAll()}
-                className="text-xs text-secondary underline underline-offset-2 disabled:opacity-40 disabled:no-underline"
-              >
-                Mark all read
-              </button>
-            </div>
-            {latest.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-muted-foreground">You're all caught up.</p>
-            ) : (
-              <ul className="max-h-80 divide-y divide-border overflow-y-auto">
-                {latest.map((n) => (
-                  <li key={n.id}>
-                    <Link
-                      to={n.link || '/notifications'}
-                      onClick={() => {
-                        read(n)
-                        setOpen(false)
-                      }}
-                      className={cn('block px-3 py-2.5 transition-colors hover:bg-muted/50', !n.read_at && 'bg-primary/5')}
-                    >
-                      <p className="flex items-center gap-2 text-sm font-medium">
-                        {!n.read_at && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />}
-                        <span className="truncate">
-                          {!n.read_at && <span className="sr-only">Unread: </span>}
-                          {n.title}
-                        </span>
-                      </p>
-                      <p className="text-xs text-muted-foreground">{relativeTime(n.created_at)}</p>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <Link
-              to="/notifications"
-              onClick={() => setOpen(false)}
-              className="block border-t border-border px-3 py-2 text-center text-xs text-secondary hover:bg-muted/50"
-            >
-              Open notification centre
-            </Link>
-          </m.div>
-        )}
-      </AnimatePresence>
-    </div>
+      <NotificationDrawer />
+    </>
   )
 }

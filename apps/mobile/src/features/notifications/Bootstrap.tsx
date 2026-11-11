@@ -60,7 +60,7 @@ export function NotificationsBootstrap() {
     const run = async () => {
       if (busy) return
       busy = true
-      try { await api.fireDueReminders(todayStr(tz), clientNowTime(timeStrInTz(new Date(), tz)), prefs.current) } catch { /* retried on the next tick */ } finally { busy = false }
+      try { await api.fireDueReminders(todayStr(tz), clientNowTime(timeStrInTz(new Date(), tz)), prefs.current, { tz }) } catch { /* retried on the next tick */ } finally { busy = false }
     }
     run()
     const id = setInterval(run, 60_000)

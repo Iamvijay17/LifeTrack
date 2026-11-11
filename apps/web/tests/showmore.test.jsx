@@ -57,32 +57,35 @@ describe('ShowMore', () => {
 
 describe('long lists no longer hide older rows', () => {
   it('inbox: 120 notifications → 50, then all', async () => {
-    const inbox = Array.from({ length: 120 }, (_, i) => ({
+    const rows = Array.from({ length: 120 }, (_, i) => ({
       id: `n${i}`,
       title: `note ${i}`,
-      message: '',
+      body: '',
+      link: '',
+      priority: 'normal',
       created_at: '2026-03-01T00:00:00Z',
       read_at: null,
-      kind: 'general',
+      kind: 'custom',
     }))
+    const actions = { read: () => {}, unread: () => {}, dismiss: () => {}, restore: () => {}, snooze: () => {}, remove: () => {} }
     render(
       <MemoryRouter>
         <InboxTab
-          inbox={inbox}
-          unread={120}
-          onRead={() => {}}
-          onReadAll={() => {}}
-          onDelete={() => {}}
-          onClearRead={() => {}}
+          rows={rows}
+          now={Date.parse('2026-03-02T00:00:00Z')}
+          tz="Asia/Kolkata"
+          actions={actions}
+          onOpen={() => {}}
+          onPickTime={() => {}}
           onCreateReminder={() => {}}
         />
       </MemoryRouter>,
     )
-    expect(screen.getAllByRole('listitem')).toHaveLength(50)
+    expect(screen.getAllByTestId('notification')).toHaveLength(50)
     await userEvent.click(screen.getByRole('button', { name: /Show 50 more/ }))
     await userEvent.click(screen.getByRole('button', { name: /Show 20 more/ }))
-    expect(screen.getAllByRole('listitem')).toHaveLength(120)
-    expect(screen.queryByRole('button', { name: /more/ })).not.toBeInTheDocument()
+    expect(screen.getAllByTestId('notification')).toHaveLength(120)
+    expect(screen.queryByRole('button', { name: /Show .* more/ })).not.toBeInTheDocument()
   })
   it('sessions: 150 sessions are all reachable (used to stop silently at 100)', async () => {
     const history = Array.from({ length: 150 }, (_, i) => ({
