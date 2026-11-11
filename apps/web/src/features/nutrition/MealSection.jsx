@@ -11,7 +11,7 @@ const qtyText = (e) => {
   return q === 1 ? e.serving_label : `${q} × ${e.serving_label}`
 }
 
-export function EntryRow({ entry, onEdit, onDuplicate, onDelete }) {
+export function EntryRow({ entry, onEdit, onDuplicate, onDelete, ctxProps }) {
   return (
     <m.li
       layout="position"
@@ -20,6 +20,7 @@ export function EntryRow({ entry, onEdit, onDuplicate, onDelete }) {
       exit={{ opacity: 0, x: -12, transition: { duration: 0.14 } }}
       transition={{ duration: 0.2, ease: ease.out }}
       className="flex items-center gap-3 py-2.5"
+      {...ctxProps}
     >
       <button
         type="button"
@@ -53,11 +54,11 @@ export function EntryRow({ entry, onEdit, onDuplicate, onDelete }) {
 }
 
 /** One meal of the day: its total, its entries, and a one-tap "add". `meal` comes from dayMeals(). */
-export function MealSection({ meal, onAdd, onEdit, onDuplicate, onDelete }) {
+export function MealSection({ meal, onAdd, onEdit, onDuplicate, onDelete, entryProps, mealProps }) {
   const Icon = MEAL_ICON[meal.id]
   const empty = meal.entries.length === 0
   return (
-    <Card className="p-4" data-testid={`meal-${meal.id}`}>
+    <Card className="p-4" data-testid={`meal-${meal.id}`} {...mealProps}>
       <div className="flex items-center gap-3">
         <span className="lt-icon-soft h-9 w-9 rounded-lg">
           <Icon className="h-4 w-4" aria-hidden />
@@ -79,7 +80,7 @@ export function MealSection({ meal, onAdd, onEdit, onDuplicate, onDelete }) {
         <ul className="mt-2 divide-y divide-border/60">
           <AnimatePresence initial={false}>
             {meal.entries.map((e) => (
-              <EntryRow key={e.id} entry={e} onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
+              <EntryRow key={e.id} entry={e} onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} ctxProps={entryProps?.(e)} />
             ))}
           </AnimatePresence>
         </ul>

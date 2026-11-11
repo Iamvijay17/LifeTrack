@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
+import { useContextMenu, usePageContextMenu } from '@/components/context-menu'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate } from '@/components/shared/states'
 import { Button } from '@/components/ui/button'
@@ -13,6 +14,7 @@ import { useAction } from '@/hooks/useAction'
 import { historyOf, libraryGroups, planLabel, setsByWorkout, weekStats, weeklySeries } from '@/domain/fitness'
 import { weightSeries } from '@/domain/health'
 import { addDays, eachDay, startOfWeek } from '@/lib/dates'
+import { exerciseItems, fitnessPageItems, routineItems, workoutItems } from './contextMenu'
 import { BodyTab } from './BodyTab'
 import { ExerciseDialog } from './ExerciseDialog'
 import { FitnessStats } from './FitnessStats'
@@ -85,6 +87,31 @@ export default function FitnessPage() {
   const todays = data.workouts.filter((x) => x.workout_date === today)
 
   const logWorkout = (extra = {}) => setWorkoutDlg({ open: true, workout: null, date: today, routineId: null, ...extra })
+  const menu = useContextMenu()
+  const navigate = useNavigate()
+  usePageContextMenu(() =>
+    fitnessPageItems({
+      tab,
+      logWorkout,
+      newRoutine: () => setRoutineDlg({ open: true, routine: null }),
+      newExercise: () => setExerciseDlg(true),
+    }),
+  )
+  const editWorkout = (workout) => logWorkout({ workout, date: workout.workout_date })
+  const workoutProps = (x, sets) =>
+    menu.bind(() => workoutItems(x, { today, sets, onEdit: editWorkout }), { label: `Actions for ${x.name}` })
+  const routineProps = (r) =>
+    menu.bind(
+      () =>
+        routineItems(r, {
+          onStart: (routine) => logWorkout({ routineId: routine.id }),
+          onEdit: (routine) => setRoutineDlg({ open: true, routine }),
+        }),
+      {
+        label: `Actions for ${r.name}`,
+      },
+    )
+  const exerciseProps = (e, demo) => menu.bind(() => exerciseItems(e, { demo, navigate }), { label: `Actions for ${e.name}` })
 
   return (
     <>
@@ -128,6 +155,7 @@ export default function FitnessPage() {
               onCreate={() => setRoutineDlg({ open: true, routine: null })}
               onEdit={(routine) => setRoutineDlg({ open: true, routine })}
               onStart={(routine) => logWorkout({ routineId: routine.id })}
+              cardProps={routineProps}
             />
           )}
           {tab === 'history' && (
@@ -136,10 +164,11 @@ export default function FitnessPage() {
               logsByWorkout={logsByWorkout}
               today={today}
               weekStartsOn={weekStartsOn}
-              onEdit={(workout) => logWorkout({ workout, date: workout.workout_date })}
+              onEdit={editWorkout}
+              rowProps={workoutProps}
             />
           )}
-          {tab === 'library' && <LibraryTab groups={groups} onCreate={() => setExerciseDlg(true)} />}
+          {tab === 'library' && <LibraryTab groups={groups} onCreate={() => setExerciseDlg(true)} chipProps={exerciseProps} />}
           {tab === 'body' && (
             <BodyTab weightData={weight.data} measurements={data.body_measurements} onLog={() => setMeasurementDlg(true)} />
           )}

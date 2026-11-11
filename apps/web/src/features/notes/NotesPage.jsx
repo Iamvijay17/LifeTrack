@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { NotebookPen, Plus, Search } from 'lucide-react'
+import { SelectionBar, useContextMenu, usePageContextMenu, useSelection } from '@/components/context-menu'
+import { usePrompt } from '@/components/shared/Prompt'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate, EmptyState } from '@/components/shared/states'
 import { DateNav } from '@/components/shared/DateNav'
@@ -10,6 +12,7 @@ import { Segmented } from '@/components/ui/misc'
 import { useConfirm } from '@/components/shared/Confirm'
 import { Journal } from '@/features/notes/Journal'
 import { NoteDialog } from '@/features/notes/NoteDialog'
+import { noteBulkItems, noteItems, notesPageItems } from '@/features/notes/contextMenu'
 import { NoteCard } from '@/features/notes/NoteCard'
 import { NoteViewer } from '@/features/notes/NoteViewer'
 import { filterNotes, noteCategories, noteTags } from '@/domain/notes'
@@ -54,6 +57,23 @@ export default function NotesPage() {
       del(n.id)
     }
   }
+  const menu = useContextMenu()
+  const ask = usePrompt()
+  const sel = useSelection(useMemo(() => list.map((n) => n.id), [list]))
+  const bulk = (ids) => noteBulkItems(ids.map((id) => data.notes.find((n) => n.id === id)).filter(Boolean))
+  usePageContextMenu(() => (tab === 'notes' ? notesPageItems({ newNote: () => setDlg({ open: true, note: null }) }) : []))
+  const cardProps = (n) => ({
+    ...sel.itemProps(n.id),
+    ...menu.bind(
+      () => {
+        const ids = sel.targets(n.id)
+        return ids.length > 1
+          ? bulk(ids)
+          : noteItems(n, { onOpen: setView, onEdit: (note) => setDlg({ open: true, note }), ask, select: sel.add })
+      },
+      { label: `Actions for ${n.title || 'note'}` },
+    ),
+  })
   const day = date ?? today
   const goalName = (id) => data.goals.find((g) => g.id === id)?.title
   const taskName = (id) => data.tasks.find((t) => t.id === id)?.title
@@ -139,12 +159,14 @@ export default function NotesPage() {
                     onTogglePin={togglePin}
                     onDelete={askDelete}
                     onTag={setTag}
+                    ctxProps={cardProps(n)}
                   />
                 ))}
               </div>
               <ShowMore more={page.more} step={30} onClick={page.showMore} />
             </>
           )}
+          <SelectionBar selection={sel} noun="note" build={() => bulk([...sel.selected])} />
           <NoteDialog
             open={dlg.open}
             note={dlg.note}

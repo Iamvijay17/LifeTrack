@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { useContextMenu, usePageContextMenu } from '@/components/context-menu'
 import { DataGate } from '@/components/shared/states'
 import { Stagger, StaggerItem } from '@/components/motion/primitives'
 import { useQuick } from '@/features/quick/QuickActions'
 import { useHabits } from '@/features/habits/useHabits'
-import { useTable, useTables } from '@/hooks/store'
+import { refetchLoaded, useTable, useTables } from '@/hooks/store'
 import { useAction } from '@/hooks/useAction'
 import { useAuth } from '@/hooks/useAuth'
 import { useSettings } from '@/hooks/useSettings'
@@ -38,6 +40,7 @@ import { cn } from '@/lib/utils'
 import { healthWeek } from '@/domain/health'
 import { LockedCard, LockedModulesNotice } from '@/features/security/ModuleUnlock'
 import { useModuleLocks } from '@/features/security/useModuleLocks'
+import { dashboardPageMenu, dashboardWidgetMenu } from './contextMenu'
 import { DashboardHero } from './DashboardHero'
 import { ActivityCard } from './ActivityCard'
 import { CustomizeDialog } from './CustomizeDialog'
@@ -123,6 +126,11 @@ export default function OverviewPage() {
   const { habits, logs: habitLogs, stats: habitStats, loading: habitsLoading, error: habitsError } = useHabits(today, weekStartsOn)
 
   const layout = useDashboardLayout(settings.dashboard_widgets, saveSettings)
+  const navigate = useNavigate()
+  const ctx = useContextMenu()
+  usePageContextMenu(() =>
+    dashboardPageMenu({ prefs: layout.prefs, layout, refresh: () => refetchLoaded(), customize: () => setCustomizing(true) }),
+  )
   const resetLayout = () => {
     setCustomizing(false) // the Undo below is a toast, which a modal dialog would sit on top of
     const before = layout.reset()
@@ -442,6 +450,7 @@ export default function OverviewPage() {
               data-widget={key}
               data-size={size}
               className={cn('min-w-0 [container-type:inline-size]', SPAN[span] ?? 'lg:col-span-12')}
+              {...ctx.bind(() => dashboardWidgetMenu({ key, prefs: layout.prefs, layout, go: navigate }), { label: 'Widget actions' })}
             >
               {moduleOfWidget(key) && locks.isLocked(moduleOfWidget(key)) ? (
                 <LockedCard module={moduleOfWidget(key)} className="h-full" />

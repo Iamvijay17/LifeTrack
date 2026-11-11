@@ -8,7 +8,7 @@ import { MoveMenu } from './MoveMenu'
 const COLUMNS = ['Company', 'Role', 'Status', 'Applied', 'Package', 'Follow-up']
 
 /** Table on desktop, stacked cards on phones and tablets. */
-export function JobsTable({ apps, today, onOpen }) {
+export function JobsTable({ apps, today, onOpen, appProps }) {
   return (
     <>
       <Card className="hidden overflow-x-auto lg:block">
@@ -25,7 +25,7 @@ export function JobsTable({ apps, today, onOpen }) {
           </thead>
           <tbody>
             {apps.map((a) => (
-              <tr key={a.id} className="cursor-pointer" onClick={() => onOpen(a)}>
+              <tr key={a.id} className="cursor-pointer" onClick={() => onOpen(a)} {...appProps?.(a)}>
                 <td className="font-medium">
                   {/* The row is clickable for the mouse; this is the same action for keyboards and screen readers. */}
                   <button type="button" className="rounded text-left hover:underline" onClick={() => onOpen(a)}>
@@ -51,7 +51,7 @@ export function JobsTable({ apps, today, onOpen }) {
       </Card>
       <div className="space-y-2 lg:hidden">
         {apps.map((a) => (
-          <Card key={a.id}>
+          <Card key={a.id} {...appProps?.(a)}>
             <CardContent className="p-3">
               <button className="block w-full text-left" onClick={() => onOpen(a)}>
                 <div className="flex items-start justify-between gap-2">

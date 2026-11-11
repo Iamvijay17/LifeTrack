@@ -11,11 +11,11 @@ import { cn } from '@/lib/utils'
 import { STAGE_COLOR, StatusBadge } from './StatusBadge'
 import { MoveMenu } from './MoveMenu'
 
-function AppCard({ app, today, onOpen }) {
+function AppCard({ app, today, onOpen, ctxProps }) {
   const package_ = formatLpa(app.salary_paise)
   return (
     // Motion moves the card between columns; the native drag lives on the inner element, because Motion claims `onDragStart` for itself.
-    <m.div layout layoutId={`app-${app.id}`} transition={spring.snappy}>
+    <m.div layout layoutId={`app-${app.id}`} transition={spring.snappy} {...ctxProps}>
       <div
         draggable
         onDragStart={(e) => {
@@ -53,7 +53,7 @@ function AppCard({ app, today, onOpen }) {
 }
 
 /** Kanban board: one column per status; drag a card to another column (or use its Move menu) to change status. */
-export function Board({ apps, today, onOpen, onAdd }) {
+export function Board({ apps, today, onOpen, onAdd, appProps, columnProps }) {
   const [over, setOver] = useState(null)
   const [move] = useAction((app, s) => moveApplication(app, s, today), { success: 'Status updated' })
   return (
@@ -65,6 +65,7 @@ export function Board({ apps, today, onOpen, onAdd }) {
             <div
               key={s}
               data-testid={`col-${s}`}
+              {...columnProps?.(s)}
               onDragOver={(e) => {
                 e.preventDefault()
                 setOver(s)
@@ -90,7 +91,7 @@ export function Board({ apps, today, onOpen, onAdd }) {
               </div>
               <div className="space-y-2">
                 {items.map((a) => (
-                  <AppCard key={a.id} app={a} today={today} onOpen={onOpen} />
+                  <AppCard key={a.id} app={a} today={today} onOpen={onOpen} ctxProps={appProps?.(a)} />
                 ))}
                 {items.length === 0 && <p className="px-1 py-4 text-center text-xs text-muted-foreground">Drop here</p>}
               </div>

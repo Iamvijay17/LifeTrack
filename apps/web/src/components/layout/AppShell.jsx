@@ -18,6 +18,7 @@ import { useNotificationDelivery } from '@/features/notifications/useNotificatio
 import { useSmartNotifications } from '@/features/notifications/useSmartNotifications'
 import { useRecurringRunner } from '@/features/finance/useRecurringRunner'
 import { useCalendarAlerts } from '@/features/calendar/useCalendarAlerts'
+import { ContextMenuProvider, useContextMenu } from '@/components/context-menu'
 import { QuickAddMenu, QuickFab, QuickActionsProvider } from '@/features/quick/QuickActions'
 import { useSettings } from '@/hooks/useSettings'
 import { useThemeSync } from '@/hooks/useTheme'
@@ -48,6 +49,7 @@ function Header() {
   const Icon = here?.icon
   return (
     <header
+      data-native-menu=""
       className={cn(
         'sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b px-4 transition-colors duration-200 md:px-6',
         scrolled ? 'lt-glass border-border' : 'border-transparent',
@@ -82,7 +84,8 @@ function Header() {
   )
 }
 
-export function AppShell() {
+function Shell() {
+  const menu = useContextMenu()
   const [collapsed, setCollapsed] = useState(read)
   const toggle = () =>
     setCollapsed((c) => {
@@ -153,7 +156,11 @@ export function AppShell() {
         />
       </AnimatePresence>
       <Sidebar collapsed={collapsed} onToggle={toggle} />
-      <div className={cn('min-h-dvh transition-[padding] duration-200 ease-out', collapsed ? 'md:pl-[68px]' : 'md:pl-60')}>
+      {/* Right-clicking the page's empty space opens the menu the page registered (usePageContextMenu); the header keeps the browser's own. */}
+      <div
+        className={cn('min-h-dvh transition-[padding] duration-200 ease-out', collapsed ? 'md:pl-[68px]' : 'md:pl-60')}
+        {...menu.pageProps({ label: 'Page actions' })}
+      >
         <Banners />
         <Header />
         <main
@@ -182,5 +189,14 @@ export function AppShell() {
       <MobileNav />
       <QuickFab />
     </QuickActionsProvider>
+  )
+}
+
+/** The signed-in shell. The context-menu provider lives here (not above the router) because it needs the module locks of the signed-in session. */
+export function AppShell() {
+  return (
+    <ContextMenuProvider>
+      <Shell />
+    </ContextMenuProvider>
   )
 }
