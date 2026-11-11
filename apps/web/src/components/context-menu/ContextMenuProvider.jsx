@@ -214,7 +214,7 @@ export function ContextMenuProvider({ children }) {
 
   // The props a region spreads onto its element: the right-click handler, and the long-press handlers for touch.
   const bind = useCallback(
-    (build, { label, enabled = true } = {}) => {
+    (build, { label, enabled = true, longPress = true } = {}) => {
       if (!enabled) return {}
       const itemsFor = (e, point) => {
         try {
@@ -232,6 +232,8 @@ export function ContextMenuProvider({ children }) {
       return {
         'data-ctx': '',
         onContextMenu(e) {
+          // A page with its own touch gesture (the calendar's press-and-drag) turns long-press off; Android's long-press contextmenu goes with it.
+          if (!longPress && e.nativeEvent.pointerType === 'touch') return
           if (e.shiftKey || e.nativeEvent.__ltCtx || !mine(e) || wantsNativeMenu(e.target, { x: e.clientX, y: e.clientY })) return // Shift+right-click is the way to the browser's own menu
           let x = e.clientX
           let y = e.clientY

@@ -151,3 +151,125 @@ describe('Dashboard', () => {
     void gone
   })
 })
+
+describe('Calendar', () => {
+  const openCalendar = async () => {
+    renderApp('/calendar?view=month')
+    await screen.findByTestId('calendar', {}, { timeout: 40_000 })
+    await waitFor(() => expect(screen.queryByRole('status', { name: /loading/i })).toBeNull())
+  }
+  const at = (h) => {
+    const d = new Date()
+    d.setHours(h, 0, 0, 0)
+    return d
+  }
+
+  it('an empty day offers new event / new task, and an event can be edited, re-dated, given a reminder, duplicated and deleted', async () => {
+    const user = userEvent.setup()
+    await db.insert('calendar_events', [
+      { title: 'Standup', starts_at: at(15).toISOString(), ends_at: at(16).toISOString(), timezone: TZ, alert_minutes: [] },
+    ])
+    await openCalendar()
+
+    // an empty month cell
+    rightClick(screen.getByTestId(`cell-${TODAY}`))
+    expect(await item(/^New event/)).toBeInTheDocument()
+    await user.click(await item(/^New task/))
+    expect(await screen.findByRole('dialog', { name: /New task/ })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+    // the event: reminder
+    const chip = () => screen.getAllByText('Standup')[0].closest('[data-cal-item]')
+    rightClick(await waitFor(chip))
+    await user.click(await item('Set reminder'))
+    await user.click(await screen.findByRole('menuitemcheckbox', { name: '15 minutes before' }))
+    await waitFor(async () => expect((await rows('calendar_events'))[0].alert_minutes).toEqual([15]))
+
+    // change date
+    rightClick(chip())
+    await user.click(await item('Change date'))
+    await user.click(await item('Tomorrow'))
+    await waitFor(async () => expect(new Date((await rows('calendar_events'))[0].starts_at).getDate()).not.toBe(new Date().getDate()))
+    await user.click(await screen.findByRole('button', { name: 'Undo' })) // and back
+    await waitFor(async () => expect(new Date((await rows('calendar_events'))[0].starts_at).getDate()).toBe(new Date().getDate()))
+
+    // duplicate
+    rightClick(chip())
+    await user.click(await item('Duplicate'))
+    await waitFor(async () => expect((await rows('calendar_events')).map((e) => e.title).sort()).toEqual(['Standup', 'Standup (copy)']))
+
+    // delete (asks first)
+    rightClick(screen.getAllByText('Standup (copy)')[0].closest('[data-cal-item]'))
+    await user.click(await item('Delete event'))
+    await user.click(await within(await screen.findByRole('dialog')).findByRole('button', { name: 'Delete' }))
+    await waitFor(async () => expect((await rows('calendar_events')).map((e) => e.title)).toEqual(['Standup']))
+  })
+
+  it('a task on the calendar can be completed and re-dated from its menu', async () => {
+    const user = userEvent.setup()
+    await db.insert('tasks', [{ title: 'Call the bank', due_date: TODAY }])
+    await openCalendar()
+    const chip = () => screen.getAllByText('Call the bank')[0].closest('[data-cal-item]')
+    rightClick(await waitFor(chip))
+    await user.click(await item('Mark complete'))
+    await waitFor(async () => expect((await rows('tasks'))[0].status).toBe('done'))
+    rightClick(chip())
+    await user.click(await item('Mark incomplete'))
+    await waitFor(async () => expect((await rows('tasks'))[0].status).toBe('pending'))
+    rightClick(chip())
+    await user.click(await item('Change date'))
+    await user.click(await item('In a week'))
+    await waitFor(async () => expect((await rows('tasks'))[0].due_date).not.toBe(TODAY))
+  })
+})
+
+describe('Career & Learning', () => {
+  it('a study goal: complete (undo), add a study session for it, view progress, rename, duplicate, delete', async () => {
+    const user = userEvent.setup()
+    await db.insert('goals', [
+      { title: 'Finish DSA course', category: 'Learning', target_minutes: 600, status: 'active', period: 'monthly' },
+    ])
+    renderApp('/learning')
+    await user.click(await screen.findByRole('tab', { name: 'Goals' }, { timeout: 40_000 }))
+    const card = async (t) => (await screen.findByText(t)).closest('.lt-card')
+
+    // empty space: page menu
+    rightClick(screen.getByRole('main'))
+    expect(await item('New goal')).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Log study session' })).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    rightClick(await card('Finish DSA course'))
+    await user.click(await item('Mark complete'))
+    await waitFor(async () => expect((await rows('goals'))[0].status).toBe('completed'))
+    await user.click(await screen.findByRole('button', { name: 'Undo' }))
+    await waitFor(async () => expect((await rows('goals'))[0].status).toBe('active'))
+
+    rightClick(await card('Finish DSA course'))
+    await user.click(await item('View progress'))
+    expect(await screen.findByText(/of 10h/)).toBeInTheDocument()
+
+    rightClick(await card('Finish DSA course'))
+    await user.click(await item('Add study session'))
+    const dialog = await screen.findByRole('dialog', { name: 'Log a study session' })
+    await user.type(within(dialog).getByLabelText(/minutes/i), '45')
+    await user.click(within(dialog).getByRole('button', { name: /Log|Save/ }))
+    await waitFor(async () => {
+      const [s] = await rows('study_sessions')
+      expect(s.goal_id).toBe((await rows('goals'))[0].id)
+      expect(s.duration_seconds).toBe(2700)
+    })
+
+    rightClick(await card('Finish DSA course'))
+    await user.click(await item('Duplicate'))
+    await waitFor(async () =>
+      expect((await rows('goals')).map((g) => g.title).sort()).toEqual(['Finish DSA course', 'Finish DSA course (copy)']),
+    )
+
+    rightClick(await card('Finish DSA course (copy)'))
+    await user.click(await item('Delete goal'))
+    await user.click(await within(await screen.findByRole('dialog')).findByRole('button', { name: 'Delete' }))
+    await waitFor(async () => expect((await rows('goals')).map((g) => g.title)).toEqual(['Finish DSA course']))
+  })
+})

@@ -8,7 +8,7 @@ import { useConfirmedDelete } from '@/hooks/useConfirmedDelete'
 import { goalProgress } from '@/domain/learning'
 import { fmtDay, fmtDuration } from '@/lib/dates'
 
-export function GoalsTab({ goals, sessions, today, onCreate, onEdit }) {
+export function GoalsTab({ goals, sessions, today, onCreate, onEdit, cardProps }) {
   const removeGoal = useConfirmedDelete('goals', 'Goal deleted')
   if (goals.length === 0) {
     return (
@@ -26,7 +26,7 @@ export function GoalsTab({ goals, sessions, today, onCreate, onEdit }) {
         const p = goalProgress(g, sessions)
         const overdue = g.due_date && g.due_date < today && g.status === 'active'
         return (
-          <Card key={g.id}>
+          <Card key={g.id} {...cardProps?.(g, p)}>
             <CardContent className="space-y-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
