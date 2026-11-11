@@ -80,6 +80,14 @@ export function ContextMenuProvider({ children }) {
   const press = useRef(null) // the one touch that is being held
   const menuRef = useRef(null)
   const pending = useRef(false)
+  const cancelPress = useCallback(() => {
+    const p = press.current
+    press.current = null
+    if (p) {
+      clearTimeout(p.timer)
+      p.cleanup()
+    }
+  }, [])
 
   // The lock rule the items are filtered by. Locked modules offer nothing through the menu, whatever a page puts in it.
   const locks = useMemo(() => ({ isLocked: moduleLocks.isLocked }), [moduleLocks])
@@ -226,10 +234,6 @@ export function ContextMenuProvider({ children }) {
       }
       // React events also bubble out of portals (a dialog rendered inside a card): only this element's own DOM counts.
       const mine = (e) => e.currentTarget.contains(e.target)
-      const cancelPress = () => {
-        if (press.current) clearTimeout(press.current.timer)
-        press.current = null
-      }
       return {
         'data-ctx': '',
         onContextMenu(e) {
@@ -265,11 +269,19 @@ export function ContextMenuProvider({ children }) {
           if (!items.length) return
           e.nativeEvent.__ltPress = true
           cancelPress()
+          // Moves, lifts and cancels are watched on the window and only while a finger is down: a handler on a page-wide region would run on every mouse move.
+          const moved = (ev) => Math.hypot(ev.clientX - x, ev.clientY - y) > MOVE_TOLERANCE && cancelPress()
+          window.addEventListener('pointermove', moved, { passive: true })
+          window.addEventListener('pointerup', cancelPress, { once: true })
+          window.addEventListener('pointercancel', cancelPress, { once: true })
           press.current = {
-            x,
-            y,
+            cleanup: () => {
+              window.removeEventListener('pointermove', moved)
+              window.removeEventListener('pointerup', cancelPress)
+              window.removeEventListener('pointercancel', cancelPress)
+            },
             timer: setTimeout(() => {
-              press.current = null
+              cancelPress()
               if (!open({ x, y, items, label })) return
               // The finger is still down: the click it makes on lifting is not a tap on whatever lies under the menu.
               const stopSwallowing = () => window.removeEventListener('click', swallow, true)
@@ -284,15 +296,9 @@ export function ContextMenuProvider({ children }) {
             }, LONG_PRESS_MS),
           }
         },
-        onPointerMove(e) {
-          const p = press.current
-          if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > MOVE_TOLERANCE) cancelPress()
-        },
-        onPointerUp: cancelPress,
-        onPointerCancel: cancelPress,
       }
     },
-    [open, locks],
+    [open, locks, cancelPress],
   )
 
   const pageProps = useCallback((extra) => bind(() => pageBuilder.current?.() ?? [], extra), [bind])

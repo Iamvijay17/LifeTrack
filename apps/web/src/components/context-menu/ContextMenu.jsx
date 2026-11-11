@@ -56,7 +56,7 @@ export function MenuItem({ item, index, busy, expanded, onActivate, onHover, tra
       }}
       onPointerEnter={(e) => onHover?.(item, e.currentTarget)}
       className={cn(
-        'flex w-full items-center gap-2.5 whitespace-nowrap rounded-[8px] px-2.5 py-1.5 text-left text-[13px] outline-none transition-colors duration-100',
+        'flex w-full items-center gap-2.5 whitespace-nowrap rounded-[8px] px-2.5 py-1.5 text-left text-[13px] outline-none transition-colors duration-100 focus-visible:shadow-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0',
         '[@media(pointer:coarse)]:py-2.5',
         item.danger
           ? 'text-danger focus:bg-danger/10 data-[open=true]:bg-danger/10'

@@ -462,7 +462,7 @@ describe('keyboard', () => {
 })
 
 describe('search', () => {
-  const many = Array.from({ length: 10 }, (_, i) => ({ label: `Action ${i + 1}`, onSelect: vi.fn() }))
+  const many = Array.from({ length: 12 }, (_, i) => ({ label: `Action ${i + 1}`, onSelect: vi.fn() }))
   it('appears on long menus, filters across submenus and runs the first match on Enter', async () => {
     const user = userEvent.setup()
     const deep = vi.fn()

@@ -81,5 +81,5 @@ export const matchesQuery = (item, q) => {
 }
 
 /** Menus with this many actions or more get a search box. */
-export const SEARCH_THRESHOLD = 9
+export const SEARCH_THRESHOLD = 12
 export const countActions = (items) => items.filter(isAction).length
