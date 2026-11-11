@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Download, Plus } from 'lucide-react'
+import { SelectionBar, useContextMenu, usePageContextMenu, useSelection } from '@/components/context-menu'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate } from '@/components/shared/states'
 import { Button } from '@/components/ui/button'
@@ -11,6 +12,7 @@ import { monthTransactions, resolveBudget, summarize } from '@/domain/finance'
 import { monthKey, monthStart } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
 import { download, toCsv, txColumns } from '@/services/csv'
+import { financePageItems, transactionBulkItems, transactionItems } from './contextMenu'
 import { MonthNav } from './MonthNav'
 import { FinanceStats } from './FinanceStats'
 import { BudgetAlert } from './BudgetAlert'
@@ -45,7 +47,36 @@ export default function FinancePage() {
   const monthTx = useMemo(() => monthTransactions(data.transactions, mk), [data.transactions, mk])
   const expenseCount = useMemo(() => monthTx.filter((t) => t.type === 'expense').length, [monthTx])
 
-  const addTransaction = () => setTxnDialog({ open: true, txn: null, copyOf: null, type: 'expense' })
+  const addTransaction = (type = 'expense') => setTxnDialog({ open: true, txn: null, copyOf: null, type })
+  const editTransaction = (txn) => setTxnDialog({ open: true, txn, type: txn.type })
+  const duplicateTransaction = (txn) => setTxnDialog({ open: true, txn: null, copyOf: txn, type: txn.type })
+  const exportCsv = () => download('lifetrack-transactions.csv', toCsv(data.transactions, txColumns(settings.currency)))
+  const menu = useContextMenu()
+  const sel = useSelection(useMemo(() => monthTx.map((t) => t.id), [monthTx]))
+  const bulk = (ids) =>
+    transactionBulkItems(ids.map((id) => monthTx.find((t) => t.id === id)).filter(Boolean), {
+      transactions: data.transactions,
+      currency: settings.currency,
+    })
+  usePageContextMenu(() => financePageItems({ add: addTransaction, exportCsv, hasTransactions: data.transactions.length > 0 }))
+  const rowProps = (t) => ({
+    ...sel.itemProps(t.id),
+    ...menu.bind(
+      () => {
+        const ids = sel.targets(t.id)
+        return ids.length > 1
+          ? bulk(ids)
+          : transactionItems(t, {
+              money,
+              transactions: data.transactions,
+              onEdit: editTransaction,
+              onDuplicate: duplicateTransaction,
+              select: sel.add,
+            })
+      },
+      { label: `Actions for ${t.note || t.category}` },
+    ),
+  })
   return (
     <>
       <PageHeader
@@ -53,16 +84,11 @@ export default function FinancePage() {
         description="Income, spending and savings at a glance."
         actions={
           <>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!data.transactions.length}
-              onClick={() => download('lifetrack-transactions.csv', toCsv(data.transactions, txColumns(settings.currency)))}
-            >
+            <Button variant="outline" size="sm" disabled={!data.transactions.length} onClick={exportCsv}>
               <Download className="h-4 w-4" />
               CSV
             </Button>
-            <Button onClick={addTransaction}>
+            <Button onClick={() => addTransaction()}>
               <Plus className="h-4 w-4" />
               Add
             </Button>
@@ -87,12 +113,14 @@ export default function FinancePage() {
             monthTx={monthTx}
             month={month}
             money={money}
-            onAdd={addTransaction}
-            onEdit={(txn) => setTxnDialog({ open: true, txn, type: txn.type })}
-            onDuplicate={(txn) => setTxnDialog({ open: true, txn: null, copyOf: txn, type: txn.type })}
+            onAdd={() => addTransaction()}
+            onEdit={editTransaction}
+            onDuplicate={duplicateTransaction}
+            rowProps={rowProps}
           />
         </div>
       </DataGate>
+      <SelectionBar selection={sel} noun="transaction" build={() => bulk([...sel.selected])} />
       <TransactionDialog
         open={txnDialog.open}
         txn={txnDialog.txn}

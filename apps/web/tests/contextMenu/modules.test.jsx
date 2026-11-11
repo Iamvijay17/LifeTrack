@@ -421,3 +421,65 @@ describe('Food & Nutrition', () => {
     await waitFor(async () => expect(await rows('food_logs')).toHaveLength(1))
   })
 })
+
+describe('Finance', () => {
+  it('a transaction: change category (undo), duplicate, copy, delete; selected ones are exported and deleted together; the page adds one', async () => {
+    const user = userEvent.setup()
+    const writeText = vi.fn().mockResolvedValue()
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    URL.createObjectURL = vi.fn(() => 'blob:x')
+    URL.revokeObjectURL = vi.fn()
+    await db.insert('transactions', [
+      { type: 'expense', amount_paise: 25000, category: 'Food', note: 'Lunch', txn_date: TODAY },
+      { type: 'expense', amount_paise: 90000, category: 'Food', note: 'Groceries', txn_date: TODAY },
+      { type: 'expense', amount_paise: 15000, category: 'Food', note: 'Coffee beans', txn_date: TODAY },
+    ])
+    renderApp('/finance')
+    const li = async (t) => (await screen.findByText(t, {}, { timeout: 40_000 })).closest('li')
+    await li('Lunch')
+
+    rightClick(screen.getByRole('main'))
+    expect(await item('Add expense')).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Export all as CSV' })).toBeInTheDocument()
+    await user.click(screen.getByRole('menuitem', { name: 'Add income' }))
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+    rightClick(await li('Lunch'))
+    await user.click(await item('Change category'))
+    await user.click(await choice('Travel'))
+    await waitFor(async () => expect((await rows('transactions')).find((t) => t.note === 'Lunch').category).toBe('Travel'))
+    await user.click(await screen.findByRole('button', { name: 'Undo' }))
+    await waitFor(async () => expect((await rows('transactions')).find((t) => t.note === 'Lunch').category).toBe('Food'))
+
+    rightClick(await li('Lunch'))
+    await user.click(await item('Copy transaction'))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(expect.stringContaining('Lunch')))
+
+    rightClick(await li('Lunch'))
+    await user.click(await item('Duplicate'))
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+    // bulk: select two, export them, then delete them
+    await user.keyboard('{Control>}')
+    await user.click(await li('Groceries'))
+    await user.click(await li('Coffee beans'))
+    await user.keyboard('{/Control}')
+    expect(await screen.findByText('2 transactions selected')).toBeInTheDocument()
+    rightClick(await li('Groceries'))
+    await user.click(await item('Export 2 transactions as CSV'))
+    expect(URL.createObjectURL).toHaveBeenCalled()
+    rightClick(await li('Groceries'))
+    await user.click(await item('Delete 2 transactions'))
+    await user.click(await within(await screen.findByRole('dialog')).findByRole('button', { name: 'Delete 2' }))
+    await waitFor(async () => expect((await rows('transactions')).map((t) => t.note)).toEqual(['Lunch']))
+
+    rightClick(await li('Lunch'))
+    await user.click(await item('Delete transaction'))
+    await user.click(await within(await screen.findByRole('dialog')).findByRole('button', { name: 'Delete' }))
+    await waitFor(async () => expect(await rows('transactions')).toHaveLength(0))
+  })
+})
