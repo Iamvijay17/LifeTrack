@@ -12,6 +12,7 @@ import { auth } from '@/services/auth'
 import { toAppError } from '@/services/errors'
 import { FingerprintScan } from './FingerprintScan'
 import { PinDots, PinKeypad } from './PinKeypad'
+import { ModuleUnlockDialog } from './ModuleUnlock'
 import { useSecurity } from './SecurityProvider'
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -365,6 +366,7 @@ export function AppLockGate({ children }) {
   return (
     <>
       {!sec.locked && children}
+      {!sec.locked && <ModuleUnlockDialog />}
       <AnimatePresence>{sec.locked && <LockScreen key="lock" />}</AnimatePresence>
     </>
   )

@@ -12,6 +12,7 @@ import { MotionProvider } from '@/components/motion/primitives'
 import LegalPage from '@/features/legal/LegalPage'
 import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from '@/features/auth/AuthPages'
 import { AppLockGate } from '@/features/security/LockScreen'
+import { ModuleGate } from '@/features/security/ModuleUnlock'
 import { SecurityProvider } from '@/features/security/SecurityProvider'
 
 const page = (loader) => lazy(loader)
@@ -77,16 +78,58 @@ export default function App() {
                 <Route path="planner" element={<Planner />} />
                 <Route path="calendar" element={<Calendar />} />
                 <Route path="learning" element={<Learning />} />
-                <Route path="jobs" element={<Jobs />} />
-                <Route path="fitness" element={<Fitness />} />
+                <Route
+                  path="jobs"
+                  element={
+                    <ModuleGate module="jobs">
+                      <Jobs />
+                    </ModuleGate>
+                  }
+                />
+                <Route
+                  path="fitness"
+                  element={
+                    <ModuleGate module="fitness">
+                      <Fitness />
+                    </ModuleGate>
+                  }
+                />
                 <Route path="fitness/exercises/:id" element={<ExerciseDetail />} />
-                <Route path="health" element={<Health />} />
-                <Route path="nutrition" element={<Nutrition />} />
-                <Route path="finance" element={<Finance />} />
+                <Route
+                  path="health"
+                  element={
+                    <ModuleGate module="health">
+                      <Health />
+                    </ModuleGate>
+                  }
+                />
+                <Route
+                  path="nutrition"
+                  element={
+                    <ModuleGate module="nutrition">
+                      <Nutrition />
+                    </ModuleGate>
+                  }
+                />
+                <Route
+                  path="finance"
+                  element={
+                    <ModuleGate module="finance">
+                      <Finance />
+                    </ModuleGate>
+                  }
+                />
                 <Route path="habits" element={<Habits />} />
                 <Route path="analytics" element={<Analytics />} />
                 <Route path="focus" element={<Focus />} />
-                <Route path="notes" element={<Notes />} />
+                <Route
+                  path="notes"
+                  element={
+                    <ModuleGate module="notes">
+                      <Notes />
+                    </ModuleGate>
+                  }
+                />
                 <Route path="goals" element={<Goals />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="notifications" element={<Notifications />} />

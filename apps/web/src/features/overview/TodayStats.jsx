@@ -3,6 +3,7 @@ import { StatCard } from '@/components/shared/StatCard'
 import { SparkBars, SparkDots } from '@/components/shared/chartParts'
 import { percentOfGoal } from '@/domain/health'
 import { fmtDuration } from '@/lib/dates'
+import { LockedStat } from '@/features/security/ModuleUnlock'
 
 const spark = (values) => (values?.some((v) => v) ? <SparkBars values={values} highlight={values.length - 1} className="h-6" /> : null)
 
@@ -10,7 +11,8 @@ const spark = (values) => (values?.some((v) => v) ? <SparkBars values={values} h
  * Eight small tiles for today, each in its module's colour and linking to it. `h` is todayHeadlines(); `money(paise)` formats in the user's currency.
  * `trends` optionally holds the last seven days of each metric ({ study, sleep, water, steps, spend, workouts }) for the tile's small chart.
  */
-export function TodayStats({ h, settings, money, activeApplications, trends = {} }) {
+export function TodayStats({ h, settings, money, activeApplications, trends = {}, locked = [] }) {
+  const shut = (module) => locked.includes(module)
   const study = settings.daily_study_target_minutes
   const water = h.health?.water_ml ?? 0
   const steps = h.health?.steps ?? 0
@@ -26,51 +28,82 @@ export function TodayStats({ h, settings, money, activeApplications, trends = {}
         progress={study ? Math.min(100, (h.studyMinutes / study) * 100) : null}
         to="/learning"
       />
-      <StatCard
-        icon={Dumbbell}
-        module="fitness"
-        label="Gym"
-        value={h.gym}
-        sub={h.workoutName}
-        chart={trends.workouts ? <SparkDots values={trends.workouts} className="py-1" /> : null}
-        to="/fitness"
-      />
-      <StatCard
-        icon={Moon}
-        module="health"
-        label="Sleep"
-        value={slept != null ? fmtDuration(slept) : '—'}
-        sub={slept != null ? 'last night' : 'not logged'}
-        chart={spark(trends.sleep)}
-        to="/health"
-      />
-      <StatCard
-        icon={Droplets}
-        module="health"
-        label="Water"
-        value={`${water} ml`}
-        sub={settings.water_goal_ml ? `goal ${settings.water_goal_ml}` : undefined}
-        progress={percentOfGoal(water, settings.water_goal_ml)}
-        to="/health"
-      />
-      <StatCard
-        icon={Footprints}
-        module="health"
-        label="Steps"
-        value={steps.toLocaleString('en-IN')}
-        sub={settings.steps_goal ? `goal ${settings.steps_goal.toLocaleString('en-IN')}` : undefined}
-        progress={percentOfGoal(steps, settings.steps_goal)}
-        to="/health"
-      />
-      <StatCard
-        icon={Briefcase}
-        module="jobs"
-        label="Applications"
-        value={h.appliedThisWeek}
-        sub={`this week · ${activeApplications} active`}
-        to="/jobs"
-      />
-      <StatCard icon={Wallet} module="finance" label="Spent today" value={money(h.spentToday)} chart={spark(trends.spend)} to="/finance" />
+      {shut('fitness') ? (
+        <LockedStat module="fitness" label="Gym" />
+      ) : (
+        <StatCard
+          icon={Dumbbell}
+          module="fitness"
+          label="Gym"
+          value={h.gym}
+          sub={h.workoutName}
+          chart={trends.workouts ? <SparkDots values={trends.workouts} className="py-1" /> : null}
+          to="/fitness"
+        />
+      )}
+      {shut('health') ? (
+        <LockedStat module="health" label="Sleep" />
+      ) : (
+        <StatCard
+          icon={Moon}
+          module="health"
+          label="Sleep"
+          value={slept != null ? fmtDuration(slept) : '—'}
+          sub={slept != null ? 'last night' : 'not logged'}
+          chart={spark(trends.sleep)}
+          to="/health"
+        />
+      )}
+      {shut('health') ? (
+        <LockedStat module="health" label="Water" />
+      ) : (
+        <StatCard
+          icon={Droplets}
+          module="health"
+          label="Water"
+          value={`${water} ml`}
+          sub={settings.water_goal_ml ? `goal ${settings.water_goal_ml}` : undefined}
+          progress={percentOfGoal(water, settings.water_goal_ml)}
+          to="/health"
+        />
+      )}
+      {shut('health') ? (
+        <LockedStat module="health" label="Steps" />
+      ) : (
+        <StatCard
+          icon={Footprints}
+          module="health"
+          label="Steps"
+          value={steps.toLocaleString('en-IN')}
+          sub={settings.steps_goal ? `goal ${settings.steps_goal.toLocaleString('en-IN')}` : undefined}
+          progress={percentOfGoal(steps, settings.steps_goal)}
+          to="/health"
+        />
+      )}
+      {shut('jobs') ? (
+        <LockedStat module="jobs" label="Applications" />
+      ) : (
+        <StatCard
+          icon={Briefcase}
+          module="jobs"
+          label="Applications"
+          value={h.appliedThisWeek}
+          sub={`this week · ${activeApplications} active`}
+          to="/jobs"
+        />
+      )}
+      {shut('finance') ? (
+        <LockedStat module="finance" label="Spent today" />
+      ) : (
+        <StatCard
+          icon={Wallet}
+          module="finance"
+          label="Spent today"
+          value={money(h.spentToday)}
+          chart={spark(trends.spend)}
+          to="/finance"
+        />
+      )}
       <StatCard
         icon={Check}
         module="habits"

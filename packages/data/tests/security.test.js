@@ -46,6 +46,10 @@ describe('state and PIN answers', () => {
       biometricEnabled: true,
       passkeyCount: 2,
       locked: true,
+      moduleLocksSupported: false,
+      lockScope: 'app',
+      lockedModules: [],
+      sessionUnlocked: false,
       lockoutSeconds: 30,
       failedAttempts: 5,
       sessionId: 's',
@@ -66,6 +70,35 @@ describe('state and PIN answers', () => {
       failedAttempts: 2,
     })
     expect(normalizePin({ ok: true })).toMatchObject({ ok: true, reason: null, triesLeft: null })
+  })
+})
+
+describe('module locks', () => {
+  it('reads the scope, the chosen modules and whether this session is unlocked', () => {
+    expect(
+      normalizeState({ app_lock_enabled: true, lock_scope: 'modules', locked_modules: ['finance', 'health'], session_unlocked: false, locked: false }),
+    ).toMatchObject({ moduleLocksSupported: true, lockScope: 'modules', lockedModules: ['finance', 'health'], sessionUnlocked: false, locked: false })
+  })
+  it('treats a database without migration 0015 as the whole-app lock', () => {
+    expect(normalizeState({ app_lock_enabled: true, locked: true })).toMatchObject({
+      moduleLocksSupported: false, lockScope: 'app', lockedModules: [], sessionUnlocked: false,
+    })
+    expect(normalizeState({ app_lock_enabled: true, locked: false })).toMatchObject({ sessionUnlocked: true })
+  })
+  it('never trusts an odd scope or list', () => {
+    expect(normalizeState({ lock_scope: 'galaxy', locked_modules: 'finance' })).toMatchObject({ lockScope: 'app', lockedModules: [] })
+  })
+  it('sends the choice to the database function and reads the state back', async () => {
+    const sb = mk({ rpc: async () => ({ data: { app_lock_enabled: true, lock_scope: 'modules', locked_modules: ['notes'], session_unlocked: true }, error: null }) })
+    const s = await createSupabaseSecurity(sb).setLockModules('modules', ['notes'])
+    expect(sb.rpc).toHaveBeenCalledWith('set_lock_modules', { p_scope: 'modules', p_modules: ['notes'] })
+    expect(s).toMatchObject({ lockScope: 'modules', lockedModules: ['notes'], sessionUnlocked: true })
+  })
+  it('passes the database messages through, and says so when the migration has not run', async () => {
+    const refused = mk({ rpc: async () => dbError('Choose at least one module to lock, or lock the whole app.', '22023') })
+    await expect(createSupabaseSecurity(refused).setLockModules('modules', [])).rejects.toThrow(/at least one module/)
+    const missing = mk({ rpc: async () => dbError('not found', 'PGRST202') })
+    await expect(createSupabaseSecurity(missing).setLockModules('app')).rejects.toMatchObject({ code: 'MODULE_LOCKS_NOT_INSTALLED', message: expect.stringContaining('0015_module_locks.sql') })
   })
 })
 

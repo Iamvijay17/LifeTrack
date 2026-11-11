@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { isNotInstalled, isSessionEnded } from '@lifetrack/data'
+import { closedModules } from '@lifetrack/core/moduleLocks'
 import { resetStore } from '@/hooks/store'
 import { useAuth } from '@/hooks/useAuth'
 import { explainPasskeyError, getPasskey, passkeySupport } from '@/lib/webauthn'
@@ -28,6 +29,8 @@ export function SecurityProvider({ children }) {
   const lastUser = useRef(null)
   const [state, setState] = useState(null)
   const [error, setError] = useState(null)
+  // The module an unlock prompt is open for (a key such as 'finance', or '*' for "any"), or null. The prompt itself is drawn by AppLockGate.
+  const [unlockFor, setUnlockFor] = useState(null)
   const [support, setSupport] = useState({ supported: false, platform: false, reason: null })
   const stateRef = useRef(null)
   const locking = useRef(false) // while a lock request is in flight, an older "unlocked" answer must not flip the screen back
@@ -117,12 +120,18 @@ export function SecurityProvider({ children }) {
 
   const locked = status === 'ready' && !!state?.locked
   const enabled = status === 'ready' && !!state?.appLockEnabled
+  // With module locks the app is open and only the chosen modules are closed (see packages/core/src/moduleLocks.js).
+  const closed = useMemo(() => (status === 'ready' ? closedModules(state) : []), [status, state])
+  const closedKey = closed.join(',')
+  const sessionUnlocked = status === 'ready' && !!state && state.sessionUnlocked !== false
 
   /** Locks now. The screen changes first; the server call follows. If it fails, the server's own inactivity window still closes the data. */
   const lockNow = useCallback(async () => {
-    if (!stateRef.current?.appLockEnabled) return
+    const now = stateRef.current
+    if (!now?.appLockEnabled) return
     locking.current = true
-    apply({ ...stateRef.current, locked: true })
+    // The whole-app lock shows the lock screen; module locks close just their modules (the app stays open).
+    apply({ ...now, locked: now.lockScope !== 'modules', sessionUnlocked: false })
     announce('lock')
     try {
       await security.lock()
@@ -139,6 +148,22 @@ export function SecurityProvider({ children }) {
     resetStore()
     toast.dismiss() // a reminder or a saved-entry toast could otherwise sit on top of the lock screen and show what is behind it
   }, [locked])
+
+  // Module locks: when the set of closed modules changes (locked, unlocked, or a different choice), what was loaded is stale. Locking drops the
+  // data of the modules that just closed; unlocking loads what the server now allows. The first answer starts from an empty store anyway.
+  const seenClosed = useRef(null)
+  useEffect(() => {
+    if (status !== 'ready') return
+    if (seenClosed.current !== null && seenClosed.current !== closedKey) {
+      resetStore()
+      toast.dismiss()
+    }
+    seenClosed.current = closedKey
+    if (!closedKey) setUnlockFor(null) // everything is open again: any prompt is done
+  }, [status, closedKey])
+  useEffect(() => {
+    if (!userId) seenClosed.current = null
+  }, [userId])
 
   const unlockWithPin = useCallback(async (pin) => {
     try {
@@ -173,7 +198,7 @@ export function SecurityProvider({ children }) {
 
   // ------------------------------------------------------------------ inactivity, leaving the app, heartbeat
   useEffect(() => {
-    if (!enabled || locked) return
+    if (!enabled || locked || !sessionUnlocked) return // nothing is unlocked, so there is nothing to keep open
     const auto = state.autoLockSeconds
 
     const beat = (force = false) => {
@@ -217,7 +242,7 @@ export function SecurityProvider({ children }) {
       document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('focus', onVisibility)
     }
-  }, [enabled, locked, state?.autoLockSeconds, lockNow, refresh])
+  }, [enabled, locked, sessionUnlocked, state?.autoLockSeconds, lockNow, refresh])
 
   const value = useMemo(
     () => ({
@@ -226,6 +251,11 @@ export function SecurityProvider({ children }) {
       error,
       enabled,
       locked,
+      closed,
+      sessionUnlocked,
+      unlockFor,
+      requestUnlock: (module = '*') => setUnlockFor(module),
+      cancelUnlock: () => setUnlockFor(null),
       support,
       refresh,
       retry: () => {
@@ -238,7 +268,23 @@ export function SecurityProvider({ children }) {
       finishUnlock,
       announce,
     }),
-    [status, state, error, enabled, locked, support, refresh, lockNow, unlockWithPin, unlockWithPasskey, finishUnlock, announce],
+    [
+      status,
+      state,
+      error,
+      enabled,
+      locked,
+      closed,
+      sessionUnlocked,
+      unlockFor,
+      support,
+      refresh,
+      lockNow,
+      unlockWithPin,
+      unlockWithPasskey,
+      finishUnlock,
+      announce,
+    ],
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
