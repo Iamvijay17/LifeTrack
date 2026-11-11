@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { MoreHorizontal } from 'lucide-react'
+import { Lock, MoreHorizontal } from 'lucide-react'
 import { NAV, NAV_GROUPS, MOBILE_PRIMARY } from '@/lib/nav'
 import { Dialog } from '@/components/ui/dialog'
 import { LayoutGroup, m, spring } from '@/components/motion/primitives'
 import { tick } from '@/lib/celebrate'
 import { cn } from '@/lib/utils'
+import { useModuleLocks } from '@/features/security/useModuleLocks'
 
 /** A pill that slides between tabs, behind the icon, like the native Material and iOS tab bars. */
 function Pill() {
@@ -21,6 +22,7 @@ function Pill() {
 
 export function MobileNav() {
   const [more, setMore] = useState(false)
+  const { isLocked } = useModuleLocks()
   const primary = NAV.filter((n) => MOBILE_PRIMARY.includes(n.to))
   const item = (isActive) =>
     cn(
@@ -83,6 +85,11 @@ export function MobileNav() {
                         <Icon className="h-[18px] w-[18px]" aria-hidden />
                       </span>
                       {short ?? label}
+                      {isLocked(module) && (
+                        <span className="-mt-1 inline-flex items-center gap-1 text-[10px] font-normal text-muted-foreground">
+                          <Lock className="h-2.5 w-2.5" aria-hidden /> Locked
+                        </span>
+                      )}
                     </NavLink>
                   ))}
                 </div>

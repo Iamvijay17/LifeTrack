@@ -3,6 +3,7 @@ import { BookOpen, Briefcase, Check, CheckSquare, Droplets, Dumbbell, Plus, Wall
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { Magnetic, m, spring } from '@/components/motion/primitives'
+import { useModuleLocks } from '@/features/security/useModuleLocks'
 
 // The forms behind the buttons are loaded the first time one is opened (see QuickDialogs).
 const QuickDialogs = lazy(() => import('./QuickDialogs'))
@@ -24,15 +25,27 @@ export function QuickActionsProvider({ children }) {
   const [kind, setKind] = useState(null)
   const [menu, setMenu] = useState(false)
   const close = useCallback(() => setKind(null), [])
+  // A form that writes into a locked module (an expense, a workout…) would be refused by the database, so the person is asked to unlock first.
+  const locks = useModuleLocks()
+  const request = useCallback(
+    (k) => {
+      const module = QUICK.find((q) => q.kind === k)?.module
+      if (module && locks.isLocked(module)) {
+        setMenu(false)
+        locks.unlock(module)
+      } else setKind(k)
+    },
+    [locks],
+  )
   const value = useMemo(
     () => ({
-      open: setKind,
+      open: request,
       menu: () => {
         setMenu(true)
         import('./QuickDialogs') // start fetching the forms while the menu is on screen, so the chosen one opens at once
       },
     }),
-    [],
+    [request],
   )
   return (
     <Ctx.Provider value={value}>
@@ -45,7 +58,7 @@ export function QuickActionsProvider({ children }) {
               data-module={module}
               onClick={() => {
                 setMenu(false)
-                setKind(k)
+                request(k)
               }}
               className="lt-lift flex items-center gap-2.5 rounded-lg border border-border bg-surface-2/50 px-3 py-3 text-left text-sm font-medium"
             >

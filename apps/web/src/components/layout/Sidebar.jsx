@@ -1,15 +1,17 @@
 import { NavLink } from 'react-router-dom'
-import { PanelLeftClose, PanelLeftOpen, LogOut } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, LogOut, Lock } from 'lucide-react'
 import { m, spring } from '@/components/motion/primitives'
 import { Tooltip } from '@/components/ui/tooltip'
 import { NAV_GROUPS } from '@/lib/nav'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
+import { useModuleLocks } from '@/features/security/useModuleLocks'
 import { auth } from '@/services/auth'
 import { Logo } from './Logo'
 
 function Item({ item, collapsed }) {
   const { to, label, icon: Icon, end, module } = item
+  const locked = useModuleLocks().isLocked(module)
   return (
     <Tooltip label={label} disabled={!collapsed}>
       <NavLink
@@ -43,6 +45,16 @@ function Item({ item, collapsed }) {
               <Icon className="h-[15px] w-[15px]" aria-hidden />
             </span>
             {collapsed ? <span className="sr-only">{label}</span> : <span className="relative truncate">{label}</span>}
+            {locked && (
+              <>
+                <Lock
+                  aria-hidden
+                  data-testid="nav-lock"
+                  className={cn('relative h-3 w-3 shrink-0 text-muted-foreground', collapsed ? 'absolute right-1 top-1' : 'ml-auto mr-2')}
+                />
+                <span className="sr-only"> (locked)</span>
+              </>
+            )}
           </>
         )}
       </NavLink>

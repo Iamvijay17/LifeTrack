@@ -9,6 +9,7 @@ and what they do **not** do. The wider security review is [SECURITY.md](SECURITY
 | Lockout after repeated wrong passwords | database hook (you switch it on, §3) | 🟡 needs a dashboard step |
 | App lock: 4 or 6 digit PIN, auto-lock, lock now, lock when returning | `/security`, lock screen | ✅ |
 | Server-enforced: Finance, Journal and Notes refuse a locked session | RLS policy `app_lock_gate` | ✅ (Supabase builds) |
+| **Module locks**: lock only Finance, Health, Fitness, Nutrition, Jobs or Journal; locked cards on the dashboard, an unlock prompt, one unlock for all (§4a) | `/security` → *What to lock*, migration 0015 | ✅ web, 🟡 run `0015_module_locks.sql` |
 | Fingerprint / face / device-PIN unlock through WebAuthn passkeys | `/security`, lock screen, `webauthn` Edge Function | 🟡 needs the function deployed (§5) |
 | Registered devices: add, rename, remove | `/security` | ✅ |
 | Active sessions: list, sign out one, others, or everywhere; trust a phone | `/security` | ✅ |
@@ -99,6 +100,35 @@ clears toasts, and renders nothing until the first answer arrives.
   **trusted** (never itself): it skips the PIN until you withdraw it, sign it out, reset the PIN or turn the lock off. Use it for your phone; anyone holding a trusted device can read those sections.
 - **Turning it off** needs the PIN. Changing it needs the current one.
 
+## 4a. Module locks: lock only some modules
+
+The app lock can lock **the whole app** (the default, §4) or **only the modules you choose**: Finance, Journal & notes, Health & sleep, Gym & fitness, Food & nutrition, Job switch.
+Choose under Security & Privacy → App lock → *What to lock*. It reuses the same PIN, fingerprint / face unlock and auto-lock time; nothing new to set up.
+
+| | Whole app | Only the modules I choose |
+| --- | --- | --- |
+| Lock screen | Yes, nothing shows until you unlock | **No.** LifeTrack opens as usual |
+| Dashboard | n/a | A locked module's card is replaced by a **Locked · Tap to unlock** card; the "Today at a glance" tiles of that module show a lock |
+| Module page (`/finance`, …) | n/a | The unlock pad is shown instead of the page (the page is not even loaded) |
+| Unlocking | PIN, passkey, or typing the password again | PIN or passkey. **One unlock opens every locked module** until the auto-lock time runs out or you press *Lock now* |
+| A fresh password sign-in | Opens the app without the PIN | Does **not** open the modules: the point is to be asked each time |
+| Closed on the server | Finance, Journal & notes (as before) | Every table of each module you chose (list below) |
+
+- **Enforced like the app lock.** Migration `0015_module_locks.sql` adds `lock_scope` and `locked_modules` to `user_security`, a function `module_session_open(module, gated_in_app)`, and a RESTRICTIVE policy on the tables of each module
+  (`app_lock_gate` on the two legacy modules, `module_lock_gate` on the others). A session that has not entered the PIN reads nothing from a locked module and cannot write to it. Choosing what to lock (`set_lock_modules`) needs an
+  **unlocked** session and the app lock on, so a locked device cannot edit its own list. Going back to "the whole app" keeps the list; turning the app lock off forgets it.
+- **Tables per module** (`packages/core/src/moduleLocks.js` and the end of the migration; a test compares them): Finance `transactions, budgets, savings_goals, recurring_rules` · Journal & notes `notes, journal_entries` ·
+  Health `health_logs, body_measurements` · Fitness `workouts, exercise_logs` · Nutrition `food_logs, nutrition_settings, water_logs` · Jobs `job_applications, application_history, interview_events`.
+  Under the **whole-app** lock only the first two modules are closed on the server, exactly as before; the others are closed on the server only when you lock them as a module.
+- **What the page does while a module is locked.** The dashboard computes every figure from data with the locked modules' tables emptied (so the Life Score, activity, upcoming and Today figures leave them out, and a line says so
+  with an *Unlock* button), the sidebar shows a padlock, **Quick add** asks to unlock instead of opening a form the database would refuse, and **Data Export** waits until everything is unlocked (a backup or erase made
+  meanwhile would silently skip the locked modules). On unlock, or lock, the page drops what it loaded and reloads.
+- **Not covered.** Pages that add up several modules (Analytics, Reports, Planner, Calendar) simply see empty data for a locked module on a Supabase build; they are not replaced by a lock. Notifications that were already
+  created (for example a budget warning) are not locked. The **mobile app** does not know module locks yet: with module locks on, the phone shows the locked modules as empty until it is marked *trusted*
+  (Security & Privacy → Where you're signed in), which opens them for that device. The DEV backend has no server, so it only hides the modules on screen.
+- **Deploying.** Run `0012_security.sql`, then `0015_module_locks.sql` (additive, safe to re-run, off by default for every account; the number 0014 is held by the phone-biometrics work). Until it runs, the choice is not
+  offered and the lock behaves as in §4.
+
 ## 5. Fingerprint and face unlock (WebAuthn passkeys)
 
 JavaScript in a browser **cannot read a fingerprint or a face, and LifeTrack does not claim to**. What the browser offers is WebAuthn: the device's own authenticator (Touch ID, Windows Hello,
@@ -179,9 +209,9 @@ should use the platform primitives rather than WebAuthn:
 
 | Piece | Files |
 | --- | --- |
-| Database | `supabase/migrations/0012_security.sql` |
+| Database | `supabase/migrations/0012_security.sql`, `0015_module_locks.sql` |
 | Edge Function | `supabase/functions/webauthn/` (`index.ts` wiring, `logic.js` decisions), `_shared/webauthn.js` (generated copy) |
-| Shared rules | `packages/core/src/security.js` (passwords, PINs, lockout, auto-lock), `packages/core/src/webauthn.js` (verification) |
+| Shared rules | `packages/core/src/moduleLocks.js` (which modules, tables, widgets, pages), `packages/core/src/security.js` (passwords, PINs, lockout, auto-lock), `packages/core/src/webauthn.js` (verification) |
 | Client API | `packages/data/src/security.js`, `packages/data/src/auth.js` (`changePassword`) |
 | Web | `apps/web/src/features/security/` (provider, lock screen, keypad, fingerprint animation, page and cards), `services/security.js`, `services/localSecurity.js`, `lib/webauthn.js` |
 
@@ -192,6 +222,7 @@ should use the platform primitives rather than WebAuthn:
 | `supabase/tests/pglite/security.test.ts` | The gate on every protected table, PIN set / verify / change / disable / reset, lockout and the shared schedule, unlock window and heartbeat, trusted devices, sessions, passkey functions (single-use challenges, counters, privileges), the password hook, the migration re-run. Mutation-checked. |
 | `packages/core/tests/security.test.js`, `webauthn.test.js`, `webauthn-function.test.js` | Rules; the verifier against a software authenticator (ES256 and RS256, every rejection path); the Edge Function's decisions with a fake database. |
 | `packages/data/tests/security.test.js` | The client API, error mapping, `changePassword`. |
+| `supabase/tests/pglite/moduleLocks.test.ts`, `packages/core/tests/moduleLocks.test.js`, `apps/web/tests/moduleLocks.test.jsx` | Module locks: every table of every module closed to a locked session and open after the PIN, the list compared with the database, who may change it, scope switching, the dashboard overlay, locked pages, Quick add, Export, the settings. |
 | `apps/web/tests/localSecurity.test.js`, `devAuthSecurity.test.js`, `securityUi.test.jsx` | The dev backend, the gate, lock screen, Security page and cards in jsdom. |
 | `apps/web/e2e/security.spec.js`, `security-responsive.spec.js` | Real Chromium: lock, wrong and right PIN, lockout, idle and hidden-tab auto-lock (fake clock), a **real WebAuthn virtual authenticator** end to end, passwords, legacy-account upgrade, accessibility scans, phone viewport. |
 
@@ -204,7 +235,7 @@ Not testable here: a real Supabase stack (GoTrue sessions, PostgREST claims, the
   steals a live session can therefore take the account over even though they cannot read Finance. Mitigate with *Secure password change*, short session lifetimes (Auth settings), and by treating a stolen device as
   a compromised account: change the password from another device, which signs this one out.
 - A 4 or 6 digit PIN cannot survive an offline attack on a leaked database whatever the hash. Its protection is the online lockout; the account password is the real secret.
-- Tables other than the six above are hidden by the lock screen but not closed on the server.
+- Under the whole-app lock, tables other than the six above are hidden by the lock screen but not closed on the server (module locks, §4a, close the others when you choose them).
 - Notes, journal and finance data are not encrypted at rest by the app (Supabase encrypts storage); the lock controls who is served them.
 - **No session cookies.** Sign-in sessions are Supabase's tokens in the browser's `localStorage` (mobile: the OS keychain). HttpOnly cookies need a server of our own to set them; there is none, and adding one is a
   different architecture. The strict Content-Security-Policy and the absence of HTML-injection sinks are the mitigation ([SECURITY.md §9](SECURITY.md) #4).

@@ -17,6 +17,7 @@ import { dashboardGoals, greetingFor, recentActivity, todayHeadlines } from '@/d
 import { dayStatus } from '@/domain/nutrition'
 import { gettingStartedSteps, isBrandNew } from '@lifetrack/core/dashboard'
 import { COMMAND_NEEDING_DATA, layoutOf } from '@lifetrack/core/commandCenter'
+import { moduleOfWidget, tableClosed } from '@lifetrack/core/moduleLocks'
 import { lifeScore } from '@lifetrack/core/lifeScore'
 import {
   financeSnapshot,
@@ -35,6 +36,8 @@ import { formatMoney } from '@/lib/money'
 import { celebrate } from '@/lib/celebrate'
 import { cn } from '@/lib/utils'
 import { healthWeek } from '@/domain/health'
+import { LockedCard, LockedModulesNotice } from '@/features/security/ModuleUnlock'
+import { useModuleLocks } from '@/features/security/useModuleLocks'
 import { DashboardHero } from './DashboardHero'
 import { ActivityCard } from './ActivityCard'
 import { CustomizeDialog } from './CustomizeDialog'
@@ -90,6 +93,8 @@ const TABLES = [
   'learning_topics',
 ]
 
+const NO_ROWS = Object.freeze([])
+
 export default function OverviewPage() {
   const today = useToday()
   const { displayName } = useAuth()
@@ -97,12 +102,24 @@ export default function OverviewPage() {
   const quick = useQuick()
   const [customizing, setCustomizing] = useState(false)
   const { timezone: tz, week_starts_on: weekStartsOn, currency } = settings
-  const { data, loading, error, refetch } = useTables(...TABLES)
+  const locks = useModuleLocks()
+  const closedKey = locks.closed.join()
+  const { data: loaded, loading, error, refetch } = useTables(...TABLES)
   // Read on its own: until migration 0008 is applied the table is missing, and that must not take the whole dashboard down.
-  const { rows: recurringRules } = useTable('recurring_rules')
+  const { rows: allRecurringRules } = useTable('recurring_rules')
   // Same for the nutrition tables (migration 0009).
-  const { rows: foodLogs } = useTable('food_logs')
-  const { rows: nutritionSettings } = useTable('nutrition_settings')
+  const { rows: allFoodLogs } = useTable('food_logs')
+  const { rows: allNutritionSettings } = useTable('nutrition_settings')
+  // A locked module's tables are empty here, whatever was loaded: the database hands a locked session nothing, and this also covers the DEV
+  // backend (which has no server to refuse). Every figure below is computed from these, so nothing from a locked module reaches the page.
+  const { closed } = locks
+  const data = useMemo(
+    () => Object.fromEntries(Object.entries(loaded).map(([t, rows]) => [t, tableClosed(closed, t) ? NO_ROWS : rows])),
+    [loaded, closedKey], // eslint-disable-line react-hooks/exhaustive-deps -- `closed` changes exactly when its key does
+  )
+  const recurringRules = tableClosed(closed, 'recurring_rules') ? NO_ROWS : allRecurringRules
+  const foodLogs = tableClosed(closed, 'food_logs') ? NO_ROWS : allFoodLogs
+  const nutritionSettings = tableClosed(closed, 'nutrition_settings') ? NO_ROWS : allNutritionSettings
   const { habits, logs: habitLogs, stats: habitStats, loading: habitsLoading, error: habitsError } = useHabits(today, weekStartsOn)
 
   const layout = useDashboardLayout(settings.dashboard_widgets, saveSettings)
@@ -382,7 +399,14 @@ export default function OverviewPage() {
     ),
     upcoming: (cls) => <UpcomingCard upcoming={upcoming} today={today} money={money} className={cls} />,
     stats: () => (
-      <TodayStats h={headlines} settings={settings} money={money} activeApplications={activePipelineCount(applications)} trends={trends} />
+      <TodayStats
+        h={headlines}
+        settings={settings}
+        money={money}
+        activeApplications={activePipelineCount(applications)}
+        trends={trends}
+        locked={locks.closed}
+      />
     ),
     goals: (cls) => <GoalsCard rows={goals} className={cls} />,
     learning: (cls) => <LearningCard snap={learning} className={cls} />,
@@ -409,6 +433,7 @@ export default function OverviewPage() {
         onCustomize={() => setCustomizing(true)}
       />
       <DataGate loading={loading || habitsLoading} error={error || habitsError} onRetry={refetch}>
+        <LockedModulesNotice className="mb-4" />
         {!fresh && <KpiStrip kpis={kpis} />}
         <Stagger gap={0.05} className="grid grid-cols-1 gap-4 lg:grid-cols-12" data-testid="widget-grid">
           {rows.map(({ key, span, size }) => (
@@ -418,7 +443,11 @@ export default function OverviewPage() {
               data-size={size}
               className={cn('min-w-0 [container-type:inline-size]', SPAN[span] ?? 'lg:col-span-12')}
             >
-              {widgets[key]('h-full')}
+              {moduleOfWidget(key) && locks.isLocked(moduleOfWidget(key)) ? (
+                <LockedCard module={moduleOfWidget(key)} className="h-full" />
+              ) : (
+                widgets[key]('h-full')
+              )}
             </StaggerItem>
           ))}
         </Stagger>

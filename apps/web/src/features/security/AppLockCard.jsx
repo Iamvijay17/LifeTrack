@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
-import { BookLock, KeyRound, Lock, LockKeyhole, Wallet } from 'lucide-react'
+import { KeyRound, Lock, LockKeyhole } from 'lucide-react'
 import { toast } from 'sonner'
+import { LOCKABLE_MODULES } from '@lifetrack/core/moduleLocks'
 import { AUTO_LOCK_OPTIONS, formatWait } from '@lifetrack/core/security'
 import { SettingsSection } from '@/components/shared/SettingsSection'
 import { Button } from '@/components/ui/button'
@@ -10,6 +11,7 @@ import { useAction } from '@/hooks/useAction'
 import { auth } from '@/services/auth'
 import { isDevMode } from '@/services/db'
 import { security } from '@/services/security'
+import { ModuleLockSettings } from './ModuleLockSettings'
 import { PinWizard } from './PinWizard'
 import { useSecurity } from './SecurityProvider'
 import { ForgotPinDialog } from './ForgotPinDialog'
@@ -101,6 +103,8 @@ export function AppLockCard() {
         </>
       )}
 
+      <ModuleLockSettings />
+
       <div className="border-t border-border pt-4">
         <p className="text-xs font-medium text-muted-foreground">
           {isDevMode
@@ -108,16 +112,15 @@ export function AppLockCard() {
             : 'While locked, these stay closed on the server too'}
         </p>
         <ul className="mt-2 flex flex-wrap gap-2">
-          {[
-            [Wallet, 'Finance'],
-            [BookLock, 'Journal & notes'],
-          ].map(([Icon, label]) => (
-            <li key={label}>
-              <Badge tone={st.appLockEnabled ? 'success' : 'neutral'}>
-                <Icon className="h-3 w-3" aria-hidden /> {label}
-              </Badge>
-            </li>
-          ))}
+          {LOCKABLE_MODULES.filter((m) => (st.lockScope === 'modules' ? st.lockedModules.includes(m.key) : m.legacy)).map(
+            ({ key, label }) => (
+              <li key={key}>
+                <Badge tone={st.appLockEnabled ? 'success' : 'neutral'}>
+                  <Lock className="h-3 w-3" aria-hidden /> {label}
+                </Badge>
+              </li>
+            ),
+          )}
         </ul>
         <p className="mt-2 text-xs text-muted-foreground">
           Signing out and back in with your password opens LifeTrack without the PIN, because the password is the stronger proof.
@@ -125,7 +128,8 @@ export function AppLockCard() {
         <p className="mt-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           <span className="font-medium text-foreground">Using the mobile app?</span> It has no lock screen yet. With the lock on, Finance,
           Journal and Notes stay closed there until you mark your phone as <span className="font-medium text-foreground">trusted</span>{' '}
-          under “Where you’re signed in” below.
+          under “Where you’re signed in” below. Module locks are new to the web app: until the mobile app learns about them, a locked module
+          shows as empty on the phone, and marking the phone trusted opens it.
         </p>
       </div>
 

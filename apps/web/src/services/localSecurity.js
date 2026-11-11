@@ -2,6 +2,7 @@
 // rules as supabase/migrations/0012_security.sql and the `webauthn` Edge Function (they share packages/core/src/security.js and webauthn.js), but there
 // is NO server here: everything lives in this browser's localStorage, which anyone with this browser can edit. So the lock is a real UI lock, not a
 // protection of the data. Production = Supabase, where the database enforces it.
+import { MODULE_KEYS, normalizeModules } from '@lifetrack/core/moduleLocks'
 import {
   DEFAULT_AUTO_LOCK,
   isAutoLockSeconds,
@@ -26,6 +27,8 @@ const blank = () => ({
   pin: null,
   autoLock: DEFAULT_AUTO_LOCK,
   biometric: false,
+  scope: 'app', // 'app' = the whole app behind the lock screen · 'modules' = only `modules` ask for the PIN
+  modules: [],
   failed: 0,
   lockoutUntil: 0,
   unlock: null,
@@ -76,7 +79,11 @@ const toState = (rec, now) => ({
   autoLockSeconds: rec.autoLock,
   biometricEnabled: rec.biometric && rec.keys.length > 0,
   passkeyCount: rec.keys.length,
-  locked: rec.enabled && !isUnlocked(rec, now),
+  locked: rec.enabled && rec.scope === 'app' && !isUnlocked(rec, now),
+  moduleLocksSupported: true,
+  lockScope: rec.scope,
+  lockedModules: rec.modules,
+  sessionUnlocked: isUnlocked(rec, now),
   lockoutSeconds: wait(rec, now),
   failedAttempts: rec.failed,
   sessionId: 'this-browser',
@@ -215,7 +222,16 @@ export function createLocalSecurity({ endSession, now: clock = Date.now } = {}) 
       const c = open()
       const r = await checkPin(c, pin)
       if (r.ok) {
-        Object.assign(c.rec, { enabled: false, pin: null, biometric: false, failed: 0, lockoutUntil: 0, unlock: null })
+        Object.assign(c.rec, {
+          enabled: false,
+          pin: null,
+          biometric: false,
+          scope: 'app',
+          modules: [],
+          failed: 0,
+          lockoutUntil: 0,
+          unlock: null,
+        })
         save(c.id, c.rec)
       }
       return r
@@ -226,7 +242,17 @@ export function createLocalSecurity({ endSession, now: clock = Date.now } = {}) 
       if (!c.rec.loginAt || c.now - c.rec.loginAt > RESET_WINDOW_MS)
         throw new AppError('Sign in again with your password first.', { code: '42501' })
       if (newPin != null) checkNewPin(newPin)
-      if (newPin == null) Object.assign(c.rec, { enabled: false, pin: null, biometric: false, failed: 0, lockoutUntil: 0, unlock: null })
+      if (newPin == null)
+        Object.assign(c.rec, {
+          enabled: false,
+          pin: null,
+          biometric: false,
+          scope: 'app',
+          modules: [],
+          failed: 0,
+          lockoutUntil: 0,
+          unlock: null,
+        })
       else {
         Object.assign(c.rec, { enabled: true, pin: await pinFor(newPin), failed: 0, lockoutUntil: 0 })
         markUnlocked(c.rec, c.now, 'password')
@@ -243,7 +269,7 @@ export function createLocalSecurity({ endSession, now: clock = Date.now } = {}) 
     },
     async unlockAfterLogin() {
       const c = open()
-      if (c.rec.enabled && !c.rec.unlock && c.rec.loginAt && c.now - c.rec.loginAt < FRESH_LOGIN_MS) {
+      if (c.rec.enabled && c.rec.scope === 'app' && !c.rec.unlock && c.rec.loginAt && c.now - c.rec.loginAt < FRESH_LOGIN_MS) {
         markUnlocked(c.rec, c.now, 'password')
         Object.assign(c.rec, { failed: 0, lockoutUntil: 0 })
         save(c.id, c.rec)
@@ -263,6 +289,20 @@ export function createLocalSecurity({ endSession, now: clock = Date.now } = {}) 
       const c = requireUnlocked()
       if (!isAutoLockSeconds(seconds)) throw invalid('Choose one of the listed auto-lock times.')
       c.rec.autoLock = seconds
+      save(c.id, c.rec)
+      return toState(c.rec, c.now)
+    },
+    /** Mirrors set_lock_modules: needs an unlocked session and the app lock on; `modules` only matters for scope 'modules'. */
+    async setLockModules(scope, modules = []) {
+      const c = requireUnlocked()
+      if (scope !== 'app' && scope !== 'modules') throw invalid('Choose the whole app or some modules.')
+      if (!c.rec.enabled) throw new AppError('Turn on the app lock first.', { code: '55000' })
+      const list = normalizeModules(modules)
+      if ((Array.isArray(modules) ? modules : []).some((k) => !MODULE_KEYS.includes(k)))
+        throw invalid('One of those modules cannot be locked.')
+      if (scope === 'modules' && list.length === 0) throw invalid('Choose at least one module to lock, or lock the whole app.')
+      c.rec.scope = scope
+      if (scope === 'modules' || list.length) c.rec.modules = list
       save(c.id, c.rec)
       return toState(c.rec, c.now)
     },

@@ -41,6 +41,12 @@ export const normalizeState = (s = {}) => ({
   biometricEnabled: !!s.biometric_enabled,
   passkeyCount: s.passkey_count ?? 0,
   locked: !!s.locked,
+  // Module locks (migration 0015). A database without it answers neither field: the lock then covers the whole app, as it always did.
+  moduleLocksSupported: s.lock_scope !== undefined,
+  lockScope: s.lock_scope === 'modules' ? 'modules' : 'app',
+  lockedModules: Array.isArray(s.locked_modules) ? s.locked_modules : [],
+  // Is THIS session unlocked right now? (With the whole-app lock the page only ever runs while it is; with module locks it is the module gate.)
+  sessionUnlocked: s.session_unlocked ?? !s.locked,
   lockoutSeconds: s.lockout_seconds ?? 0,
   failedAttempts: s.failed_attempts ?? 0,
   sessionId: s.session_id ?? null,
@@ -123,6 +129,17 @@ export const createSupabaseSecurity = (supabase, { functionName = 'webauthn' } =
     },
     async setAutoLock(seconds) {
       return normalizeState(await rpc('set_auto_lock', { p_seconds: seconds }))
+    },
+    /** Lock the whole app (`scope = 'app'`) or only the chosen modules (`'modules'`). Needs an unlocked session. */
+    async setLockModules(scope, modules = []) {
+      try {
+        return normalizeState(await rpc('set_lock_modules', { p_scope: scope, p_modules: modules }))
+      } catch (e) {
+        // `rpc` reports a missing function as "0012 not run"; here the likelier truth is that 0015 has not been.
+        if (isNotInstalled(e))
+          throw new AppError('Module locks are not installed in your database yet. Run supabase/migrations/0015_module_locks.sql in the SQL Editor.', { code: 'MODULE_LOCKS_NOT_INSTALLED', cause: e })
+        throw e
+      }
     },
     async setBiometricEnabled(enabled) {
       return normalizeState(await rpc('set_biometric_enabled', { p_enabled: !!enabled }))
