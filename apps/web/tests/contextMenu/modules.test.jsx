@@ -366,3 +366,58 @@ describe('Gym & Fitness', () => {
     expect(navigate).toHaveBeenCalledWith('/fitness/exercises/Barbell_Squat')
   })
 })
+
+describe('Food & Nutrition', () => {
+  const entry = (o) => ({
+    log_date: TODAY,
+    log_time: '08:15:00',
+    meal_type: 'breakfast',
+    name: 'Idli',
+    category: 'Tiffin',
+    base_key: 'idli',
+    variant: '',
+    quantity: 2,
+    serving_label: '1 idli (40 g)',
+    kcal: 116,
+    protein_g: 4,
+    carbs_g: 24,
+    fat_g: 0.8,
+    fiber_g: 1.2,
+    notes: '',
+    ...o,
+  })
+  it('a food entry: change meal (undo), duplicate, edit, delete; a meal card adds food to that meal', async () => {
+    const user = userEvent.setup()
+    await db.insert('food_logs', [entry()])
+    renderApp('/nutrition')
+    const li = async () => (await screen.findAllByText('Idli', {}, { timeout: 40_000 })).map((e) => e.closest('li')).find(Boolean)
+
+    rightClick(await li())
+    await user.click(await item('Change meal'))
+    await user.click(await choice('Dinner'))
+    await waitFor(async () => expect((await rows('food_logs'))[0].meal_type).toBe('dinner'))
+    await user.click(await screen.findByRole('button', { name: 'Undo' }))
+    await waitFor(async () => expect((await rows('food_logs'))[0].meal_type).toBe('breakfast'))
+
+    rightClick(await li())
+    await user.click(await item('Duplicate'))
+    await waitFor(async () => expect(await rows('food_logs')).toHaveLength(2))
+
+    rightClick(await li())
+    await user.click(await item('Edit entry'))
+    expect(await screen.findByRole('dialog', { name: 'Edit food entry' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+    rightClick(screen.getByTestId('meal-lunch'))
+    await user.click(await item('Add food to Lunch'))
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+    rightClick(await li())
+    await user.click(await item('Delete entry'))
+    await user.click(await within(await screen.findByRole('dialog')).findByRole('button', { name: 'Delete' }))
+    await waitFor(async () => expect(await rows('food_logs')).toHaveLength(1))
+  })
+})
