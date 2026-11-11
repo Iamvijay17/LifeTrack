@@ -23,7 +23,7 @@ function details(x, sets) {
 }
 
 /** `history` is workouts newest first; `logsByWorkout` maps a workout id to its sets. Tap a row to see its sets. */
-export function HistoryTab({ history, logsByWorkout, today, weekStartsOn, onEdit }) {
+export function HistoryTab({ history, logsByWorkout, today, weekStartsOn, onEdit, rowProps }) {
   const [openId, setOpenId] = useState(null)
   const removeWorkout = useConfirmedDelete('workouts', 'Workout deleted')
   const page = useShowMore(history)
@@ -38,7 +38,7 @@ export function HistoryTab({ history, logsByWorkout, today, weekStartsOn, onEdit
             const sets = logsByWorkout.get(x.id) ?? []
             const open = openId === x.id
             return (
-              <li key={x.id}>
+              <li key={x.id} {...rowProps?.(x, sets)}>
                 <div className="flex items-center gap-3 px-4 py-3">
                   <button className="min-w-0 flex-1 text-left" onClick={() => setOpenId(open ? null : x.id)} aria-expanded={open}>
                     <p className="flex items-center gap-2 truncate text-sm font-medium">

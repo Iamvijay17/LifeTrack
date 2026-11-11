@@ -15,7 +15,7 @@ const VIEWS = [
 ]
 
 /** Your own exercises grouped by muscle group, and the Free Exercise DB to browse and add from. `groups` is libraryGroups(). */
-export function LibraryTab({ groups, onCreate }) {
+export function LibraryTab({ groups, onCreate, chipProps }) {
   // Which half is showing lives in the URL (?view=browse), so Back from an exercise's page returns to it.
   const [params, setParams] = useSearchParams()
   const view = params.get('view') === 'browse' ? 'browse' : 'mine'
@@ -23,12 +23,16 @@ export function LibraryTab({ groups, onCreate }) {
   return (
     <div className="space-y-4">
       <Segmented value={view} onChange={setView} options={VIEWS} />
-      {view === 'mine' ? <MyExercises groups={groups} onCreate={onCreate} onBrowse={() => setView('browse')} /> : <ExerciseBrowser />}
+      {view === 'mine' ? (
+        <MyExercises groups={groups} onCreate={onCreate} onBrowse={() => setView('browse')} chipProps={chipProps} />
+      ) : (
+        <ExerciseBrowser />
+      )}
     </div>
   )
 }
 
-function MyExercises({ groups, onCreate, onBrowse }) {
+function MyExercises({ groups, onCreate, onBrowse, chipProps }) {
   const removeExercise = useConfirmedDelete('exercises', 'Exercise removed')
   // The catalog loads quietly; chips gain a "see how" link once it is here, and work as before if it never arrives.
   const { catalog } = useCatalog()
@@ -66,6 +70,7 @@ function MyExercises({ groups, onCreate, onBrowse }) {
               return (
                 <span
                   key={e.id}
+                  {...chipProps?.(e, demo)}
                   className="lt-lift group inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 text-sm"
                 >
                   {demo ? (

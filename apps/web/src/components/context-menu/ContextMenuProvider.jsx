@@ -219,7 +219,8 @@ export function ContextMenuProvider({ children }) {
       const itemsFor = (e, point) => {
         try {
           return normalizeItems(build({ target: e.target, point }), locks)
-        } catch {
+        } catch (err) {
+          console.error('Context menu: could not build the menu', err) // a broken builder must not break the page, but it must not hide either
           return []
         }
       }

@@ -273,3 +273,96 @@ describe('Career & Learning', () => {
     await waitFor(async () => expect((await rows('goals')).map((g) => g.title)).toEqual(['Finish DSA course']))
   })
 })
+
+describe('Job Switch', () => {
+  it('an application: update status (undo), follow-up reminder, copy details, schedule interview, delete; a column adds one', async () => {
+    const user = userEvent.setup()
+    const writeText = vi.fn().mockResolvedValue()
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    await db.insert('job_applications', [{ company: 'Acme', job_title: 'Platform Engineer', status: 'applied', location: 'Chennai' }])
+    renderApp('/jobs')
+    const card = async () => (await screen.findByText('Acme', {}, { timeout: 40_000 })).closest('[data-testid="app-card"]')
+
+    // a column's empty space adds an application there
+    await card()
+    rightClick(screen.getByTestId('col-interview'))
+    await user.click(await item(/Add application/))
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+    rightClick(await card())
+    await user.click(await item('Update status'))
+    await user.click(await choice('Assessment'))
+    await waitFor(async () => expect((await rows('job_applications'))[0].status).toBe('assessment'))
+    await user.click(await screen.findByRole('button', { name: 'Undo' }))
+    await waitFor(async () => expect((await rows('job_applications'))[0].status).toBe('applied'))
+
+    rightClick(await card())
+    await user.click(await item('Follow-up reminder'))
+    await user.click(await item('In a week'))
+    await waitFor(async () => expect((await rows('job_applications'))[0].followup_date).toBeTruthy())
+
+    rightClick(await card())
+    await user.click(await item('Copy job details'))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(expect.stringContaining('Platform Engineer at Acme')))
+
+    rightClick(await card())
+    await user.click(await item('Schedule interview'))
+    expect(await screen.findByRole('dialog', { name: /interview/i })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+    rightClick(await card())
+    await user.click(await item('Delete application'))
+    await user.click(await within(await screen.findByRole('dialog')).findByRole('button', { name: 'Delete' }))
+    await waitFor(async () => expect(await rows('job_applications')).toHaveLength(0))
+  })
+})
+
+describe('Gym & Fitness', () => {
+  it('a workout in History: duplicate (with its sets), mark a skipped day completed, delete; page menu logs a workout', async () => {
+    const user = userEvent.setup()
+    const [w] = await db.insert('workouts', [
+      { workout_date: TODAY, name: 'Push day', status: 'completed', kind: 'strength', duration_minutes: 50 },
+    ])
+    await db.insert('exercise_logs', [{ workout_id: w.id, exercise_name: 'Bench press', set_number: 1, reps: 8, weight_kg: 60 }])
+    await db.insert('workouts', [{ workout_date: TODAY, name: 'Skipped', status: 'skipped', kind: 'other' }])
+    renderApp('/fitness?tab=history')
+    const row = async (t) => {
+      const hits = await screen.findAllByText(t, {}, { timeout: 40_000 })
+      return hits.map((h) => h.closest('li')).find((li) => li?.querySelector('button[aria-expanded]')) // not the calendar legend's entry
+    }
+
+    rightClick(await row('Push day'))
+    await user.click(await item('Duplicate to today'))
+    await waitFor(async () => {
+      expect((await rows('workouts')).filter((x) => x.name === 'Push day')).toHaveLength(2)
+      expect(await rows('exercise_logs')).toHaveLength(2)
+    })
+
+    rightClick(await row('Skipped'))
+    expect(screen.queryByRole('menuitem', { name: 'Edit workout' })).toBeNull() // only a completed workout has sets to edit
+    await user.click(await item('Mark completed'))
+    await waitFor(async () => expect((await rows('workouts')).find((x) => x.name === 'Skipped').status).toBe('completed'))
+
+    rightClick(await row('Skipped'))
+    await user.click(await item('Delete workout'))
+    await user.click(await within(await screen.findByRole('dialog')).findByRole('button', { name: 'Delete' }))
+    await waitFor(async () => expect((await rows('workouts')).some((x) => x.name === 'Skipped')).toBe(false))
+
+    rightClick(screen.getByRole('main'))
+    await user.click(await item('Log workout'))
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('an exercise offers its details page only when the database has it', async () => {
+    const { exerciseItems } = await import('@/features/fitness/contextMenu')
+    const navigate = vi.fn()
+    const e = { id: '1', name: 'Squat' }
+    expect(exerciseItems(e, { demo: null, navigate })[0].hidden).toBe(true)
+    const view = exerciseItems(e, { demo: { id: 'Barbell_Squat' }, navigate })[0]
+    view.onSelect()
+    expect(navigate).toHaveBeenCalledWith('/fitness/exercises/Barbell_Squat')
+  })
+})
