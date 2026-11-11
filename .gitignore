@@ -11,3 +11,4 @@ test-results
 coverage
 dist-perf
 *.apk
+apps/web/.env
