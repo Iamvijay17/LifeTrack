@@ -5,9 +5,6 @@ import { pickOption, register } from './helpers'
 // what is checked is what came back from storage, not what was on screen a moment before.
 
 const HOUR = 56 // px per hour in the grid (HOUR_PX)
-const snap = (m) => Math.round(m / 15) * 15
-const pad = (n) => String(n).padStart(2, '0')
-const hhmm = (m) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`
 
 /** Creates an event today from 'start' to 'end' (HH:mm) through the form. */
 async function addEvent(page, title, { start = '10:00', end = '11:00', repeat } = {}) {

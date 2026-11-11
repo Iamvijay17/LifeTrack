@@ -69,12 +69,14 @@ Money is stored as integer paise, dates as `yyyy-MM-dd` strings in the user's ow
 | [FEATURES.md](FEATURES.md) | Every module, sub-feature and its status |
 | [FOOD_NUTRITION.md](FOOD_NUTRITION.md) | Food database, search, calculations, logging, analytics |
 | [GYM_FITNESS.md](GYM_FITNESS.md) | Exercise library, routines, workout logging, progress |
+| [NOTIFICATIONS.md](NOTIFICATIONS.md) | Notification & Reminder Center: inbox, drawer, snooze/dismiss, quiet hours, desktop notifications, nudges from modules |
 
 **Operations**
 
 | Document | What it covers |
 | --- | --- |
 | [SECURITY.md](SECURITY.md) | Authentication, RLS, input handling, limitations ([../SECURITY.md](../SECURITY.md) is the disclosure policy) |
+| [APP_SECURITY.md](APP_SECURITY.md) | Security & Privacy: password rules, PIN app lock, fingerprint / face unlock (WebAuthn), sessions, how the lock is enforced, deployment, mobile plan |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Build, host, database, functions, mobile; runbooks in [DEPLOY.md](DEPLOY.md), [RELEASE.md](RELEASE.md) |
 | [BACKUP_RECOVERY.md](BACKUP_RECOVERY.md) | Backup, restore, erase, account deletion |
 | [TESTING.md](TESTING.md) | All test layers and how to run them |

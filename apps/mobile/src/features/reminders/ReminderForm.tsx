@@ -23,7 +23,7 @@ export function ReminderForm({ visible, reminder, today, onClose }: { visible: b
     onClose()
     // A reminder that is already due notifies immediately, as on web (an explicit action, so no grace period).
     const tz = settings.timezone
-    await api.fireDueReminders(todayStr(tz), timeStrInTz(new Date(), tz), settings.notification_prefs).catch(() => {})
+    await api.fireDueReminders(todayStr(tz), timeStrInTz(new Date(), tz), settings.notification_prefs, { tz }).catch(() => {})
   })
   return (
     <Sheet visible={visible} title={reminder ? 'Edit reminder' : 'New reminder'} onClose={onClose} footer={<Button title={reminder ? 'Save changes' : 'Set reminder'} onPress={save} loading={pending} />}>

@@ -158,6 +158,11 @@
   --mod-2: 99 102 241;
   --mod-text: 3 105 161;
 }
+[data-module='security'] {
+  --mod: 6 182 212;
+  --mod-2: 124 58 237;
+  --mod-text: 14 116 144;
+}
 .dark,
 .dark [data-module='dashboard'] {
   --mod-text: 167 139 250;
@@ -193,6 +198,10 @@
 .dark[data-module='fitness'],
 .dark [data-module='fitness'] {
   --mod-text: 253 186 116;
+}
+.dark[data-module='security'],
+.dark [data-module='security'] {
+  --mod-text: 103 232 249;
 }
 .dark[data-module='health'],
 .dark [data-module='health'] {

@@ -11,6 +11,8 @@ import { FullScreenLoader, InitialAppLoader } from '@/components/loaders'
 import { MotionProvider } from '@/components/motion/primitives'
 import LegalPage from '@/features/legal/LegalPage'
 import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from '@/features/auth/AuthPages'
+import { AppLockGate } from '@/features/security/LockScreen'
+import { SecurityProvider } from '@/features/security/SecurityProvider'
 
 const page = (loader) => lazy(loader)
 const Overview = page(() => import('@/features/overview/OverviewPage'))
@@ -33,13 +35,20 @@ const Notifications = page(() => import('@/features/notifications/NotificationsP
 const ExportPage = page(() => import('@/features/export/ExportPage'))
 const Help = page(() => import('@/features/help/HelpPage'))
 const Settings = page(() => import('@/features/settings/SettingsPage'))
+const Security = page(() => import('@/features/security/SecurityPage'))
 
 function Protected({ children }) {
   const { session, loading } = useAuth()
   const loc = useLocation()
   if (loading) return <InitialAppLoader />
   if (!session) return <Navigate to="/login" replace state={{ from: loc.pathname }} />
-  return children
+  // Everything behind the sign-in is mounted only while the server says this session is unlocked (see AppLockGate). The provider lives here, not
+  // above the routes: it is only needed once someone is signed in, and as the layout element it stays mounted while they move between pages.
+  return (
+    <SecurityProvider>
+      <AppLockGate>{children}</AppLockGate>
+    </SecurityProvider>
+  )
 }
 
 export default function App() {
@@ -83,6 +92,7 @@ export default function App() {
                 <Route path="notifications" element={<Notifications />} />
                 <Route path="export" element={<ExportPage />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="security" element={<Security />} />
                 <Route path="help" element={<Help />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

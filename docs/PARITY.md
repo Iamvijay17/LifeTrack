@@ -22,9 +22,10 @@ and every **deliberate** difference. Anything not listed as a difference is expe
 | `/settings` | More → Settings | ✅ | Includes in-app account deletion (App Store requirement). |
 | `/reports` | — | ⏸ not built | Planned as a light add-on (folded into Analytics). |
 | `/export` (JSON backup/restore, CSV) | — | ⏸ not built | Desktop-oriented; planned as a later add-on. |
-| `/notifications` (inbox, reminders, preferences) | More → Notifications & Reminders | ✅ | Adds a per-device **push** toggle (see `docs/NATIVE.md`). |
+| `/notifications` (inbox, reminders, preferences) | More → Notifications & Reminders | 🟡 | Adds a per-device **push** toggle (see `docs/NATIVE.md`). The web **Notification Center** (drawer, priorities, snooze/dismiss/history, search, quiet hours, nudges from other modules, see `docs/NOTIFICATIONS.md`) is not on mobile; mobile pushes honour quiet hours (server side). |
 | Global search (Ctrl+K) | — | ⏸ not built | Mobile uses per-screen search (Notes, Jobs, Finance). |
-| `/login` `/register` `/forgot-password` `/reset-password` | Sign-in, Sign-up, Forgot, Reset | ✅ | Mobile uses PKCE deep links (`lifetrack://…`). |
+| `/login` `/register` `/forgot-password` `/reset-password` | Sign-in, Sign-up, Forgot, Reset | ✅ | Mobile uses PKCE deep links (`lifetrack://…`). The new-password strength rules are web-only for now. |
+| `/security` (app lock, fingerprint / face unlock, change password, sessions) | — | ⏸ not built | The mobile app has **no lock screen**: with the web app lock on, a phone's session loses Finance, Journal and Notes until it is marked *trusted* on the Security page. Native biometrics (BiometricPrompt + Keystore, LocalAuthentication + Keychain) are designed in `docs/APP_SECURITY.md` §9, not built. |
 
 ## Not verified without a device
 Layout, keyboard behaviour in sheets, native date/time pickers, SecureStore session persistence, deep links and

@@ -1,11 +1,12 @@
 // Domain operations that span more than one row. UI components call these (never the adapters directly).
 import { nextOccurrence, nextDueDate } from '@lifetrack/core/recurrence'
-import { dueReminders, afterFire, KIND_LINK } from '@lifetrack/core/reminders'
+import { dueReminders, afterFire, reminderNotification } from '@lifetrack/core/reminders'
+import { dismissPatch, isUnread, readPatch, restorePatch, snoozePatch, unreadPatch, validateSnooze } from '@lifetrack/core/notifications'
 import { afterPost, dueOccurrences, dueRules, occurrenceRow, togglePatch as recurringTogglePatch } from '@lifetrack/core/recurring'
 import { MIN_RECORD_SECONDS } from '@lifetrack/core/focus'
 import { DEFAULT_TOPICS, DEFAULT_EXERCISES } from '@lifetrack/constants/defaults'
 import { CONFLICT_KEYS } from '@lifetrack/constants/schema'
-import { uid, localDayMinutes } from '@lifetrack/utils'
+import { uid, localDayMinutes, isValidDay, zonedToMs } from '@lifetrack/utils'
 import { exceptionOverrides, expandEvent, isOccurrenceDate, normalizeRule, ruleBefore, ruleFrom, shiftSeries } from '@lifetrack/core/calendarRecurrence'
 import { AppError } from './errors'
 
@@ -246,15 +247,16 @@ export function createApi(store) {
   /**
    * Turns due reminders into notifications. Safe to run from several devices at once: the notification's dedupe_key is
    * unique per user, so only the first insert wins (the loser gets 23505 and is ignored).
-   * Reminders fire while LifeTrack is open on any device — there is no background server push in this build.
+   * Reminders fire from the send-reminders Edge Function when it is running, and otherwise from any open app. `opts.tz` lets the
+   * notification record when the reminder was meant to go off (`due_at`), so one that fires late is shown as missed.
    */
-  async function fireDueReminders(today, nowTime, prefs = {}) {
+  async function fireDueReminders(today, nowTime, prefs = {}, opts = {}) {
     await store.load('reminders')
     let fired = 0
     for (const r of dueReminders(store.peek('reminders'), today, nowTime)) {
       if (prefs[r.kind] !== false) {
         try {
-          await store.insert('notifications', { kind: r.kind, title: r.title, link: KIND_LINK[r.kind] ?? '', dedupe_key: `reminder:${r.id}:${today}` })
+          await store.insert('notifications', reminderNotification(r, today, opts.tz))
           fired++
         } catch (e) { if (e.code !== '23505') throw e }
       }
@@ -262,19 +264,67 @@ export function createApi(store) {
     }
     return fired
   }
-  const markNotificationRead = (n) => (n.read_at ? Promise.resolve(n) : store.update('notifications', n.id, { read_at: nowIso() }))
   /** Pause/resume a reminder. Resuming also clears "already fired" so it can fire again. */
   const toggleReminder = (r) => store.update('reminders', r.id, { active: !r.active, ...(!r.active ? { last_fired_on: null } : {}) })
+  /**
+   * Moves a reminder to a new date and time and arms it again (the series carries on from there). `tz` is the person's timezone: a time that has
+   * already passed there is refused, because the reminder would fire at once and look like a mistake.
+   */
+  async function rescheduleReminder(r, { date, time, tz, nowMs = Date.now() }) {
+    if (!isValidDay(date)) throw new AppError('Pick a date.')
+    if (!/^\d{2}:\d{2}$/.test(time ?? '')) throw new AppError('Pick a time.')
+    const problem = validateSnooze(zonedToMs(date, time, tz), nowMs)
+    if (problem) throw new AppError(problem)
+    return store.update('reminders', r.id, { remind_date: date, remind_time: time, active: true, last_fired_on: null })
+  }
+
+  // ----------------------------------------------------------- notifications
+  // A notification is read, snoozed (hidden until a time) or dismissed (out of the inbox, kept in the history). The columns each action writes are
+  // in @lifetrack/core/notifications so the web app, the mobile app and the tests agree on them.
+  const markNotificationRead = (n) => (n.read_at ? Promise.resolve(n) : store.update('notifications', n.id, readPatch(Date.now())))
+  const markNotificationUnread = (n) => (n.read_at ? store.update('notifications', n.id, unreadPatch()) : Promise.resolve(n))
+  /** Hides a notification until `untilMs`, then it is back in the inbox as unread. Use it for "snooze" and for "reschedule" alike. */
+  async function snoozeNotification(n, untilMs, nowMs = Date.now()) {
+    const problem = validateSnooze(untilMs, nowMs)
+    if (problem) throw new AppError(problem)
+    return store.update('notifications', n.id, snoozePatch(untilMs))
+  }
+  const dismissNotification = (n, nowMs = Date.now()) => store.update('notifications', n.id, dismissPatch(n, nowMs))
+  const restoreNotification = (n) => store.update('notifications', n.id, restorePatch())
+  /** Dismisses several at once; resolves to how many. */
+  async function dismissNotifications(rows, nowMs = Date.now()) {
+    await Promise.all(rows.map((n) => store.update('notifications', n.id, dismissPatch(n, nowMs))))
+    return rows.length
+  }
+  /** Permanently deletes notifications (from the history). */
+  async function deleteNotifications(ids) {
+    if (ids.length) await store.removeMany('notifications', ids)
+    return ids.length
+  }
   /** Deletes read notifications (unread are kept). */
   async function clearReadNotifications() {
     const ids = store.peek('notifications').filter((n) => n.read_at).map((n) => n.id)
     if (ids.length) await store.removeMany('notifications', ids)
     return ids.length
   }
-  async function markAllRead() {
-    const unread = store.peek('notifications').filter((n) => !n.read_at)
-    await Promise.all(unread.map((n) => store.update('notifications', n.id, { read_at: nowIso() })))
+  /** Marks everything you can see in the inbox as read. A snoozed notification stays unread, so it is noticed when it comes back. */
+  async function markAllRead(nowArg) {
+    const nowMs = typeof nowArg === 'number' ? nowArg : Date.now() // (a click handler may hand over an event)
+    const unread = store.peek('notifications').filter((n) => isUnread(n, nowMs))
+    await Promise.all(unread.map((n) => store.update('notifications', n.id, readPatch(nowMs))))
     return unread.length
+  }
+  /**
+   * Raises one notification under a key that names what it is about and when. The key is unique per user, so with the app open on several devices
+   * (or tabs) only the first insert wins. Resolves to the notification, or null if another device already raised it.
+   */
+  async function raiseNotification({ key, kind, title, body = '', link = '', priority = 'normal', dueAt = null }) {
+    try {
+      return await store.insert('notifications', { kind, title: title.slice(0, 200), body, link, priority, due_at: dueAt, dedupe_key: key })
+    } catch (e) {
+      if (e?.code === '23505') return null
+      throw e
+    }
   }
 
   // ---------------------------------------------------------------- calendar
@@ -413,14 +463,7 @@ export function createApi(store) {
    * Raises one calendar alert as a notification. The dedupe key names the occurrence and the offset, and is unique per user, so with the app open on
    * several devices (or tabs) only the first insert wins. Resolves to the notification, or null if another device already raised it.
    */
-  async function raiseCalendarAlert({ key, title, body, link }) {
-    try {
-      return await store.insert('notifications', { kind: 'event', title: title.slice(0, 200), body, link, dedupe_key: key })
-    } catch (e) {
-      if (e?.code === '23505') return null
-      throw e
-    }
-  }
+  const raiseCalendarAlert = ({ key, title, body = '', link = '', priority = 'normal', dueAt = null }) => raiseNotification({ key, kind: 'event', title, body, link, priority, dueAt })
 
-  return { saveRow, deleteRow, createTask, setTaskStatus, setHabitStatus, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, logWater, removeWaterLog, saveNutritionGoals, saveFavoriteFoods, saveFoodCopy, deleteFood, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, postDueRecurring, toggleRecurringRule, fireDueReminders, toggleReminder, clearReadNotifications, markNotificationRead, markAllRead, createCalendarEvent, saveCalendarEvent, deleteCalendarEvent, applyCalendarChange, raiseCalendarAlert }
+  return { saveRow, deleteRow, createTask, setTaskStatus, setHabitStatus, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, logWater, removeWaterLog, saveNutritionGoals, saveFavoriteFoods, saveFoodCopy, deleteFood, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, postDueRecurring, toggleRecurringRule, fireDueReminders, toggleReminder, rescheduleReminder, clearReadNotifications, markNotificationRead, markNotificationUnread, markAllRead, snoozeNotification, dismissNotification, dismissNotifications, restoreNotification, deleteNotifications, raiseNotification, createCalendarEvent, saveCalendarEvent, deleteCalendarEvent, applyCalendarChange, raiseCalendarAlert }
 }

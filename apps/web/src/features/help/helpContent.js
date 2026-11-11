@@ -31,7 +31,7 @@ export const QUICK_START = [
   {
     id: 'reminders',
     title: 'Never miss a thing',
-    body: 'Create reminders for tasks, study, workouts, habits and bills. They turn into notifications while LifeTrack is open.',
+    body: 'Create reminders for tasks, study, workouts, habits and bills. The bell opens your inbox, where you can snooze, dismiss or search what you have been told.',
     to: '/notifications',
   },
   {
@@ -218,13 +218,17 @@ export const GUIDES = [
   },
   {
     module: 'notifications',
-    summary: 'Reminders, alerts and your inbox.',
+    summary: 'Reminders, alerts, nudges from your other modules, and one inbox for all of them.',
     steps: [
-      'Open Reminders and add one: choose a type (task, study, workout, habit, bill or custom), a date and time, and how often it repeats.',
-      'When it is due, it lands in your Inbox and the bell in the top bar shows an unread count.',
-      'Use Preferences to turn off the kinds of reminder you do not want.',
+      'Open Reminders and add one: choose a type, a priority, a date and time, and how often it repeats.',
+      'When it is due, it lands in your Inbox and the bell in the top bar shows an unread count. Click the bell for the drawer.',
+      'On a notification, Snooze it, Dismiss it (it moves to History, and you can Undo) or mark it read or unread. Search and filter by category and priority.',
+      'Use Preferences for quiet hours, desktop notifications, the times of the daily summaries, and to turn off categories you do not want.',
     ],
-    tips: ['Reminders fire while LifeTrack is open on any of your devices, not when the app is closed.'],
+    tips: [
+      'Reminders fire while LifeTrack is open on any of your devices, and from the server to the phone app. Summaries from your other modules need an open app.',
+      'Urgent reminders come through quiet hours; everything else waits in your inbox and is summed up when they end.',
+    ],
   },
   {
     module: 'settings',
@@ -235,6 +239,20 @@ export const GUIDES = [
       'Adjust how much each area counts toward your daily score, and your focus break lengths.',
     ],
     tips: ['Changing your timezone changes what “today” means across the app.'],
+  },
+  {
+    module: 'security',
+    summary: 'Your password, the app lock, fingerprint or face unlock, and the devices signed in to your account.',
+    steps: [
+      'Turn on App lock and choose a 4 or 6 digit PIN. LifeTrack then locks itself when you are idle or come back to it, and asks for the PIN again.',
+      'Add fingerprint or face unlock to open it faster with your device’s own sensor. The PIN always works as a fallback.',
+      'Change your account password here. You must enter the current one, and your other devices are signed out afterwards.',
+      'Review “Where you’re signed in” and sign out any device you do not recognise.',
+    ],
+    tips: [
+      'Forgot your PIN? Choose “Forgot PIN?” on the lock screen and enter your account password.',
+      'Five wrong PINs in a row pause PIN entry for a while, and the wait grows each time.',
+    ],
   },
   {
     module: 'export',
@@ -251,6 +269,21 @@ export const GUIDES = [
 export const FAQ_CATEGORIES = ['All', 'Basics', 'Data & privacy', 'Score & goals', 'Reminders', 'Troubleshooting']
 
 export const FAQ = [
+  {
+    cat: 'Data & privacy',
+    q: 'Does LifeTrack see my fingerprint or face?',
+    a: 'No. Fingerprint and face unlock uses your device’s own sensor through the browser’s passkey support (Touch ID, Windows Hello, Android biometrics). The sensor never leaves your device. LifeTrack only receives a signed “yes, the owner confirmed” and checks the signature.',
+  },
+  {
+    cat: 'Data & privacy',
+    q: 'What does the app lock protect?',
+    a: 'While it is locked, nobody can open the app on that device, and on the server your finance, journal and notes stay closed to that device too, even if someone has a copy of your sign-in. Your PIN is stored only as a salted hash and is never sent anywhere else.',
+  },
+  {
+    cat: 'Troubleshooting',
+    q: 'I forgot my PIN.',
+    a: 'On the lock screen choose “Forgot PIN?” and enter your account password. That opens LifeTrack, and you can set a new PIN in Security & Privacy.',
+  },
   {
     cat: 'Basics',
     q: 'Where is everything?',
@@ -329,7 +362,7 @@ export const FAQ = [
   {
     cat: 'Reminders',
     q: 'Why did my reminder not go off?',
-    a: 'Reminders fire while LifeTrack is open in a browser or the app, on any of your devices. If it is closed, you will see the reminder in your Inbox the next time you open it. Also check that the reminder’s type is switched on under Preferences in Notifications.',
+    a: 'Reminders fire while LifeTrack is open in a browser or the app, on any of your devices. If it is closed, you will see the reminder in your Inbox the next time you open it, marked as missed with the time it was due. Also check that the reminder’s type is switched on under Preferences in Notifications, and that quiet hours are not holding the pop-up (the notification is still in your Inbox).',
   },
   {
     cat: 'Reminders',

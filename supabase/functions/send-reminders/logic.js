@@ -7,7 +7,7 @@ export const CHUNK = 100 // Expo accepts up to 100 messages per request
  * @param deps.db   { listActiveReminders(maxDate), listSettings(userIds), insertNotification(row), updateReminder(id, patch), listTokens(userIds), deleteTokens(tokens) }
  *                  insertNotification returns the inserted row, or null when the dedupe key already exists.
  * @param deps.push { send(messages) → Promise<Array<{status:'ok'|'error', details?:{error?:string}}>> } (same order as messages)
- * @param deps.core { dueReminders, afterFire, KIND_LINK, todayStr, timeStrInTz }
+ * @param deps.core { dueReminders, afterFire, reminderNotification, notificationSettings, mayInterrupt, todayStr, timeStrInTz }
  */
 export async function runReminders({ db, push, core, nowMs = Date.now() }) {
   const now = new Date(nowMs)
@@ -16,7 +16,7 @@ export async function runReminders({ db, push, core, nowMs = Date.now() }) {
   const reminders = await db.listActiveReminders(maxDate)
   const settings = await db.listSettings([...new Set(reminders.map((r) => r.user_id))])
 
-  const stats = { checked: reminders.length, fired: 0, skippedByPrefs: 0, duplicates: 0, pushed: 0, pushErrors: 0, tokensRemoved: 0 }
+  const stats = { checked: reminders.length, fired: 0, skippedByPrefs: 0, duplicates: 0, quietHeld: 0, pushed: 0, pushErrors: 0, tokensRemoved: 0 }
   const created = [] // newly inserted notifications to push
 
   for (const r of reminders) {
@@ -28,20 +28,28 @@ export async function runReminders({ db, push, core, nowMs = Date.now() }) {
 
     const prefs = s?.notification_prefs ?? {}
     if (prefs[r.kind] !== false) {
-      const row = await db.insertNotification({ user_id: r.user_id, kind: r.kind, title: r.title, link: core.KIND_LINK[r.kind] ?? '', dedupe_key: `reminder:${r.id}:${today}` })
+      const row = await db.insertNotification({ user_id: r.user_id, ...core.reminderNotification(r, today, tz) })
       if (row) { created.push(row); stats.fired++ } else stats.duplicates++
     } else stats.skippedByPrefs++
     // Always advance the reminder (one-off → inactive, repeating → next date), exactly like the app does.
     await db.updateReminder(r.id, core.afterFire(r, today))
   }
 
-  if (created.length) {
-    const tokens = await db.listTokens([...new Set(created.map((n) => n.user_id))])
+  // Quiet hours: the notification is in the inbox either way, but only an urgent one (if the person allows it) is pushed to their phone.
+  const toPush = created.filter((n) => {
+    const s = settings.get(n.user_id)
+    const ok = core.mayInterrupt(n, core.notificationSettings(s?.notification_settings), nowMs, s?.timezone || 'Asia/Kolkata')
+    if (!ok) stats.quietHeld++
+    return ok
+  })
+
+  if (toPush.length) {
+    const tokens = await db.listTokens([...new Set(toPush.map((n) => n.user_id))])
     const byUser = new Map()
     for (const t of tokens) byUser.set(t.user_id, [...(byUser.get(t.user_id) ?? []), t.token])
-    const messages = created.flatMap((n) => (byUser.get(n.user_id) ?? []).map((to) => ({
+    const messages = toPush.flatMap((n) => (byUser.get(n.user_id) ?? []).map((to) => ({
       to, title: n.title, body: n.body || '', sound: 'default', priority: 'high', channelId: 'reminders',
-      data: { notificationId: n.id, kind: n.kind, link: n.link },
+      data: { notificationId: n.id, kind: n.kind, link: n.link, priority: n.priority ?? 'normal' },
     })))
     const dead = new Set()
     for (let i = 0; i < messages.length; i += CHUNK) {

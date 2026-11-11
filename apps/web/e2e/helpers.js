@@ -2,7 +2,7 @@ import { expect } from '@playwright/test'
 
 export const uniqueEmail = () => `u${Date.now()}${Math.floor(Math.random() * 1e4)}@test.dev`
 
-export async function register(page, { email = uniqueEmail(), password = 'password123', name = 'Test User' } = {}) {
+export async function register(page, { email = uniqueEmail(), password = 'Violet-Harbor-42', name = 'Test User' } = {}) {
   await page.goto('/register')
   await page.getByLabel('Name').fill(name)
   await page.getByLabel('Email').fill(email)

@@ -28,13 +28,14 @@ Every module below was checked against the source. Route paths are the web app (
 | 18 | Data Export / Backup / Erase | `/export` | — | ✅ web · ❌ mobile |
 | 19 | Help & Support | `/help` | More → Help & Support | ✅ |
 | 20 | Legal pages | `/privacy`, `/terms` | — (store listing links) | ✅ drafts (placeholders remain) |
+| 21 | Calendar & Timeline | `/calendar` | — | ✅ web · ❌ mobile; see [CALENDAR.md](CALENDAR.md) |
+| 22 | Security & Privacy | `/security` | — (planned, [APP_SECURITY.md §9](APP_SECURITY.md)) | ✅ web (passkeys 🟡 need the Edge Function) · ❌ mobile |
 
 Cross-cutting capabilities (verified in code): global search / command palette (web), quick actions, daily score, Today agenda, Upcoming deadlines, theme sync,
 Realtime sync, PWA install, celebrations, account deletion, JSON/CSV export, recurring-transaction engine, reminder runner, loaders, error boundaries,
 reduced-motion support. **Counts for the final report: 20 modules + 10 cross-cutting capabilities listed in §21 = 30 documented features.**
 
-Modules the request listed that do **not** exist as separate modules: a standalone **Calendar** (calendar views exist inside Planner's week strip, Jobs → Interviews,
-Fitness → History, Nutrition → Calendar and date-jump pickers) and a standalone **Weight Tracking** (weight lives in Sleep & Health's daily log and the Fitness → Body tab).
+A standalone **Calendar** now exists (web, [CALENDAR.md](CALENDAR.md)). Modules the request listed that do **not** exist as separate modules: a standalone **Weight Tracking** (weight lives in Sleep & Health's daily log and the Fitness → Body tab).
 "Daily Routine & Habits" is Planner + Habits.
 
 ---
@@ -51,7 +52,8 @@ original path in router state. A DB trigger creates `profiles` and `user_setting
 | Sign in, sign out | ✅ | same |
 | Forgot / reset password | ✅ | `ForgotPasswordPage`, `ResetPasswordPage`; recovery event in `useAuth` |
 | Change display name (updates auth metadata and `profiles`) | ✅ | `settings/ProfileCard.jsx` |
-| Change password | ✅ | `settings/AccountCard.jsx` |
+| Change password (current password checked, strength rules and meter, other devices signed out) | ✅ web | `security/PasswordCard.jsx` (Settings links to it) |
+| App lock, fingerprint / face unlock, sessions | ✅ web | §22 |
 | Delete account (typed confirmation, RPC `delete_my_account`) | ✅ web and mobile | `AccountCard.jsx`, `TypedConfirmDialog.jsx` |
 | Social / SSO / MFA | ❌ | — |
 | Missing-configuration screen (production build without Supabase env) | ✅ | `components/shared/ConfigError.jsx` |
@@ -187,14 +189,19 @@ averages, no AI and no estimates. Reports do not include nutrition 🟡.
 
 ## 16. Notifications & Reminders ✅
 
-Inbox (unread count, mark read, clear read), Reminders (kind task/study/workout/habit/bill/custom, date, time, repeat none/daily/weekly/monthly, pause/resume),
-Preferences (per-kind switches; mobile adds a per-device push switch). Reminders fire (a) from the server every minute via the Edge Function (🟡 never run live) and (b) as a
-fallback from any open app 2 minutes after their time; duplicates are prevented by `dedupe_key`. Local notifications are used only for the focus timer (mobile).
+**Web** (the Notification & Reminder Center, see [NOTIFICATIONS.md](NOTIFICATIONS.md)): one inbox for reminders, calendar alerts and nudges from tasks, habits, fitness,
+finance, jobs, learning and goals; an animated drawer from the bell; priorities (low/normal/high/urgent); snooze, dismiss (kept in History), reschedule, undo, mark read/unread;
+search and category/priority/status filters; **quiet hours**; browser (desktop) notifications asked for only when you turn them on; missed and overdue marking; a History of
+everything. Reminders have a kind, date, time, a note, a priority and repeat none/daily/weekdays/weekly/monthly/yearly, with pause/resume and reschedule. Preferences: desktop
+notifications, quiet hours, smart-notification times and one switch per category. Duplicates are prevented by the unique `dedupe_key` and by each device announcing an arrival once.
+**Mobile**: inbox, reminders and per-kind switches with a per-device push switch (no priority picker, snooze or quiet-hours screen yet). Reminders fire (a) from the server every
+minute via the Edge Function (🟡 never run live; it applies quiet hours to pushes) and (b) as a fallback from any open app 2 minutes after their time. Nudges from the other modules
+and calendar alerts need an open app. Local notifications are used only for the focus timer (mobile).
 
 ## 17. Settings ✅
 
 Profile (name), Appearance (dark/light/system), Preferences (timezone from a curated list, currency INR/USD/EUR, week starts Monday/Sunday, daily study target, monthly budget,
-water goal, steps goal, sleep goal), Daily-score weights, Focus break lengths, Notifications link, Data link, Account (password, sign out, delete). All synced to the account.
+water goal, steps goal, sleep goal), Daily-score weights, Focus break lengths, Notifications link, Data link, Account (link to Security & Privacy, sign out, delete). All synced to the account.
 
 ## 18. Data Export / Backup / Erase ✅ (web only)
 
@@ -224,6 +231,26 @@ The root `SECURITY.md` still contains `[security contact email]`.
 | 8 | Celebrations (confetti) for real achievements; reduced-motion aware | ✅ | |
 | 9 | Branded loaders and per-page error boundary | ✅ web | |
 | 10 | Deep links and push (mobile) | ✅ / 🟡 | Not device-tested |
+
+## 22. Security & Privacy ✅ (web) — see [APP_SECURITY.md](APP_SECURITY.md)
+
+**Purpose:** control who can open LifeTrack, on this device and on others.
+**How it works:** a dark security dashboard at `/security` (also in the profile menu and the command palette) and a full-screen lock.
+
+| Sub-feature | Status | Where |
+| --- | --- | --- |
+| App lock with a 4 or 6 digit PIN (chosen twice, easy PINs refused), change PIN, turn off with the PIN | ✅ | `features/security/AppLockCard.jsx`, `PinWizard.jsx` |
+| Auto-lock: when leaving the app or after 1 to 60 minutes idle; lock again when returning; lock now; other tabs lock too | ✅ | `SecurityProvider.jsx` |
+| Animated PIN keypad (keyboard works), success and error states, lockout countdown | ✅ | `PinKeypad.jsx`, `LockScreen.jsx` |
+| Server-enforced: Finance, Journal and Notes refuse a locked session | ✅ Supabase builds | `0012_security.sql` (`app_lock_gate`) |
+| Fingerprint / face / device-PIN unlock (WebAuthn passkeys), animated scan states, add / rename / remove devices | 🟡 needs the `webauthn` function deployed | `BiometricCard.jsx`, `FingerprintScan.jsx` |
+| PIN fallback, "Forgot PIN?" through the account password, progressive lockout that ends the session | ✅ | `LockScreen.jsx`, `ForgotPinDialog.jsx` |
+| Change password with the current one checked; strength meter; sign other devices out | ✅ | `PasswordCard.jsx`, `PasswordStrength.jsx` |
+| Active sessions: list, sign out one / others / everywhere, trust a phone | ✅ | `SessionsCard.jsx` |
+| Security level summary (ring and checklist) | ✅ | `SecurityHero.jsx` |
+| Android BiometricPrompt + Keystore, iOS LocalAuthentication + Keychain | 📋 planned | [APP_SECURITY.md §9](APP_SECURITY.md) |
+
+**Interactions:** with no lock the app behaves exactly as before. In DEV mode (no Supabase) the lock is a screen lock only. A database without migration 0012 simply has no lock.
 
 ## Planned / not implemented (verified absent)
 

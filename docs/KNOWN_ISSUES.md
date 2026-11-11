@@ -39,6 +39,14 @@ Each item states how it was verified. Severity: **High** (can break a release or
 | B11 | Mobile exercise database | Depends on the web deployment (`EXPO_PUBLIC_WEB_URL`) being up and serving `/exercises/` | Medium | by design |
 | B12 | Exercise catalog | 3 of 876 exercises have no photos | Low | upstream |
 | B13 | Job Switch (mobile) | List instead of board; no month calendar | Low | deliberate |
+| B15 | Calendar alerts | Events and tasks alert only while LifeTrack is open on some device; the `send-reminders` Edge Function does not read `calendar_events`, so there is no push to a closed app | Medium | 🟡 gap |
+| B16 | Calendar | Web only (no mobile screen). The whole `calendar_events` table is loaded and expanded on the device | Medium | by design |
+| B17 | Calendar | Repeating **tasks** keep the Planner's model (one open occurrence at a time): no "this and following", no custom schedules, no end-after-N | Low | by design |
+| B18 | Calendar | Moving a repeating event "this and following" is several writes with a compensating undo, not one database transaction; the stale-version check is made on the device, not by the database | Low | documented |
+| B19 | Calendar | Week start is Monday or Sunday only (the app-wide setting); not covered by a live Supabase run (verified on pglite, the in-memory test database and the local backend) | Low | documented |
+| B20 | Notification Center | Smart notifications (tasks, habits, fitness, finance, jobs, learning, goals) and calendar alerts are made only while LifeTrack is open on some device; no server job makes them, so nothing arrives for a closed app (reminders do, via the Edge Function, still unproven live: U3) | Medium | 🟡 gap |
+| B21 | Notification Center | Desktop notifications need an open browser tab (no Web Push: no service-worker handler, VAPID keys or sender) | Medium | by design |
+| B22 | Notification Center | The mobile app has no priority picker, snooze or quiet-hours screen (quiet hours are applied by the server to its pushes); a notification deleted from History can be made again today by a device that never saw it | Low | gap |
 | B14 | Seed data | New accounts get default learning topics oriented to a software career (Frontend, Backend, DSA, AI, Projects) | Low | product choice |
 
 ## 3. Incomplete / unproven (written, never run live)
@@ -81,6 +89,14 @@ See [PERFORMANCE.md §7](PERFORMANCE.md): full-table fetches, 30-table Realtime 
 
 See [SECURITY.md §9](SECURITY.md): unbounded free-text/JSON columns, client-writable `application_history`/`notifications`, localStorage session on web, `style-src 'unsafe-inline'`, Edge Function reachable with any method, no MFA, plaintext data and backups,
 no external security review, placeholder `SECURITY.md` contact.
+
+The Security & Privacy work (migration 0012, [APP_SECURITY.md](APP_SECURITY.md)) adds these, all by design and documented there:
+- **Mobile has no lock screen.** With the web app lock on, the phone's session loses Finance, Journal and Notes until it is marked *trusted* (Security → Where you're signed in). Everything else keeps working.
+- **The lock does not protect the account.** GoTrue lets any valid session change the password or email; enable *Secure password change* and keep sessions short.
+- **The password lockout hook and the passkey function are inactive until you configure them** (dashboard hook; `supabase functions deploy webauthn` plus `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGINS`). Neither has run against a live Supabase project, and the function has not run under Deno (its logic is tested in Node).
+- A signed-out device's access token stays valid until `jwt_expiry` (1 hour by default); with the lock on, the gated tables close at once.
+- A 4 or 6 digit PIN is protected by the online lockout, not by the hash. Only six tables are closed on the server; the rest are hidden by the lock screen only.
+- `supabase/tests` has pre-existing TypeScript errors in `pglite/calendar.test.ts` and `notifications.test.ts` (`unknown` row types); they do not affect the test run.
 
 ## 7. Compatibility
 

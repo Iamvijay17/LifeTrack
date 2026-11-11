@@ -148,8 +148,35 @@ sleep goal), `workout_plan` jsonb (`{}`; `{"0".."6": routine uuid | "rest" | nul
 
 | Table | Key columns and constraints | Indexes |
 | --- | --- | --- |
-| `reminders` | `kind` (`task|study|workout|habit|bill|custom`); `title` 1–160; `remind_date`; `remind_time` ('09:00'); `repeat` (`none|daily|weekly|monthly`); `active`; `last_fired_on` | `(user_id, remind_date)` |
-| `notifications` | `kind` (adds `system`); `title` 1–200; `body`; `link`; `dedupe_key`; `read_at`. **U** `(user_id, dedupe_key)` where not null | `(user_id, created_at desc)` |
+| `reminders` | `kind` (`task|study|workout|habit|bill|custom`); `title` 1–160; `remind_date`; `remind_time` ('09:00'); `repeat` (`none|daily|weekdays|weekly|monthly|yearly`); `priority` (`low|normal|high|urgent`); `body` ≤ 500; `active`; `last_fired_on` | `(user_id, remind_date)` |
+| `notifications` | `kind` (adds `system`, `event`, `job`, `goal`); `title` 1–200; `body`; `link`; `priority`; `due_at` (when it was meant to happen); `snoozed_until`; `dismissed_at`; `dedupe_key`; `read_at`. **U** `(user_id, dedupe_key)` where not null | `(user_id, created_at desc)`; partial `(user_id, created_at desc) where dismissed_at is null`, `(user_id, snoozed_until) where snoozed_until is not null` |
+
+`user_settings.notification_settings` (object) holds quiet hours, desktop notifications and the smart-notification times; see [NOTIFICATIONS.md](NOTIFICATIONS.md).
+
+### 3.10 Security & Privacy (migration 0012)
+
+Five tables, all with RLS **on and no policies** (clients reach them only through the functions below; `revoke all` from `anon` and `authenticated`). Not part of JSON backups. All cascade from `auth.users`.
+See [APP_SECURITY.md](APP_SECURITY.md).
+
+| Table | Purpose |
+| --- | --- |
+| `user_security` | One row per user who touched the lock: `app_lock_enabled`, `pin_hash` (bcrypt cost 12, never returned), `pin_length` (4 or 6), `auto_lock_seconds` (0, 60, 300, 900, 1800, 3600), `biometric_enabled`, `failed_attempts`, `lockout_until`. `check`: an enabled lock has a PIN. |
+| `app_unlocks` | One row per **unlocked session** (`session_id` = the JWT claim): `method` (`setup`, `pin`, `passkey`, `password`, `trusted`), `last_active_at` (renewed by the heartbeat; `infinity` for a trusted session; `epoch` after "Lock now"). |
+| `passkeys` | WebAuthn credentials: `credential_id` (U), `public_key_jwk` (a public key), `alg` (-7 ES256 or -257 RS256), `sign_count`, `label`, `device_type`, `backed_up`. At most 10 per user. |
+| `webauthn_challenges` | One-time challenges: user, session, purpose (`register`, `authenticate`), 2-minute expiry, deleted when used. At most 10 open per user. |
+| `password_attempts` | Failed-password counter for the optional GoTrue hook. |
+
+A **restrictive** policy `app_lock_gate` (`as restrictive for all to authenticated`, `using` and `with check` `app_session_unlocked()`) is added to `transactions`, `budgets`, `savings_goals`, `recurring_rules`,
+`journal_entries` and `notes`. With no `user_security` row it is always true, so nothing changes for users who never turn the lock on.
+
+### 3.9 Calendar (migration 0011)
+
+| Table | Key columns and constraints | Indexes |
+| --- | --- | --- |
+| `calendar_events` | `title` 1–200; `starts_at` < `ends_at` (UTC instants); `timezone`; `all_day`; `category` (8 keys); `priority` (adds `urgent`); `color` `#RRGGBB`; `rrule` JSON checked for shape; `alert_minutes` ≤ 5 items, 0–40320; links `goal_id`, `topic_id`, `application_id`, `routine_id` (set null, same-owner trigger) | `(user_id, starts_at)`, recurring partial, link FKs |
+| `calendar_event_exceptions` | `event_id` (cascade); `occurrence_date`; `status` `modified|cancelled`; nullable override columns. **U** `(event_id, occurrence_date)` | `(user_id)` |
+
+`tasks` also gained `start_time`, `end_time`, `color`, `location`, `alert_minutes`; see [CALENDAR.md](CALENDAR.md).
 
 ## 4. Functions and triggers
 
@@ -168,9 +195,16 @@ sleep goal), `workout_plan` jsonb (`{}`; `{"0".."6": routine uuid | "rest" | nul
 | `replace_exercise_logs(p_workout, p_sets jsonb)` | RPC → rows | invoker | Replaces all sets of a workout in one transaction |
 | `register_push_token(token, platform, device_name)` | RPC | **definer** | Upserts a token, reassigning it to the caller |
 | `unregister_push_token(token)` | RPC | **definer** | Deletes the caller's token |
+| `security_state()`, `app_session_unlocked()`, `current_session_id()` | RPC / policy helper (0012) | **definer** | What the lock screen needs (nothing secret); the question the RLS gate asks |
+| `set_pin`, `verify_pin`, `change_pin`, `disable_app_lock`, `reset_app_lock`, `unlock_after_login`, `lock_app`, `touch_unlock`, `set_auto_lock`, `set_biometric_enabled` | RPC (0012) | **definer** | The app lock. Wrong PINs are *returned*, not raised (raising would roll back the failure counter); the PIN row is locked so parallel guesses take turns |
+| `list_passkeys`, `rename_passkey`, `remove_passkey` | RPC (0012) | **definer** | Registered devices (no key material returned); need an unlocked session |
+| `list_my_sessions`, `revoke_session`, `trust_session`, `untrust_session` | RPC (0012) | **definer** | Reads and ends the caller's `auth.sessions`; needs an unlocked session |
+| `pk_status`, `pk_issue_challenge`, `pk_take_challenge`, `pk_credentials`, `pk_add_credential`, `pk_record_assertion`, `pk_unlock`, `pk_failure` | functions (0012) | **definer**, **service role only** | Called by the `webauthn` Edge Function; no signed-in client can call them |
+| `hook_password_verification_attempt(event)` | GoTrue hook (0012) | **definer**, GoTrue only | Per-account password lockout; inactive until enabled in the dashboard |
+| `_is_unlocked`, `_require_unlocked`, `_check_pin`, `_register_failure`, `_validate_pin`, `_weak_pin`, `_is_run` | internal (0012) | definer / immutable | Not callable by any client role |
 
-All RPCs: `revoke all … from public, anon; grant execute … to authenticated`. Four functions are `SECURITY DEFINER` (`handle_new_user`, `delete_my_account`,
-`register_push_token`, `unregister_push_token`), all with `set search_path = ''`.
+All RPCs: `revoke all … from public, anon; grant execute … to authenticated`. Four of the original functions are `SECURITY DEFINER` (`handle_new_user`, `delete_my_account`,
+`register_push_token`, `unregister_push_token`); every 0012 function is too. All set `search_path = ''`.
 
 ## 5. Data ownership and retention
 
@@ -179,7 +213,7 @@ All RPCs: `revoke all … from public, anon; grant execute … to authenticated`
   children (habit logs, milestones, application history, interviews, sets).
 - There is no soft delete, no audit log and no multi-user sharing. `habits.archived_at`, `routines.archived_at`, `goals.status='archived'`,
   `learning_topics.archived` are user-visible archives, not deletions.
-- Not included in JSON backups or erased by "Erase all data": `profiles`, `device_push_tokens` ( `ALL_TABLES` in `packages/constants/src/schema.js` lists 30 tables).
+- Not included in JSON backups or erased by "Erase all data": `profiles`, `device_push_tokens`, and the five security tables of 0012 ( `ALL_TABLES` in `packages/constants/src/schema.js` lists 30 tables).
 
 ## 6. Built-in data that is **not** in the database
 
@@ -203,6 +237,9 @@ All RPCs: `revoke all … from public, anon; grant execute … to authenticated`
 | `0008_recurring_rules.sql` | `recurring_rules`; `transactions.recurring_*` | Recurring transactions |
 | `0009_nutrition.sql` | `foods`, `food_logs`, `water_logs`, `nutrition_settings`, `log_water`, `delete_water_log` | **Food & Nutrition, dashboard Food widget, backup of nutrition tables** |
 | `0010_food_database.sql` | `foods.aliases`, `foods.source`, 3 indexes | Custom foods with other names |
+| `0012_security.sql` | `user_security`, `app_unlocks`, `passkeys`, `webauthn_challenges`, `password_attempts`; the app-lock, passkey, session and password-hook functions; restrictive policy `app_lock_gate` on 6 tables; needs `pgcrypto` in `extensions` | **Security & Privacy** (see [APP_SECURITY.md](APP_SECURITY.md)). Until it is run the app opens as before and the Security page says what to run |
+| `0013_notification_center.sql` | `reminders.priority/body`, `weekdays`/`yearly` repeats; `notifications.priority/due_at/snoozed_until/dismissed_at`, kinds `job`/`goal`, 2 partial indexes; `user_settings.notification_settings` | **Notification & Reminder Center** (see [NOTIFICATIONS.md](NOTIFICATIONS.md)). Numbered 0013 because `0012` is reserved for the Security & Privacy migration |
+| `0011_calendar.sql` | `calendar_events`, `calendar_event_exceptions`; `tasks.start_time/end_time/color/location/alert_minutes`, `urgent` priority, `Routine`/`Custom` categories, `yearly` repeat; `user_settings.calendar_prefs`; `notifications.kind` `event` | **Calendar** (see [CALENDAR.md](CALENDAR.md)) |
 
 Operational notes:
 

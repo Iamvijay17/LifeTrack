@@ -19,6 +19,7 @@ cp .env.example .env.local
    - `supabase/migrations/0006_push_tokens.sql`
    - `supabase/migrations/0007_savings_atomic.sql`
    - `supabase/migrations/0008_recurring_rules.sql`
+   - then `0009` to `0013` (nutrition, food database, calendar, **security**, notification center); see [DATABASE.md §7](DATABASE.md)
 
    (or paste `supabase/setup-all.sql`, which contains all of them)
 
@@ -37,6 +38,9 @@ cp .env.example .env.local
    (needed for password-reset emails).
 6. **Database → Replication** (Realtime): migration 0002 already adds all tables to `supabase_realtime`.
    Verify the tables show as enabled.
+7. **Security & Privacy** (optional, recommended): after `0012_security.sql`, deploy the passkey function and set its two secrets
+   (`supabase functions deploy webauthn`, `supabase secrets set WEBAUTHN_RP_ID=… WEBAUTHN_ORIGINS=…`), enable the *Password verification attempt* hook, and turn on *Secure password change*.
+   Details and what each one does: [APP_SECURITY.md §7](APP_SECURITY.md). Skip it and the app works as before, without an app lock.
 
 Without these env vars `pnpm dev` runs in **DEV mode** (orange banner): data stays in that browser only and is
 **not** synced. That mode exists purely for development and tests.

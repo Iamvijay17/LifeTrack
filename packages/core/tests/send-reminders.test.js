@@ -1,11 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { timeStrInTz, todayStr } from '@lifetrack/utils'
-import { afterFire, dueReminders, KIND_LINK } from '../src/reminders'
+import { afterFire, dueReminders, reminderNotification } from '../src/reminders'
+import { mayInterrupt, notificationSettings } from '../src/notifications'
 import { runReminders } from '../../../supabase/functions/send-reminders/logic.js'
 import { expected } from '../../../scripts/sync-function-core.mjs'
 
-const core = { afterFire, dueReminders, KIND_LINK, timeStrInTz, todayStr }
+const core = { afterFire, dueReminders, reminderNotification, notificationSettings, mayInterrupt, timeStrInTz, todayStr }
 const U1 = 'user-1', U2 = 'user-2'
 
 /** In-memory stand-in for the service-role database, enforcing the notification dedupe key like Postgres does. */
@@ -130,6 +131,40 @@ describe('send-reminders pipeline', () => {
     const stats = await runReminders({ db, push, core, nowMs: T_0930_IST })
     expect(sent.map((b) => b.length)).toEqual([100, 100, 52])
     expect(stats.pushed).toBe(252)
+  })
+  it('carries the priority and note into the notification and records when the reminder was due', async () => {
+    const { state, db } = fakeDb({ reminders: [R({ priority: 'high', body: 'Bring the receipt' })], settings: { [U1]: IST }, tokens: [tok('a')] })
+    const { sent, push } = okPush()
+    await runReminders({ db, push, core, nowMs: T_0930_IST })
+    expect(state.notifications[0]).toMatchObject({ priority: 'high', body: 'Bring the receipt', due_at: '2026-11-02T03:30:00.000Z' })
+    expect(sent[0][0]).toMatchObject({ body: 'Bring the receipt', data: { priority: 'high' } })
+    // a reminder from three days ago fires late but keeps the time it was meant for, so the app can show it as missed
+    const late = fakeDb({ reminders: [R({ remind_date: '2026-10-30' })], settings: { [U1]: IST } })
+    await runReminders({ db: late.db, push: okPush().push, core, nowMs: T_0930_IST })
+    expect(late.state.notifications[0].due_at).toBe('2026-10-30T03:30:00.000Z')
+  })
+  it('quiet hours keep the notification in the inbox but do not push it, unless it is urgent and allowed', async () => {
+    const quiet = (extra = {}) => ({ [U1]: { ...IST, notification_settings: { quiet: { enabled: true, from: '08:00', to: '10:00', ...extra } } } }) // 09:00 IST is inside
+    const a = fakeDb({ reminders: [R()], settings: quiet(), tokens: [tok('a')] })
+    const pa = okPush()
+    const sa = await runReminders({ db: a.db, push: pa.push, core, nowMs: T_0930_IST })
+    expect(a.state.notifications).toHaveLength(1)
+    expect(pa.sent).toHaveLength(0)
+    expect(sa).toMatchObject({ fired: 1, quietHeld: 1, pushed: 0 })
+    expect(a.state.reminders[0].active).toBe(false) // it still counts as fired
+    const b = fakeDb({ reminders: [R({ priority: 'urgent' })], settings: quiet(), tokens: [tok('a')] })
+    const pb = okPush()
+    await runReminders({ db: b.db, push: pb.push, core, nowMs: T_0930_IST })
+    expect(pb.sent.flat()).toHaveLength(1) // urgent breaks through by default
+    const c = fakeDb({ reminders: [R({ priority: 'urgent' })], settings: quiet({ allow_urgent: false }), tokens: [tok('a')] })
+    const pc = okPush()
+    await runReminders({ db: c.db, push: pc.push, core, nowMs: T_0930_IST })
+    expect(pc.sent).toHaveLength(0)
+    // outside the window it is pushed as usual
+    const d = fakeDb({ reminders: [R()], settings: { [U1]: { ...IST, notification_settings: { quiet: { enabled: true, from: '22:00', to: '07:00' } } } }, tokens: [tok('a')] })
+    const pd = okPush()
+    await runReminders({ db: d.db, push: pd.push, core, nowMs: T_0930_IST })
+    expect(pd.sent.flat()).toHaveLength(1)
   })
   it('falls back to IST when a user has no settings row yet', async () => {
     const { state, db } = fakeDb({ reminders: [R()], settings: {}, tokens: [] })

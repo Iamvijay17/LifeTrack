@@ -16,6 +16,7 @@ import {
   FileText,
   Bell,
   Settings,
+  ShieldCheck,
   Download,
   LifeBuoy,
 } from 'lucide-react'
@@ -61,6 +62,7 @@ export const NAV_GROUPS = [
     items: [
       { to: '/notifications', module: 'notifications', label: 'Notifications', short: 'Alerts', icon: Bell },
       { to: '/settings', module: 'settings', label: 'Settings', icon: Settings },
+      { to: '/security', module: 'security', label: 'Security & Privacy', short: 'Security', icon: ShieldCheck },
       { to: '/export', module: 'export', label: 'Data Export', short: 'Export', icon: Download },
       { to: '/help', module: 'help', label: 'Help & Support', short: 'Help', icon: LifeBuoy },
     ],

@@ -21,9 +21,6 @@ test.describe('settings', () => {
     await page.getByLabel('Short break (min)').fill('99')
     await page.getByLabel('Short break (min)').press('Enter')
     await expect(page.getByText('Short break: 1–60 minutes.')).toBeVisible()
-    await page.getByLabel('New password').fill('short')
-    await page.getByRole('button', { name: 'Change password' }).click()
-    await expect(page.getByText('Use at least 8 characters.')).toBeVisible()
   })
 
   test('delete-account needs the typed word', async ({ page }) => {

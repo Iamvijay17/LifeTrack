@@ -19,6 +19,12 @@ export const FIXTURES: Record<string, Fixture> = {
   profiles: { kind: 'singleton' },
   user_settings: { kind: 'singleton' },
   device_push_tokens: { kind: 'rpc' },
+  // 0012: no client policies at all; reached only through functions (see pglite/security.test.ts for their isolation tests).
+  user_security: { kind: 'rpc' },
+  app_unlocks: { kind: 'rpc' },
+  passkeys: { kind: 'rpc' },
+  webauthn_challenges: { kind: 'rpc' },
+  password_attempts: { kind: 'rpc' },
   learning_topics: { insert: (r, o) => one(r, `insert into learning_topics(user_id, group_name, name) values ($1,'Frontend','React')`, [o]) },
   goals: { insert: (r, o, f) => one(r, `insert into goals(user_id, title, topic_id) values ($1,'Ship v1',$2)`, [o, f.topic_id ?? null]) },
   tasks: { insert: (r, o) => one(r, `insert into tasks(user_id, title) values ($1,'Write report')`, [o]) },

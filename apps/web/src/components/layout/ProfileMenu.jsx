@@ -1,13 +1,15 @@
 import { useNavigate } from 'react-router-dom'
-import { Download, LifeBuoy, LogOut, Moon, Settings, Sun, User } from 'lucide-react'
+import { Download, LifeBuoy, Lock, LogOut, Moon, Settings, ShieldCheck, Sun, User } from 'lucide-react'
 import { Menu } from '@/components/ui/menu'
 import { useAuth } from '@/hooks/useAuth'
+import { useSecurity } from '@/features/security/SecurityProvider'
 import { useSettings } from '@/hooks/useSettings'
 import { auth } from '@/services/auth'
 
 export function ProfileMenu() {
   const { displayName, user } = useAuth()
   const { save } = useSettings()
+  const sec = useSecurity()
   const nav = useNavigate()
   const dark = document.documentElement.classList.contains('dark')
   const initial = (displayName || user?.email || '?').trim()[0]?.toUpperCase()
@@ -20,7 +22,9 @@ export function ProfileMenu() {
         </span>
       }
       items={[
+        ...(sec?.enabled ? [{ label: 'Lock now', icon: Lock, onClick: () => sec.lockNow() }] : []),
         { label: 'Settings', icon: Settings, onClick: () => nav('/settings') },
+        { label: 'Security & Privacy', icon: ShieldCheck, onClick: () => nav('/security') },
         { label: 'Data export', icon: Download, onClick: () => nav('/export') },
         { label: 'Help', icon: LifeBuoy, onClick: () => nav('/help') },
         { label: dark ? 'Light theme' : 'Dark theme', icon: dark ? Sun : Moon, onClick: () => save({ theme: dark ? 'light' : 'dark' }) },

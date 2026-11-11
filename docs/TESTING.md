@@ -18,6 +18,10 @@ run the commands to get live results.
 | Database: RLS, constraints, triggers, RPCs | Vitest + PGlite (in-memory Postgres) | `supabase/tests/pglite` | 1 (table-driven) | part of 39 |
 | Database: concurrency on real PostgreSQL | Vitest + local `postgres` cluster | `supabase/tests/postgres` | 1 | part of 39 |
 | Database: migration safety rules | Vitest | `supabase/tests/static` | 1 | part of 39 |
+| Security: app lock, gate, passkey functions, password hook | Vitest + PGlite | `supabase/tests/pglite/security.test.ts` | 1 | 140 |
+| Security: WebAuthn verifier, rules, Edge Function decisions | Vitest + a software authenticator | `packages/core/tests/{security,webauthn,webauthn-function}.test.js` | 3 | 106 |
+| Security: lock screen, Security page, dev backend | Vitest + Testing Library | `apps/web/tests/{securityUi,localSecurity,devAuthSecurity,securityBackends}.test.*` | 4 | 89 |
+| Security: real browser incl. a WebAuthn virtual authenticator | Playwright | `apps/web/e2e/security*.spec.js` | 2 | 20 |
 | Database: RLS over the real HTTP API | Vitest | `supabase/tests/api` | 1 | part of 39 |
 | Edge Function | `deno test` | `supabase/functions/send-reminders/index.test.ts` | 1 | 2 |
 | Pipeline scripts | Node | `scripts/verify-sql.mjs`, `check-*.mjs`, `audit-gate.mjs` | — | — |

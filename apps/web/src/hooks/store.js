@@ -344,3 +344,5 @@ export const rpc = (name, args) => tracked(() => db.rpc(name, args))
 
 /** Synchronous read of the cached rows (for read-modify-write helpers). */
 export const peek = (table) => get(table).rows
+/** Whether a table has finished loading. A background job must not act on a table that has not (an unloaded list reads as empty, not as unknown). */
+export const isReady = (table) => get(table).status === 'ready'

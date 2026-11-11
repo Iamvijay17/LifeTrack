@@ -56,7 +56,9 @@ LifeTrack needs an internet connection. Offline you see a banner and changes can
 
 ## 7. Reminders and notifications
 
-**Notifications → Reminders**: title, kind, date, time, repeat (none/daily/weekly/monthly). They arrive in your **Inbox** and, on the phone, as push notifications if you enabled push in *Preferences* (the phone asks for permission only then). Turn kinds on/off in Preferences.
+**Notifications → Reminders**: title, type, priority, date, time, an optional note, and repeat (none/daily/weekdays/weekly/monthly/yearly). They arrive in your **Inbox** and, on the phone, as push notifications if you enabled push in *Preferences* (the phone asks for permission only then).
+On the web, the **bell** opens a drawer with the same inbox. For each notification you can **Open** it, **Snooze** it (10 minutes to next week, or a date and time you pick), **Dismiss** it (it moves to **History**; Undo is offered), or mark it read or unread; on a phone swipe a card right to dismiss. **Search** and filter by category and priority; **History** keeps everything.
+Besides your reminders and calendar alerts, LifeTrack sends a few summaries from your other modules (tasks due, habits left, bills due, interview heads-ups, topics to revise, goals due) at the morning and evening times you choose. Under **Preferences** you can switch any category off, set **quiet hours**, and turn on **desktop notifications** (the browser asks permission only then). Details in `docs/NOTIFICATIONS.md`.
 If a reminder did not fire, see the FAQ below.
 
 ## 8. Insights
