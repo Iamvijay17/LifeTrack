@@ -18,6 +18,11 @@ beforeEach(async () => {
 const rightClick = (el, pos = { clientX: 200, clientY: 160 }) => fireEvent.contextMenu(el, pos)
 const item = (name) => screen.findByRole('menuitem', { name })
 const choice = (name) => screen.findByRole('menuitemradio', { name })
+/** Presses Undo on the toast with this message (earlier toasts have their own Undo and stay for a few seconds). */
+const undoToast = async (user, text) => {
+  const toast = (await screen.findByText(text)).closest('[data-sonner-toast]')
+  await user.click(within(toast).getByRole('button', { name: 'Undo' }))
+}
 const rows = (table) => db.list(table)
 const gone = () => waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
 async function openPage(path, ready) {
@@ -45,7 +50,7 @@ describe('Tasks (Daily Planner)', () => {
     rightClick(row)
     await user.click(await item('Mark complete'))
     await waitFor(async () => expect((await rows('tasks'))[0].status).toBe('done'))
-    await user.click(await screen.findByRole('button', { name: 'Undo' }))
+    await undoToast(user, 'Task completed')
     await waitFor(async () => expect((await rows('tasks'))[0].status).toBe('pending'))
 
     // priority
@@ -59,7 +64,7 @@ describe('Tasks (Daily Planner)', () => {
     await user.click(await item('Due date'))
     await user.click(await item('Tomorrow'))
     await waitFor(async () => expect((await rows('tasks'))[0].due_date).not.toBe(TODAY))
-    await user.click(await screen.findByRole('button', { name: 'Undo' })) // it left today's list; Undo brings it back
+    await undoToast(user, /^Due /) // it left today's list; Undo brings it back
     await waitFor(async () => expect((await rows('tasks'))[0].due_date).toBe(TODAY))
 
     // category
@@ -191,7 +196,8 @@ describe('Calendar', () => {
     await user.click(await item('Change date'))
     await user.click(await item('Tomorrow'))
     await waitFor(async () => expect(new Date((await rows('calendar_events'))[0].starts_at).getDate()).not.toBe(new Date().getDate()))
-    await user.click(await screen.findByRole('button', { name: 'Undo' })) // and back
+    const moved = (await screen.findByText(/^Moved to/)).closest('[data-sonner-toast]')
+    await user.click(within(moved).getByRole('button', { name: 'Undo' })) // and back (the earlier toast has its own Undo)
     await waitFor(async () => expect(new Date((await rows('calendar_events'))[0].starts_at).getDate()).toBe(new Date().getDate()))
 
     // duplicate
@@ -243,7 +249,7 @@ describe('Career & Learning', () => {
     rightClick(await card('Finish DSA course'))
     await user.click(await item('Mark complete'))
     await waitFor(async () => expect((await rows('goals'))[0].status).toBe('completed'))
-    await user.click(await screen.findByRole('button', { name: 'Undo' }))
+    await undoToast(user, 'Goal completed')
     await waitFor(async () => expect((await rows('goals'))[0].status).toBe('active'))
 
     rightClick(await card('Finish DSA course'))
@@ -295,7 +301,7 @@ describe('Job Switch', () => {
     await user.click(await item('Update status'))
     await user.click(await choice('Assessment'))
     await waitFor(async () => expect((await rows('job_applications'))[0].status).toBe('assessment'))
-    await user.click(await screen.findByRole('button', { name: 'Undo' }))
+    await undoToast(user, /^Moved to/)
     await waitFor(async () => expect((await rows('job_applications'))[0].status).toBe('applied'))
 
     rightClick(await card())
@@ -396,7 +402,7 @@ describe('Food & Nutrition', () => {
     await user.click(await item('Change meal'))
     await user.click(await choice('Dinner'))
     await waitFor(async () => expect((await rows('food_logs'))[0].meal_type).toBe('dinner'))
-    await user.click(await screen.findByRole('button', { name: 'Undo' }))
+    await undoToast(user, /^Moved to/)
     await waitFor(async () => expect((await rows('food_logs'))[0].meal_type).toBe('breakfast'))
 
     rightClick(await li())
@@ -450,7 +456,7 @@ describe('Finance', () => {
     await user.click(await item('Change category'))
     await user.click(await choice('Travel'))
     await waitFor(async () => expect((await rows('transactions')).find((t) => t.note === 'Lunch').category).toBe('Travel'))
-    await user.click(await screen.findByRole('button', { name: 'Undo' }))
+    await undoToast(user, /^Category:/)
     await waitFor(async () => expect((await rows('transactions')).find((t) => t.note === 'Lunch').category).toBe('Food'))
 
     rightClick(await li('Lunch'))
@@ -513,7 +519,7 @@ describe('Habits & Routine', () => {
     await user.click(await item('Reset progress'))
     await user.click(await within(await screen.findByRole('dialog')).findByRole('button', { name: 'Reset progress' }))
     await waitFor(async () => expect(await rows('habit_logs')).toHaveLength(0))
-    await user.click(await screen.findByRole('button', { name: 'Undo' }))
+    await undoToast(user, 'Progress reset')
     await waitFor(async () => expect(await rows('habit_logs')).toHaveLength(1))
 
     rightClick(await card())

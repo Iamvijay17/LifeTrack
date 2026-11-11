@@ -167,8 +167,18 @@ export function calendarItemItems(item, d) {
 export function calendarSlotItems(slot, d) {
   const where = fmtDay(slot.date, 'EEE d MMM')
   return [
-    { label: `New event · ${where}`, icon: CalendarPlus, onSelect: () => d.create({ ...slot, allDay: slot.allDay ?? false }, 'event') },
-    { label: `New task · ${where}`, icon: ListTodo, onSelect: () => d.create({ ...slot, allDay: slot.allDay ?? false }, 'task') },
+    {
+      label: `New event · ${where}`,
+      icon: CalendarPlus,
+      shortcut: 'N',
+      onSelect: () => d.create({ ...slot, allDay: slot.allDay ?? false }, 'event'),
+    },
+    {
+      label: `New task · ${where}`,
+      icon: ListTodo,
+      shortcut: '⇧N',
+      onSelect: () => d.create({ ...slot, allDay: slot.allDay ?? false }, 'task'),
+    },
     SEPARATOR,
     { label: 'Open this day', icon: CalendarDays, hidden: d.view === 'day', onSelect: () => d.openDay(slot.date) },
   ]
@@ -177,10 +187,10 @@ export function calendarSlotItems(slot, d) {
 /** The calendar's own empty-area menu (toolbar and gutters). */
 export function calendarPageItems(d) {
   return [
-    { label: 'New event', icon: CalendarPlus, onSelect: () => d.create({ date: d.date, allDay: false }, 'event') },
-    { label: 'New task', icon: ListTodo, onSelect: () => d.create({ date: d.date, allDay: false }, 'task') },
+    { label: 'New event', icon: CalendarPlus, shortcut: 'N', onSelect: () => d.create({ date: d.date, allDay: false }, 'event') },
+    { label: 'New task', icon: ListTodo, shortcut: '⇧N', onSelect: () => d.create({ date: d.date, allDay: false }, 'task') },
     SEPARATOR,
-    { label: 'Go to today', icon: CalendarDays, onSelect: d.toToday },
+    { label: 'Go to today', icon: CalendarDays, shortcut: 'T', onSelect: d.toToday },
     { label: 'Refresh', icon: RefreshCw, onSelect: d.refresh, success: 'Calendar refreshed' },
   ]
 }
