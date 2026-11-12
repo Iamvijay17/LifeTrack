@@ -9,7 +9,7 @@ import * as store from '@/hooks/store'
 import { TargetSelect } from './TargetSelect'
 
 /** Log or edit a manual study session. */
-export function SessionDialog({ open, onOpenChange, session, goals, topics, today }) {
+export function SessionDialog({ open, onOpenChange, session, goals, topics, today, defaultTarget = '' }) {
   const schema = z
     .object({
       target: z.string(),
@@ -20,7 +20,7 @@ export function SessionDialog({ open, onOpenChange, session, goals, topics, toda
     })
     .refine((v) => v.minutes > 0 || v.problems_solved > 0, { path: ['minutes'], message: 'Enter minutes studied or problems solved' })
 
-  const blank = { target: '', session_date: today, minutes: '', problems_solved: 0, notes: '' }
+  const blank = { target: defaultTarget, session_date: today, minutes: '', problems_solved: 0, notes: '' }
   const fromSession = (s) => ({
     target: targetValue(s),
     session_date: s.session_date,
@@ -34,7 +34,12 @@ export function SessionDialog({ open, onOpenChange, session, goals, topics, toda
     watch,
     setValue,
     formState: { errors },
-  } = useDialogForm({ open, schema, recordKey: session?.id, valuesFor: () => (session ? fromSession(session) : blank) })
+  } = useDialogForm({
+    open,
+    schema,
+    recordKey: `${session?.id ?? 'new'}|${defaultTarget}`,
+    valuesFor: () => (session ? fromSession(session) : blank),
+  })
 
   const [save, pending] = useAction(
     async (v) => {

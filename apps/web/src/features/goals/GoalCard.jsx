@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 import { Milestones } from './Milestones'
 
 /** One goal: status badges, progress, dates and an expandable milestone list. `row` is a goalRows() entry. */
-export function GoalCard({ row, today, onEdit }) {
+export function GoalCard({ row, today, onEdit, cardProps }) {
   const { goal: g, progress: p, milestones } = row
   const [expanded, setExpanded] = useState(false)
   const [setStatus] = useAction(setGoalStatus)
@@ -31,7 +31,7 @@ export function GoalCard({ row, today, onEdit }) {
   }, [finished])
 
   return (
-    <Card data-testid="goal-card" className={cn(finished && 'border-mod/40')}>
+    <Card data-testid="goal-card" {...cardProps} className={cn(finished && 'border-mod/40')}>
       <CardContent className="p-4">
         <div className="flex items-start gap-3.5">
           <ProgressRing

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Briefcase, CalendarPlus, Plus } from 'lucide-react'
+import { SelectionBar, useContextMenu, usePageContextMenu, useSelection } from '@/components/context-menu'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate, EmptyState } from '@/components/shared/states'
 import { Button } from '@/components/ui/button'
@@ -17,6 +18,7 @@ import {
   upcomingInterviews,
 } from '@/domain/jobs'
 import { startOfWeek } from '@/lib/dates'
+import { applicationBulkItems, applicationItems, jobsColumnItems, jobsPageItems } from './contextMenu'
 import { ApplicationDialog } from './ApplicationDialog'
 import { ApplicationDetail } from './ApplicationDetail'
 import { Board } from './Board'
@@ -65,6 +67,28 @@ export default function JobsPage() {
   const scheduleInterview = (appId) => setIntDlg({ open: true, event: null, appId })
   const editInterview = (event) => setIntDlg({ open: true, event, appId: event.application_id })
   const open = (a) => setOpenId(a.id)
+  const menu = useContextMenu()
+  const sel = useSelection(useMemo(() => filtered.map((a) => a.id), [filtered]))
+  const bulk = (ids) => applicationBulkItems(ids.map((id) => apps.find((a) => a.id === id)).filter(Boolean), { today })
+  usePageContextMenu(() => jobsPageItems({ addApplication, scheduleInterview, hasApps: apps.length > 0 }))
+  const appProps = (a) => ({
+    ...sel.itemProps(a.id),
+    ...menu.bind(
+      () => {
+        const ids = sel.targets(a.id)
+        if (ids.length > 1) return bulk(ids)
+        return applicationItems(a, {
+          today,
+          onOpen: open,
+          onEdit: (app) => setAppDlg({ open: true, app, status: app.status }),
+          onScheduleInterview: scheduleInterview,
+          select: sel.add,
+        })
+      },
+      { label: `Actions for ${a.company}` },
+    ),
+  })
+  const columnProps = (status) => menu.bind(() => jobsColumnItems(status, addApplication), { label: 'Column actions' })
 
   return (
     <>
@@ -98,10 +122,10 @@ export default function JobsPage() {
               action={<Button onClick={() => addApplication()}>Add your first application</Button>}
             />
           ) : view === 'board' ? (
-            <Board apps={filtered} today={today} onOpen={open} onAdd={addApplication} />
+            <Board apps={filtered} today={today} onOpen={open} onAdd={addApplication} appProps={appProps} columnProps={columnProps} />
           ) : view === 'table' ? (
             filtered.length ? (
-              <JobsTable apps={filtered} today={today} onOpen={open} />
+              <JobsTable apps={filtered} today={today} onOpen={open} appProps={appProps} />
             ) : (
               <EmptyState title="No matches" description="Try clearing the search or filters." />
             )
@@ -121,6 +145,7 @@ export default function JobsPage() {
         </div>
       </DataGate>
 
+      <SelectionBar selection={sel} noun="application" build={() => bulk([...sel.selected])} />
       <ApplicationDialog
         open={appDlg.open}
         app={appDlg.app}

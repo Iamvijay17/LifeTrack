@@ -318,6 +318,28 @@
     backdrop-filter: blur(14px) saturate(1.4);
     -webkit-backdrop-filter: blur(14px) saturate(1.4);
   }
+  /* The right-click menu: a small glass surface in the card colour, tinted violet at the edge. Small enough that blur stays cheap on phones. */
+  .lt-ctx {
+    background: rgb(var(--card) / 0.8);
+    backdrop-filter: blur(18px) saturate(1.5);
+    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+    border: 1px solid rgb(var(--primary) / 0.22);
+    box-shadow: var(--shadow-overlay);
+  }
+  .dark .lt-ctx {
+    background: rgb(var(--card) / 0.78);
+    border-color: rgb(255 255 255 / 0.09);
+  }
+  /* Elements that open a custom menu on long-press: no system callout fighting it on iOS. */
+  [data-ctx] {
+    -webkit-touch-callout: none;
+  }
+  /* A selected card or row (multi-select from the right-click menu). */
+  [data-selected='true'] {
+    outline: 2px solid rgb(var(--primary) / 0.75);
+    outline-offset: -2px;
+  }
+
   /* Blur is the costliest thing on a mid-range phone, so small screens get a near-solid surface instead. */
   @media (max-width: 767px) {
     .lt-glass {
@@ -788,5 +810,11 @@
   }
   .lt-delayed {
     animation-duration: 0.01s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-ctx-in {
+    animation: none;
   }
 }

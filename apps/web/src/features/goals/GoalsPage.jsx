@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Plus, Target } from 'lucide-react'
+import { useContextMenu, usePageContextMenu } from '@/components/context-menu'
+import { usePrompt } from '@/components/shared/Prompt'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate, EmptyState } from '@/components/shared/states'
 import { Button } from '@/components/ui/button'
@@ -9,6 +11,7 @@ import { useTables } from '@/hooks/store'
 import { useToday } from '@/hooks/useToday'
 import { goalRows, goalSummary, PERIODS, visibleGoals } from '@/domain/goals'
 import { GoalCard } from './GoalCard'
+import { goalItems } from './contextMenu'
 import { GoalDialog } from './GoalDialog'
 import { GoalStats } from './GoalStats'
 
@@ -28,6 +31,19 @@ export default function GoalsPage() {
   const shown = useMemo(() => visibleGoals(rows, { tab, period }), [rows, tab, period])
   const summary = useMemo(() => goalSummary(rows, data.milestones, today), [rows, data.milestones, today])
   const newGoal = () => setDlg({ open: true, goal: null })
+  const menu = useContextMenu()
+  const ask = usePrompt()
+  usePageContextMenu(() => [{ label: 'New goal', icon: Target, onSelect: newGoal }])
+  const cardProps = (row) =>
+    menu.bind(
+      () =>
+        goalItems(row.goal, {
+          ask,
+          onEdit: (goal) => setDlg({ open: true, goal }),
+          progressText: `${row.progress.percent}% complete`,
+        }),
+      { label: `Actions for ${row.goal.title}` },
+    )
 
   return (
     <>
@@ -69,7 +85,13 @@ export default function GoalsPage() {
           ) : (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {shown.map((row) => (
-                <GoalCard key={row.goal.id} row={row} today={today} onEdit={(goal) => setDlg({ open: true, goal })} />
+                <GoalCard
+                  key={row.goal.id}
+                  row={row}
+                  today={today}
+                  cardProps={cardProps(row)}
+                  onEdit={(goal) => setDlg({ open: true, goal })}
+                />
               ))}
             </div>
           )}

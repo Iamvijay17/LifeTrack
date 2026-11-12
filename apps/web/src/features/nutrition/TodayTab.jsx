@@ -65,6 +65,8 @@ export function TodayTab({ n, day, today, nowTime, setDay, actions, goalsDialog 
               onEdit={actions.openEdit}
               onDuplicate={(e) => actions.openDuplicate(e, day)}
               onDelete={actions.deleteEntry}
+              entryProps={actions.entryProps}
+              mealProps={actions.mealProps?.(meal)}
             />
           ))}
         </div>

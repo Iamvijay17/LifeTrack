@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Plus, Target } from 'lucide-react'
 import { foodLogDraftToForm } from '@lifetrack/schemas'
 import { FOOD_CATEGORIES } from '@lifetrack/constants/foods'
+import { SelectionBar, useContextMenu, usePageContextMenu, useSelection } from '@/components/context-menu'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate } from '@/components/shared/states'
 import { Button } from '@/components/ui/button'
@@ -14,6 +15,7 @@ import { useToday } from '@/hooks/useToday'
 import { saveFavoriteFoods } from '@/services/api'
 import { duplicateDraft, entryRow, guessMeal, perServing, toggleFavorite as toggleFav } from '@/domain/nutrition'
 import { timeStrInTz } from '@/lib/dates'
+import { entryBulkItems, entryItems, mealSectionItems, nutritionPageItems } from './contextMenu'
 import { AnalyticsTab } from './AnalyticsTab'
 import { CalendarTab } from './CalendarTab'
 import { CustomFoodDialog } from './CustomFoodDialog'
@@ -85,6 +87,29 @@ export default function NutritionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [day, quickAdd, quickAdding, removeEntry, tz],
   )
+  const menu = useContextMenu()
+  const sel = useSelection(useMemo(() => n.logs.map((l) => l.id), [n.logs]))
+  const bulk = (ids) => entryBulkItems(ids.map((id) => n.logs.find((l) => l.id === id)).filter(Boolean))
+  usePageContextMenu(() =>
+    nutritionPageItems({
+      day,
+      today,
+      openAdd: actions.openAdd,
+      openGoals: () => setGoalsOpen(true),
+      goToday: () => setChosen(null),
+    }),
+  )
+  const entryProps = (entry) => ({
+    ...sel.itemProps(entry.id),
+    ...menu.bind(
+      () => {
+        const ids = sel.targets(entry.id)
+        return ids.length > 1 ? bulk(ids) : entryItems(entry, { day, actions, select: sel.add })
+      },
+      { label: `Actions for ${entry.name}` },
+    ),
+  })
+  const mealProps = (meal) => menu.bind(() => mealSectionItems(meal, { day, openAdd: actions.openAdd }), { label: `${meal.label} actions` })
   const categories = useMemo(() => [...new Set([...FOOD_CATEGORIES, ...n.catalog.map((f) => f.category)])], [n.catalog])
   const openDay = (d) => {
     setChosen(d)
@@ -120,7 +145,7 @@ export default function NutritionPage() {
               today={today}
               nowTime={nowTime}
               setDay={setChosen}
-              actions={actions}
+              actions={{ ...actions, entryProps, mealProps }}
               goalsDialog={() => setGoalsOpen(true)}
             />
           )}
@@ -146,6 +171,7 @@ export default function NutritionPage() {
           )}
         </div>
       </DataGate>
+      <SelectionBar selection={sel} noun="entry" build={() => bulk([...sel.selected])} />
       <FoodEntryFlow
         flow={flow}
         setFlow={setFlow}

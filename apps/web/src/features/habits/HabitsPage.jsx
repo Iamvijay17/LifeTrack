@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Flame, Plus } from 'lucide-react'
+import { SelectionBar, useContextMenu, usePageContextMenu, useSelection } from '@/components/context-menu'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate, EmptyState } from '@/components/shared/states'
 import { DateNav } from '@/components/shared/DateNav'
@@ -10,6 +11,7 @@ import { useSettings } from '@/hooks/useSettings'
 import { useToday } from '@/hooks/useToday'
 import { summarizeHabits } from '@/domain/habits'
 import { celebrate } from '@/lib/celebrate'
+import { habitBulkItems, habitItems, habitsPageItems } from './contextMenu'
 import { HabitDialog } from './HabitDialog'
 import { HabitRow } from './HabitRow'
 import { HabitsOverview } from './HabitsOverview'
@@ -30,6 +32,22 @@ export default function HabitsPage() {
   const { active, doneOnDay, longest, bestCurrent, avg30 } = summarizeHabits(stats, day)
   const visible = stats.filter((s) => showArchived || !s.habit.archived_at)
   const newHabit = () => setDialog({ open: true, habit: null })
+  const menu = useContextMenu()
+  const sel = useSelection(useMemo(() => visible.map((s) => s.habit.id), [visible]))
+  const bulk = (ids) => habitBulkItems(ids.map((id) => stats.find((s) => s.habit.id === id)).filter(Boolean), { date: day })
+  usePageContextMenu(() => habitsPageItems({ newHabit }))
+  const rowProps = (s) => ({
+    ...sel.itemProps(s.habit.id),
+    ...menu.bind(
+      () => {
+        const ids = sel.targets(s.habit.id)
+        return ids.length > 1
+          ? bulk(ids)
+          : habitItems(s, { date: day, onEdit: (habit) => setDialog({ open: true, habit }), select: sel.add })
+      },
+      { label: `Actions for ${s.habit.name}` },
+    ),
+  })
 
   // Finishing the last habit of the day earns confetti, but only at the moment it happens, not every time a finished day is opened.
   const remaining = day === today && !loading ? active.length - doneOnDay : null
@@ -84,7 +102,7 @@ export default function HabitsPage() {
             <Stagger as="ul" gap={0.04} className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
               {visible.map((s) => (
                 <StaggerItem as="li" key={s.habit.id}>
-                  <HabitRow s={s} date={day} onEdit={(habit) => setDialog({ open: true, habit })} />
+                  <HabitRow s={s} date={day} onEdit={(habit) => setDialog({ open: true, habit })} ctxProps={rowProps(s)} />
                 </StaggerItem>
               ))}
             </Stagger>
@@ -93,6 +111,7 @@ export default function HabitsPage() {
           </div>
         )}
       </DataGate>
+      <SelectionBar selection={sel} noun="habit" build={() => bulk([...sel.selected])} />
       <HabitDialog open={dialog.open} habit={dialog.habit} today={today} onOpenChange={(o) => setDialog((d) => ({ ...d, open: o }))} />
     </>
   )

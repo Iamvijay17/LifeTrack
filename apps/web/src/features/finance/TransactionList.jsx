@@ -33,7 +33,7 @@ function byDay(rows) {
   return out
 }
 
-function TransactionRow({ t, money, onEdit, onDuplicate, onDelete }) {
+function TransactionRow({ t, money, onEdit, onDuplicate, onDelete, ctxProps }) {
   const TypeIcon = TYPE_ICON[t.type].icon
   return (
     <m.li
@@ -43,6 +43,7 @@ function TransactionRow({ t, money, onEdit, onDuplicate, onDelete }) {
       exit={{ opacity: 0, x: -12, transition: { duration: 0.14 } }}
       transition={{ duration: 0.2, ease: ease.out }}
       className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/30 md:px-5"
+      {...ctxProps}
     >
       <span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-lg', TYPE_ICON[t.type].cls)}>
         <TypeIcon className="h-4 w-4" aria-hidden />
@@ -77,7 +78,7 @@ function TransactionRow({ t, money, onEdit, onDuplicate, onDelete }) {
 }
 
 /** The month's transactions with search and filters. `month` = first day of the month; `monthTx` = its transactions. */
-export function TransactionList({ monthTx, month, money, onAdd, onEdit, onDuplicate }) {
+export function TransactionList({ monthTx, month, money, onAdd, onEdit, onDuplicate, rowProps }) {
   const [f, setF] = useState(NO_FILTERS)
   const [showFilters, setShowFilters] = useState(false) // collapsed on phones; always visible from `md` up
   const active = ['type', 'category', 'method', 'from', 'to'].filter((k) => f[k]).length
@@ -159,7 +160,15 @@ export function TransactionList({ monthTx, month, money, onAdd, onEdit, onDuplic
                 <ul className="divide-y divide-border/70">
                   <AnimatePresence initial={false}>
                     {rows.map((t) => (
-                      <TransactionRow key={t.id} t={t} money={money} onEdit={onEdit} onDuplicate={onDuplicate} onDelete={askDelete} />
+                      <TransactionRow
+                        key={t.id}
+                        t={t}
+                        money={money}
+                        onEdit={onEdit}
+                        onDuplicate={onDuplicate}
+                        onDelete={askDelete}
+                        ctxProps={rowProps?.(t)}
+                      />
                     ))}
                   </AnimatePresence>
                 </ul>

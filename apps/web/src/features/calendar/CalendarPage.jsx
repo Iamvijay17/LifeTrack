@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { useContextMenu, usePageContextMenu } from '@/components/context-menu'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { ErrorState } from '@/components/shared/states'
 import { Skeleton } from '@/components/ui/misc'
@@ -33,6 +34,7 @@ import { useCalendarPrefs } from './calendarPrefs'
 import { VIEWS, clock, rangeTitle, stepDate, tint, viewRange } from './format'
 import { ItemDetails } from './ItemDetails'
 import { ItemDialog } from './ItemDialog'
+import { calendarHit, calendarItemItems, calendarPageItems, calendarSlotItems } from './contextMenu'
 import { DayPanel, MonthView } from './MonthView'
 import { useScopePrompt } from './ScopePrompt'
 import { SettingsDialog } from './SettingsDialog'
@@ -247,9 +249,11 @@ export default function CalendarPage() {
       if (key) setPending((p) => ({ ...p, [key]: planned.preview }))
       try {
         await applyCalendarChange(planned.change, { scope })
+        return true
       } catch (e) {
         toast.error(`Could not move it: ${toAppError(e).message}`)
         void refetch()
+        return false
       } finally {
         if (key) setPending((p) => omit(p, key))
       }
@@ -314,6 +318,33 @@ export default function CalendarPage() {
     },
     [ctx, commit],
   )
+
+  // ------------------------------------------------------------------- right-click
+  // One region for the whole calendar: what is under the pointer (an item, or a day and time) decides the menu. Touch keeps its own press-and-drag.
+  const menu = useContextMenu()
+  const deps = {
+    today,
+    ctx,
+    view,
+    date,
+    commit,
+    edit,
+    open,
+    remove,
+    toggleDone,
+    navigate,
+    create,
+    openDay,
+    toToday,
+    refresh: () => refetch(),
+  }
+  const calendarMenu = ({ target, point }) => {
+    const hit = calendarHit(target, point, shown)
+    if (hit.item) return calendarItemItems(hit.item, deps)
+    if (hit.slot) return calendarSlotItems(hit.slot, deps)
+    return []
+  }
+  usePageContextMenu(() => calendarPageItems(deps))
 
   // ------------------------------------------------------------------- keyboard
   useEffect(() => {
@@ -438,6 +469,7 @@ export default function CalendarPage() {
         <div
           className="lt-card flex h-[calc(100dvh-13rem)] min-h-[30rem] flex-col overflow-hidden p-0 md:h-[calc(100dvh-16rem)]"
           data-testid="calendar"
+          {...menu.bind(calendarMenu, { label: 'Calendar actions', longPress: false })}
         >
           <Toolbar
             view={view}
