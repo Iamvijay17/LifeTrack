@@ -10,7 +10,7 @@ import { sessionName } from '@/domain/learning'
 import { fmtDay, fmtDuration } from '@/lib/dates'
 
 /** `history` is completed sessions, newest first. */
-export function SessionsTab({ history, goals, topics, onCreate, onEdit }) {
+export function SessionsTab({ history, goals, topics, onCreate, onEdit, rowProps }) {
   const removeSession = useConfirmedDelete('study_sessions', 'Session deleted')
   const page = useShowMore(history)
   if (history.length === 0) {
@@ -33,7 +33,7 @@ export function SessionsTab({ history, goals, topics, onCreate, onEdit }) {
     <Card>
       <ul className="divide-y divide-border/70">
         {page.visible.map((s) => (
-          <li key={s.id} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30 md:px-5">
+          <li key={s.id} {...rowProps?.(s)} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30 md:px-5">
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{sessionName(s, goals, topics)}</p>
               <p className="text-xs text-muted-foreground">

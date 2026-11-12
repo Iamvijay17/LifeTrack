@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { CalendarCheck, Plus } from 'lucide-react'
+import { SelectionBar, useContextMenu, usePageContextMenu, useSelection } from '@/components/context-menu'
+import { usePrompt } from '@/components/shared/Prompt'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate, EmptyState } from '@/components/shared/states'
 import { DateNav } from '@/components/shared/DateNav'
@@ -17,6 +19,7 @@ import { plural } from '@/lib/utils'
 import { TaskDialog } from '@/features/planner/TaskDialog'
 import { TaskSection } from '@/features/planner/TaskList'
 import { groupTasksForDay } from '@/domain/tasks'
+import { taskBulkItems, taskItems, taskPageItems } from './contextMenu'
 
 export default function PlannerPage() {
   const today = useToday()
@@ -53,6 +56,23 @@ export default function PlannerPage() {
   const dayPlanned = g.count - g.off.length - g.someday.length
 
   const edit = (task) => setDialog({ open: true, task })
+  const menu = useContextMenu()
+  const ask = usePrompt()
+  const sel = useSelection(useMemo(() => data.tasks.map((t) => t.id), [data.tasks]))
+  const byId = (ids) => ids.map((id) => data.tasks.find((t) => t.id === id)).filter(Boolean)
+  const bulk = (ids) => taskBulkItems(byId(ids), { today })
+  // What a right-click on a task row (or a long-press) offers, and the selection look and ctrl/shift-click behaviour of a row.
+  const rowProps = (task) => ({
+    ...sel.itemProps(task.id),
+    ...menu.bind(
+      () => {
+        const ids = sel.targets(task.id)
+        return ids.length > 1 ? bulk(ids) : taskItems(task, { today, onEdit: edit, ask, select: sel.add })
+      },
+      { label: `Actions for ${task.title}` },
+    ),
+  })
+  usePageContextMenu(() => taskPageItems({ day, onAdd: () => setDialog({ open: true, task: null }) }))
   return (
     <>
       <PageHeader
@@ -105,11 +125,12 @@ export default function PlannerPage() {
                       tasks={g.priorities}
                       today={today}
                       onEdit={edit}
+                      rowProps={rowProps}
                       hint="Your three most important open tasks, ranked by priority."
                     />
-                    <TaskSection title="Pending" tasks={g.pending} today={today} onEdit={edit} />
-                    <TaskSection title="Completed" tasks={g.done} today={today} onEdit={edit} />
-                    <TaskSection title="Skipped / cancelled" tasks={g.off} today={today} onEdit={edit} />
+                    <TaskSection title="Pending" tasks={g.pending} today={today} onEdit={edit} rowProps={rowProps} />
+                    <TaskSection title="Completed" tasks={g.done} today={today} onEdit={edit} rowProps={rowProps} />
+                    <TaskSection title="Skipped / cancelled" tasks={g.off} today={today} onEdit={edit} rowProps={rowProps} />
                   </>
                 )}
               </CardContent>
@@ -119,7 +140,7 @@ export default function PlannerPage() {
               {g.overdue.length > 0 && (
                 <Card className="order-1">
                   <CardContent>
-                    <TaskSection title="Overdue" tasks={g.overdue} today={today} onEdit={edit} showDue />
+                    <TaskSection title="Overdue" tasks={g.overdue} today={today} onEdit={edit} rowProps={rowProps} showDue />
                   </CardContent>
                 </Card>
               )}
@@ -130,6 +151,7 @@ export default function PlannerPage() {
                     tasks={g.someday}
                     today={today}
                     onEdit={edit}
+                    rowProps={rowProps}
                     empty="Tasks without a date show up here."
                   />
                 </CardContent>
@@ -138,6 +160,7 @@ export default function PlannerPage() {
           </div>
         </LayoutGroup>
       </DataGate>
+      <SelectionBar selection={sel} noun="task" build={() => bulk([...sel.selected])} />
       <TaskDialog open={dialog.open} task={dialog.task} defaultDate={day} onOpenChange={(o) => setDialog((d) => ({ ...d, open: o }))} />
     </>
   )

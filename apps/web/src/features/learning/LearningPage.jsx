@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { BookOpen, CalendarClock, Code2, Plus, Target } from 'lucide-react'
+import { useContextMenu, usePageContextMenu } from '@/components/context-menu'
+import { usePrompt } from '@/components/shared/Prompt'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate } from '@/components/shared/states'
 import { StatCard } from '@/components/shared/StatCard'
@@ -8,7 +10,19 @@ import { Segmented } from '@/components/ui/misc'
 import { useTables } from '@/hooks/store'
 import { useSettings } from '@/hooks/useSettings'
 import { useToday } from '@/hooks/useToday'
-import { counted, countedMinutes, historyOf, problemsSolved, revisionStatus, topicGroups, topicTotals, weekSeries } from '@/domain/learning'
+import { goalItems } from '@/features/goals/contextMenu'
+import { learningPageItems, sessionItems } from './contextMenu'
+import {
+  counted,
+  targetValue,
+  countedMinutes,
+  historyOf,
+  problemsSolved,
+  revisionStatus,
+  topicGroups,
+  topicTotals,
+  weekSeries,
+} from '@/domain/learning'
 import { isStudyGoal } from '@lifetrack/core/learning'
 import { addDays, eachDay, fmtDay, fmtDuration, startOfWeek } from '@/lib/dates'
 import { AnimatedValue, ProgressRing } from '@/components/motion/primitives'
@@ -56,6 +70,32 @@ export default function LearningPage() {
   const target = settings.daily_study_target_minutes
 
   const newGoal = () => setGoalDlg({ open: true, goal: null })
+  const menu = useContextMenu()
+  const ask = usePrompt()
+  usePageContextMenu(() =>
+    learningPageItems({
+      tab,
+      newGoal,
+      logSession: () => setSessDlg({ open: true, session: null, target: '' }),
+      newTopic: () => setTopicDlg({ open: true, topic: null }),
+    }),
+  )
+  const goalProps = (g, p) =>
+    menu.bind(
+      () =>
+        goalItems(g, {
+          ask,
+          onEdit: (goal) => setGoalDlg({ open: true, goal }),
+          onAddSession: (goal) => setSessDlg({ open: true, session: null, target: targetValue({ goal_id: goal.id }) }),
+          progressText: `${fmtDuration(p.done)} ${p.target ? `of ${fmtDuration(p.target)} · ${p.percent}%` : '· no target set'}`,
+          deleteNote: 'Study sessions stay in your history.',
+        }),
+      { label: `Actions for ${g.title}` },
+    )
+  const sessionProps = (s) =>
+    menu.bind(() => sessionItems(s, { goals: data.goals, topics, onEdit: (session) => setSessDlg({ open: true, session }) }), {
+      label: 'Session actions',
+    })
   return (
     <>
       <PageHeader
@@ -127,6 +167,7 @@ export default function LearningPage() {
               today={today}
               onCreate={newGoal}
               onEdit={(goal) => setGoalDlg({ open: true, goal })}
+              cardProps={goalProps}
             />
           )}
           {tab === 'topics' && (
@@ -144,6 +185,7 @@ export default function LearningPage() {
               topics={topics}
               onCreate={() => setSessDlg({ open: true, session: null })}
               onEdit={(session) => setSessDlg({ open: true, session })}
+              rowProps={sessionProps}
             />
           )}
         </div>
@@ -157,6 +199,7 @@ export default function LearningPage() {
       <SessionDialog
         open={sessDlg.open}
         session={sessDlg.session}
+        defaultTarget={sessDlg.target ?? ''}
         goals={data.goals}
         topics={topics}
         today={today}
