@@ -19,7 +19,7 @@ const config: ExpoConfig = {
   name: 'LifeTrack',
   slug: 'lifetrack',
   scheme: 'lifetrack',
-  version: '2.3.0',
+  version: '2.6.0',
   // Native-compatibility fingerprint. Over-the-air JS updates are NOT enabled (no expo-updates yet): every change ships through a store build.
   runtimeVersion: { policy: 'appVersion' },
   orientation: 'portrait',
@@ -41,6 +41,8 @@ const config: ExpoConfig = {
   plugins: [
     'expo-router',
     'expo-secure-store',
+    // Fingerprint / face unlock for the app lock. iOS refuses a biometric-protected Keychain item without NSFaceIDUsageDescription; Android needs USE_BIOMETRIC.
+    ['expo-local-authentication', { faceIDPermission: 'LifeTrack uses Face ID to unlock the app, so you do not have to type your PIN.' }],
     'expo-dev-client',
     ['expo-splash-screen', { image: './assets/splash-icon.png', imageWidth: 180, resizeMode: 'contain', backgroundColor: '#FAFAFA', dark: { image: './assets/splash-icon.png', backgroundColor: DARK } }],
     ['expo-notifications', { icon: './assets/notification-icon.png', color: BRAND, defaultChannel: 'reminders' }],

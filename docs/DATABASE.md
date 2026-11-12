@@ -161,7 +161,7 @@ See [APP_SECURITY.md](APP_SECURITY.md).
 | Table | Purpose |
 | --- | --- |
 | `user_security` | One row per user who touched the lock: `app_lock_enabled`, `pin_hash` (bcrypt cost 12, never returned), `pin_length` (4 or 6), `auto_lock_seconds` (0, 60, 300, 900, 1800, 3600), `biometric_enabled`, `failed_attempts`, `lockout_until`. `check`: an enabled lock has a PIN. |
-| `app_unlocks` | One row per **unlocked session** (`session_id` = the JWT claim): `method` (`setup`, `pin`, `passkey`, `password`, `trusted`), `last_active_at` (renewed by the heartbeat; `infinity` for a trusted session; `epoch` after "Lock now"). |
+| `app_unlocks` | One row per **unlocked session** (`session_id` = the JWT claim): `method` (`setup`, `pin`, `passkey`, `password`, `trusted`, `device`), `last_active_at` (renewed by the heartbeat; `infinity` for a trusted session; `epoch` after "Lock now"). |
 | `passkeys` | WebAuthn credentials: `credential_id` (U), `public_key_jwk` (a public key), `alg` (-7 ES256 or -257 RS256), `sign_count`, `label`, `device_type`, `backed_up`. At most 10 per user. |
 | `webauthn_challenges` | One-time challenges: user, session, purpose (`register`, `authenticate`), 2-minute expiry, deleted when used. At most 10 open per user. |
 | `password_attempts` | Failed-password counter for the optional GoTrue hook. |
@@ -177,6 +177,17 @@ A **restrictive** policy `app_lock_gate` (`as restrictive for all to authenticat
 | `calendar_event_exceptions` | `event_id` (cascade); `occurrence_date`; `status` `modified|cancelled`; nullable override columns. **U** `(event_id, occurrence_date)` | `(user_id)` |
 
 `tasks` also gained `start_time`, `end_time`, `color`, `location`, `alert_minutes`; see [CALENDAR.md](CALENDAR.md).
+
+### 3.11 Device keys: fingerprint / face unlock on phones (migration 0014)
+
+Two tables, RLS **on and no policies**, same as §3.10. Not part of JSON backups. Both cascade from `auth.users`. See [APP_SECURITY.md §9](APP_SECURITY.md).
+
+| Table | Purpose |
+| --- | --- |
+| `device_keys` | One row per phone with fingerprint / face unlock: `thumbprint` (U, RFC 7638 SHA-256 of the public key, 43 chars), `public_key_jwk` (a **public** EC P-256 key; the private half never leaves the phone), `alg` (-7, ES256 only), `sign_count` (must rise on every unlock), `label`, `platform` (`android`, `ios`, `unknown`), `last_used_at`. At most 10 per user. |
+| `device_key_challenges` | One-time challenges: user, session, purpose (`enroll`, `unlock`), the key it was issued for (`key_id`, deliberately not a foreign key), 2-minute expiry, deleted when used. At most 10 open per user. |
+
+`app_unlocks.method` gains `device` (the CHECK is widened; every existing row still satisfies it). A trigger on `user_security` removes every phone when the app lock is turned off.
 
 ## 4. Functions and triggers
 
@@ -201,6 +212,9 @@ A **restrictive** policy `app_lock_gate` (`as restrictive for all to authenticat
 | `list_my_sessions`, `revoke_session`, `trust_session`, `untrust_session` | RPC (0012) | **definer** | Reads and ends the caller's `auth.sessions`; needs an unlocked session |
 | `pk_status`, `pk_issue_challenge`, `pk_take_challenge`, `pk_credentials`, `pk_add_credential`, `pk_record_assertion`, `pk_unlock`, `pk_failure` | functions (0012) | **definer**, **service role only** | Called by the `webauthn` Edge Function; no signed-in client can call them |
 | `hook_password_verification_attempt(event)` | GoTrue hook (0012) | **definer**, GoTrue only | Per-account password lockout; inactive until enabled in the dashboard |
+| `list_device_keys`, `rename_device_key`, `remove_device_key` | RPC (0014) | **definer** | The phones with fingerprint / face unlock on the caller's account (no key material returned); need an unlocked session |
+| `dk_status`, `dk_issue_challenge`, `dk_take_challenge`, `dk_keys`, `dk_add_key`, `dk_record_assertion`, `dk_unlock`, `dk_failure` | functions (0014) | **definer**, **service role only** | Called by the `device-key` Edge Function; no signed-in client can call them. `dk_failure` counts toward the same PIN lockout |
+| `_drop_device_keys()` | trigger function (0014) | definer | Removes every phone when the app lock is turned off |
 | `_is_unlocked`, `_require_unlocked`, `_check_pin`, `_register_failure`, `_validate_pin`, `_weak_pin`, `_is_run` | internal (0012) | definer / immutable | Not callable by any client role |
 
 All RPCs: `revoke all … from public, anon; grant execute … to authenticated`. Four of the original functions are `SECURITY DEFINER` (`handle_new_user`, `delete_my_account`,
@@ -213,7 +227,7 @@ All RPCs: `revoke all … from public, anon; grant execute … to authenticated`
   children (habit logs, milestones, application history, interviews, sets).
 - There is no soft delete, no audit log and no multi-user sharing. `habits.archived_at`, `routines.archived_at`, `goals.status='archived'`,
   `learning_topics.archived` are user-visible archives, not deletions.
-- Not included in JSON backups or erased by "Erase all data": `profiles`, `device_push_tokens`, and the five security tables of 0012 ( `ALL_TABLES` in `packages/constants/src/schema.js` lists 30 tables).
+- Not included in JSON backups or erased by "Erase all data": `profiles`, `device_push_tokens`, the five security tables of 0012 and the two of 0014 ( `ALL_TABLES` in `packages/constants/src/schema.js` lists 30 tables).
 
 ## 6. Built-in data that is **not** in the database
 
@@ -240,6 +254,7 @@ All RPCs: `revoke all … from public, anon; grant execute … to authenticated`
 | `0012_security.sql` | `user_security`, `app_unlocks`, `passkeys`, `webauthn_challenges`, `password_attempts`; the app-lock, passkey, session and password-hook functions; restrictive policy `app_lock_gate` on 6 tables; needs `pgcrypto` in `extensions` | **Security & Privacy** (see [APP_SECURITY.md](APP_SECURITY.md)). Until it is run the app opens as before and the Security page says what to run |
 | `0013_notification_center.sql` | `reminders.priority/body`, `weekdays`/`yearly` repeats; `notifications.priority/due_at/snoozed_until/dismissed_at`, kinds `job`/`goal`, 2 partial indexes; `user_settings.notification_settings` | **Notification & Reminder Center** (see [NOTIFICATIONS.md](NOTIFICATIONS.md)). Numbered 0013 because `0012` is reserved for the Security & Privacy migration |
 | `0011_calendar.sql` | `calendar_events`, `calendar_event_exceptions`; `tasks.start_time/end_time/color/location/alert_minutes`, `urgent` priority, `Routine`/`Custom` categories, `yearly` repeat; `user_settings.calendar_prefs`; `notifications.kind` `event` | **Calendar** (see [CALENDAR.md](CALENDAR.md)) |
+| `0014_device_keys.sql` | `device_keys`, `device_key_challenges`; the `dk_*` and phone-key list / rename / remove functions; `app_unlocks.method` accepts `device`; a trigger on `user_security` | **Fingerprint / face unlock on phones** (see [APP_SECURITY.md §9](APP_SECURITY.md)). Needs `0012` first. Without it the phone offers the PIN only |
 
 Operational notes:
 

@@ -39,6 +39,7 @@ reminders table ──(every minute)──▶ send-reminders Edge Function ─�
    Check it with `select * from cron.job_run_details order by start_time desc limit 5;`.
 7. **Auth redirects** — Supabase → Authentication → URL Configuration → add `lifetrack://**` and `exp+lifetrack://**`.
 8. Rebuild the dev client (`eas build --profile development`) — new native modules were added.
+9. **App lock (fingerprint / face)** — `expo-local-authentication` and `expo-crypto` are native modules, and `expo-secure-store` now holds a biometric-protected key: make a **new build** (dev client and store); it cannot be delivered over the air. iOS needs `NSFaceIDUsageDescription`, which the `expo-local-authentication` plugin in `app.config.ts` sets; Android adds `USE_BIOMETRIC`. For the fingerprint part run `supabase/migrations/0014_device_keys.sql` and `supabase functions deploy device-key` ([APP_SECURITY.md](APP_SECURITY.md) §7). The PIN lock needs only `0012`.
 
 ## Deep links
 Custom scheme `lifetrack://` (https universal links are not set up; they would need your domain, Apple Team ID and Android signing fingerprint).
@@ -76,6 +77,10 @@ Regenerate icons/splash from the brand mark: `cd apps/web && node scripts/genera
 - [ ] `npx uri-scheme open lifetrack://module/jobs --ios` (and `--android`) opens Jobs with working Back; same while signed out lands on Jobs after sign-in.
 - [ ] iOS swipe-back on module screens; Android hardware Back from a module returns to the tab; Back on a tab root exits.
 - [ ] Sheets/forms with the keyboard open on both platforms; Return moves Email → Password → Sign in.
+- [ ] **App lock** (web lock on, or turn it on in More → Security & Privacy): cold start shows the lock screen and no app behind it (splash, then lock); a wrong PIN counts down the tries; the 5th locks entry for 30 s; a right PIN opens the app at the home tab; Finance, Journal and Notes have data without marking the phone *trusted*.
+- [ ] Auto-lock: *When I leave the app* locks as soon as you switch away (the app switcher should not show Finance: known gap, no privacy cover); *5 minutes* does not lock after 30 seconds away but does after 6 minutes; typing in a note for longer than the idle time does not lock; the biometric sheet itself does not lock the app.
+- [ ] **Fingerprint / face** (Android with a fingerprint, iPhone with Face ID, and an iPhone with Touch ID if available): Turn on shows the system prompt once; the lock screen offers the sensor by itself and a cancelled prompt leaves the PIN pad; unlocking works; adding a fingerprint in the phone's settings turns it off with a clear message; turning the app lock off and on again requires setting it up again; removing the phone from the web (or another phone) makes the next try say so and fall back to the PIN.
+- [ ] A tapped notification while locked opens the lock screen, then its screen after the unlock (once, not after every unlock).
 
 ## Building with CI (EAS)
 

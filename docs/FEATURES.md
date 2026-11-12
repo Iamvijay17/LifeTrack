@@ -29,7 +29,7 @@ Every module below was checked against the source. Route paths are the web app (
 | 19 | Help & Support | `/help` | More → Help & Support | ✅ |
 | 20 | Legal pages | `/privacy`, `/terms` | — (store listing links) | ✅ drafts (placeholders remain) |
 | 21 | Calendar & Timeline | `/calendar` | — | ✅ web · ❌ mobile; see [CALENDAR.md](CALENDAR.md) |
-| 22 | Security & Privacy | `/security` | — (planned, [APP_SECURITY.md §9](APP_SECURITY.md)) | ✅ web (passkeys 🟡 need the Edge Function) · ❌ mobile |
+| 22 | Security & Privacy | `/security` | More → Security & Privacy | ✅ web (passkeys 🟡 need the Edge Function) · ✅ mobile (fingerprint / face 🟡 need migration 0014 and the `device-key` function; not run on a device) |
 
 Cross-cutting capabilities (verified in code): global search / command palette (web), quick actions, daily score, Today agenda, Upcoming deadlines, theme sync,
 Realtime sync, PWA install, celebrations, account deletion, JSON/CSV export, recurring-transaction engine, reminder runner, loaders, error boundaries,
@@ -53,7 +53,7 @@ original path in router state. A DB trigger creates `profiles` and `user_setting
 | Forgot / reset password | ✅ | `ForgotPasswordPage`, `ResetPasswordPage`; recovery event in `useAuth` |
 | Change display name (updates auth metadata and `profiles`) | ✅ | `settings/ProfileCard.jsx` |
 | Change password (current password checked, strength rules and meter, other devices signed out) | ✅ web | `security/PasswordCard.jsx` (Settings links to it) |
-| App lock, fingerprint / face unlock, sessions | ✅ web | §22 |
+| App lock, fingerprint / face unlock, sessions | ✅ web and mobile | §22 |
 | Delete account (typed confirmation, RPC `delete_my_account`) | ✅ web and mobile | `AccountCard.jsx`, `TypedConfirmDialog.jsx` |
 | Social / SSO / MFA | ❌ | — |
 | Missing-configuration screen (production build without Supabase env) | ✅ | `components/shared/ConfigError.jsx` |
@@ -232,7 +232,7 @@ The root `SECURITY.md` still contains `[security contact email]`.
 | 9 | Branded loaders and per-page error boundary | ✅ web | |
 | 10 | Deep links and push (mobile) | ✅ / 🟡 | Not device-tested |
 
-## 22. Security & Privacy ✅ (web) — see [APP_SECURITY.md](APP_SECURITY.md)
+## 22. Security & Privacy ✅ (web and mobile) — see [APP_SECURITY.md](APP_SECURITY.md)
 
 **Purpose:** control who can open LifeTrack, on this device and on others.
 **How it works:** a dark security dashboard at `/security` (also in the profile menu and the command palette) and a full-screen lock.
@@ -248,9 +248,10 @@ The root `SECURITY.md` still contains `[security contact email]`.
 | Change password with the current one checked; strength meter; sign other devices out | ✅ | `PasswordCard.jsx`, `PasswordStrength.jsx` |
 | Active sessions: list, sign out one / others / everywhere, trust a phone | ✅ | `SessionsCard.jsx` |
 | Security level summary (ring and checklist) | ✅ | `SecurityHero.jsx` |
-| Android BiometricPrompt + Keystore, iOS LocalAuthentication + Keychain | 📋 planned | [APP_SECURITY.md §9](APP_SECURITY.md) |
+| **Mobile:** lock screen instead of the app (nothing mounted behind it), PIN keypad, auto-lock on leaving, when idle and on returning, heartbeat, lock now, forgot PIN, set / change / turn off the PIN, sessions | ✅ (not run on a device) | `apps/mobile/src/features/security/`, `app/_layout.tsx`, `app/(app)/module/security.tsx` |
+| **Mobile:** fingerprint / face unlock: Android BiometricPrompt + Keystore, iOS LocalAuthentication + Keychain, verified by the `device-key` Edge Function; add / rename / remove phones | 🟡 needs `0014_device_keys.sql` and `supabase functions deploy device-key` (not run on a device) | `deviceKey.ts`, `ecdsa.ts`, `SecuritySections.tsx`, [APP_SECURITY.md §9](APP_SECURITY.md) |
 
-**Interactions:** with no lock the app behaves exactly as before. In DEV mode (no Supabase) the lock is a screen lock only. A database without migration 0012 simply has no lock.
+**Interactions:** with no lock the app behaves exactly as before. In DEV mode (no Supabase) the lock is a screen lock only. A database without migration 0012 simply has no lock. The mobile app needs a **new native build** for the biometric part (two new native modules; nothing ships over the air).
 
 ## Planned / not implemented (verified absent)
 

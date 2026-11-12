@@ -12,8 +12,8 @@ run the commands to get live results.
 | Design tokens ↔ CSS sync | Vitest | `packages/design-tokens/tests` | 1 | 2 |
 | Web unit + component (jsdom, React Testing Library) | Vitest | `apps/web/tests` | 44 | 609 |
 | Web end-to-end | Playwright | `apps/web/e2e` | 19 specs | 105 |
-| Mobile logic and flows | Vitest | `apps/mobile/tests` | 17 | 92 |
-| Mobile components | Jest + `jest-expo` + RN Testing Library | `apps/mobile/tests-rn` | 5 | 25 |
+| Mobile logic and flows | Vitest | `apps/mobile/tests` | 21 | 229 |
+| Mobile components | Jest + `jest-expo` + RN Testing Library | `apps/mobile/tests-rn` | 9 | 125 |
 | Mobile device flows | Maestro (YAML) | `apps/mobile/.maestro` | 3 flows + screenshot capture | not run |
 | Database: RLS, constraints, triggers, RPCs | Vitest + PGlite (in-memory Postgres) | `supabase/tests/pglite` | 1 (table-driven) | part of 39 |
 | Database: concurrency on real PostgreSQL | Vitest + local `postgres` cluster | `supabase/tests/postgres` | 1 | part of 39 |
@@ -22,10 +22,15 @@ run the commands to get live results.
 | Security: WebAuthn verifier, rules, Edge Function decisions | Vitest + a software authenticator | `packages/core/tests/{security,webauthn,webauthn-function}.test.js` | 3 | 106 |
 | Security: lock screen, Security page, dev backend | Vitest + Testing Library | `apps/web/tests/{securityUi,localSecurity,devAuthSecurity,securityBackends}.test.*` | 4 | 89 |
 | Security: real browser incl. a WebAuthn virtual authenticator | Playwright | `apps/web/e2e/security*.spec.js` | 2 | 20 |
+| Device keys: migration 0014 (the phone's biometric keys) | Vitest + PGlite | `supabase/tests/pglite/deviceKeys.test.ts` | 1 | 58 |
+| Device keys: verifier, `device-key` function decisions, client API | Vitest + a software phone (OpenSSL) | `packages/core/tests/device-key*.test.js`, `packages/data/tests/deviceKeys.test.js` | 3 | 56 |
+| Mobile app lock: signer, device-key service against the real function logic, rules, controller | Vitest (fake clock, fake server) | `apps/mobile/tests/{ecdsa,deviceKey,lockPolicy,lockController}.test.ts` | 4 | 122 |
+| Mobile app lock: root Gate, lock screen, PIN pad, Security screen, notification remount | jest-expo + RN Testing Library | `apps/mobile/tests-rn/{gate,lockScreen,securityScreen,notificationBootstrap}.test.tsx` | 4 | 67 |
+| Mobile app lock: Android and iOS Hermes bundles | `expo export --platform android --platform ios` | `apps/mobile` | — | builds |
 | Database: RLS over the real HTTP API | Vitest | `supabase/tests/api` | 1 | part of 39 |
 | Edge Function | `deno test` | `supabase/functions/send-reminders/index.test.ts` | 1 | 2 |
 | Pipeline scripts | Node | `scripts/verify-sql.mjs`, `check-*.mjs`, `audit-gate.mjs` | — | — |
-| **Total declared** | | | | **≈ 1,290** |
+| **Total declared** | | | | **≈ 1,590** |
 
 ## 1. Unit testing
 
