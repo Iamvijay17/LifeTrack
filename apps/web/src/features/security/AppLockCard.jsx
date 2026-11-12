@@ -126,10 +126,10 @@ export function AppLockCard() {
           Signing out and back in with your password opens LifeTrack without the PIN, because the password is the stronger proof.
         </p>
         <p className="mt-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">Using the mobile app?</span> It has no lock screen yet. With the lock on, Finance,
-          Journal and Notes stay closed there until you mark your phone as <span className="font-medium text-foreground">trusted</span>{' '}
-          under “Where you’re signed in” below. Module locks are new to the web app: until the mobile app learns about them, a locked module
-          shows as empty on the phone, and marking the phone trusted opens it.
+          <span className="font-medium text-foreground">Using the mobile app?</span> It has its own lock under More → Security &amp;
+          Privacy: with the lock on, the phone asks for your PIN (or fingerprint / face) and opens Finance, Journal and Notes only after
+          that. An older phone build without it stays closed until you mark it as{' '}
+          <span className="font-medium text-foreground">trusted</span> under “Where you’re signed in” below.
         </p>
       </div>
 

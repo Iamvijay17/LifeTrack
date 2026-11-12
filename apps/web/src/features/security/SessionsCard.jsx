@@ -117,7 +117,7 @@ export function SessionsCard() {
                             await confirm({
                               title: `Trust ${d.label}?`,
                               description:
-                                'It will open LifeTrack without the PIN, including Finance, Journal and Notes, until you change this. Meant for a phone whose app has no lock screen yet. Anyone holding that device can see them.',
+                                'It will open LifeTrack without the PIN, including Finance, Journal and Notes, until you change this. Meant for an older phone build that has no lock screen. Anyone holding that device can see them.',
                               confirmLabel: 'Trust this device',
                               destructive: false,
                             })

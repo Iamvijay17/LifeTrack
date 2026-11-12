@@ -1,19 +1,20 @@
 import { AppError, toAppError } from './errors'
 
-// Client for the security functions in supabase/migrations/0012_security.sql and the `webauthn` Edge Function. Shared by the web app and the
-// future mobile apps. It holds NO secrets and makes NO decisions: the PIN is hashed and checked in the database, passkey signatures are checked
-// in the Edge Function, and "locked" is whatever the database says. The functions below only carry requests and translate the answers.
+// Client for the security functions in supabase/migrations/0012_security.sql (+ 0014_device_keys.sql) and the `webauthn` and `device-key` Edge Functions.
+// Shared by the web app and the mobile app. It holds NO secrets and makes NO decisions: the PIN is hashed and checked in the database, passkey and
+// phone-key signatures are checked in the Edge Functions, and "locked" is whatever the database says. The functions below only carry requests and
+// translate the answers.
 
 // SQLSTATEs the security functions raise on purpose; their messages are written for people, so pass them through (toAppError would
 // replace, for example, 42501 with a generic "permission" message).
 const OWN_CODES = new Set(['22023', '55000', '54000', 'P0002', '28000', '42501'])
-const fromDb = (error) => {
-  // The database has not had supabase/migrations/0012_security.sql run on it yet (PostgREST: function not in the schema cache / undefined function).
+const fromDb = (error, migration = '0012_security.sql') => {
+  // The database has not had the migration run on it yet (PostgREST: function not in the schema cache / undefined function).
   if (error?.code === 'PGRST202' || error?.code === '42883') {
-    return new AppError(
-      'Security features are not installed in your database yet. Run supabase/migrations/0012_security.sql in the SQL Editor.',
-      { code: 'NOT_INSTALLED', cause: error },
-    )
+    return new AppError(`Security features are not installed in your database yet. Run supabase/migrations/${migration} in the SQL Editor.`, {
+      code: 'NOT_INSTALLED',
+      cause: error,
+    })
   }
   if (OWN_CODES.has(error?.code) && typeof error.message === 'string' && error.message.length < 200) {
     return new AppError(error.message, {
@@ -60,22 +61,24 @@ export const normalizePin = (r = {}) => ({
   failedAttempts: r.failed_attempts ?? 0,
 })
 
+const DEVICE_KEYS_MIGRATION = '0014_device_keys.sql'
+
 /**
  * @param supabase  the injected Supabase client (the user's session; never a service key)
- * @param options   { functionName } of the passkey Edge Function
+ * @param options   { functionName } of the passkey Edge Function (web), { deviceFunctionName } of the phone-key Edge Function (mobile)
  */
-export const createSupabaseSecurity = (supabase, { functionName = 'webauthn' } = {}) => {
-  const rpc = async (fn, args) => {
+export const createSupabaseSecurity = (supabase, { functionName = 'webauthn', deviceFunctionName = 'device-key' } = {}) => {
+  const rpc = async (fn, args, migration) => {
     const { data, error } = await supabase.rpc(fn, args)
-    if (error) throw fromDb(error)
+    if (error) throw fromDb(error, migration)
     return data
   }
 
-  /** Calls the Edge Function. Its 4xx answers carry { error, message, … } which the UI needs (lockout seconds, "expired", …). */
-  const edge = async (body) => {
+  /** Calls an Edge Function. Its 4xx answers carry { error, message, … } which the UI needs (lockout seconds, "expired", …). */
+  const callEdge = async (name, body) => {
     let res
     try {
-      res = await supabase.functions.invoke(functionName, { body })
+      res = await supabase.functions.invoke(name, { body })
     } catch (e) {
       throw toAppError(e)
     }
@@ -94,6 +97,8 @@ export const createSupabaseSecurity = (supabase, { functionName = 'webauthn' } =
       cause: res.error,
     })
   }
+  const edge = (body) => callEdge(functionName, body)
+  const deviceEdge = (body) => callEdge(deviceFunctionName, body)
 
   return {
     // ---------------------------------------------------------------- app lock
@@ -112,7 +117,10 @@ export const createSupabaseSecurity = (supabase, { functionName = 'webauthn' } =
     async disableAppLock(pin) {
       return normalizePin(await rpc('disable_app_lock', { p_pin: pin }))
     },
-    /** After the user signed in again with their password. `newPin = null` turns the app lock off instead. */
+    /**
+     * After the user signed in again with their password. `newPin = null` turns the app lock off instead.
+     * @param {string | null} [newPin]
+     */
     async resetAppLock(newPin = null) {
       return normalizeState(await rpc('reset_app_lock', { p_new_pin: newPin }))
     },
@@ -186,6 +194,47 @@ export const createSupabaseSecurity = (supabase, { functionName = 'webauthn' } =
       },
       async remove(id) {
         return normalizeState(await rpc('remove_passkey', { p_id: id }))
+      },
+    },
+
+    // ---------------------------------------------------------------- device keys (mobile: the phone's own biometrics)
+    // The app holds an EC P-256 key that the operating system releases only after a fingerprint or face check. These calls carry its public half and its
+    // signatures to the `device-key` Edge Function, which is what unlocks the session: the app never claims "the biometric check passed".
+    deviceKeys: {
+      /** Can this server do fingerprint / face unlock for phones? False when the function is not deployed or cannot be reached. */
+      async available() {
+        try {
+          return !!(await deviceEdge({ action: 'capabilities' }))?.available
+        } catch {
+          return false
+        }
+      },
+      /** The phones enrolled on this account (needs an unlocked session). No key material is ever returned. */
+      async list() {
+        const rows = await rpc('list_device_keys', undefined, DEVICE_KEYS_MIGRATION)
+        return (rows ?? []).map((k) => ({ id: k.id, label: k.label, platform: k.platform, createdAt: k.created_at, lastUsedAt: k.last_used_at }))
+      },
+      /** → { challenge, algorithm, context }: a one-time challenge the new key must sign (needs an unlocked session). */
+      async beginEnrollment() {
+        return (await deviceEdge({ action: 'enroll-options' })).options
+      },
+      /** `signature` is base64url DER over the enrolment message; resolves to the id the server gave the key. */
+      async finishEnrollment({ challenge, publicKeyJwk, signature, label, platform }) {
+        return (await deviceEdge({ action: 'enroll-verify', challenge, publicKeyJwk, signature, label, platform })).id
+      },
+      /** → { challenge, keyId, context}. Rejects with code 'unknown_key' when this phone's key is no longer on the account. */
+      async beginUnlock(keyId) {
+        return (await deviceEdge({ action: 'unlock-options', keyId })).options
+      },
+      /** Resolves when the session is unlocked; otherwise rejects with the server's reason (`detail.lockout_seconds`, `detail.signed_out`). */
+      async finishUnlock({ keyId, challenge, counter, signature }) {
+        await deviceEdge({ action: 'unlock-verify', keyId, challenge, counter, signature })
+      },
+      async rename(id, label) {
+        await rpc('rename_device_key', { p_id: id, p_label: label }, DEVICE_KEYS_MIGRATION)
+      },
+      async remove(id) {
+        await rpc('remove_device_key', { p_id: id }, DEVICE_KEYS_MIGRATION)
       },
     },
 

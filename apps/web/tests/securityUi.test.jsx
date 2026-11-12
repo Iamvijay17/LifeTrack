@@ -419,11 +419,11 @@ describe('trusted devices', () => {
     trusted: false,
   }
 
-  it('tells mobile users up front that the app has no lock screen yet', async () => {
+  it('tells mobile users up front where the phone lock is', async () => {
     await security.setPin(PIN)
     renderApp('/security')
     expect(await screen.findByText(/Using the mobile app\?/)).toBeInTheDocument()
-    expect(screen.getByText(/no lock screen yet/)).toBeInTheDocument()
+    expect(screen.getByText(/its own lock under More/)).toBeInTheDocument()
   })
 
   it('explains the trade-off before trusting another device, and can take it back', async () => {

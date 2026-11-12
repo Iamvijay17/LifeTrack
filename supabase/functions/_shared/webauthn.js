@@ -204,8 +204,8 @@ function coseToJwk(cose) {
 const importParams = (alg) => (alg === ES256 ? { name: 'ECDSA', namedCurve: 'P-256' } : { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' })
 const importKey = (jwk, alg) => crypto.subtle.importKey('jwk', jwk, importParams(alg), false, ['verify'])
 
-/** WebCrypto's ECDSA wants r‖s (64 bytes); authenticators send an ASN.1 DER SEQUENCE of two INTEGERs. */
-function derToRaw(der, size = 32) {
+/** WebCrypto's ECDSA wants r‖s (64 bytes); authenticators send an ASN.1 DER SEQUENCE of two INTEGERs. Also used for the phone's device keys (devicekey.js). */
+export function derToRaw(der, size = 32) {
   const bad = () => fail('bad_signature', 'Malformed ECDSA signature.')
   let o = 0
   const len = () => {

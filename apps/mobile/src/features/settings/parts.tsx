@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Linking, Text, View } from 'react-native'
+import { useRouter } from 'expo-router'
 import { TIMEZONES, todayStr } from '@lifetrack/utils'
 import { SCORE_CATEGORIES, normalizeWeights, validateScoreWeights } from '@lifetrack/core/score'
 import { MAX_SLEEP_GOAL_MINUTES, MIN_SLEEP_GOAL_MINUTES, sleepGoalOf } from '@lifetrack/core/sleep'
@@ -134,6 +135,7 @@ export function FocusSection() {
 
 export function AccountSection() {
   const { colors } = useTheme()
+  const router = useRouter()
   const { email } = useAuth()
   const [pw, setPw] = useState({ a: '', b: '' })
   const [changePw, changing] = useAction(async () => {
@@ -151,6 +153,7 @@ export function AccountSection() {
       <Field label="Confirm password" value={pw.b} onChangeText={(b) => setPw({ ...pw, b })} secureTextEntry autoComplete="new-password" />
       <Button title="Change password" variant="ghost" onPress={changePw} loading={changing} disabled={!pw.a} />
       <View style={{ height: 1, backgroundColor: colors.border }} />
+      <Button title="Security & Privacy" variant="ghost" onPress={() => router.push('/module/security' as never)} />
       <Button title="Sign out" variant="ghost" onPress={() => { signOutCleanly().catch(() => {}) }} />
       {WEB_URL ? <>
         <Button title="Privacy policy" variant="ghost" onPress={() => { Linking.openURL(`${WEB_URL}/privacy`).catch(() => {}) }} />

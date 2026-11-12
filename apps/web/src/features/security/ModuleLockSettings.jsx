@@ -57,7 +57,15 @@ export function ModuleLockSettings() {
     },
     { success: 'Lock settings updated' },
   )
-  if (!st?.appLockEnabled || !st.moduleLocksSupported) return null
+  if (!st?.appLockEnabled) return null
+  // The database has not had migration 0015 run: say so instead of silently offering only "lock everything".
+  if (!st.moduleLocksSupported)
+    return (
+      <p role="note" className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+        Choosing which modules to lock is not installed in your database yet. Run supabase/migrations/0015_module_locks.sql in the Supabase
+        SQL Editor, then reload.
+      </p>
+    )
 
   const byModules = st.lockScope === 'modules'
   const chosen = st.lockedModules

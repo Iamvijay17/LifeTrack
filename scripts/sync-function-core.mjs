@@ -9,6 +9,7 @@ const FILES = [
   ['packages/core/src/notifications.js', 'supabase/functions/_shared/notifications.js'],
   ['packages/utils/src/dates.ts', 'supabase/functions/_shared/dates.ts'],
   ['packages/core/src/webauthn.js', 'supabase/functions/_shared/webauthn.js'],
+  ['packages/core/src/devicekey.js', 'supabase/functions/_shared/devicekey.js'],
 ]
 export const expected = () => FILES.map(([from, to]) => [to, HEADER(from) + readFileSync(ROOT + from, 'utf8')])
 if (process.argv[1].endsWith('sync-function-core.mjs')) {

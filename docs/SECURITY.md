@@ -6,8 +6,8 @@ Statuses: ✅ in place and covered by code/tests · 🟡 in place but depends on
 ## 1. Security model in one paragraph
 
 Clients hold only the public Supabase URL and anon key. Every user table has Row Level Security (`user_id = auth.uid()`), enforced by the database even if the client is modified. There is no
-application server to attack: the attack surface is Supabase Auth, PostgREST (limited by RLS), the RPC functions (8 originals, plus the app-lock and session functions of migration 0012), and two Edge Functions:
-`send-reminders` (protected by a shared secret) and `webauthn` (signed-in users only). The optional **app lock** adds a second, per-session gate on the most private tables; see [APP_SECURITY.md](APP_SECURITY.md).
+application server to attack: the attack surface is Supabase Auth, PostgREST (limited by RLS), the RPC functions (8 originals, plus the app-lock and session functions of migration 0012), and three Edge Functions:
+`send-reminders` (protected by a shared secret), `webauthn` (web passkeys) and `device-key` (phone fingerprint / face unlock), the last two for signed-in users only. The optional **app lock** adds a second, per-session gate on the most private tables; see [APP_SECURITY.md](APP_SECURITY.md).
 
 ## 2. Authentication
 
@@ -26,7 +26,8 @@ application server to attack: the attack surface is Supabase Auth, PostgREST (li
 | Change password | `/security`: asks for the current password (checked by GoTrue on a throwaway client), then signs the other devices out. GoTrue itself lets any valid session change the password: turn on *Secure password change* ([APP_SECURITY.md §3](APP_SECURITY.md)) | ✅ app · 🟡 server setting |
 | Per-account password lockout | `hook_password_verification_attempt` (0012): 5 wrong passwords block sign-in for 1 min, doubling to 15 min. **Inactive until the hook is enabled in the dashboard** | 🟡 |
 | App lock (PIN), auto-lock, lock when returning | `user_security`, `app_unlocks`, restrictive policy `app_lock_gate` on finance, journal and notes; bcrypt PIN; progressive lockout that ends the session. Enforced by the database per session | ✅ |
-| Fingerprint / face unlock | WebAuthn passkeys verified by the `webauthn` Edge Function (single-use challenges, origin / RP ID / UV / signature / counter checks). Needs the function deployed and configured | 🟡 |
+| Fingerprint / face unlock (web) | WebAuthn passkeys verified by the `webauthn` Edge Function (single-use challenges, origin / RP ID / UV / signature / counter checks). Needs the function deployed and configured | 🟡 |
+| Fingerprint / face unlock (phone) | A key the OS releases only after a biometric check (Keystore / Keychain), its ECDSA signature verified by the `device-key` Edge Function (single-use challenges bound to user, session and key; a counter that must rise; the same lockout as a wrong PIN). A flag from the app unlocks nothing. Needs `0014_device_keys.sql` and the function; not run on a device | 🟡 |
 | Session list / sign out one, others, everywhere | `/security`, `list_my_sessions`, `revoke_session`, GoTrue `signOut({ scope })` | ✅ |
 | MFA at sign-in, social login, magic links | — (passkeys unlock the app for an already signed-in session; they are not a second sign-in factor) | ❌ |
 | Account deletion | RPC `delete_my_account` (definer; `auth.uid()` required) cascades all data; typed confirmation in the UI (required by the App Store) | ✅ |
@@ -56,6 +57,7 @@ application server to attack: the attack surface is Supabase Auth, PostgREST (li
 | Rate limiting / abuse | Relies on Supabase Auth and API gateway limits; no app-level limiter | 🟡 accepted ([RELEASE_AUDIT.md](RELEASE_AUDIT.md) S11) |
 | Edge Function `send-reminders` | `Authorization: Bearer CRON_SECRET`, constant-time compare, **fails closed** if the secret is unset; deployed `--no-verify-jwt` (so the secret is the only gate); tested under Deno | ✅ (live run 🟡) |
 | Edge Function `webauthn` | JWT verification **on**, and the user is re-checked with GoTrue (the session must still exist); CORS only for `WEBAUTHN_ORIGINS`; **fails closed** (`not_configured`) without `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGINS`; decisions tested in Node ([APP_SECURITY.md §5](APP_SECURITY.md)) | ✅ (not run under Deno or against a live project 🟡) |
+| Edge Function `device-key` | JWT verification **on**, and the user is re-checked with GoTrue (the session must still exist, and the token must carry one); no secrets or configuration; **native apps only**: a request with an `Origin` header is refused and no CORS header is sent; decisions tested in Node ([APP_SECURITY.md §9.2](APP_SECURITY.md)) | ✅ (not run under Deno or against a live project 🟡) |
 | Edge Function secret handling | Scheduler stores the secret in Supabase Vault (`vault.create_secret`) per [NATIVE.md](NATIVE.md); not part of any migration | 🟡 manual step |
 | Mobile permissions | Notifications and vibration only; no location, camera, contacts or microphone | ✅ |
 
@@ -105,7 +107,7 @@ No external penetration test or threat model has been performed.
 | 7 | No MFA at sign-in. Sessions can be listed and ended and the app can be locked, but **the lock does not protect the account itself**: GoTrue lets any valid session change the password or email | Account takeover resistance equals password strength + Supabase limits + *Secure password change* + session lifetimes ([APP_SECURITY.md §12](APP_SECURITY.md)) |
 | 13 | A 4 or 6 digit PIN cannot survive an offline attack on a leaked database, whatever the hash; the online lockout is its protection | The PIN guards a stolen device or session, not a database leak |
 | 14 | Tables other than the six gated ones are hidden by the lock screen but not closed on the server | A copied token could still read tasks, habits, health… |
-| 15 | The mobile app has no lock screen: with the lock on, its session loses Finance, Journal and Notes until it is marked trusted | Documented workaround ([APP_SECURITY.md §4, §9](APP_SECURITY.md)) |
+| 15 | The mobile app's biometric key is released into the app's memory to sign (JavaScript), not held in secure hardware for its whole life; the OS app-switcher snapshot of an unlocked app is not covered | Still needs a fingerprint or face check to release, and a server-verified signature to unlock ([APP_SECURITY.md §9.2](APP_SECURITY.md)) |
 | 8 | Plaintext app-level data, no client-side encryption | Supabase operators/anyone with DB access can read user data |
 | 9 | Backup files are unencrypted JSON | Users must protect downloaded files |
 | 10 | The GitHub Actions workflows, real-Supabase API/RLS suite, Maestro flows and push delivery have never run in a live environment | Treat as unproven until first green runs (`README.md`) |

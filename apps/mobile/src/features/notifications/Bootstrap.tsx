@@ -17,12 +17,16 @@ Notifications.setNotificationHandler({
   handleNotification: async (n) => presentationFor(n.request.content.data, AppState.currentState ?? 'active'),
 })
 
-/** Mounted once for the signed-in app: channels, token refresh, tap routing, unread badge and the reminder fallback runner. */
+// Taps already acted on. useLastNotificationResponse keeps returning the SAME last response for as long as the process lives, and this component is mounted
+// again every time the app lock opens (nothing is mounted while it is locked), so the memory must outlive the component: otherwise every unlock would
+// re-open the screen of a notification tapped hours ago.
+const handled = new Set<string>()
+
+/** Mounted for the signed-in, unlocked app: channels, token refresh, tap routing, unread badge and the reminder fallback runner. */
 export function NotificationsBootstrap() {
   const router = useRouter()
   const { settings, row } = useSettings()
   const { rows } = useTable<Row & { read_at: string | null }>('notifications')
-  const handled = useRef(new Set<string>())
   const prefs = useRef(settings.notification_prefs)
   prefs.current = settings.notification_prefs
 
@@ -39,8 +43,8 @@ export function NotificationsBootstrap() {
   useEffect(() => {
     if (!last) return
     const id = last.notification.request.identifier
-    if (handled.current.has(id) || last.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return
-    handled.current.add(id)
+    if (handled.has(id) || last.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return
+    handled.add(id)
     const data = last.notification.request.content.data
     const nid = notificationIdFromData(data)
     if (nid) store.update('notifications', nid, { read_at: new Date().toISOString() }).catch(() => {})
