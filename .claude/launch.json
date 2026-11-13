@@ -6,7 +6,7 @@
       "runtimeExecutable": "sh",
       "runtimeArgs": [
         "-c",
-        "cd apps/web && VITE_LOCAL_MODE=true ./node_modules/.bin/vite --port 5173 --strictPort"
+        "cd apps/web && VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= VITE_LOCAL_MODE=true ./node_modules/.bin/vite --port 5173 --strictPort"
       ],
       "port": 5173
     },

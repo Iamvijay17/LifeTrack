@@ -26,7 +26,7 @@ import {
 import { fmtDay } from '@/lib/dates'
 import { pageTitle } from '@/lib/nav'
 import { celebrate } from '@/lib/celebrate'
-import { beep } from './beep'
+import { sound } from '@/lib/interaction/SoundManager'
 import { FocusSummary } from './FocusSummary'
 import { SessionList } from './SessionList'
 import { TimerCard } from './TimerCard'
@@ -47,7 +47,7 @@ export default function FocusPage() {
   const [record] = useAction(recordFocus)
   const timer = useFocusTimer({
     onFinish: async (t, completed) => {
-      beep()
+      sound.play(t.mode === 'focus' ? 'focusDone' : 'notify')
       if (t.mode === 'focus') {
         const saved = await record({
           plannedMinutes: t.plannedMinutes,

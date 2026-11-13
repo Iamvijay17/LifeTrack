@@ -293,6 +293,7 @@ export const DatePicker = forwardRef(function DatePicker(
                 key={i}
                 type="button"
                 disabled={out(day)}
+                data-sound="select"
                 aria-label={fmtDay(day, 'EEEE, d MMMM yyyy')}
                 aria-pressed={sel}
                 onClick={() => pick(day)}

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { haptic } from '@/lib/interaction/haptics'
 import { createPortal } from 'react-dom'
 import { SNAP_MINUTES, snapMinutes } from '@/domain/calendar'
 import { HOUR_PX } from './format'
@@ -118,7 +119,7 @@ export function DragProvider({ plan, onCommit, onCreate, renderGhost, children }
       clearTimeout(s.timer)
       document.documentElement.classList.add('lt-dragging')
       if (touch) {
-        navigator.vibrate?.(10)
+        haptic('tick', 10)
         window.addEventListener('touchmove', noScroll, { passive: false })
         window.addEventListener('contextmenu', noMenu)
       }

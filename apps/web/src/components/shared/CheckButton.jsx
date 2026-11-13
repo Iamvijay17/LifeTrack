@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { AnimatePresence, ease, m, spring } from '@/components/motion/primitives'
-import { tick } from '@/lib/celebrate'
+import { sound } from '@/lib/interaction/SoundManager'
 import { cn } from '@/lib/utils'
 
 const SIZE = { md: 'h-5 w-5', lg: 'h-10 w-10' }
@@ -21,7 +21,8 @@ export function CheckButton({ done, onToggle, label, color, size = 'md', disable
       type="button"
       disabled={disabled}
       onClick={() => {
-        if (!done) tick()
+        // Ticking something off is the satisfying direction; un-ticking is a quiet switch.
+        sound.play(done ? 'toggleOff' : 'check')
         onToggle()
       }}
       aria-label={label}

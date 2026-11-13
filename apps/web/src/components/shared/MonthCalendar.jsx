@@ -33,6 +33,7 @@ export function MonthCalendar({ month, onMonth, selected, onSelect, today, weekS
           <button
             key={d}
             type="button"
+            data-sound="select"
             onClick={() => onSelect(d)}
             aria-label={`${fmtDay(d, 'd MMMM')}${labelFor?.(d) ? `, ${labelFor(d)}` : ''}`}
             aria-pressed={selected === d}

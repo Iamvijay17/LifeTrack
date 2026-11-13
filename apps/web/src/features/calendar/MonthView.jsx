@@ -73,6 +73,7 @@ export function MonthView({ days, month, items, today, selected, prefs, onSelect
               data-date={d}
               data-testid={`cell-${d}`}
               aria-selected={d === selected}
+              data-sound="select"
               onClick={() => onSelect(d)}
               onDoubleClick={() => onOpenDay(d)}
               className={cn(

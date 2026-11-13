@@ -18,6 +18,7 @@ export function WeekStrip({ days, selected, today, onSelect, label = 'Choose a d
             <button
               key={date}
               type="button"
+              data-sound="select"
               onClick={() => onSelect?.(date)}
               disabled={!onSelect}
               aria-pressed={onSelect ? on : undefined}

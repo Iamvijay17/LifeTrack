@@ -1,15 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Delete } from 'lucide-react'
 import { m, spring } from '@/components/motion/primitives'
+import { haptic } from '@/lib/interaction/haptics'
 import { cn } from '@/lib/utils'
 
-const tick = () => {
-  try {
-    navigator.vibrate?.(8) // a light tap on phones that support it
-  } catch {
-    /* no haptics */
-  }
-}
+const tick = () => haptic('tick', 8) // a light tap on phones that support it
 
 /** The PIN so far, as dots. `status` colours it: 'error' shakes and turns red, 'success' turns green and pulses. Never shows the digits. */
 export function PinDots({ length, filled, status = 'idle', className }) {

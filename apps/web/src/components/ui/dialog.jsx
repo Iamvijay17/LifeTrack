@@ -2,6 +2,7 @@ import * as D from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
 import { useDragControls } from 'motion/react'
 import { AnimatePresence, duration, ease, m, spring } from '@/components/motion/primitives'
+import { useOpenSound } from '@/hooks/useInteraction'
 import { useIsDesktop } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/utils'
 import { hasOpenPopup } from './popup'
@@ -17,6 +18,7 @@ const CLOSE_DRAG_SPEED = 600
 export function Dialog({ open, onOpenChange, title, description, children, className, footer, stacked }) {
   const desktop = useIsDesktop()
   const drag = useDragControls()
+  useOpenSound(open)
   return (
     <D.Root open={open} onOpenChange={onOpenChange}>
       <AnimatePresence>

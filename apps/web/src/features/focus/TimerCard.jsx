@@ -86,7 +86,7 @@ export function TimerCard({ timer, setup, onSetup, minutes, validMinutes, tasks,
               <p className="text-center text-sm text-muted-foreground">{breakMinutes}-minute break. Change break lengths in Settings.</p>
             )}
             <Magnetic className="flex w-full" strength={0.08}>
-              <Button size="lg" className="w-full" onClick={onStart} disabled={!validMinutes}>
+              <Button size="lg" className="w-full" data-sound="timerStart" onClick={onStart} disabled={!validMinutes}>
                 {setup.mode === 'focus' ? <Timer className="h-4 w-4" /> : <Coffee className="h-4 w-4" />}Start{' '}
                 {MODE_LABEL[setup.mode].toLowerCase()}
               </Button>
@@ -95,18 +95,18 @@ export function TimerCard({ timer, setup, onSetup, minutes, validMinutes, tasks,
         ) : (
           <div className="flex justify-center gap-2">
             {timer.running ? (
-              <Button variant="outline" onClick={timer.pause}>
+              <Button variant="outline" data-sound="timerPause" onClick={timer.pause}>
                 <Pause className="h-4 w-4" />
                 Pause
               </Button>
             ) : (
-              <Button onClick={timer.resume}>
+              <Button data-sound="timerStart" onClick={timer.resume}>
                 <Play className="h-4 w-4" />
                 Resume
               </Button>
             )}
             {active.mode === 'focus' ? (
-              <Button variant="outline" onClick={onStop}>
+              <Button variant="outline" data-sound="timerStop" onClick={onStop}>
                 <Square className="h-4 w-4" />
                 Stop &amp; save
               </Button>

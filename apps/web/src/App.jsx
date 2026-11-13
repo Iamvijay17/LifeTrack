@@ -9,6 +9,7 @@ import { ConfirmProvider } from '@/components/shared/Confirm'
 import { PromptProvider } from '@/components/shared/Prompt'
 import { AppShell } from '@/components/layout/AppShell'
 import { FullScreenLoader, InitialAppLoader } from '@/components/loaders'
+import { InteractionProvider } from '@/components/interaction/InteractionProvider'
 import { MotionProvider } from '@/components/motion/primitives'
 import LegalPage from '@/features/legal/LegalPage'
 import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from '@/features/auth/AuthPages'
@@ -58,109 +59,111 @@ export default function App() {
   if (isMisconfigured) return <ConfigError />
   return (
     <MotionProvider>
-      <AuthProvider>
-        <ConfirmProvider>
-          <PromptProvider>
-            <Suspense fallback={<FullScreenLoader message="Syncing your progress..." />}>
-              <Routes>
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                <Route path="/reset-password" element={<ResetPasswordPage />} />
-                <Route path="/privacy" element={<LegalPage doc="privacy" />} />
-                <Route path="/terms" element={<LegalPage doc="terms" />} />
-                <Route
-                  element={
-                    <Protected>
-                      <AppShell />
-                    </Protected>
-                  }
-                >
-                  <Route index element={<Overview />} />
-                  <Route path="planner" element={<Planner />} />
-                  <Route path="calendar" element={<Calendar />} />
-                  <Route path="learning" element={<Learning />} />
+      <InteractionProvider>
+        <AuthProvider>
+          <ConfirmProvider>
+            <PromptProvider>
+              <Suspense fallback={<FullScreenLoader message="Syncing your progress..." />}>
+                <Routes>
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/register" element={<RegisterPage />} />
+                  <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                  <Route path="/reset-password" element={<ResetPasswordPage />} />
+                  <Route path="/privacy" element={<LegalPage doc="privacy" />} />
+                  <Route path="/terms" element={<LegalPage doc="terms" />} />
                   <Route
-                    path="jobs"
                     element={
-                      <ModuleGate module="jobs">
-                        <Jobs />
-                      </ModuleGate>
+                      <Protected>
+                        <AppShell />
+                      </Protected>
                     }
-                  />
-                  <Route
-                    path="fitness"
-                    element={
-                      <ModuleGate module="fitness">
-                        <Fitness />
-                      </ModuleGate>
-                    }
-                  />
-                  <Route path="fitness/exercises/:id" element={<ExerciseDetail />} />
-                  <Route
-                    path="health"
-                    element={
-                      <ModuleGate module="health">
-                        <Health />
-                      </ModuleGate>
-                    }
-                  />
-                  <Route
-                    path="nutrition"
-                    element={
-                      <ModuleGate module="nutrition">
-                        <Nutrition />
-                      </ModuleGate>
-                    }
-                  />
-                  <Route
-                    path="finance"
-                    element={
-                      <ModuleGate module="finance">
-                        <Finance />
-                      </ModuleGate>
-                    }
-                  />
-                  <Route path="habits" element={<Habits />} />
-                  <Route path="analytics" element={<Analytics />} />
-                  <Route path="focus" element={<Focus />} />
-                  <Route
-                    path="notes"
-                    element={
-                      <ModuleGate module="notes">
-                        <Notes />
-                      </ModuleGate>
-                    }
-                  />
-                  <Route path="goals" element={<Goals />} />
-                  <Route path="reports" element={<Reports />} />
-                  <Route path="notifications" element={<Notifications />} />
-                  <Route path="export" element={<ExportPage />} />
-                  <Route path="settings" element={<Settings />} />
-                  <Route path="security" element={<Security />} />
-                  <Route path="help" element={<Help />} />
-                </Route>
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Suspense>
-            <Toaster
-              theme={theme}
-              position="top-center"
-              gap={8}
-              offset={{ top: 16 }}
-              toastOptions={{
-                classNames: {
-                  toast: '!rounded-xl !bg-card !text-foreground !border-border !shadow-overlay !font-sans',
-                  description: '!text-muted-foreground',
-                  actionButton: '!rounded-md !bg-primary-solid !text-white',
-                  success: '[&_[data-icon]]:!text-success',
-                  error: '[&_[data-icon]]:!text-danger',
-                },
-              }}
-            />
-          </PromptProvider>
-        </ConfirmProvider>
-      </AuthProvider>
+                  >
+                    <Route index element={<Overview />} />
+                    <Route path="planner" element={<Planner />} />
+                    <Route path="calendar" element={<Calendar />} />
+                    <Route path="learning" element={<Learning />} />
+                    <Route
+                      path="jobs"
+                      element={
+                        <ModuleGate module="jobs">
+                          <Jobs />
+                        </ModuleGate>
+                      }
+                    />
+                    <Route
+                      path="fitness"
+                      element={
+                        <ModuleGate module="fitness">
+                          <Fitness />
+                        </ModuleGate>
+                      }
+                    />
+                    <Route path="fitness/exercises/:id" element={<ExerciseDetail />} />
+                    <Route
+                      path="health"
+                      element={
+                        <ModuleGate module="health">
+                          <Health />
+                        </ModuleGate>
+                      }
+                    />
+                    <Route
+                      path="nutrition"
+                      element={
+                        <ModuleGate module="nutrition">
+                          <Nutrition />
+                        </ModuleGate>
+                      }
+                    />
+                    <Route
+                      path="finance"
+                      element={
+                        <ModuleGate module="finance">
+                          <Finance />
+                        </ModuleGate>
+                      }
+                    />
+                    <Route path="habits" element={<Habits />} />
+                    <Route path="analytics" element={<Analytics />} />
+                    <Route path="focus" element={<Focus />} />
+                    <Route
+                      path="notes"
+                      element={
+                        <ModuleGate module="notes">
+                          <Notes />
+                        </ModuleGate>
+                      }
+                    />
+                    <Route path="goals" element={<Goals />} />
+                    <Route path="reports" element={<Reports />} />
+                    <Route path="notifications" element={<Notifications />} />
+                    <Route path="export" element={<ExportPage />} />
+                    <Route path="settings" element={<Settings />} />
+                    <Route path="security" element={<Security />} />
+                    <Route path="help" element={<Help />} />
+                  </Route>
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Suspense>
+              <Toaster
+                theme={theme}
+                position="top-center"
+                gap={8}
+                offset={{ top: 16 }}
+                toastOptions={{
+                  classNames: {
+                    toast: '!rounded-xl !bg-card !text-foreground !border-border !shadow-overlay !font-sans',
+                    description: '!text-muted-foreground',
+                    actionButton: '!rounded-md !bg-primary-solid !text-white',
+                    success: '[&_[data-icon]]:!text-success',
+                    error: '[&_[data-icon]]:!text-danger',
+                  },
+                }}
+              />
+            </PromptProvider>
+          </ConfirmProvider>
+        </AuthProvider>
+      </InteractionProvider>
     </MotionProvider>
   )
 }

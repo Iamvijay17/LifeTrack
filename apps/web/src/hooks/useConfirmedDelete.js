@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { useConfirm } from '@/components/shared/Confirm'
 import { useAction } from '@/hooks/useAction'
 import * as store from '@/hooks/store'
+import { sound } from '@/lib/interaction/SoundManager'
 
 /**
  * "Ask, then delete" in one call, with the standard toast and duplicate-submit protection.
@@ -15,7 +16,11 @@ export function useConfirmedDelete(table, success) {
   return useCallback(
     async (id, prompt) => {
       if (!(await confirm(prompt))) return false
-      return (await del(id)) !== undefined
+      // The action will report "success" (and so will its toast); what the person did was delete, so that is the cue they hear.
+      sound.alias('success', 'delete')
+      const deleted = (await del(id)) !== undefined
+      if (!deleted) sound.clearAlias('success')
+      return deleted
     },
     [confirm, del],
   )

@@ -13,6 +13,7 @@ import { FocusPrefsCard } from './FocusPrefsCard'
 import { PreferencesCard } from './PreferencesCard'
 import { ProfileCard } from './ProfileCard'
 import { ScoreWeightsCard } from './ScoreWeightsCard'
+import { SoundCard } from './SoundCard'
 
 /** One labelled group of cards. The label sits in a left rail on wide screens and above the cards on narrow ones. */
 function Group({ title, desc, children }) {
@@ -40,9 +41,10 @@ export default function SettingsPage() {
       <PageHeader title="Settings" description={isDevMode ? 'DEV mode: stored in this browser only.' : 'Synced to your account.'} />
       <DataGate loading={loading} error={error} cards={0}>
         <Stagger gap={0.04} className="mx-auto max-w-5xl space-y-8">
-          <Group title="Profile & appearance" desc="Your name and how LifeTrack looks.">
+          <Group title="Profile & appearance" desc="Your name, how LifeTrack looks, and how it sounds and feels.">
             <ProfileCard />
             <AppearanceCard />
+            <SoundCard />
           </Group>
           <Group
             title="Region & daily goals"
