@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { deliveryMessages, deliveryStamp, handledStamps, planDelivery } from '@lifetrack/core/notifications'
 import { useTable } from '@/hooks/store'
+import { ARRIVAL_CLASS } from '@/lib/interaction/feedback'
 import { showSystemNotification } from './browserNotifications'
 import { openNotificationDrawer } from './drawerState'
 import { useNotificationSettings } from './useNotificationSettings'
@@ -64,6 +65,7 @@ export function useNotificationDelivery() {
         const show = msg.priority === 'urgent' ? toast.error : msg.priority === 'high' ? toast.warning : toast
         show(msg.title, {
           id: msg.tag,
+          className: ARRIVAL_CLASS, // the interaction layer sounds these as a notification, whatever their urgency styling
           description: msg.body || undefined,
           duration: msg.priority === 'urgent' ? 12_000 : msg.priority === 'high' ? 8_000 : 5_000,
           action: { label: msg.rows.length > 1 ? 'Open' : 'View', onClick: open },

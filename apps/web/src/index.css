@@ -373,6 +373,101 @@
     transform: scale(0.97);
   }
 
+  /* A save, add or delete just worked: the button you pressed gives off one soft green ring (class added by lib/interaction/feedback.js). */
+  .lt-saved {
+    animation: lt-saved 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  @keyframes lt-saved {
+    0% {
+      box-shadow: 0 0 0 0 rgb(var(--success) / 0.55);
+    }
+    100% {
+      box-shadow: 0 0 0 10px rgb(var(--success) / 0);
+    }
+  }
+
+  /* Touch: taps respond at once (no double-tap-to-zoom delay, which is also what made a quick second tap register as nothing or as a mis-tap). */
+  button,
+  a,
+  summary,
+  [role='button'],
+  [role='tab'],
+  [role='switch'],
+  [role='menuitem'],
+  [role='option'],
+  label,
+  select {
+    touch-action: manipulation;
+  }
+
+  /* A switch's knob stretches slightly under the finger, like the system ones. */
+  [role='switch'] > span {
+    transition:
+      transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1),
+      width 140ms;
+  }
+  [role='switch']:active:not(:disabled) > span {
+    width: 1.5rem;
+  }
+  [role='switch'][aria-checked='true']:active:not(:disabled) > span {
+    transform: translateX(0.5rem);
+  }
+
+  /* Volume slider: a filled track up to the thumb, in the module accent. */
+  .lt-range {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  .lt-range:disabled {
+    cursor: not-allowed;
+  }
+  .lt-range::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 9999px;
+    background: linear-gradient(to right, rgb(var(--primary)) var(--fill, 50%), rgb(var(--muted-foreground) / 0.3) var(--fill, 50%));
+  }
+  .lt-range::-moz-range-track {
+    height: 6px;
+    border-radius: 9999px;
+    background: rgb(var(--muted-foreground) / 0.3);
+  }
+  .lt-range::-moz-range-progress {
+    height: 6px;
+    border-radius: 9999px;
+    background: rgb(var(--primary));
+  }
+  .lt-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 20px;
+    width: 20px;
+    margin-top: -7px;
+    border-radius: 9999px;
+    background: #fff;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
+    transition: transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .lt-range::-moz-range-thumb {
+    height: 20px;
+    width: 20px;
+    border: 0;
+    border-radius: 9999px;
+    background: #fff;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
+  }
+  .lt-range:active:not(:disabled)::-webkit-slider-thumb {
+    transform: scale(1.15);
+  }
+  .lt-range:focus-visible {
+    outline: none;
+  }
+  .lt-range:focus-visible::-webkit-slider-thumb {
+    box-shadow:
+      0 0 0 3px rgb(var(--primary) / 0.35),
+      0 1px 4px rgb(0 0 0 / 0.4);
+  }
+
   /* Accent tile behind a module icon. */
   .lt-icon-tile {
     @apply grid shrink-0 place-items-center rounded-lg text-white;

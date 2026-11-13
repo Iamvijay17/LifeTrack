@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useOpenSound } from '@/hooks/useInteraction'
 import { cn } from '@/lib/utils'
 
 const GAP = 4
@@ -16,6 +17,7 @@ export function usePopup({ onEscape } = {}) {
   const popupRef = useRef(null)
   const escape = useRef(onEscape)
   escape.current = onEscape
+  useOpenSound(open)
   useEffect(() => {
     if (!open) return undefined
     const away = (e) => {

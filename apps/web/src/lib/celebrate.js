@@ -1,5 +1,7 @@
 // Confetti and haptics for real achievements. Self-contained canvas, no dependency: created for the burst and removed afterwards, so it costs nothing the rest of the time.
 import { motionOff } from '@/components/motion/tokens'
+import { haptic } from '@/lib/interaction/haptics'
+import { sound } from '@/lib/interaction/SoundManager'
 
 const COLORS = ['#8B5CF6', '#6366F1', '#22C55E', '#F59E0B', '#EC4899', '#38BDF8', '#FAFAFA']
 const GRAVITY = 0.16
@@ -7,8 +9,7 @@ const DRAG = 0.985
 
 /** A short tap on the device, where the browser supports it. */
 export function tick(ms = 12) {
-  if (motionOff()) return
-  navigator.vibrate?.(ms)
+  haptic('tick', ms) // honours the person's haptics switch and reduced-motion setting
 }
 
 /**
@@ -16,6 +17,7 @@ export function tick(ms = 12) {
  * @param count particles. Small wins use a small burst (`celebrate({ count: 28 })`); big ones the default.
  */
 export function celebrate({ origin, count = 90 } = {}) {
+  sound.play('complete') // the sound has its own switch; the confetti below is skipped for reduced motion
   if (motionOff() || typeof document === 'undefined') return
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext?.('2d')

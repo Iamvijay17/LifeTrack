@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { haptic } from '@/lib/interaction/haptics'
 import { useInRouterContext, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useConfirm } from '@/components/shared/Confirm'
@@ -292,7 +293,7 @@ export function ContextMenuProvider({ children }) {
               }
               window.addEventListener('click', swallow, true)
               setTimeout(stopSwallowing, 600)
-              navigator.vibrate?.(8)
+              haptic('tick', 8)
             }, LONG_PRESS_MS),
           }
         },
