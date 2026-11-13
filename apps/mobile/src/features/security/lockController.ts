@@ -32,7 +32,12 @@ export interface LockDeps {
 }
 
 const IDLE: LockSnapshot = { status: 'idle', state: null, error: null, locked: false, enabled: false }
-const derive = (s: Omit<LockSnapshot, 'locked' | 'enabled'>): LockSnapshot => ({ ...s, locked: s.status === 'ready' && !!s.state?.locked, enabled: s.status === 'ready' && !!s.state?.appLockEnabled })
+/**
+ * Closed to this session? With the whole-app lock that is `locked`. With per-module locks (set on the web) the server reports `locked: false` yet still hides the
+ * locked modules' rows (Finance shows empty), so the phone must ask for the PIN too: it has no per-module screens.
+ */
+const isClosed = (st: SecurityState | null) => !!st && (st.locked || (st.lockScope === 'modules' && st.sessionUnlocked === false))
+const derive = (s: Omit<LockSnapshot, 'locked' | 'enabled'>): LockSnapshot => ({ ...s, locked: s.status === 'ready' && isClosed(s.state), enabled: s.status === 'ready' && !!s.state?.appLockEnabled })
 const active = (s: LockSnapshot) => s.enabled && !s.locked
 
 export function createLockController(deps: LockDeps) {

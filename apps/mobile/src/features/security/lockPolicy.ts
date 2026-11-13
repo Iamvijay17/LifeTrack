@@ -12,6 +12,10 @@ export interface SecurityState {
   biometricEnabled: boolean
   passkeyCount: number
   locked: boolean
+  /** Module locks (migration 0015): 'modules' closes only the chosen modules for a session that has not entered the PIN. */
+  lockScope?: string
+  lockedModules?: string[]
+  sessionUnlocked?: boolean
   lockoutSeconds: number
   failedAttempts: number
   sessionId: string | null
