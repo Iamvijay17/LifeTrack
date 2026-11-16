@@ -97,6 +97,21 @@ export const GUIDES = [
     ],
   },
   {
+    module: 'lifemap',
+    summary: 'See how your daily habits and tasks lead to your goals. Everything on the map is already in LifeTrack; you only draw the connections.',
+    steps: [
+      'Goals, milestones and habits appear on their own. Add a project or an area of life with Add, and bring a task onto the map by linking it.',
+      'Drag from the dot on the right edge of one item onto another to connect them: the first one contributes to the second. Or select an item and use Connect to.',
+      'Click an item to see its progress and connections. Drag items to place them, scroll or pinch to zoom, drag the background to move around. Positions are saved.',
+      'Use the search box, the type buttons and the category menu to keep a busy map readable. Focus shows one item and what it connects to.',
+    ],
+    tips: [
+      'A line is green once the item it starts from is done, and grey while it is still pending.',
+      'Links from a milestone to its goal are drawn for you. Drawn links can be reversed or removed; the items themselves are never changed.',
+      'On a keyboard: Tab to an item, Enter selects it, and the arrow keys move a selected item.',
+    ],
+  },
+  {
     module: 'focus',
     summary: 'A Pomodoro-style timer. Every finished block is saved to your account.',
     steps: [

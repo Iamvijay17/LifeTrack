@@ -165,7 +165,10 @@ export const localAdapter = {
     db[table] = (db[table] ?? []).filter((r) => !set.has(r.id))
     // emulate ON DELETE CASCADE / SET NULL
     const cascade = {
-      habits: [['habit_logs', 'habit_id']],
+      habits: [
+        ['habit_logs', 'habit_id'],
+        ['habit_pauses', 'habit_id'],
+      ],
       job_applications: [
         ['application_history', 'application_id'],
         ['interview_events', 'application_id'],

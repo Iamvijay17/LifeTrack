@@ -1,5 +1,6 @@
 export { sound } from './SoundManager'
 export { haptic } from './haptics'
-export { CATEGORIES, DEFAULT_PREFS, getPrefs, setPrefs, subscribePrefs, normalizePrefs } from './prefs'
+export { DEFAULT_PREFS, getPrefs, setPrefs, resetPrefs, setFocusActive, subscribePrefs, normalizePrefs } from './prefs'
+export { EVENTS, PROFILES, activeProfileKey, resolveEvent } from './profiles'
 export { CUES } from './recipes'
 export { cueForTarget, isStateful } from './rules'

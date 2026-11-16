@@ -248,6 +248,10 @@ html[data-motion='reduced'] .lt-ambient {
 }
 .dark[data-module='security'],
 .dark [data-module='security'] {
+.dark[data-module='lifemap'],
+.dark [data-module='lifemap'] {
+  --mod-text: 94 234 212;
+}
   --mod-text: 103 232 249;
 }
 .dark[data-module='health'],

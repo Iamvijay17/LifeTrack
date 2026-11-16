@@ -18,6 +18,7 @@ import { useNotificationDelivery } from '@/features/notifications/useNotificatio
 import { useSmartNotifications } from '@/features/notifications/useSmartNotifications'
 import { useRecurringRunner } from '@/features/finance/useRecurringRunner'
 import { useCalendarAlerts } from '@/features/calendar/useCalendarAlerts'
+import { useCompanionShortcut } from '@/features/companion/useCompanionShortcut'
 import { ContextMenuProvider, useContextMenu } from '@/components/context-menu'
 import { QuickAddMenu, QuickFab, QuickActionsProvider } from '@/features/quick/QuickActions'
 import { CommandCenterProvider } from '@/features/command/CommandCenter'
@@ -93,6 +94,7 @@ function Shell() {
   useNotificationDelivery()
   useRecurringRunner()
   useCalendarAlerts()
+  useCompanionShortcut()
 
   // First sign-in on any device: create default topics / exercise library once (idempotent via unique keys).
   const { row, loading } = useSettings()

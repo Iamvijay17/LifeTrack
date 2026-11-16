@@ -3,7 +3,9 @@ import { useSonner } from 'sonner'
 import { ARRIVAL_CLASS, actionSucceeded, trackPress } from '@/lib/interaction/feedback'
 import { haptic } from '@/lib/interaction/haptics'
 import { cueForTarget, isStateful } from '@/lib/interaction/rules'
+import { setFocusActive } from '@/lib/interaction/prefs'
 import { sound } from '@/lib/interaction/SoundManager'
+import { getUserId } from '@/services/session'
 
 const Ctx = createContext(null)
 
@@ -31,6 +33,32 @@ function ToastSounds() {
     }
     if (seen.current.size > 200) seen.current = new Set(toasts.map((t) => t.id)) // never grow for ever
   }, [toasts])
+  return null
+}
+
+/** Is a focus block counting down right now? Read from the timer's own saved state (the same one the Focus page keeps), so it holds on every page. */
+function focusRunning() {
+  try {
+    const t = JSON.parse(localStorage.getItem(`lifetrack:focus-timer:${getUserId() ?? 'anon'}`))
+    return !!t && t.mode === 'focus' && t.endsAt != null
+  } catch {
+    return false
+  }
+}
+
+/** Tells the sound engine when a focus block is running, so the Focus profile can take over. A once-a-second look at one small key. */
+function FocusModeWatcher() {
+  useEffect(() => {
+    const check = () => setFocusActive(focusRunning())
+    check()
+    const id = setInterval(check, 1000)
+    window.addEventListener('storage', check)
+    return () => {
+      clearInterval(id)
+      window.removeEventListener('storage', check)
+      setFocusActive(false)
+    }
+  }, [])
   return null
 }
 
@@ -83,6 +111,7 @@ export function InteractionProvider({ children }) {
   return (
     <Ctx.Provider value={api}>
       <ToastSounds />
+      <FocusModeWatcher />
       {children}
     </Ctx.Provider>
   )

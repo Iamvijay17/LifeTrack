@@ -25,19 +25,30 @@ const schema = z
     color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
     frequency: z.enum(['daily', 'weekly', 'custom']),
     days_of_week: z.array(z.number()),
+    rest_days: z.array(z.number()),
     weekly_target: z.coerce.number().int().min(1, 'At least 1').max(7, 'At most 7'),
     start_date: requiredDay('Pick a start date'),
   })
   .refine((v) => v.frequency !== 'custom' || v.days_of_week.length > 0, { path: ['days_of_week'], message: 'Pick at least one day' })
 
 export function HabitDialog({ open, onOpenChange, habit, today }) {
-  const blank = { name: '', description: '', color: COLORS[0], frequency: 'daily', days_of_week: [], weekly_target: 3, start_date: today }
+  const blank = {
+    name: '',
+    description: '',
+    color: COLORS[0],
+    frequency: 'daily',
+    days_of_week: [],
+    rest_days: [],
+    weekly_target: 3,
+    start_date: today,
+  }
   const fromHabit = (h) => ({
     name: h.name,
     description: h.description ?? '',
     color: h.color,
     frequency: h.frequency,
     days_of_week: h.days_of_week ?? [],
+    rest_days: h.rest_days ?? [],
     weekly_target: h.weekly_target,
     start_date: h.start_date,
   })
@@ -51,9 +62,13 @@ export function HabitDialog({ open, onOpenChange, habit, today }) {
   const frequency = watch('frequency')
   const [save, pending] = useAction(
     async (v) => {
+      // Rest days need migration 0018; leave the column out unless it matters, so saving a habit never depends on it.
+      const { rest_days, ...rest } = v
+      const days = v.frequency === 'daily' ? rest_days : []
+      const body = days.length || (habit?.rest_days ?? []).length ? { ...rest, rest_days: days } : rest
       if (habit)
-        await store.update('habits', habit.id, v) // logs are untouched: history is preserved
-      else await store.insert('habits', v)
+        await store.update('habits', habit.id, body) // logs are untouched: history is preserved
+      else await store.insert('habits', body)
       onOpenChange(false)
     },
     { success: habit ? 'Habit updated' : 'Habit created' },
@@ -111,6 +126,38 @@ export function HabitDialog({ open, onOpenChange, habit, today }) {
                   )
                 })}
               </div>
+            </Field>
+          )}
+        />
+      )}
+      {frequency === 'daily' && (
+        <Controller
+          control={control}
+          name="rest_days"
+          render={({ field }) => (
+            <Field label="Planned rest days (optional)">
+              <div className="flex flex-wrap gap-1.5">
+                {DAYS.map(([l, v]) => {
+                  const on = field.value.includes(v)
+                  return (
+                    <button
+                      key={v}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => field.onChange(on ? field.value.filter((x) => x !== v) : [...field.value, v])}
+                      className={cn(
+                        'h-9 w-12 rounded-md border border-border text-[13px]',
+                        on ? 'border-mod bg-mod/15 text-mod-text' : 'text-muted-foreground',
+                      )}
+                    >
+                      {l}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Rest days are never expected, so they can&apos;t be missed or break your streak.
+              </p>
             </Field>
           )}
         />

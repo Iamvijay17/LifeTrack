@@ -1,8 +1,25 @@
 import { addDays, dateStrInTz, DEFAULT_TZ, diffDays, eachDay, startOfWeek, weekday } from '@lifetrack/utils'
 
-/** Is the habit expected on this calendar day? (weekly habits are expected "some days" — handled separately) */
+/** Is `date` inside one of the habit's pause windows? `habit.pauses` is [{ start_date, end_date|null }] (attached by buildHabitStats). */
+export function isPaused(habit, date) {
+  const ps = habit.pauses
+  if (!ps?.length) return false
+  for (const p of ps) if (date >= p.start_date && (p.end_date == null || date <= p.end_date)) return true
+  return false
+}
+
+/** Is `date` a planned rest day (a weekday the person marked as "never expected") or a paused day? Neither can be missed. */
+export function isRestDay(habit, date) {
+  return (habit.rest_days ?? []).includes(weekday(date)) || isPaused(habit, date)
+}
+
+/**
+ * Is the habit expected on this calendar day? (weekly habits are expected "some days" — handled separately)
+ * Planned rest days and paused days are never expected, so they can be neither missed nor break a streak.
+ */
 export function isScheduled(habit, date) {
   if (date < habit.start_date) return false
+  if (isRestDay(habit, date)) return false
   if (habit.frequency === 'daily') return true
   if (habit.frequency === 'custom') return (habit.days_of_week ?? []).includes(weekday(date))
   return false
@@ -29,6 +46,13 @@ function dayState(habit, date, map, today) {
   return date === today ? 'pending' : 'miss'
 }
 
+/** A week the habit was paused for all seven days asks nothing of anyone. */
+function weekPaused(habit, weekStart) {
+  if (!habit.pauses?.length) return false
+  for (let i = 0; i < 7; i++) if (!isPaused(habit, addDays(weekStart, i))) return false
+  return true
+}
+
 function weekDone(map, weekStart) {
   let n = 0
   for (let i = 0; i < 7; i++) if (map.get(addDays(weekStart, i)) === 'done') n++
@@ -52,7 +76,7 @@ export function streaks(habit, logs, today, weekStartsOn = 1) {
     for (let w = thisWeek; w >= firstWeek; w = addDays(w, -7)) {
       const ok = weekDone(map, w) >= habit.weekly_target
       if (ok) current++
-      else if (w !== thisWeek) break
+      else if (w !== thisWeek && !weekPaused(habit, w)) break
     }
     let longest = 0,
       run = 0
@@ -60,7 +84,7 @@ export function streaks(habit, logs, today, weekStartsOn = 1) {
       if (weekDone(map, w) >= habit.weekly_target) {
         run++
         longest = Math.max(longest, run)
-      } else if (w !== thisWeek) run = 0
+      } else if (w !== thisWeek && !weekPaused(habit, w)) run = 0
     }
     return { current, longest, unit: 'wk' }
   }
@@ -95,6 +119,7 @@ export function completion(habit, logs, from, to, today, weekStartsOn = 1) {
     let done = 0
     let weeks = 0
     for (let w = startOfWeek(lo, weekStartsOn); w <= hi; w = addDays(w, 7)) {
+      if (weekPaused(habit, w)) continue
       weeks++
       for (let i = 0; i < 7; i++) {
         const d = addDays(w, i)
@@ -118,7 +143,7 @@ export function completion(habit, logs, from, to, today, weekStartsOn = 1) {
 
 /** Is the habit due to be acted on today (scheduled and no log yet)? Weekly habits are always actionable until target met. */
 export function isDueToday(habit, logs, today, weekStartsOn = 1) {
-  if (habit.archived_at || today < habit.start_date) return false
+  if (habit.archived_at || today < habit.start_date || isPaused(habit, today)) return false
   const todays = logs.find((l) => l.log_date === today)
   if (todays) return false
   if (habit.frequency === 'weekly') return weekDone(buildLogMap(logs), startOfWeek(today, weekStartsOn)) < habit.weekly_target

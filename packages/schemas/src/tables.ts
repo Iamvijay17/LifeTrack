@@ -78,9 +78,13 @@ const insertShapes = {
   },
   habits: {
     name: str(1, 80), description: text().optional(), color: text().optional(), frequency: z.enum(['daily', 'weekly', 'custom']).optional(),
-    days_of_week: z.array(int().min(0).max(6)).optional(), weekly_target: int().min(1).max(7).optional(), start_date: day.optional(), archived_at: ts.nullable().optional(),
+    days_of_week: z.array(int().min(0).max(6)).optional(), rest_days: z.array(int().min(0).max(6)).optional(), weekly_target: int().min(1).max(7).optional(), start_date: day.optional(), archived_at: ts.nullable().optional(),
   },
-  habit_logs: { habit_id: uuid, log_date: day, status: z.enum(['done', 'skipped', 'rest']).optional(), note: text().optional() },
+  habit_logs: { habit_id: uuid, log_date: day, status: z.enum(['done', 'skipped', 'rest']).optional(), note: text().optional(), recovered_at: ts.nullable().optional() },
+  life_map_nodes: { kind: z.enum(['project', 'area']), title: str(1, 120), notes: str(0, 1000).optional(), category: z.enum(['Learning', 'Career', 'Fitness', 'Health', 'Finance', 'Personal']).optional(), color: hex.nullable().optional(), status: z.enum(['active', 'done']).optional() },
+  life_map_links: { from_key: nodeKey, to_key: nodeKey, label: str(0, 60).optional() },
+  life_map_positions: { node_key: nodeKey, x: z.number().min(-100000).max(100000), y: z.number().min(-100000).max(100000) },
+  habit_pauses: { habit_id: uuid, start_date: day, end_date: day.nullable().optional(), reason: str(0, 200).optional() },
   study_sessions: {
     goal_id: uuid.nullable().optional(), topic_id: uuid.nullable().optional(), session_date: day, started_at: ts.optional(), ended_at: ts.nullable().optional(),
     duration_seconds: int().nonnegative().nullable().optional(), status: z.enum(['running', 'completed', 'discarded']).optional(),

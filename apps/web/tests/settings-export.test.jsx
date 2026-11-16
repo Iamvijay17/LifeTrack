@@ -322,7 +322,11 @@ describe('AccountCard', () => {
 describe('AppearanceCard', () => {
   it('applies the theme immediately and saves it to the account', async () => {
     const user = userEvent.setup()
-    render(<AppearanceCard />)
+    render(
+      <MemoryRouter>
+        <AppearanceCard />
+      </MemoryRouter>,
+    )
     await user.click(screen.getByRole('tab', { name: 'Light' }))
     expect(mocks.applyTheme).toHaveBeenCalledWith('light')
     await waitFor(() => expect(mocks.save).toHaveBeenCalledWith({ theme: 'light' }))

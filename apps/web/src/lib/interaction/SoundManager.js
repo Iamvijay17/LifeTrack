@@ -1,9 +1,10 @@
 import { CUES } from './recipes'
 import { haptic } from './haptics'
-import { getPrefs } from './prefs'
+import { getPrefs, isFocusActive } from './prefs'
+import { activeProfileKey, resolveEvent, variantFor } from './profiles'
 
 // One place that decides whether, and how, any sound plays. The rules, in order:
-//  1. Off means off: master switch, mute, the cue's category, and a hidden tab all stop it.
+//  1. Off means off: master switch, mute, the cue's event (its own switch in the active profile or the person's override), and a hidden tab all stop it.
 //  2. One voice at a time. A new cue either cuts the one still sounding (when it matters at least as much) or is dropped. Cues are 40-650 ms,
 //     so this is what keeps a click + a close + a success toast from becoming a pile-up.
 //  3. The same cue can't repeat faster than its own `gap` (a double-fire, a held key).
@@ -56,9 +57,10 @@ class SoundManager {
   /**
    * Play a cue (and its haptic). Returns the key that actually played, or null when it was gated or dropped.
    * opts.generic: the automatic click sound of the global listener, which does not count as an explicit request.
-   * opts.preview: Settings' preview button: plays even if the category or master switch is off, but never while muted.
+   * opts.preview: Settings' preview button: plays even if the event or master switch is off, but never while muted.
+   *   With opts.profile it previews how that profile would sound; with opts.volume it overrides the event's loudness (a slider being dragged).
    */
-  play(key, { generic = false, preview = false } = {}) {
+  play(key, { generic = false, preview = false, profile, volume } = {}) {
     if (!generic) this.requests++
     const now = performance.now()
     const alias = this.aliases.get(key)
@@ -70,12 +72,14 @@ class SoundManager {
         key = alias.to
       }
     }
+    const prefs = getPrefs()
+    const profileKey = profile ?? activeProfileKey(prefs, isFocusActive())
+    key = variantFor(profileKey, key) // a profile may swap in a richer cue
     const cue = CUES[key]
     if (!cue) return null
     // A finished focus block is the one cue that matters while you are in another tab.
     if (typeof document !== 'undefined' && document.hidden && !preview && !cue.hiddenOk) return null
 
-    const prefs = getPrefs()
     const lastAt = this.lastAt.get(key)
     if (!preview && lastAt !== undefined && now - lastAt < cue.gap * 1000) return null
     if (!preview && this.active && now < this.active.endsAt) {
@@ -85,16 +89,18 @@ class SoundManager {
     if (preview) this.#cut()
     this.lastAt.set(key, now)
 
-    const soundOn = preview ? !prefs.muted : prefs.enabled && !prefs.muted && prefs.categories[cue.category]
+    const ev = resolveEvent(prefs, cue.event, profileKey)
+    const soundOn = preview ? !prefs.muted : prefs.enabled && !prefs.muted && ev.enabled
     // Haptics follow their own switch, so they still fire when the sounds are off.
     if (!preview) haptic(key)
     this.active = { key, priority: cue.priority, endsAt: now + LENGTH[key] * 1000, node: null }
-    if (!soundOn || prefs.volume <= 0) return null
+    const loudness = volume ?? ev.volume
+    if (!soundOn || prefs.volume <= 0 || loudness <= 0) return null
     if (!this.running) {
       this.unlock()
       return null
     }
-    this.active.node = this.#voice(cue, prefs.volume)
+    this.active.node = this.#voice(cue, gainFor(prefs.volume) * loudness)
     return key
   }
 
@@ -134,10 +140,10 @@ class SoundManager {
     setTimeout(() => node.disconnect(), 80)
   }
 
-  #voice(cue, volume) {
+  #voice(cue, gain) {
     const ctx = this.ctx
     const t0 = ctx.currentTime + 0.005
-    this.master.gain.setValueAtTime(gainFor(volume), ctx.currentTime)
+    this.master.gain.setValueAtTime(gain, ctx.currentTime)
     const voice = ctx.createGain()
     const tone = ctx.createBiquadFilter()
     tone.type = 'lowpass'

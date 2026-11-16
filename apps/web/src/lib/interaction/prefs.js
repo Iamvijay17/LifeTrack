@@ -1,41 +1,67 @@
 // Sound & interaction preferences. They describe *this device* (a phone and a desktop want different volumes), so they live in localStorage
 // and never touch the account or the database. A tiny external store: React reads it with useSyncExternalStore, plain code with getPrefs().
-
-/** The sound groups a person can switch on and off separately. `sounds` says which cues belong to each. */
-export const CATEGORIES = {
-  interface: { label: 'Clicks & navigation', desc: 'Buttons, links, tabs, switches, menus, dialogs and the calendar.', sample: 'click' },
-  completion: { label: 'Completion', desc: 'Checking something off and finishing a task or goal.', sample: 'check' },
-  feedback: { label: 'Success, errors & delete', desc: 'Saved, something went wrong, or an item was removed.', sample: 'success' },
-  notifications: { label: 'Notifications', desc: 'A reminder or alert arriving.', sample: 'notify' },
-  timer: { label: 'Focus timer', desc: 'Start, pause and stop, and a finished focus session.', sample: 'timerStart' },
-}
+import { DEFAULT_FOCUS_PROFILE, DEFAULT_PROFILE, EVENT_KEYS, PROFILE_KEYS } from './profiles'
 
 export const DEFAULT_PREFS = {
   enabled: true,
   muted: false,
-  volume: 0.5, // 0..1, the slider's value. The audible gain follows a curve (see SoundManager), so 50% is comfortable, not half-loud.
+  volume: 0.5, // 0..1, the master slider. The audible gain follows a curve (see SoundManager), so 50% is comfortable, not half-loud.
   haptics: true,
-  categories: { interface: true, completion: true, feedback: true, notifications: true, timer: true },
+  profile: DEFAULT_PROFILE, // the everyday profile
+  focusProfile: DEFAULT_FOCUS_PROFILE, // used instead while a focus block is running
+  autoFocus: true, // switch to the focus profile by itself during focus blocks
+  events: {}, // the person's own changes on top of the profile: { taskDone: { enabled?: boolean, volume?: 0..1 } }
 }
 
 const KEY = 'lifetrack:interaction-prefs'
 const listeners = new Set()
 let current = null
+let focusActive = false
 
-const clamp01 = (n) => (Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : DEFAULT_PREFS.volume)
+const clamp01 = (n) => (Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : null)
+
+// The first version had five on/off groups. A group someone switched off becomes its events switched off, so nothing starts making noise.
+const LEGACY_GROUPS = {
+  interface: ['click'],
+  completion: ['taskDone', 'habitDone', 'goalDone'],
+  feedback: ['success', 'error'],
+  notifications: ['notification'],
+  timer: ['timerStart', 'timerPause', 'timerDone'],
+}
+
+function cleanEvents(raw, legacy) {
+  const out = {}
+  const src = raw && typeof raw === 'object' ? raw : {}
+  for (const k of EVENT_KEYS) {
+    const o = src[k]
+    if (!o || typeof o !== 'object') continue
+    const e = {}
+    if (typeof o.enabled === 'boolean') e.enabled = o.enabled
+    const v = o.volume === undefined ? null : clamp01(Number(o.volume))
+    if (v !== null) e.volume = v
+    if (Object.keys(e).length) out[k] = e
+  }
+  if (legacy && typeof legacy === 'object') {
+    for (const [group, events] of Object.entries(LEGACY_GROUPS)) {
+      if (legacy[group] === false) for (const k of events) out[k] = { ...out[k], enabled: false }
+    }
+  }
+  return out
+}
 
 /** Accepts anything (a stale or hand-edited value) and returns a complete, valid preferences object. */
 export function normalizePrefs(raw) {
   const r = raw && typeof raw === 'object' ? raw : {}
-  const cats = r.categories && typeof r.categories === 'object' ? r.categories : {}
+  const v = r.volume === undefined ? null : clamp01(Number(r.volume))
   return {
     enabled: typeof r.enabled === 'boolean' ? r.enabled : DEFAULT_PREFS.enabled,
     muted: typeof r.muted === 'boolean' ? r.muted : DEFAULT_PREFS.muted,
-    volume: r.volume === undefined ? DEFAULT_PREFS.volume : clamp01(Number(r.volume)),
+    volume: v ?? DEFAULT_PREFS.volume,
     haptics: typeof r.haptics === 'boolean' ? r.haptics : DEFAULT_PREFS.haptics,
-    categories: Object.fromEntries(
-      Object.keys(DEFAULT_PREFS.categories).map((k) => [k, typeof cats[k] === 'boolean' ? cats[k] : DEFAULT_PREFS.categories[k]]),
-    ),
+    profile: PROFILE_KEYS.includes(r.profile) ? r.profile : DEFAULT_PREFS.profile,
+    focusProfile: PROFILE_KEYS.includes(r.focusProfile) ? r.focusProfile : DEFAULT_PREFS.focusProfile,
+    autoFocus: typeof r.autoFocus === 'boolean' ? r.autoFocus : DEFAULT_PREFS.autoFocus,
+    events: cleanEvents(r.events, r.categories),
   }
 }
 
@@ -51,12 +77,7 @@ export function getPrefs() {
   return (current ??= read())
 }
 
-export function setPrefs(patch) {
-  const next = normalizePrefs({
-    ...getPrefs(),
-    ...patch,
-    categories: { ...getPrefs().categories, ...(patch.categories ?? {}) },
-  })
+const persist = (next) => {
   current = next
   try {
     localStorage.setItem(KEY, JSON.stringify(next))
@@ -66,6 +87,35 @@ export function setPrefs(patch) {
   listeners.forEach((l) => l())
 }
 
+/**
+ * Merge a change. `events` merges per event, and an event set to `null` drops that person's override (back to the profile's value).
+ * Choosing a different profile forgets the overrides: a profile is a fresh starting point, not a layer on top of the last one.
+ */
+export function setPrefs(patch) {
+  const prev = getPrefs()
+  const events = { ...prev.events }
+  for (const [k, v] of Object.entries(patch.events ?? {})) {
+    if (v === null) delete events[k]
+    else events[k] = { ...events[k], ...v }
+  }
+  const next = normalizePrefs({ ...prev, ...patch, events })
+  if (patch.profile !== undefined && patch.profile !== prev.profile && patch.events === undefined) next.events = {}
+  persist(next)
+}
+
+/** Back to the factory settings: default profile, master volume, no overrides. */
+export function resetPrefs() {
+  persist(normalizePrefs(null))
+}
+
+/** Whether a focus block is running right now. Not stored: it is the timer's state, and the manager only needs to know which profile applies. */
+export function setFocusActive(on) {
+  if (focusActive === !!on) return
+  focusActive = !!on
+  listeners.forEach((l) => l())
+}
+export const isFocusActive = () => focusActive
+
 export function subscribePrefs(listener) {
   listeners.add(listener)
   return () => listeners.delete(listener)
@@ -74,6 +124,7 @@ export function subscribePrefs(listener) {
 /** Test helper: forget the cached copy so the next read goes to storage again. */
 export function resetPrefsCache() {
   current = null
+  focusActive = false
   listeners.forEach((l) => l())
 }
 

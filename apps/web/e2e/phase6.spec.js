@@ -73,9 +73,12 @@ test.describe('navigation, search, dashboard', () => {
     await page.getByRole('button', { name: 'How is this calculated?' }).click()
     await expect(page.getByText(/Career 100% × 100%/)).toBeVisible() // today's score: fraction × weight
     await page.keyboard.press('Escape')
-    await page.getByRole('button', { name: 'Customize' }).click()
-    await page.getByRole('switch', { name: 'Life Score', exact: true }).click()
-    await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: 'Edit dashboard' }).click()
+    await page.getByRole('button', { name: 'Settings for Life Score' }).click()
+    await page.getByRole('menuitem', { name: 'Remove widget' }).click()
+    await page.getByRole('button', { name: 'Remove widget' }).click() // confirm: only the card goes, not the data
+    await page.getByTestId('edit-bar').getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByTestId('edit-bar')).toHaveCount(0)
     await expect(page.getByTestId('score-card')).toHaveCount(0)
     await page.reload()
     await expect(page.getByTestId('score-card')).toHaveCount(0) // persisted to the account

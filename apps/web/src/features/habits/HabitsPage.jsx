@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Flame, Plus } from 'lucide-react'
 import { SelectionBar, useContextMenu, usePageContextMenu, useSelection } from '@/components/context-menu'
 import { PageHeader } from '@/components/shared/PageHeader'
@@ -7,6 +8,7 @@ import { DateNav } from '@/components/shared/DateNav'
 import { Checkbox } from '@/components/ui/form'
 import { Stagger, StaggerItem } from '@/components/motion/primitives'
 import { Button } from '@/components/ui/button'
+import { Segmented } from '@/components/ui/misc'
 import { useSettings } from '@/hooks/useSettings'
 import { useToday } from '@/hooks/useToday'
 import { summarizeHabits } from '@/domain/habits'
@@ -15,6 +17,7 @@ import { habitBulkItems, habitItems, habitsPageItems } from './contextMenu'
 import { HabitDialog } from './HabitDialog'
 import { HabitRow } from './HabitRow'
 import { HabitsOverview } from './HabitsOverview'
+import { ConsistencyView } from './ConsistencyView'
 import { ConsistencyCard } from './ConsistencyCard'
 import { PerHabitStats } from './PerHabitStats'
 import { useHabits } from './useHabits'
@@ -23,7 +26,10 @@ export default function HabitsPage() {
   const today = useToday()
   const { settings } = useSettings()
   const weekStartsOn = settings.week_starts_on
-  const { stats, loading, error, refetch } = useHabits(today, weekStartsOn)
+  const { stats, habits, logs, loading, error, refetch } = useHabits(today, weekStartsOn)
+  const [params, setParams] = useSearchParams()
+  const view = params.get('view') === 'consistency' ? 'consistency' : 'today'
+  const setView = (v) => setParams(v === 'today' ? {} : { view: v }, { replace: true })
   const [date, setDate] = useState(null)
   const day = date ?? today
   const [dialog, setDialog] = useState({ open: false, habit: null })
@@ -79,35 +85,55 @@ export default function HabitsPage() {
           />
         ) : (
           <div className="space-y-5">
-            <HabitsOverview
-              active={active}
-              day={day}
-              today={today}
-              weekStartsOn={weekStartsOn}
-              doneOnDay={doneOnDay}
-              bestCurrent={bestCurrent}
-              longest={longest}
-              avg30={avg30}
-              onSelect={setDate}
+            <Segmented
+              value={view}
+              onChange={setView}
+              options={[
+                { value: 'today', label: 'Check-ins' },
+                { value: 'consistency', label: 'Consistency' },
+              ]}
             />
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <DateNav date={day} onChange={setDate} today={today} />
-              <Checkbox
-                checked={showArchived}
-                onChange={setShowArchived}
-                label="Show archived"
-                className="min-h-10 text-xs text-muted-foreground md:min-h-0"
-              />
-            </div>
-            <Stagger as="ul" gap={0.04} className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
-              {visible.map((s) => (
-                <StaggerItem as="li" key={s.habit.id}>
-                  <HabitRow s={s} date={day} onEdit={(habit) => setDialog({ open: true, habit })} ctxProps={rowProps(s)} />
-                </StaggerItem>
-              ))}
-            </Stagger>
-            <ConsistencyCard active={active} today={today} weekStartsOn={weekStartsOn} selected={day} onSelect={setDate} />
-            <PerHabitStats active={active} />
+            {view === 'consistency' ? (
+              <ConsistencyView stats={stats} habits={habits} logs={logs} today={today} weekStartsOn={weekStartsOn} />
+            ) : (
+              <>
+                <HabitsOverview
+                  active={active}
+                  day={day}
+                  today={today}
+                  weekStartsOn={weekStartsOn}
+                  doneOnDay={doneOnDay}
+                  bestCurrent={bestCurrent}
+                  longest={longest}
+                  avg30={avg30}
+                  onSelect={setDate}
+                />
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <DateNav date={day} onChange={setDate} today={today} />
+                  <Checkbox
+                    checked={showArchived}
+                    onChange={setShowArchived}
+                    label="Show archived"
+                    className="min-h-10 text-xs text-muted-foreground md:min-h-0"
+                  />
+                </div>
+                <Stagger as="ul" gap={0.04} className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                  {visible.map((s) => (
+                    <StaggerItem as="li" key={s.habit.id}>
+                      <HabitRow
+                        s={s}
+                        date={day}
+                        today={today}
+                        onEdit={(habit) => setDialog({ open: true, habit })}
+                        ctxProps={rowProps(s)}
+                      />
+                    </StaggerItem>
+                  ))}
+                </Stagger>
+                <ConsistencyCard active={active} today={today} weekStartsOn={weekStartsOn} selected={day} onSelect={setDate} />
+                <PerHabitStats active={active} />
+              </>
+            )}
           </div>
         )}
       </DataGate>
