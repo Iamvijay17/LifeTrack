@@ -12,6 +12,7 @@ const int = () => z.number().int()
 const paise = () => z.number().int().nonnegative()
 const json = <T extends z.ZodTypeAny>(t: T) => t
 const text = () => z.string()
+const nodeKey = z.string().regex(/^(goal|habit|task|milestone|project|area):[0-9a-fA-F-]{8,40}$/, 'Expected kind:id')
 const hex = z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Expected #RRGGBB')
 /** Minutes before the start of an item at which to alert (at most five, up to four weeks ahead). */
 const alerts = z.array(z.number().int().min(0).max(40320)).max(5)
@@ -60,7 +61,7 @@ const insertShapes = {
     calendar_prefs: json(z.record(z.string(), z.any())).optional(), appearance_prefs: json(z.record(z.string(), z.any())).optional(),
     habit_prefs: json(z.record(z.string(), z.any())).optional(), workout_plan: json(z.record(z.string(), z.any())).optional(), defaults_seeded: z.boolean().optional(),
     score_weights: json(z.record(z.string(), z.number())).optional(), dashboard_widgets: json(z.record(z.string(), z.any())).optional(),
-    notification_prefs: json(z.record(z.string(), z.boolean())).optional(), notification_settings: json(z.record(z.string(), z.any())).optional(), focus_prefs: json(z.record(z.string(), z.number())).optional(),
+    notification_prefs: json(z.record(z.string(), z.boolean())).optional(), notification_settings: json(z.record(z.string(), z.any())).optional(), automation_prefs: json(z.record(z.string(), z.any())).optional(), focus_prefs: json(z.record(z.string(), z.number())).optional(),
   },
   learning_topics: { group_name: str(1, 60), name: str(1, 80), notes: text().optional(), revision_dates: z.array(day).optional(), archived: z.boolean().optional() },
   goals: {
@@ -193,6 +194,17 @@ const insertShapes = {
     to_date: day.nullable().optional(), to_start: time.nullable().optional(), to_end: time.nullable().optional(),
     reason: str(0, 500).optional(), batch_id: uuid.nullable().optional(), dedupe_key: str(1, 200).nullable().optional(),
     hide_until: day.nullable().optional(), undone_at: ts.nullable().optional(),
+  },
+  automation_workflows: {
+    name: str(1, 120), description: str(0, 500).optional(), enabled: z.boolean().optional(), trigger_kind: str(0, 40).optional(),
+    graph: json(z.object({ nodes: z.array(z.any()).max(30), edges: z.array(z.any()).max(90) })).optional(), template_key: str(0, 60).nullable().optional(),
+    max_runs_per_day: int().min(1).max(200).optional(), activated_at: ts.nullable().optional(),
+  },
+  automation_executions: {
+    workflow_id: uuid.nullable().optional(), workflow_name: str(0, 120).optional(), trigger_kind: str(0, 40).optional(), trigger_info: json(z.record(z.string(), z.any())).optional(),
+    status: z.enum(['pending', 'running', 'completed', 'failed', 'skipped']).optional(), attempt: int().min(1).max(10).optional(), steps: json(z.array(z.any())).optional(),
+    reason: str(0, 500).optional(), error: str(0, 1000).optional(), retryable: z.boolean().optional(), dedupe_key: str(1, 300).nullable().optional(),
+    started_at: ts.nullable().optional(), finished_at: ts.nullable().optional(),
   },
 } satisfies Record<string, z.ZodRawShape>
 

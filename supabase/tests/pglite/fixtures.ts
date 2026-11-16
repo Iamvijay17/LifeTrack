@@ -62,6 +62,8 @@ export const FIXTURES: Record<string, Fixture> = {
   reminders: { insert: (r, o) => one(r, `insert into reminders(user_id, title, remind_date) values ($1,'Pay rent','2026-11-02')`, [o]) },
   notifications: { insert: (r, o) => one(r, `insert into notifications(user_id, title) values ($1,'Hello')`, [o]) },
   calendar_events: { insert: (r, o, f) => one(r, `insert into calendar_events(user_id, title, starts_at, ends_at, goal_id, topic_id, application_id, routine_id) values ($1,'Standup','2026-11-05T04:00:00Z','2026-11-05T04:30:00Z',$2,$3,$4,$5)`, [o, f.goal_id ?? null, f.topic_id ?? null, f.application_id ?? null, f.routine_id ?? null]) },
+  automation_workflows: { insert: (r, o) => one(r, `insert into automation_workflows(user_id, name) values ($1,'Evening check')`, [o]) },
+  automation_executions: { parents: { workflow_id: 'automation_workflows' }, insert: (r, o, f) => one(r, `insert into automation_executions(user_id, workflow_id, dedupe_key) values ($1,$2,'k1')`, [o, f.workflow_id]) },
   task_reschedules: { parents: { task_id: 'tasks' }, insert: (r, o, f) => one(r, `insert into task_reschedules(user_id, task_id, action, from_date, to_date, to_start, to_end) values ($1,$2,'rescheduled','2026-11-02','2026-11-04','09:00','10:00')`, [o, f.task_id]) },
   calendar_event_exceptions: { parents: { event_id: 'calendar_events' }, insert: (r, o, f) => one(r, `insert into calendar_event_exceptions(user_id, event_id, occurrence_date, status) values ($1,$2,'2026-11-05','cancelled')`, [o, f.event_id]) },
 }

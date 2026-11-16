@@ -6,12 +6,13 @@ import { afterPost, dueOccurrences, dueRules, occurrenceRow, togglePatch as recu
 import { MIN_RECORD_SECONDS } from '@lifetrack/core/focus'
 import { DEFAULT_TOPICS, DEFAULT_EXERCISES } from '@lifetrack/constants/defaults'
 import { CONFLICT_KEYS } from '@lifetrack/constants/schema'
-import { uid, localDayMinutes, isValidDay, zonedToMs } from '@lifetrack/utils'
+import { uid, localDayMinutes, isValidDay, zonedToMs, addDays, diffDays } from '@lifetrack/utils'
 import { exceptionOverrides, expandEvent, isOccurrenceDate, normalizeRule, ruleBefore, ruleFrom, shiftSeries } from '@lifetrack/core/calendarRecurrence'
 import { checkPlacement, dismissKey, rescheduleKey, sameSlot } from '@lifetrack/core/recovery'
 import { isOpen } from '@lifetrack/core/tasks'
 import { checkLink, isNodeKey } from '@lifetrack/core/lifeMap'
 import { AppError } from './errors'
+import { createAutomationApi } from './automation'
 
 /**
  * Domain operations that span more than one row. `store` is the app's cache/mutation layer and must provide
@@ -69,7 +70,6 @@ export function createApi(store) {
     return store.upsert('habit_logs', { habit_id: habitId, log_date: date, status }, { onConflict: CONFLICT_KEYS.habit_logs })
   }
 
-  // ------------------------------------------------------------ study sessions
   // ------------------------------------------------------ consistency protection
   /** Pause a habit from `today`: from then on its days are neutral. A second call while paused is a no-op. Existing check-ins are untouched. */
   async function pauseHabit(habitId, today, reason = '') {
@@ -145,6 +145,7 @@ export function createApi(store) {
     }
   }
 
+  // ------------------------------------------------------------ study sessions
   async function startStudy({ goal_id = null, topic_id = null }, today) {
     if (store.peek('study_sessions').some((s) => s.status === 'running')) throw new AppError('A study timer is already running.')
     try { return await store.insert('study_sessions', { status: 'running', source: 'timer', session_date: today, started_at: nowIso(), goal_id, topic_id }) }
@@ -660,5 +661,7 @@ export function createApi(store) {
     return n
   }
 
-  return { saveRow, deleteRow, createTask, setTaskStatus, setHabitStatus, pauseHabit, resumeHabit, recoverHabitDay, saveMapPosition, saveMapPositions, resetMapLayout, linkNodes, reverseLink, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, logWater, removeWaterLog, saveNutritionGoals, saveFavoriteFoods, saveFoodCopy, deleteFood, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, postDueRecurring, toggleRecurringRule, fireDueReminders, toggleReminder, rescheduleReminder, clearReadNotifications, markNotificationRead, markNotificationUnread, markAllRead, snoozeNotification, dismissNotification, dismissNotifications, restoreNotification, deleteNotifications, raiseNotification, createCalendarEvent, saveCalendarEvent, deleteCalendarEvent, applyCalendarChange, raiseCalendarAlert, applyReschedules, undoReschedules, dismissRecovery }
+  const automation = createAutomationApi(store, { raiseNotification, setTaskStatus })
+
+  return { ...automation, saveRow, deleteRow, createTask, setTaskStatus, setHabitStatus, pauseHabit, resumeHabit, recoverHabitDay, saveMapPosition, saveMapPositions, resetMapLayout, linkNodes, reverseLink, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, logWater, removeWaterLog, saveNutritionGoals, saveFavoriteFoods, saveFoodCopy, deleteFood, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, postDueRecurring, toggleRecurringRule, fireDueReminders, toggleReminder, rescheduleReminder, clearReadNotifications, markNotificationRead, markNotificationUnread, markAllRead, snoozeNotification, dismissNotification, dismissNotifications, restoreNotification, deleteNotifications, raiseNotification, createCalendarEvent, saveCalendarEvent, deleteCalendarEvent, applyCalendarChange, raiseCalendarAlert, applyReschedules, undoReschedules, dismissRecovery }
 }

@@ -2328,3 +2328,240 @@ create trigger fk_owner before insert or update on public.task_reschedules
 alter table public.user_settings
   add column if not exists appearance_prefs jsonb not null default '{}'::jsonb
     check (jsonb_typeof(appearance_prefs) = 'object');
+
+
+-- ===== 0018_consistency.sql =====
+-- 0018: Consistency Protection. ADDITIVE and idempotent: running app versions keep working without it.
+--
+--  * habits.rest_days      planned rest days (0=Sun..6=Sat). A rest day is not "scheduled", so it can never be missed or break a streak.
+--  * habit_pauses          one row per pause window of a habit (end_date null = still paused). Days inside a window are neutral, exactly like rest days.
+--  * habit_logs.recovered_at   set when a past day was checked in later ("made up"), so the recovery history can be listed.
+--
+-- Nothing here rewrites a check-in: logs stay exactly as recorded. Pauses and rest days only change what the calculations EXPECT.
+
+alter table public.habits add column if not exists rest_days smallint[] not null default '{}';
+alter table public.habits drop constraint if exists habits_rest_days_ck;
+alter table public.habits add constraint habits_rest_days_ck check (rest_days <@ array[0,1,2,3,4,5,6]::smallint[]);
+
+alter table public.habit_logs add column if not exists recovered_at timestamptz;
+
+create table if not exists public.habit_pauses (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  habit_id uuid not null references public.habits(id) on delete cascade,
+  start_date date not null,
+  end_date date,
+  reason text not null default '' check (char_length(reason) <= 200),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint habit_pauses_dates_ck check (end_date is null or end_date >= start_date)
+);
+create index if not exists habit_pauses_habit_idx on public.habit_pauses (user_id, habit_id, start_date);
+-- At most one open-ended pause per habit: two devices pausing at once cannot create two.
+create unique index if not exists habit_pauses_open_uq on public.habit_pauses (habit_id) where end_date is null;
+create index if not exists habit_logs_recovered_idx on public.habit_logs (user_id, recovered_at) where recovered_at is not null;
+
+drop trigger if exists set_updated_at on public.habit_pauses;
+create trigger set_updated_at before update on public.habit_pauses for each row execute function public.set_updated_at();
+drop trigger if exists fk_owner on public.habit_pauses;
+create trigger fk_owner before insert or update on public.habit_pauses
+  for each row execute function public.check_fk_owner('habit_id', 'habits');
+alter table public.habit_pauses enable row level security;
+alter table public.habit_pauses force row level security;
+revoke all on public.habit_pauses from anon;
+drop policy if exists "owner_all" on public.habit_pauses;
+create policy "owner_all" on public.habit_pauses for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime')
+     and not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'habit_pauses') then
+    alter publication supabase_realtime add table public.habit_pauses;
+  end if;
+end $$;
+
+
+-- ===== 0019_automation.sql =====
+-- 0019: Personal Automation Studio. ADDITIVE and idempotent: two new tables and one new column, nothing existing is altered or rewritten.
+--
+--  * automation_workflows   a workflow: its name, a graph of nodes and edges (one trigger, conditions, actions: see packages/core/src/automation.js),
+--                           whether it is switched on, and when it was (a workflow only reacts to what happens AFTER that moment).
+--  * automation_executions  one row per run, the history AND the lock. The unique (workflow, dedupe_key) says "this thing already started a run":
+--                           the runner inserts the row FIRST (claim), so two devices, two tabs or a retry can never run the same occurrence twice.
+--                           Lifecycle: pending -> running -> completed | failed | skipped. `steps` is the per-node log (what ran, what it did,
+--                           the ids it created), so a failed run is retried from the step that failed instead of repeating the ones that worked.
+--  * user_settings.automation_prefs   { paused: boolean }: the "pause all automations" switch.
+--
+-- Deleting a workflow keeps its history (workflow_id becomes null; workflow_name remembers what it was called). Nothing here can delete a
+-- user's tasks, goals or habits: the runner only ever inserts, or updates a task/goal the workflow was pointed at.
+
+alter table public.user_settings
+  add column if not exists automation_prefs jsonb not null default '{}'::jsonb
+    check (jsonb_typeof(automation_prefs) = 'object');
+
+create table if not exists public.automation_workflows (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  name text not null check (char_length(name) between 1 and 120),
+  description text not null default '' check (char_length(description) <= 500),
+  enabled boolean not null default false,
+  trigger_kind text not null default '' check (char_length(trigger_kind) <= 40),     -- copied from the graph, for the list and for filtering
+  graph jsonb not null default '{"nodes":[],"edges":[]}'::jsonb
+    check (jsonb_typeof(graph) = 'object' and jsonb_typeof(graph -> 'nodes') = 'array' and jsonb_typeof(graph -> 'edges') = 'array'
+           and jsonb_array_length(graph -> 'nodes') <= 30 and jsonb_array_length(graph -> 'edges') <= 90),
+  template_key text check (template_key is null or char_length(template_key) <= 60),
+  max_runs_per_day int not null default 50 check (max_runs_per_day between 1 and 200),
+  activated_at timestamptz,                                                         -- when it was last switched on; null while off
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists automation_workflows_user_idx on public.automation_workflows (user_id, enabled);
+
+create table if not exists public.automation_executions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  workflow_id uuid references public.automation_workflows(id) on delete set null,
+  workflow_name text not null default '' check (char_length(workflow_name) <= 120),
+  trigger_kind text not null default '' check (char_length(trigger_kind) <= 40),
+  trigger_info jsonb not null default '{}'::jsonb check (jsonb_typeof(trigger_info) = 'object'),
+  status text not null default 'pending' check (status in ('pending','running','completed','failed','skipped')),
+  attempt int not null default 1 check (attempt between 1 and 10),
+  steps jsonb not null default '[]'::jsonb check (jsonb_typeof(steps) = 'array'),
+  reason text not null default '' check (char_length(reason) <= 500),               -- why it was skipped
+  error text not null default '' check (char_length(error) <= 1000),
+  retryable boolean not null default false,                                          -- a temporary failure: the runner tries again by itself
+  dedupe_key text check (dedupe_key is null or char_length(dedupe_key) <= 300),
+  started_at timestamptz,
+  finished_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists automation_executions_user_idx on public.automation_executions (user_id, created_at desc);
+create index if not exists automation_executions_workflow_idx on public.automation_executions (workflow_id, created_at desc);
+-- One run per occurrence: the second insert fails with 23505 before anything is done.
+create unique index if not exists automation_executions_dedupe_uq on public.automation_executions (user_id, workflow_id, dedupe_key)
+  where dedupe_key is not null and workflow_id is not null;
+
+-- ----------------------------------------------------- triggers, RLS, realtime (same as every other table)
+do $$
+declare t text;
+begin
+  foreach t in array array['automation_workflows', 'automation_executions'] loop
+    execute format('drop trigger if exists set_updated_at on public.%I', t);
+    execute format('create trigger set_updated_at before update on public.%I for each row execute function public.set_updated_at()', t);
+    execute format('alter table public.%I enable row level security', t);
+    execute format('alter table public.%I force row level security', t);
+    execute format('revoke all on public.%I from anon', t);
+    execute format('drop policy if exists "owner_all" on public.%I', t);
+    execute format('create policy "owner_all" on public.%I for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()))', t);
+    if exists (select 1 from pg_publication where pubname = 'supabase_realtime')
+       and not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
+
+-- A run can only point at the user's own workflow (the same-owner guard from 0004).
+drop trigger if exists fk_owner on public.automation_executions;
+create trigger fk_owner before insert or update on public.automation_executions
+  for each row execute function public.check_fk_owner('workflow_id', 'automation_workflows');
+
+
+-- ===== 0020_life_map.sql =====
+-- 0020: Life Map. ADDITIVE and idempotent: nothing existing is altered except for four small clean-up triggers (below).
+--
+-- The Life Map draws goals, milestones, habits and tasks that already exist, so it stores only what is new:
+--   life_map_nodes      "custom" nodes with no other home (a project, an area of life)
+--   life_map_links      "A contributes to B" between ANY two nodes
+--   life_map_positions  where each node was left on the canvas (the saved layout)
+-- A node is named by a key `kind:uuid` (e.g. `goal:3f2a...`). Keys point at rows in different tables, so they cannot be foreign keys; the
+-- clean-up triggers at the bottom delete a record's links and position when the record is deleted, so nothing dangles.
+
+create table if not exists public.life_map_nodes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  kind text not null check (kind in ('project','area')),
+  title text not null check (char_length(title) between 1 and 120),
+  notes text not null default '' check (char_length(notes) <= 1000),
+  category text not null default 'Personal' check (category in ('Learning','Career','Fitness','Health','Finance','Personal')),
+  color text check (color is null or color ~ '^#[0-9a-fA-F]{6}$'),
+  status text not null default 'active' check (status in ('active','done')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists life_map_nodes_user_idx on public.life_map_nodes (user_id, kind);
+
+create table if not exists public.life_map_links (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  from_key text not null check (from_key ~ '^(goal|habit|task|milestone|project|area):[0-9a-fA-F-]{8,40}$'),
+  to_key text not null check (to_key ~ '^(goal|habit|task|milestone|project|area):[0-9a-fA-F-]{8,40}$'),
+  label text not null default '' check (char_length(label) <= 60),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint life_map_links_distinct_ck check (from_key <> to_key),
+  constraint life_map_links_uq unique (user_id, from_key, to_key)   -- the same two items can only be connected once, in one direction
+);
+create index if not exists life_map_links_to_idx on public.life_map_links (user_id, to_key);
+create index if not exists life_map_links_from_idx on public.life_map_links (user_id, from_key);
+
+create table if not exists public.life_map_positions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  node_key text not null check (node_key ~ '^(goal|habit|task|milestone|project|area):[0-9a-fA-F-]{8,40}$'),
+  x real not null check (x between -100000 and 100000),
+  y real not null check (y between -100000 and 100000),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint life_map_positions_uq unique (user_id, node_key)      -- one saved place per node; the unique index also serves the lookup
+);
+
+-- ----------------------------------------------------- triggers, RLS, realtime (same as every other table)
+do $$
+declare t text;
+begin
+  foreach t in array array['life_map_nodes','life_map_links','life_map_positions'] loop
+    execute format('drop trigger if exists set_updated_at on public.%I', t);
+    execute format('create trigger set_updated_at before update on public.%I for each row execute function public.set_updated_at()', t);
+    execute format('alter table public.%I enable row level security', t);
+    execute format('alter table public.%I force row level security', t);
+    execute format('revoke all on public.%I from anon', t);
+    execute format('drop policy if exists "owner_all" on public.%I', t);
+    execute format(
+      'create policy "owner_all" on public.%I for all to authenticated
+         using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()))', t);
+    if exists (select 1 from pg_publication where pubname = 'supabase_realtime')
+       and not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
+
+-- ----------------------------------------------------- clean-up when a record is deleted
+-- Runs as the person deleting (RLS applies), and only touches their own rows. Trigger argument = the node kind.
+create or replace function public.life_map_forget() returns trigger
+language plpgsql as $$
+declare k text := tg_argv[0] || ':' || old.id::text;
+begin
+  delete from public.life_map_links where user_id = old.user_id and (from_key = k or to_key = k);
+  delete from public.life_map_positions where user_id = old.user_id and node_key = k;
+  return old;
+end $$;
+
+do $$
+declare r record;
+begin
+  for r in select * from (values ('goals','goal'),('habits','habit'),('tasks','task'),('milestones','milestone'),('life_map_nodes','project')) as v(tbl, kind) loop
+    if r.tbl = 'life_map_nodes' then
+      -- a custom node's kind is stored on the row, so it needs both spellings
+      execute 'drop trigger if exists life_map_forget on public.life_map_nodes';
+      execute 'create trigger life_map_forget after delete on public.life_map_nodes for each row when (old.kind = ''project'') execute function public.life_map_forget(''project'')';
+      execute 'drop trigger if exists life_map_forget_area on public.life_map_nodes';
+      execute 'create trigger life_map_forget_area after delete on public.life_map_nodes for each row when (old.kind = ''area'') execute function public.life_map_forget(''area'')';
+    else
+      execute format('drop trigger if exists life_map_forget on public.%I', r.tbl);
+      execute format('create trigger life_map_forget after delete on public.%I for each row execute function public.life_map_forget(%L)', r.tbl, r.kind);
+    end if;
+  end loop;
+end $$;

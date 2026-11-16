@@ -24,6 +24,9 @@ const Calendar = page(() => import('@/features/calendar/CalendarPage'))
 const Recovery = page(() => import('@/features/recovery/RecoveryPage'))
 const LifeMap = page(() => import('@/features/lifemap/LifeMapPage'))
 const Companion = page(() => import('@/features/companion/CompanionPage'))
+const Automation = page(() => import('@/features/automation/AutomationPage'))
+const AutomationHistory = page(() => import('@/features/automation/HistoryPage'))
+const WorkflowEditor = page(() => import('@/features/automation/WorkflowEditor'))
 const Learning = page(() => import('@/features/learning/LearningPage'))
 const Jobs = page(() => import('@/features/jobs/JobsPage'))
 const Fitness = page(() => import('@/features/fitness/FitnessPage'))
@@ -95,6 +98,9 @@ export default function App() {
                     <Route path="calendar" element={<Calendar />} />
                     <Route path="recovery" element={<Recovery />} />
                     <Route path="map" element={<LifeMap />} />
+                    <Route path="automation" element={<Automation />} />
+                    <Route path="automation/history" element={<AutomationHistory />} />
+                    <Route path="automation/:id" element={<WorkflowEditor />} />
                     <Route path="learning" element={<Learning />} />
                     <Route
                       path="jobs"
