@@ -8,9 +8,9 @@ const TARGET = { md: 'h-11 w-11 md:h-8 md:w-8', lg: 'h-10 w-10' }
 
 /**
  * The check-off circle used across the app. When it's ticked the fill springs in, the tick draws itself and a ring ripples out.
- * `color` overrides the accent (a habit's own colour, say). `icon` replaces the empty circle's look for a status such as "in progress".
+ * `cue` is the completion sound (a habit passes 'habitCheck' so it can have its own switch and volume). `color` overrides the accent (a habit's own colour, say). `icon` replaces the empty circle's look for a status such as "in progress".
  */
-export function CheckButton({ done, onToggle, label, color, size = 'md', disabled, pressed = done, className, children }) {
+export function CheckButton({ done, onToggle, label, color, size = 'md', disabled, pressed = done, cue = 'check', className, children }) {
   const wasDone = useRef(done)
   const justDone = done && !wasDone.current
   wasDone.current = done
@@ -22,7 +22,7 @@ export function CheckButton({ done, onToggle, label, color, size = 'md', disable
       disabled={disabled}
       onClick={() => {
         // Ticking something off is the satisfying direction; un-ticking is a quiet switch.
-        sound.play(done ? 'toggleOff' : 'check')
+        sound.play(done ? 'toggleOff' : cue)
         onToggle()
       }}
       aria-label={label}

@@ -4,6 +4,7 @@
 //
 // tone:  { f: start Hz, to?: end Hz, at?: start offset s, d: duration s, g: peak gain, type?: 'sine'|'triangle' }
 // click: a few ms of band-passed noise, the "mechanical" part of a switch or button. { at, d, f: centre Hz, g }
+// event: which Studio event (profiles.js) the cue belongs to, so one switch and one volume cover all its cues.
 // priority: when two cues collide, the higher one wins and the other is cut (never two at once). `gap`: min seconds between the same cue.
 
 const n = (f, at, d, g = 0.16, type = 'sine') => ({ f, at, d, g, type })
@@ -11,7 +12,7 @@ const n = (f, at, d, g = 0.16, type = 'sine') => ({ f, at, d, g, type })
 export const CUES = {
   // — interface —
   click: {
-    category: 'interface',
+    event: 'click',
     priority: 0,
     gap: 0.045,
     lowpass: 5200,
@@ -19,15 +20,15 @@ export const CUES = {
     clicks: [{ d: 0.006, f: 3200, g: 0.05 }],
   },
   navigate: {
-    category: 'interface',
+    event: 'click',
     priority: 1,
     gap: 0.12,
     lowpass: 4200,
     tones: [{ f: 420, to: 640, d: 0.11, g: 0.1, type: 'triangle' }],
   },
-  select: { category: 'interface', priority: 1, gap: 0.05, lowpass: 5000, tones: [n(880, 0, 0.06, 0.12)] },
+  select: { event: 'click', priority: 1, gap: 0.05, lowpass: 5000, tones: [n(880, 0, 0.06, 0.12)] },
   toggleOn: {
-    category: 'interface',
+    event: 'click',
     priority: 1,
     gap: 0.08,
     lowpass: 5200,
@@ -38,7 +39,7 @@ export const CUES = {
     clicks: [{ d: 0.008, f: 2400, g: 0.07 }],
   },
   toggleOff: {
-    category: 'interface',
+    event: 'click',
     priority: 1,
     gap: 0.08,
     lowpass: 5200,
@@ -48,29 +49,52 @@ export const CUES = {
     ],
     clicks: [{ d: 0.008, f: 1800, g: 0.07 }],
   },
-  open: { category: 'interface', priority: 1, gap: 0.1, lowpass: 4200, tones: [{ f: 560, to: 760, d: 0.08, g: 0.09 }] },
-  close: { category: 'interface', priority: 1, gap: 0.1, lowpass: 4200, tones: [{ f: 760, to: 540, d: 0.07, g: 0.08 }] },
+  open: { event: 'click', priority: 1, gap: 0.1, lowpass: 4200, tones: [{ f: 560, to: 760, d: 0.08, g: 0.09 }] },
+  close: { event: 'click', priority: 1, gap: 0.1, lowpass: 4200, tones: [{ f: 760, to: 540, d: 0.07, g: 0.08 }] },
   // — completion —
-  check: { category: 'completion', priority: 3, gap: 0.12, lowpass: 6000, tones: [n(784, 0, 0.1, 0.15), n(1175, 0.06, 0.16, 0.15)] },
+  check: { event: 'taskDone', priority: 3, gap: 0.12, lowpass: 6000, tones: [n(784, 0, 0.1, 0.15), n(1175, 0.06, 0.16, 0.15)] },
   complete: {
-    category: 'completion',
+    event: 'goalDone',
     priority: 4,
     gap: 0.3,
     lowpass: 6000,
     tones: [n(523, 0, 0.14, 0.14), n(659, 0.07, 0.14, 0.14), n(784, 0.14, 0.2, 0.14), n(1047, 0.14, 0.26, 0.05)],
   },
+  // Variants: a profile can swap a plain cue for one of these (profiles.js).
+  habitCheck: { event: 'habitDone', priority: 3, gap: 0.12, lowpass: 6000, tones: [n(698, 0, 0.1, 0.15), n(1047, 0.06, 0.18, 0.15)] },
+  checkBright: {
+    event: 'taskDone',
+    priority: 3,
+    gap: 0.12,
+    lowpass: 7000,
+    tones: [n(784, 0, 0.09, 0.15), n(1175, 0.055, 0.12, 0.15), n(1568, 0.11, 0.2, 0.1)],
+  },
+  habitCheckBright: {
+    event: 'habitDone',
+    priority: 3,
+    gap: 0.12,
+    lowpass: 7000,
+    tones: [n(659, 0, 0.09, 0.15), n(988, 0.055, 0.12, 0.15), n(1319, 0.11, 0.2, 0.1)],
+  },
+  goalFanfare: {
+    event: 'goalDone',
+    priority: 4,
+    gap: 0.4,
+    lowpass: 7000,
+    tones: [n(523, 0, 0.16, 0.14), n(659, 0.09, 0.16, 0.14), n(784, 0.18, 0.18, 0.14), n(1047, 0.27, 0.42, 0.14), n(1568, 0.27, 0.5, 0.05)],
+  },
   // — feedback —
-  success: { category: 'feedback', priority: 2, gap: 0.25, lowpass: 5200, tones: [n(660, 0, 0.1, 0.13), n(880, 0.08, 0.16, 0.13)] },
+  success: { event: 'success', priority: 2, gap: 0.25, lowpass: 5200, tones: [n(660, 0, 0.1, 0.13), n(880, 0.08, 0.16, 0.13)] },
   error: {
-    category: 'feedback',
+    event: 'error',
     priority: 5,
     gap: 0.3,
     lowpass: 1800,
     tones: [n(220, 0, 0.09, 0.16, 'triangle'), n(185, 0.1, 0.14, 0.16, 'triangle')],
   },
-  warning: { category: 'feedback', priority: 4, gap: 0.3, lowpass: 2400, tones: [n(330, 0, 0.14, 0.13, 'triangle')] },
+  warning: { event: 'error', priority: 4, gap: 0.3, lowpass: 2400, tones: [n(330, 0, 0.14, 0.13, 'triangle')] },
   delete: {
-    category: 'feedback',
+    event: 'success',
     priority: 4,
     gap: 0.25,
     lowpass: 1600,
@@ -78,13 +102,13 @@ export const CUES = {
     clicks: [{ d: 0.07, f: 900, g: 0.05 }],
   },
   // — notifications —
-  notify: { category: 'notifications', priority: 2, gap: 0.6, lowpass: 6500, tones: [n(988, 0, 0.32, 0.1), n(1480, 0, 0.22, 0.04)] },
+  notify: { event: 'notification', priority: 2, gap: 0.6, lowpass: 6500, tones: [n(988, 0, 0.32, 0.1), n(1480, 0, 0.22, 0.04)] },
   // — focus timer —
-  timerStart: { category: 'timer', priority: 3, gap: 0.2, lowpass: 5000, tones: [n(440, 0, 0.09, 0.13), n(660, 0.08, 0.16, 0.13)] },
-  timerPause: { category: 'timer', priority: 3, gap: 0.2, lowpass: 4200, tones: [{ f: 600, to: 450, d: 0.1, g: 0.12 }] },
-  timerStop: { category: 'timer', priority: 3, gap: 0.2, lowpass: 4200, tones: [{ f: 660, to: 330, d: 0.16, g: 0.12 }] },
+  timerStart: { event: 'timerStart', priority: 3, gap: 0.2, lowpass: 5000, tones: [n(440, 0, 0.09, 0.13), n(660, 0.08, 0.16, 0.13)] },
+  timerPause: { event: 'timerPause', priority: 3, gap: 0.2, lowpass: 4200, tones: [{ f: 600, to: 450, d: 0.1, g: 0.12 }] },
+  timerStop: { event: 'timerPause', priority: 3, gap: 0.2, lowpass: 4200, tones: [{ f: 660, to: 330, d: 0.16, g: 0.12 }] },
   focusDone: {
-    category: 'timer',
+    event: 'timerDone',
     priority: 4,
     hiddenOk: true,
     gap: 1,
@@ -100,6 +124,10 @@ export const HAPTICS = {
   toggleOn: 10,
   toggleOff: 8,
   check: 12,
+  checkBright: 12,
+  habitCheck: 12,
+  habitCheckBright: 12,
+  goalFanfare: [10, 40, 14],
   complete: [10, 40, 14],
   success: [8, 40, 10],
   error: [20, 50, 20],

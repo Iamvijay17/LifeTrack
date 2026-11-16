@@ -10,6 +10,7 @@ import {
   Briefcase,
   Target,
   Dumbbell,
+  Waypoints,
   HeartPulse,
   Salad,
   Wallet,
@@ -43,6 +44,7 @@ export const NAV_GROUPS = [
       { to: '/goals', module: 'goals', label: 'Goals & Milestones', short: 'Goals', icon: Target },
     ],
   },
+      { to: '/map', module: 'lifemap', label: 'Life Map', short: 'Map', icon: Waypoints },
   {
     title: 'Wellness',
     items: [

@@ -10,6 +10,7 @@ import { uid, localDayMinutes, isValidDay, zonedToMs } from '@lifetrack/utils'
 import { exceptionOverrides, expandEvent, isOccurrenceDate, normalizeRule, ruleBefore, ruleFrom, shiftSeries } from '@lifetrack/core/calendarRecurrence'
 import { checkPlacement, dismissKey, rescheduleKey, sameSlot } from '@lifetrack/core/recovery'
 import { isOpen } from '@lifetrack/core/tasks'
+import { checkLink, isNodeKey } from '@lifetrack/core/lifeMap'
 import { AppError } from './errors'
 
 /**
@@ -69,6 +70,81 @@ export function createApi(store) {
   }
 
   // ------------------------------------------------------------ study sessions
+  // ------------------------------------------------------ consistency protection
+  /** Pause a habit from `today`: from then on its days are neutral. A second call while paused is a no-op. Existing check-ins are untouched. */
+  async function pauseHabit(habitId, today, reason = '') {
+    const open = store.peek('habit_pauses').find((p) => p.habit_id === habitId && p.end_date == null)
+    if (open) return open
+    return store.insert('habit_pauses', { habit_id: habitId, start_date: today, reason: String(reason).slice(0, 200) })
+  }
+
+  /** End the open pause so the habit is expected again from `today`. Pausing and resuming on the same day leaves no trace. */
+  async function resumeHabit(habitId, today) {
+    const open = store.peek('habit_pauses').find((p) => p.habit_id === habitId && p.end_date == null)
+    if (!open) return null
+    const end = addDays(today, -1)
+    if (end < open.start_date) return store.remove('habit_pauses', open.id)
+    return store.update('habit_pauses', open.id, { end_date: end })
+  }
+
+  /**
+   * Make up a missed day: records a check-in for a PAST day, marked as recovered so it shows in the recovery history. It only ever adds a check-in
+   * where there is none (an existing log, even a skipped one, is never overwritten), and only inside the recovery window.
+   */
+  async function recoverHabitDay(habitId, date, today, window = 7) {
+    const habit = store.peek('habits').find((h) => h.id === habitId)
+    if (!habit || habit.archived_at) throw new AppError('That habit is not active.')
+    if (!isValidDay(date) || date >= today) throw new AppError('Only a past day can be made up.')
+    if (diffDays(today, date) > window) throw new AppError(`Days older than ${window} days can no longer be recovered.`)
+    if (date < habit.start_date) throw new AppError('That day is before the habit started.')
+    if (store.peek('habit_logs').some((l) => l.habit_id === habitId && l.log_date === date)) throw new AppError('That day already has a check-in.')
+    return store.upsert('habit_logs', { habit_id: habitId, log_date: date, status: 'done', recovered_at: nowIso() }, { onConflict: CONFLICT_KEYS.habit_logs })
+  }
+
+  // ------------------------------------------------------------------ life map
+  /** Remember where a node was left. One saved place per node (the database enforces it), so dragging is an upsert. */
+  async function saveMapPosition(nodeKey, x, y) {
+    if (!isNodeKey(nodeKey) || !Number.isFinite(x) || !Number.isFinite(y)) throw new AppError('That position cannot be saved.')
+    return store.upsert('life_map_positions', { node_key: nodeKey, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 }, { onConflict: CONFLICT_KEYS.life_map_positions })
+  }
+
+  /** Save many positions at once (an auto-arrange). */
+  async function saveMapPositions(entries) {
+    const rows = entries.filter((e) => isNodeKey(e.key) && Number.isFinite(e.x) && Number.isFinite(e.y)).map((e) => ({ node_key: e.key, x: Math.round(e.x * 10) / 10, y: Math.round(e.y * 10) / 10 }))
+    if (!rows.length) return []
+    return store.upsert('life_map_positions', rows, { onConflict: CONFLICT_KEYS.life_map_positions })
+  }
+
+  /** Forget every saved position, so the next draw lays the map out afresh. Links and items are untouched. */
+  async function resetMapLayout() {
+    const ids = store.peek('life_map_positions').map((p) => p.id)
+    if (ids.length) await store.removeMany('life_map_positions', ids)
+    return ids.length
+  }
+
+  /**
+   * Connect two nodes: `from` contributes to `to`. The map's own rules decide (no self-link, no repeat, no reverse duplicate, no loop); the
+   * database enforces the first three again, so two devices cannot create a duplicate.
+   */
+  async function linkNodes(map, from, to, label = '') {
+    const problem = checkLink(map, from, to)
+    if (problem) throw new AppError(problem)
+    return store.insert('life_map_links', { from_key: from, to_key: to, label: String(label).trim().slice(0, 60) })
+  }
+
+  /** Swap the direction of a drawn link. Done as delete + insert so the unique key never collides with itself. */
+  async function reverseLink(linkId) {
+    const l = store.peek('life_map_links').find((x) => x.id === linkId)
+    if (!l) throw new AppError('That link no longer exists.')
+    await store.remove('life_map_links', linkId)
+    try {
+      return await store.insert('life_map_links', { from_key: l.to_key, to_key: l.from_key, label: l.label })
+    } catch (e) {
+      await store.insert('life_map_links', { from_key: l.from_key, to_key: l.to_key, label: l.label }).catch(() => {}) // put it back
+      throw e
+    }
+  }
+
   async function startStudy({ goal_id = null, topic_id = null }, today) {
     if (store.peek('study_sessions').some((s) => s.status === 'running')) throw new AppError('A study timer is already running.')
     try { return await store.insert('study_sessions', { status: 'running', source: 'timer', session_date: today, started_at: nowIso(), goal_id, topic_id }) }
@@ -584,5 +660,5 @@ export function createApi(store) {
     return n
   }
 
-  return { saveRow, deleteRow, createTask, setTaskStatus, setHabitStatus, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, logWater, removeWaterLog, saveNutritionGoals, saveFavoriteFoods, saveFoodCopy, deleteFood, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, postDueRecurring, toggleRecurringRule, fireDueReminders, toggleReminder, rescheduleReminder, clearReadNotifications, markNotificationRead, markNotificationUnread, markAllRead, snoozeNotification, dismissNotification, dismissNotifications, restoreNotification, deleteNotifications, raiseNotification, createCalendarEvent, saveCalendarEvent, deleteCalendarEvent, applyCalendarChange, raiseCalendarAlert, applyReschedules, undoReschedules, dismissRecovery }
+  return { saveRow, deleteRow, createTask, setTaskStatus, setHabitStatus, pauseHabit, resumeHabit, recoverHabitDay, saveMapPosition, saveMapPositions, resetMapLayout, linkNodes, reverseLink, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, logWater, removeWaterLog, saveNutritionGoals, saveFavoriteFoods, saveFoodCopy, deleteFood, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, postDueRecurring, toggleRecurringRule, fireDueReminders, toggleReminder, rescheduleReminder, clearReadNotifications, markNotificationRead, markNotificationUnread, markAllRead, snoozeNotification, dismissNotification, dismissNotifications, restoreNotification, deleteNotifications, raiseNotification, createCalendarEvent, saveCalendarEvent, deleteCalendarEvent, applyCalendarChange, raiseCalendarAlert, applyReschedules, undoReschedules, dismissRecovery }
 }

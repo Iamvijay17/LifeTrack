@@ -15,15 +15,23 @@ export const scheduleLabel = (h) =>
  * One row per habit with its logs, streaks, 30-day / overall completion, today's log and whether it is due.
  * Shared by the Habits page, the dashboard and quick-add.
  */
-export function buildHabitStats(habits, habitLogs, today, weekStartsOn = 1) {
+export function buildHabitStats(habits, habitLogs, today, weekStartsOn = 1, habitPauses = []) {
   const byHabit = new Map()
   for (const l of habitLogs) {
     const list = byHabit.get(l.habit_id) ?? []
     list.push(l)
     byHabit.set(l.habit_id, list)
   }
-  return habits.map((h) => {
-    const logs = byHabit.get(h.id) ?? []
+  const pausesBy = new Map()
+  for (const p of habitPauses) {
+    const list = pausesBy.get(p.habit_id) ?? []
+    list.push({ start_date: p.start_date, end_date: p.end_date ?? null })
+    pausesBy.set(p.habit_id, list)
+  }
+  return habits.map((raw) => {
+    const logs = byHabit.get(raw.id) ?? []
+    // The calculations see the pauses through the habit itself; the stored row is never modified.
+    const h = pausesBy.has(raw.id) ? { ...raw, pauses: pausesBy.get(raw.id) } : raw
     return {
       habit: h,
       logs,

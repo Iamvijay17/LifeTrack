@@ -11,6 +11,7 @@ import { AccountCard } from './AccountCard'
 import { AppearanceCard } from './AppearanceCard'
 import { FocusPrefsCard } from './FocusPrefsCard'
 import { PreferencesCard } from './PreferencesCard'
+import { CompanionCard } from './CompanionCard'
 import { InstallCard } from './InstallCard'
 import { NavigationCard } from './NavigationCard'
 import { ProfileCard } from './ProfileCard'
@@ -48,6 +49,7 @@ export default function SettingsPage() {
             <AppearanceCard />
             <NavigationCard />
             <InstallCard />
+            <CompanionCard />
             <SoundCard />
           </Group>
           <Group

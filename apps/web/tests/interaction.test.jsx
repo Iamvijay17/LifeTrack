@@ -7,7 +7,8 @@ import { InteractionProvider } from '@/components/interaction/InteractionProvide
 import { SoundCard } from '@/features/settings/SoundCard'
 import { useAction } from '@/hooks/useAction'
 import { CUES, DEFAULT_PREFS, cueForTarget, getPrefs, normalizePrefs, setPrefs, sound } from '@/lib/interaction'
-import { resetPrefsCache } from '@/lib/interaction/prefs'
+import { resetPrefs, resetPrefsCache, setFocusActive } from '@/lib/interaction/prefs'
+import { PROFILES, EVENTS } from '@/lib/interaction/profiles'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/form'
 
@@ -70,18 +71,34 @@ const at = (ms) => performance.now.mockReturnValue(ms)
 describe('preferences', () => {
   it('defaults to enabled at a subtle volume and repairs bad stored values', () => {
     expect(getPrefs()).toEqual(DEFAULT_PREFS)
-    const fixed = normalizePrefs({ volume: 9, enabled: 'yes', categories: { timer: false, bogus: true } })
+    const fixed = normalizePrefs({
+      volume: 9,
+      enabled: 'yes',
+      profile: 'loud',
+      events: { taskDone: { volume: 4, enabled: 'no' }, bogus: { enabled: false } },
+    })
     expect(fixed.volume).toBe(1)
     expect(fixed.enabled).toBe(true)
-    expect(fixed.categories).toEqual({ ...DEFAULT_PREFS.categories, timer: false })
+    expect(fixed.profile).toBe(DEFAULT_PREFS.profile)
+    expect(fixed.events).toEqual({ taskDone: { volume: 1 } })
+  })
+
+  it("turns the first version's switched-off groups into switched-off events", () => {
+    const migrated = normalizePrefs({ categories: { timer: false, completion: true, interface: false } })
+    expect(migrated.events).toEqual({
+      timerStart: { enabled: false },
+      timerPause: { enabled: false },
+      timerDone: { enabled: false },
+      click: { enabled: false },
+    })
   })
 
   it('persists across sessions and survives corrupt storage', () => {
-    setPrefs({ volume: 0.2, categories: { feedback: false } })
+    setPrefs({ volume: 0.2, profile: 'minimal', events: { success: { enabled: true, volume: 0.3 } } })
     resetPrefsCache()
     expect(getPrefs().volume).toBe(0.2)
-    expect(getPrefs().categories.feedback).toBe(false)
-    expect(getPrefs().categories.interface).toBe(true)
+    expect(getPrefs().profile).toBe('minimal')
+    expect(getPrefs().events.success).toEqual({ enabled: true, volume: 0.3 })
     localStorage.setItem('lifetrack:interaction-prefs', '{nope')
     resetPrefsCache()
     expect(getPrefs()).toEqual(DEFAULT_PREFS)
@@ -150,11 +167,11 @@ describe('SoundManager', () => {
     setPrefs({ enabled: true, muted: true })
     at(2000)
     expect(sound.play('click')).toBeNull()
-    setPrefs({ muted: false, categories: { interface: false } })
+    setPrefs({ muted: false, events: { click: { enabled: false } } })
     at(3000)
     expect(sound.play('click')).toBeNull()
     expect(sound.play('success')).toBe('success')
-    setPrefs({ categories: { interface: true } })
+    setPrefs({ events: { click: null } })
     Object.defineProperty(document, 'hidden', { value: true, configurable: true })
     at(4000)
     expect(sound.play('click')).toBeNull()
@@ -171,7 +188,7 @@ describe('SoundManager', () => {
   })
   it('never overlaps: lower priority is dropped, equal or higher cuts in, same cue is rate-limited', () => {
     sound.unlock()
-    expect(sound.play('complete')).toBe('complete')
+    expect(sound.play('complete')).toBe('goalFanfare') // the Productivity profile's richer celebration
     at(1050)
     expect(sound.play('click')).toBeNull() // lower priority while complete is still sounding
     expect(sound.play('error')).toBe('error') // higher priority cuts in
@@ -189,9 +206,9 @@ describe('SoundManager', () => {
     at(9000)
     expect(sound.play('success')).toBe('success') // alias expired
   })
-  it('previews even when the category is off, but never while muted', () => {
+  it('previews even when the event is off, but never while muted', () => {
     sound.unlock()
-    setPrefs({ categories: { feedback: false } })
+    setPrefs({ events: { success: { enabled: false } } })
     expect(sound.play('success', { preview: true })).toBe('success')
     setPrefs({ muted: true })
     expect(sound.play('success', { preview: true })).toBeNull()
@@ -298,23 +315,122 @@ describe('Sound & interaction settings', () => {
     )
     const master = screen.getByRole('switch', { name: 'Sound effects' })
     expect(master).toHaveAttribute('aria-checked', 'true')
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '25' } })
+    fireEvent.change(screen.getByRole('slider', { name: 'Master volume' }), { target: { value: '25' } })
     expect(getPrefs().volume).toBe(0.25)
     await userEvent.click(screen.getByRole('switch', { name: 'Notifications' }))
-    expect(getPrefs().categories.notifications).toBe(false)
+    expect(getPrefs().events.notification).toEqual({ enabled: false })
     await userEvent.click(screen.getByRole('button', { name: 'Mute' }))
     expect(getPrefs().muted).toBe(true)
     expect(screen.getByRole('button', { name: 'Unmute' })).toBeInTheDocument()
     await userEvent.click(master)
     expect(getPrefs().enabled).toBe(false)
-    expect(screen.getByRole('slider')).toBeDisabled()
+    expect(screen.getByRole('slider', { name: 'Master volume' })).toBeDisabled()
     resetPrefsCache()
     expect(getPrefs().volume).toBe(0.25) // still there after a reload
   })
   it('previews a sound on demand', async () => {
     const play = vi.spyOn(sound, 'play')
     render(<SoundCard />)
-    await userEvent.click(screen.getByRole('button', { name: 'Preview Focus timer' }))
-    expect(play).toHaveBeenCalledWith('timerStart', { preview: true })
+    await userEvent.click(screen.getByRole('button', { name: 'Preview Timer start' }))
+    expect(play).toHaveBeenCalledWith('timerStart', expect.objectContaining({ preview: true }))
+  })
+})
+
+describe('profiles', () => {
+  it('every profile and event is complete, and every cue belongs to a real event', () => {
+    for (const p of Object.values(PROFILES)) expect(Object.keys(p.events).sort()).toEqual(Object.keys(EVENTS).sort())
+    for (const [k, c] of Object.entries(CUES)) expect(Object.keys(EVENTS), k).toContain(c.event)
+    for (const e of Object.values(EVENTS)) expect(CUES[e.sample]).toBeTruthy()
+    for (const p of Object.values(PROFILES)) for (const to of Object.values(p.variants)) expect(CUES[to]).toBeTruthy()
+  })
+  it('Silent plays nothing, Focus keeps the timer and errors but drops clicks', () => {
+    sound.unlock()
+    setPrefs({ profile: 'silent' })
+    for (const [i, k] of ['click', 'check', 'error', 'timerStart'].entries()) {
+      at(2000 + i * 1000)
+      expect(sound.play(k)).toBeNull()
+    }
+    setPrefs({ profile: 'focus' })
+    at(20000)
+    expect(sound.play('click')).toBeNull()
+    expect(sound.play('check')).toBeNull()
+    expect(sound.play('timerStart')).toBe('timerStart')
+    at(30000)
+    expect(sound.play('error')).toBe('error')
+  })
+  it("a person's own switch beats the profile, and resetting an event returns to it", () => {
+    sound.unlock()
+    setPrefs({ profile: 'silent', events: { success: { enabled: true } } })
+    expect(sound.play('success')).toBe('success')
+    setPrefs({ events: { success: null } })
+    at(5000)
+    expect(sound.play('success')).toBeNull()
+  })
+  it('choosing a profile forgets the old overrides but keeps the master volume', () => {
+    setPrefs({ volume: 0.3, events: { click: { enabled: false } } })
+    setPrefs({ profile: 'minimal' })
+    expect(getPrefs().events).toEqual({})
+    expect(getPrefs().volume).toBe(0.3)
+  })
+  it('uses the focus profile while a focus block runs, unless that is switched off', () => {
+    sound.unlock()
+    setFocusActive(true)
+    expect(sound.play('click')).toBeNull() // Focus profile: no clicks
+    setPrefs({ autoFocus: false })
+    at(5000)
+    expect(sound.play('click')).toBe('click')
+    setFocusActive(false)
+  })
+  it('scales loudness by the event: the same cue is quieter at a lower event volume', () => {
+    sound.unlock()
+    const gains = []
+    const orig = sound.ctx.createGain
+    sound.ctx.createGain = () => {
+      const g = orig.call(sound.ctx)
+      g.gain.setValueAtTime = (v) => gains.push(v)
+      return g
+    }
+    sound.master.gain.setValueAtTime = (v) => gains.push(v)
+    setPrefs({ events: { success: { volume: 1 } } })
+    sound.play('success')
+    at(5000)
+    setPrefs({ events: { success: { volume: 0.25 } } })
+    sound.play('success')
+    const masters = gains.filter((g) => g > 0.001 && g < 2)
+    expect(masters.length).toBeGreaterThan(1)
+    expect(masters[0]).toBeGreaterThan(masters.find((g, i) => i > 0 && g !== masters[0]) ?? Infinity)
+  })
+  it('restores the defaults', () => {
+    setPrefs({ volume: 0.9, profile: 'silent', haptics: false, events: { click: { volume: 0.1 } } })
+    resetPrefs()
+    expect(getPrefs()).toEqual(DEFAULT_PREFS)
+  })
+})
+
+describe('Sound Studio', () => {
+  it('chooses a profile, edits one event and restores the defaults', async () => {
+    render(<SoundCard />)
+    await userEvent.click(screen.getByRole('radio', { name: /Minimal/ }))
+    expect(getPrefs().profile).toBe('minimal')
+    await userEvent.click(screen.getByRole('switch', { name: 'Button clicks' }))
+    expect(getPrefs().events.click).toEqual({ enabled: false })
+    expect(screen.getByRole('button', { name: 'Reset Button clicks to the profile' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Restore defaults' }))
+    expect(getPrefs()).toEqual(DEFAULT_PREFS)
+  })
+  it('previews a profile before it is chosen without choosing it', async () => {
+    const play = vi.spyOn(sound, 'play')
+    render(<SoundCard />)
+    await userEvent.click(screen.getByRole('button', { name: 'Preview Minimal' }))
+    expect(play).toHaveBeenCalledWith('check', expect.objectContaining({ preview: true, profile: 'minimal' }))
+    expect(getPrefs().profile).toBe(DEFAULT_PREFS.profile)
+  })
+  it('lists the ten events, each with its own switch, volume and preview', () => {
+    render(<SoundCard />)
+    for (const e of Object.values(EVENTS)) {
+      expect(screen.getByRole('switch', { name: e.label })).toBeInTheDocument()
+      expect(screen.getByRole('slider', { name: `${e.label} volume` })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: `Preview ${e.label}` })).toBeInTheDocument()
+    }
   })
 })
