@@ -180,6 +180,7 @@ export const localAdapter = {
     }
     for (const [child, col] of cascade[table] ?? []) db[child] = (db[child] ?? []).filter((r) => !set.has(r[col]))
     const setNull = {
+      automation_workflows: [['automation_executions', 'workflow_id']],
       goals: [
         ['study_sessions', 'goal_id'],
         ['notes', 'goal_id'],

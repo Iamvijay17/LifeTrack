@@ -39,18 +39,20 @@ export const TABLES = [
   'life_map_nodes',
   'life_map_links',
   'life_map_positions',
+  'automation_workflows',
+  'automation_executions',
 ]
 export const ALL_TABLES = ['user_settings', ...TABLES]
 
 export const CONFLICT_KEYS = {
   user_settings: 'user_id',
   habit_logs: 'habit_id,log_date',
+  life_map_positions: 'user_id,node_key',
   health_logs: 'user_id,log_date',
   journal_entries: 'user_id,entry_date',
   budgets: 'user_id,month,category',
   body_measurements: 'user_id,measured_on',
   learning_topics: 'user_id,group_name,name',
-  life_map_positions: 'user_id,node_key',
   exercises: 'user_id,name',
   nutrition_settings: 'user_id',
   calendar_event_exceptions: 'event_id,occurrence_date',
@@ -77,6 +79,7 @@ export const DEFAULTS = {
     focus_prefs: { short_break: 5, long_break: 15, long_every: 4 },
     calendar_prefs: {},
     appearance_prefs: {},
+    automation_prefs: {},
   },
   learning_topics: { notes: s, revision_dates: [], archived: false },
   goals: {
@@ -235,6 +238,8 @@ export const DEFAULTS = {
     ends_at: null,
     alert_minutes: null,
   },
+  automation_workflows: { description: s, enabled: false, trigger_kind: s, graph: { nodes: [], edges: [] }, template_key: null, max_runs_per_day: 50, activated_at: null },
+  automation_executions: { workflow_id: null, workflow_name: s, trigger_kind: s, trigger_info: {}, status: 'pending', attempt: 1, steps: [], reason: s, error: s, retryable: false, dedupe_key: null, started_at: null, finished_at: null },
   task_reschedules: { title: s, source: 'recovery', from_start: null, from_end: null, to_date: null, to_start: null, to_end: null, reason: s, batch_id: null, dedupe_key: null, hide_until: null, undone_at: null },
 }
 
@@ -244,6 +249,9 @@ export const UNIQUES = {
   learning_topics: [{ cols: ['user_id', 'group_name', 'name'] }],
   tasks: [{ cols: ['user_id', 'series_id', 'due_date'], when: (r) => r.series_id != null }],
   habit_logs: [{ cols: ['habit_id', 'log_date'] }],
+  habit_pauses: [{ cols: ['habit_id'], when: (r) => r.end_date == null }],
+  life_map_links: [{ cols: ['user_id', 'from_key', 'to_key'] }],
+  life_map_positions: [{ cols: ['user_id', 'node_key'] }],
   study_sessions: [{ cols: ['user_id'], when: (r) => r.status === 'running' }],
   exercises: [{ cols: ['user_id', 'name'] }],
   body_measurements: [{ cols: ['user_id', 'measured_on'] }],
@@ -252,11 +260,9 @@ export const UNIQUES = {
   nutrition_settings: [{ cols: ['user_id'] }],
   transactions: [{ cols: ['user_id', 'recurring_rule_id', 'recurring_date'], when: (r) => r.recurring_rule_id != null }],
   budgets: [{ cols: ['user_id', 'month', 'category'] }],
-  habit_pauses: [{ cols: ['habit_id'], when: (r) => r.end_date == null }],
-  life_map_links: [{ cols: ['user_id', 'from_key', 'to_key'] }],
-  life_map_positions: [{ cols: ['user_id', 'node_key'] }],
   journal_entries: [{ cols: ['user_id', 'entry_date'] }],
   notifications: [{ cols: ['user_id', 'dedupe_key'], when: (r) => r.dedupe_key != null }],
   calendar_event_exceptions: [{ cols: ['event_id', 'occurrence_date'] }],
   task_reschedules: [{ cols: ['user_id', 'dedupe_key'], when: (r) => r.dedupe_key != null && r.undone_at == null }],
+  automation_executions: [{ cols: ['user_id', 'workflow_id', 'dedupe_key'], when: (r) => r.dedupe_key != null && r.workflow_id != null }],
 }

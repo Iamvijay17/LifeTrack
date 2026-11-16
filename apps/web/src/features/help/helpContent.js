@@ -97,6 +97,20 @@ export const GUIDES = [
     ],
   },
   {
+    module: 'automation',
+    summary: 'Rules that do repetitive things for you: when something happens, if it matches, do something.',
+    steps: [
+      'Open Automation Studio and pick a template, or choose Quick create for a blank canvas. A template opens switched off so you can change it first.',
+      'Drag steps onto the canvas and connect them from the round handle: one trigger, optional conditions (AND / OR), then actions. Test shows what it would do without changing anything.',
+      'Save, then switch it on. The History page shows every run, why it succeeded, failed or was skipped, and lets you retry a failed one.',
+    ],
+    tips: [
+      'Automations run only while LifeTrack is open on one of your devices.',
+      'They react to what happens after you switch them on, never delete anything, and Pause all stops everything at once.',
+      'On a phone, the Steps view lets you read and edit a workflow as a list.',
+    ],
+  },
+  {
     module: 'lifemap',
     summary: 'See how your daily habits and tasks lead to your goals. Everything on the map is already in LifeTrack; you only draw the connections.',
     steps: [

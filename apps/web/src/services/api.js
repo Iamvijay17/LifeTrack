@@ -59,4 +59,9 @@ export const {
   applyReschedules,
   undoReschedules,
   dismissRecovery,
+  saveWorkflow,
+  setWorkflowEnabled,
+  setAutomationsPaused,
+  runAutomations,
+  retryExecution,
 } = createApi(store)

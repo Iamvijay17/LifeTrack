@@ -205,6 +205,16 @@ html[data-motion='reduced'] .lt-ambient {
   --mod-2: 99 102 241;
   --mod-text: 3 105 161;
 }
+[data-module='automation'] {
+  --mod: 16 185 129;
+  --mod-2: 6 182 212;
+  --mod-text: 4 120 87;
+}
+[data-module='lifemap'] {
+  --mod: 20 184 166;
+  --mod-2: 99 102 241;
+  --mod-text: 15 118 110;
+}
 [data-module='security'] {
   --mod: 6 182 212;
   --mod-2: 124 58 237;
@@ -238,6 +248,10 @@ html[data-motion='reduced'] .lt-ambient {
 .dark [data-module='jobs'] {
   --mod-text: 252 211 77;
 }
+.dark[data-module='lifemap'],
+.dark [data-module='lifemap'] {
+  --mod-text: 94 234 212;
+}
 .dark[data-module='goals'],
 .dark [data-module='goals'] {
   --mod-text: 249 168 212;
@@ -246,12 +260,12 @@ html[data-motion='reduced'] .lt-ambient {
 .dark [data-module='fitness'] {
   --mod-text: 253 186 116;
 }
+.dark[data-module='automation'],
+.dark [data-module='automation'] {
+  --mod-text: 110 231 183;
+}
 .dark[data-module='security'],
 .dark [data-module='security'] {
-.dark[data-module='lifemap'],
-.dark [data-module='lifemap'] {
-  --mod-text: 94 234 212;
-}
   --mod-text: 103 232 249;
 }
 .dark[data-module='health'],
@@ -973,3 +987,23 @@ html[data-motion='reduced'] .lt-ambient {
     animation: none;
   }
 }
+
+/* Automation Studio: the flow along a connection. Still when motion is reduced. */
+@keyframes lt-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+.lt-edge-flow {
+  stroke-dasharray: 6 6;
+  animation: lt-flow 1.4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lt-edge-flow {
+    animation: none;
+  }
+}
+html[data-motion='reduced'] .lt-edge-flow {
+  animation: none;
+}
+

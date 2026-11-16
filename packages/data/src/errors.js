@@ -18,6 +18,8 @@ const TABLE_MIGRATION = {
   life_map_nodes: '0020_life_map.sql',
   life_map_links: '0020_life_map.sql',
   life_map_positions: '0020_life_map.sql',
+  automation_workflows: '0019_automation.sql',
+  automation_executions: '0019_automation.sql',
   recurring_rules: '0008_recurring_rules.sql',
   foods: '0009_nutrition.sql',
   food_logs: '0009_nutrition.sql',
