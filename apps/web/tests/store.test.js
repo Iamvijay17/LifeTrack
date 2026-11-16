@@ -136,3 +136,115 @@ describe('store: realtime merge', () => {
     expect(fake.list).not.toHaveBeenCalled()
   })
 })
+
+describe('store: optimistic writes', () => {
+  const seed = async (table, list) => {
+    fake.list = vi.fn().mockResolvedValue(list)
+    await store.load(table)
+  }
+
+  it('update shows at once, then keeps the confirmed row', async () => {
+    await seed('tasks', [{ id: 't1', status: 'pending', title: 'A' }])
+    const d = deferred()
+    fake.update = vi.fn(() => d.promise)
+    const p = store.update('tasks', 't1', { status: 'done' })
+    expect(store.peek('tasks')[0].status).toBe('done') // before the server answers
+    d.resolve({ id: 't1', status: 'done', title: 'A', updated_at: 'x' })
+    await p
+    expect(store.peek('tasks')[0]).toMatchObject({ status: 'done', updated_at: 'x' })
+  })
+
+  it('update rolls back only its own fields when the request fails', async () => {
+    await seed('tasks', [{ id: 't1', status: 'pending', title: 'A' }])
+    const a = deferred()
+    fake.update = vi.fn(() => a.promise)
+    const p = store.update('tasks', 't1', { status: 'done' })
+    store.patch('tasks', [{ ...store.peek('tasks')[0], title: 'B' }]) // something else edited the title meanwhile
+    a.reject(new Error('offline'))
+    await expect(p).rejects.toBeTruthy()
+    expect(store.peek('tasks')[0]).toMatchObject({ status: 'pending', title: 'B' })
+  })
+
+  it('insert appears immediately with defaults, is swapped for the real row, and vanishes if it fails', async () => {
+    await seed('notes', [])
+    const d = deferred()
+    fake.insert = vi.fn(() => d.promise)
+    const p = store.insert('notes', { title: 'Hi' })
+    expect(store.peek('notes')).toHaveLength(1)
+    expect(store.peek('notes')[0]).toMatchObject({ title: 'Hi' })
+    const id = store.peek('notes')[0].id
+    expect(fake.insert.mock.calls[0][1][0].id).toBe(id) // the stand-in already has the id the row will keep
+    d.resolve([{ id, title: 'Hi' }])
+    await p
+    expect(store.peek('notes')).toEqual([{ id, title: 'Hi' }])
+
+    fake.insert = vi.fn().mockRejectedValue(new Error('nope'))
+    await expect(store.insert('notes', { title: 'Bad' })).rejects.toBeTruthy()
+    expect(store.peek('notes').map((r) => r.id)).toEqual([id])
+  })
+
+  it('a Realtime echo of an insert never leaves a duplicate, and the id never changes', async () => {
+    await seed('notes', [])
+    const d = deferred()
+    fake.insert = vi.fn(() => d.promise)
+    const p = store.insert('notes', { title: 'Hi' })
+    const id = store.peek('notes')[0].id
+    store.applyChange('notes', { eventType: 'INSERT', new: { id, title: 'Hi' } }) // echo arrives before the response
+    d.resolve([{ id, title: 'Hi' }])
+    await p
+    expect(store.peek('notes').map((r) => r.id)).toEqual([id])
+  })
+
+  it('notifications are never guessed: another device may win the race to raise the same one', async () => {
+    await seed('notifications', [])
+    const d = deferred()
+    fake.insert = vi.fn(() => d.promise)
+    const p = store.insert('notifications', { title: 'Due today' })
+    expect(store.peek('notifications')).toHaveLength(0)
+    d.resolve([{ id: 'n1', title: 'Due today' }])
+    await p
+    expect(store.peek('notifications').map((r) => r.id)).toEqual(['n1'])
+  })
+
+  it('remove hides the row at once and restores it on failure', async () => {
+    await seed('goals', [{ id: 'g1' }, { id: 'g2' }])
+    const d = deferred()
+    fake.remove = vi.fn(() => d.promise)
+    const p = store.remove('goals', 'g1')
+    expect(store.peek('goals').map((r) => r.id)).toEqual(['g2'])
+    d.reject(new Error('denied'))
+    await expect(p).rejects.toBeTruthy()
+    expect(
+      store
+        .peek('goals')
+        .map((r) => r.id)
+        .sort(),
+    ).toEqual(['g1', 'g2'])
+  })
+
+  it('upsert on an existing conflict key changes that row instead of adding one', async () => {
+    await seed('habit_logs', [{ id: 'l1', habit_id: 'h', log_date: '2026-01-01', status: 'done' }])
+    const d = deferred()
+    fake.upsert = vi.fn(() => d.promise)
+    const p = store.upsert('habit_logs', { habit_id: 'h', log_date: '2026-01-01', status: 'skipped' }, { onConflict: 'habit_id,log_date' })
+    expect(store.peek('habit_logs')).toHaveLength(1)
+    expect(store.peek('habit_logs')[0].status).toBe('skipped')
+    d.reject(new Error('x'))
+    await expect(p).rejects.toBeTruthy()
+    expect(store.peek('habit_logs')).toEqual([{ id: 'l1', habit_id: 'h', log_date: '2026-01-01', status: 'done' }])
+  })
+
+  it('a background refetch does not undo a write that is still in flight', async () => {
+    await seed('tasks', [{ id: 't1', status: 'pending' }])
+    const d = deferred()
+    fake.update = vi.fn(() => d.promise)
+    fake.list = vi.fn().mockResolvedValue([{ id: 't1', status: 'pending' }]) // the server has not seen the write yet
+    const p = store.update('tasks', 't1', { status: 'done' })
+    await store.refetch('tasks')
+    expect(store.peek('tasks')[0].status).toBe('done')
+    fake.list = vi.fn().mockResolvedValue([{ id: 't1', status: 'done' }])
+    d.resolve({ id: 't1', status: 'done' })
+    await p
+    expect(store.peek('tasks')[0].status).toBe('done')
+  })
+})

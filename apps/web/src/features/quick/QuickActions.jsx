@@ -103,7 +103,7 @@ export function QuickFab() {
       animate={{ scale: 1 }}
       whileTap={{ scale: 0.9, rotate: 90 }}
       transition={spring.snappy}
-      className="fixed bottom-[4.75rem] right-4 z-30 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-[#7C3AED] to-[#6246EA] text-white shadow-btn-primary md:hidden"
+      className="fixed bottom-[4.75rem] right-4 z-30 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-primary-solid to-primary-solid-2 text-white shadow-btn-primary md:hidden"
       style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
     >
       <Plus className="h-6 w-6" />

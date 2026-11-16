@@ -17,6 +17,7 @@ export default {
         'muted-foreground': c('muted-foreground'),
         primary: c('primary'),
         'primary-solid': c('primary-solid'),
+        'primary-solid-2': c('primary-solid-2'),
         'primary-foreground': c('primary-foreground'),
         secondary: c('secondary'),
         indigo: c('indigo'),
@@ -37,7 +38,7 @@ export default {
         raised: 'var(--shadow-raised)',
         overlay: 'var(--shadow-overlay)',
         glow: '0 0 0 1px rgb(var(--mod) / 0.35), 0 8px 28px -8px rgb(var(--mod) / 0.45)',
-        'btn-primary': 'inset 0 1px 0 rgb(255 255 255 / 0.18), 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 18px -8px rgb(124 58 237 / 0.7)',
+        'btn-primary': 'inset 0 1px 0 rgb(255 255 255 / 0.18), 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 18px -8px rgb(var(--primary-solid) / 0.7)',
       },
       transitionTimingFunction: {
         out: 'cubic-bezier(0.22, 1, 0.36, 1)',

@@ -11,20 +11,29 @@ export default defineConfig(({ command, mode }) => ({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'],
       manifest: {
+        id: '/',
         name: 'LifeTrack',
         short_name: 'LifeTrack',
         description: 'Personal life operating system',
         theme_color: '#09090B',
         background_color: '#09090B',
         display: 'standalone',
+        orientation: 'any',
+        categories: ['productivity', 'health', 'lifestyle'],
         start_url: '/',
         scope: '/',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+        // Long-press the installed icon for these. Plain links: no data is stored with them.
+        shortcuts: [
+          { name: "Today's planner", short_name: 'Planner', url: '/planner', icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }] },
+          { name: 'Habits', url: '/habits', icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }] },
+          { name: 'Calendar', url: '/calendar', icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }] },
         ],
       },
       // Online-first: precache ONLY the app shell. API traffic is never cached.

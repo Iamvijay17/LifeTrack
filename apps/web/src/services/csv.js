@@ -75,6 +75,7 @@ export const EXPORTABLE = [
   ['nutrition_settings', 'Nutrition targets'],
   ['calendar_events', 'Calendar events'],
   ['calendar_event_exceptions', 'Calendar event changes'],
+  ['task_reschedules', 'Rescheduling history'],
 ]
 const cell = (v) => (v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : v)
 /** CSV of an entire table read straight from the database (owner id omitted). Returns '' when the table is empty. */

@@ -11,6 +11,8 @@ import { AccountCard } from './AccountCard'
 import { AppearanceCard } from './AppearanceCard'
 import { FocusPrefsCard } from './FocusPrefsCard'
 import { PreferencesCard } from './PreferencesCard'
+import { InstallCard } from './InstallCard'
+import { NavigationCard } from './NavigationCard'
 import { ProfileCard } from './ProfileCard'
 import { ScoreWeightsCard } from './ScoreWeightsCard'
 import { SoundCard } from './SoundCard'
@@ -39,11 +41,13 @@ export default function SettingsPage() {
   return (
     <>
       <PageHeader title="Settings" description={isDevMode ? 'DEV mode: stored in this browser only.' : 'Synced to your account.'} />
-      <DataGate loading={loading} error={error} cards={0}>
+      <DataGate loading={loading} error={error} cards={3} skeleton="profile">
         <Stagger gap={0.04} className="mx-auto max-w-5xl space-y-8">
           <Group title="Profile & appearance" desc="Your name, how LifeTrack looks, and how it sounds and feels.">
             <ProfileCard />
             <AppearanceCard />
+            <NavigationCard />
+            <InstallCard />
             <SoundCard />
           </Group>
           <Group

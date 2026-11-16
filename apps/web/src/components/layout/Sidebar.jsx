@@ -2,7 +2,8 @@ import { NavLink } from 'react-router-dom'
 import { PanelLeftClose, PanelLeftOpen, LogOut, Lock } from 'lucide-react'
 import { m, spring } from '@/components/motion/primitives'
 import { Tooltip } from '@/components/ui/tooltip'
-import { NAV_GROUPS } from '@/lib/nav'
+import { arrangeNav } from '@/lib/nav'
+import { useAppearance } from '@/hooks/useAppearance'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { useModuleLocks } from '@/features/security/useModuleLocks'
@@ -64,6 +65,9 @@ function Item({ item, collapsed }) {
 
 export function Sidebar({ collapsed, onToggle }) {
   const { displayName, user } = useAuth()
+  const { sidebar } = useAppearance()
+  const { pinned, groups } = arrangeNav(sidebar)
+  const shown = pinned.length ? [{ title: 'Pinned', items: pinned }, ...groups] : groups
   const initial = (displayName || user?.email || '?').trim()[0]?.toUpperCase()
   return (
     <aside
@@ -76,7 +80,7 @@ export function Sidebar({ collapsed, onToggle }) {
         <Logo showText={!collapsed} />
       </div>
       <m.nav aria-label="Main" layoutScroll className="scrollbar-none flex-1 overflow-y-auto overflow-x-hidden px-3 pb-3">
-        {NAV_GROUPS.map((g) => (
+        {shown.map((g) => (
           <div key={g.title} className="mb-3">
             {!collapsed ? (
               <p className="lt-eyebrow whitespace-nowrap px-1 pb-1 pt-2 text-[10px]">{g.title}</p>

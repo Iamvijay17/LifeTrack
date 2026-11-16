@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   CalendarCheck,
   CalendarDays,
+  CalendarClock,
   Timer,
   Repeat,
   NotebookPen,
@@ -28,6 +29,7 @@ export const NAV_GROUPS = [
     items: [
       { to: '/planner', module: 'planner', label: 'Daily Planner', short: 'Planner', icon: CalendarCheck },
       { to: '/calendar', module: 'calendar', label: 'Calendar', icon: CalendarDays },
+      { to: '/recovery', module: 'recovery', label: 'Smart Recovery', short: 'Recovery', icon: CalendarClock },
       { to: '/focus', module: 'focus', label: 'Focus Mode', short: 'Focus', icon: Timer },
       { to: '/habits', module: 'habits', label: 'Habits', icon: Repeat },
       { to: '/notes', module: 'notes', label: 'Notes & Journal', short: 'Notes', icon: NotebookPen },
@@ -75,4 +77,54 @@ export const MOBILE_PRIMARY = ['/', '/planner', '/habits', '/finance']
 export function pageTitle(pathname) {
   const page = NAV.find((n) => n.to === pathname)
   return page ? `${page.label} · LifeTrack` : 'LifeTrack'
+}
+
+// ------------------------------------------------------- personal arrangement (Settings → Appearance → Navigation)
+/** Most favourites that fit the phone's bottom bar next to "More". */
+export const MAX_PINNED = 4
+
+const stable = (items, order) => {
+  const rank = (it, i) => {
+    const at = order.indexOf(it.to)
+    return at < 0 ? order.length + i : at
+  }
+  return items
+    .map((it, i) => [rank(it, i), it])
+    .sort((a, b) => a[0] - b[0])
+    .map(([, it]) => it)
+}
+
+/**
+ * The navigation as this person arranged it: favourites first (shown once, not again in their group), then the groups with their items in
+ * the saved order. Unknown paths in the saved lists are ignored; pages added later keep their default place.
+ * @param {{ order?: string[], pinned?: string[] }} sidebar
+ */
+export function arrangeNav(sidebar = {}) {
+  const order = sidebar.order ?? []
+  const pinned = (sidebar.pinned ?? []).map((to) => NAV.find((n) => n.to === to)).filter(Boolean)
+  const isPinned = new Set(pinned.map((n) => n.to))
+  const groups = NAV_GROUPS.map((g) => ({ title: g.title, items: stable(g.items, order).filter((n) => !isPinned.has(n.to)) })).filter(
+    (g) => g.items.length,
+  )
+  return { pinned, groups }
+}
+
+/** The phone's bottom bar: the favourites when there are any, otherwise the standard four. */
+export function mobilePrimaryItems(sidebar = {}) {
+  const { pinned } = arrangeNav(sidebar)
+  return pinned.length ? pinned.slice(0, MAX_PINNED) : NAV.filter((n) => MOBILE_PRIMARY.includes(n.to))
+}
+
+/** Move `to` one place up (-1) or down (+1) inside its own group; returns the new full `order`. */
+export function moveNavItem(order, to, by) {
+  const group = NAV_GROUPS.find((g) => g.items.some((n) => n.to === to))
+  if (!group) return order
+  const inGroup = stable(group.items, order).map((n) => n.to)
+  const at = inGroup.indexOf(to)
+  const next = at + by
+  if (next < 0 || next >= inGroup.length) return order
+  inGroup.splice(next, 0, inGroup.splice(at, 1)[0])
+  const others = NAV.map((n) => n.to).filter((p) => !inGroup.includes(p))
+  const keep = (order ?? []).filter((p) => others.includes(p))
+  return [...keep, ...inGroup]
 }

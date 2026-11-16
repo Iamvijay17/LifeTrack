@@ -87,7 +87,7 @@ export function Switch({ checked, onChange, label }) {
       className={cn(
         // The ::before pads the 24px track out to a 44px touch target without changing its size in the layout.
         "relative h-6 w-10 shrink-0 rounded-full transition-colors duration-200 before:absolute before:-inset-x-1 before:-inset-y-2.5 before:content-['']",
-        checked ? 'bg-gradient-to-r from-[#7C3AED] to-[#6366F1] shadow-[0_0_12px_-2px_rgb(var(--primary)/0.7)]' : 'bg-muted-foreground/30',
+        checked ? 'bg-gradient-to-r from-primary-solid to-indigo shadow-[0_0_12px_-2px_rgb(var(--primary)/0.7)]' : 'bg-muted-foreground/30',
       )}
     >
       <span

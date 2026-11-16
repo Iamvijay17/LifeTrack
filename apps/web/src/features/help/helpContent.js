@@ -83,6 +83,20 @@ export const GUIDES = [
     ],
   },
   {
+    module: 'recovery',
+    summary: 'Gets tasks that slipped back onto your calendar, at times that fit around everything already booked.',
+    steps: [
+      'Open Smart Recovery (or follow the banner on the Daily Planner). Each slipped task shows where it could go instead.',
+      'Accept applies one suggestion at once. Adjust lets you choose the day, start and length; a clash is shown before you can save. Not now hides it for a few days.',
+      'Review & apply lists every change with how full each day gets, before anything is saved. You can undo it afterwards.',
+    ],
+    tips: [
+      'Events, interviews, timed tasks and habits are never moved.',
+      'Working hours, a full day and how far ahead to look are under Settings on the page.',
+      'The History panel keeps every move, and you can undo one while the task is still where it was put.',
+    ],
+  },
+  {
     module: 'focus',
     summary: 'A Pomodoro-style timer. Every finished block is saved to your account.',
     steps: [

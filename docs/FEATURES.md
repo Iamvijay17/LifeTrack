@@ -30,6 +30,7 @@ Every module below was checked against the source. Route paths are the web app (
 | 20 | Legal pages | `/privacy`, `/terms` | — (store listing links) | ✅ drafts (placeholders remain) |
 | 21 | Calendar & Timeline | `/calendar` | — | ✅ web · ❌ mobile; see [CALENDAR.md](CALENDAR.md) |
 | 22 | Security & Privacy | `/security` | More → Security & Privacy | ✅ web (passkeys 🟡 need the Edge Function) · ✅ mobile (fingerprint / face 🟡 need migration 0014 and the `device-key` function; not run on a device) |
+| 23 | Smart Recovery & Rescheduling | `/recovery` | `task_reschedules` | ✅ web · ❌ mobile; see [SMART_RECOVERY.md](SMART_RECOVERY.md) |
 
 Cross-cutting capabilities (verified in code): global search / command palette (web), quick actions, daily score, Today agenda, Upcoming deadlines, theme sync,
 Realtime sync, PWA install, celebrations, account deletion, JSON/CSV export, recurring-transaction engine, reminder runner, loaders, error boundaries,

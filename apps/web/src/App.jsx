@@ -21,6 +21,7 @@ const page = (loader) => lazy(loader)
 const Overview = page(() => import('@/features/overview/OverviewPage'))
 const Planner = page(() => import('@/features/planner/PlannerPage'))
 const Calendar = page(() => import('@/features/calendar/CalendarPage'))
+const Recovery = page(() => import('@/features/recovery/RecoveryPage'))
 const Learning = page(() => import('@/features/learning/LearningPage'))
 const Jobs = page(() => import('@/features/jobs/JobsPage'))
 const Fitness = page(() => import('@/features/fitness/FitnessPage'))
@@ -81,6 +82,7 @@ export default function App() {
                     <Route index element={<Overview />} />
                     <Route path="planner" element={<Planner />} />
                     <Route path="calendar" element={<Calendar />} />
+                    <Route path="recovery" element={<Recovery />} />
                     <Route path="learning" element={<Learning />} />
                     <Route
                       path="jobs"

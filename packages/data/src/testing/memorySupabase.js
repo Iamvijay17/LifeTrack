@@ -8,7 +8,7 @@ import { getUserId } from '../session'
 export const MAX_ROWS = 1000
 const err = (code, message) => ({ code, message })
 const clone = (v) => (v == null ? v : structuredClone(v))
-const CASCADE = { habits: [['habit_logs', 'habit_id']], job_applications: [['application_history', 'application_id'], ['interview_events', 'application_id']], workouts: [['exercise_logs', 'workout_id']], goals: [['milestones', 'goal_id']], calendar_events: [['calendar_event_exceptions', 'event_id']] }
+const CASCADE = { habits: [['habit_logs', 'habit_id']], job_applications: [['application_history', 'application_id'], ['interview_events', 'application_id']], workouts: [['exercise_logs', 'workout_id']], goals: [['milestones', 'goal_id']], calendar_events: [['calendar_event_exceptions', 'event_id']], tasks: [['task_reschedules', 'task_id']] }
 const SET_NULL = {
   recurring_rules: [['transactions', 'recurring_rule_id']],
   goals: [['calendar_events', 'goal_id']],

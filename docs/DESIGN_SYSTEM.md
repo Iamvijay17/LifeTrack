@@ -23,6 +23,20 @@ Each module has a gradient (`moduleAccents`). On the web, `[data-module='finance
 
 Glass (`.lt-glass`) is deliberately rare: the sticky header and the mobile tab bar. Phones get a near-solid surface instead, because blur is the costliest thing on a mid-range device.
 
+### Accent colour (personal)
+
+The brand violet is the default and is untouched until someone picks something else. Picking an accent (violet, blue, emerald, rose, orange, cyan or a custom colour) rewrites only the brand tokens on `<html>`: `--primary`, `--primary-solid`, `--primary-solid-2`, `--secondary`, `--accent` (light), `--c-primary`, `--c-secondary`, plus `--mod*` for the dashboard. Every other module keeps its own accent, so the app stays recognisable. `lib/appearance.js` derives each token per theme and checks it against WCAG: the button colour always reaches 4.5:1 with white text, and the accent used as text reaches 4.5:1 on the page background (a pale custom colour is deepened, and Settings says so). Never write `#7C3AED` into a component: use `bg-primary-solid`, `from-primary-solid to-primary-solid-2`, `text-primary` or `rgb(var(--primary))`.
+
+### Text size, spacing, motion
+
+`<html>` carries `font-size` (93.75% / 100% / 112.5%, so everything in rem scales), `data-density` (`compact` shrinks `--pad`, the common paddings and gaps inside `main`) and `data-motion` (`reduced` behaves exactly like the OS setting, in CSS and in Motion). `public/theme-init.js` applies them before first paint from the device copy, so there is no flash of the default look.
+
+| CSS variable | Value | Mirrors |
+| --- | --- | --- |
+| `--dur-fast` / `--dur-base` / `--dur-slow` | 120 / 200 / 320 ms | `duration` in `motion/tokens.js` |
+| `--ease-out` / `--ease-in` | `cubic-bezier(0.22,1,0.36,1)` / `(0.4,0,1,1)` | `ease` |
+| Breakpoints | sm 640 · md 768 · lg 1024 · xl 1280 | Tailwind `screens`. Below `md` is the phone layout (bottom bar, sheets) |
+
 ## Shape and depth
 
 Radii: `sm` 6, `md` 10 (controls), `lg` 14, `xl` 18 (cards), `2xl` 22 (hero cards). Shadows barely read on near-black, so dark-theme depth comes from a hairline highlight along the top edge (`--shadow-card`, `--shadow-raised`, `--shadow-overlay`).

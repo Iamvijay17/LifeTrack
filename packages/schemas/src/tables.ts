@@ -57,7 +57,7 @@ const insertShapes = {
     daily_study_target_minutes: int().min(0).max(1440).optional(), monthly_budget_paise: paise().optional(),
     water_goal_ml: int().min(0).max(20000).optional(), steps_goal: int().min(0).max(200000).optional(),
     week_starts_on: z.union([z.literal(0), z.literal(1)]).optional(),
-    calendar_prefs: json(z.record(z.string(), z.any())).optional(),
+    calendar_prefs: json(z.record(z.string(), z.any())).optional(), appearance_prefs: json(z.record(z.string(), z.any())).optional(),
     habit_prefs: json(z.record(z.string(), z.any())).optional(), workout_plan: json(z.record(z.string(), z.any())).optional(), defaults_seeded: z.boolean().optional(),
     score_weights: json(z.record(z.string(), z.number())).optional(), dashboard_widgets: json(z.record(z.string(), z.any())).optional(),
     notification_prefs: json(z.record(z.string(), z.boolean())).optional(), notification_settings: json(z.record(z.string(), z.any())).optional(), focus_prefs: json(z.record(z.string(), z.number())).optional(),
@@ -182,6 +182,13 @@ const insertShapes = {
     title: str(1, 200).nullable().optional(), description: str(0, 4000).nullable().optional(), location: str(0, 200).nullable().optional(),
     category: z.enum(CALENDAR_CATEGORIES).nullable().optional(), priority: z.enum(PRIORITY_VALUES).nullable().optional(), color: hex.nullable().optional(),
     all_day: z.boolean().nullable().optional(), starts_at: ts.nullable().optional(), ends_at: ts.nullable().optional(), alert_minutes: alerts.nullable().optional(),
+  },
+  task_reschedules: {
+    task_id: uuid, title: str(0, 200).optional(), action: z.enum(['rescheduled', 'dismissed']), source: z.enum(['recovery', 'rebalance', 'manual']).optional(),
+    from_date: day, from_start: time.nullable().optional(), from_end: time.nullable().optional(),
+    to_date: day.nullable().optional(), to_start: time.nullable().optional(), to_end: time.nullable().optional(),
+    reason: str(0, 500).optional(), batch_id: uuid.nullable().optional(), dedupe_key: str(1, 200).nullable().optional(),
+    hide_until: day.nullable().optional(), undone_at: ts.nullable().optional(),
   },
 } satisfies Record<string, z.ZodRawShape>
 

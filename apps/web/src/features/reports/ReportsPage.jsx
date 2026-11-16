@@ -72,7 +72,7 @@ export default function ReportsPage() {
         {fmtDay(from, 'd MMM yyyy')} – {fmtDay(to, 'd MMM yyyy')}
         {to > today ? ' (future days are not counted)' : ''}
       </p>
-      <DataGate loading={loading} error={error} onRetry={refetch}>
+      <DataGate loading={loading} error={error} onRetry={refetch} skeleton="chart">
         <div className="space-y-5">
           <ReportSummary s={report.summary} money={money} />
           <ReportCharts report={report} />

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, Target } from 'lucide-react'
 import { foodLogDraftToForm } from '@lifetrack/schemas'
@@ -87,6 +87,19 @@ export default function NutritionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [day, quickAdd, quickAdding, removeEntry, tz],
   )
+  // The Command Center's "Log food" arrives as ?add=1 and opens the picker, once.
+  useEffect(() => {
+    if (params.get('add') !== '1') return
+    actions.openAdd({ date: day })
+    setParams(
+      (p) => {
+        const q = new URLSearchParams(p)
+        q.delete('add')
+        return q
+      },
+      { replace: true },
+    )
+  }, [params, setParams, actions, day])
   const menu = useContextMenu()
   const sel = useSelection(useMemo(() => n.logs.map((l) => l.id), [n.logs]))
   const bulk = (ids) => entryBulkItems(ids.map((id) => n.logs.find((l) => l.id === id)).filter(Boolean))

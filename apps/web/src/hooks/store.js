@@ -4,6 +4,8 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { db } from '@/services/db'
 import { toAppError } from '@/services/errors'
+import { DEFAULTS } from '@lifetrack/constants/schema'
+import { getUserId } from '@lifetrack/data'
 
 const EMPTY = Object.freeze({ rows: Object.freeze([]), status: 'idle', error: null })
 const state = new Map() // table -> { rows, status: idle|loading|ready|error, error }
@@ -51,6 +53,10 @@ export function load(table, { force = false } = {}) {
         return
       }
       if (my !== epoch) return
+      if (!settled(table) && get(table).status === 'ready') {
+        dirty.add(table) // an unconfirmed write would be overwritten by this snapshot: try again once it has settled
+        return
+      }
       const stale = ver(table) !== startVer || dirty.has(table)
       if (stale && attempt < MAX_ATTEMPTS) continue
       set(table, { rows, status: 'ready', error: null })
@@ -85,6 +91,7 @@ export function resetStore() {
   epoch++
   inflight.clear()
   dirty.clear()
+  pending.clear()
   versions.clear()
   timers.forEach(clearTimeout)
   const keys = [...state.keys()]
@@ -206,36 +213,180 @@ const afterWrite = (table) => {
 }
 
 // ------------------------------------------------------------------ mutations
+// Every write is optimistic: the cache changes at once, the request runs, and the confirmed row replaces the guess. If the request fails the
+// guess is undone (only the fields this write touched, so a second write to the same row is not lost) and the error is rethrown to the caller.
+// `pending` counts unconfirmed writes per table: a background refetch that would overwrite a guess is postponed until they settle.
+const pending = new Map() // table -> number
+const hold = (t) => pending.set(t, (pending.get(t) ?? 0) + 1)
+const release = (t) => {
+  const n = (pending.get(t) ?? 1) - 1
+  if (n <= 0) {
+    pending.delete(t)
+    if (dirty.has(t)) scheduleRefetch(t)
+  } else pending.set(t, n)
+}
+const settled = (t) => !pending.has(t)
+
+const newId = () => {
+  const c = globalThis.crypto
+  if (c?.randomUUID) return c.randomUUID()
+  const b = c.getRandomValues(new Uint8Array(16)) // plain-http pages have no randomUUID
+  b[6] = (b[6] & 0x0f) | 0x40
+  b[8] = (b[8] & 0x3f) | 0x80
+  const h = [...b].map((x) => x.toString(16).padStart(2, '0')).join('')
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
+}
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+
+// Rows the app creates for itself, and that tell the person something when they appear (a notification toasts), are never guessed: if another
+// device wins the race to create the same one, a guess would have told them twice.
+const NO_GUESS = new Set(['notifications'])
+
+/** Put back the old values of the fields `patched` changed, unless something newer has changed them since. */
+function revertFields(table, id, before, patched) {
+  const row = get(table).rows.find((r) => r.id === id)
+  if (!row) return
+  const back = { ...row }
+  for (const k of Object.keys(patched)) if (same(row[k], patched[k])) back[k] = before[k]
+  upsertLocal(table, [back])
+}
+
+/** A stand-in for a row the database has not confirmed yet: defaults and the input. For inserts it already carries the id the row will have. */
+const guessRow = (table, input, id = newId()) => {
+  const now = new Date().toISOString()
+  const mine = getUserId()
+  return {
+    created_at: now,
+    updated_at: now,
+    ...(DEFAULTS[table] ?? {}),
+    ...input,
+    id,
+    ...(mine ? { user_id: mine } : {}),
+  }
+}
+
 export const insert = (table, rows) =>
   tracked(async () => {
-    const out = await db.insert(table, Array.isArray(rows) ? rows : [rows])
-    upsertLocal(table, out)
-    afterWrite(table)
-    return Array.isArray(rows) ? out : out[0]
+    const list = Array.isArray(rows) ? rows : [rows]
+    // The id is chosen here and sent with the insert, so the stand-in IS the row: nothing is swapped, and anything watching ids sees one row, not two.
+    const sent = NO_GUESS.has(table) ? list : list.map((r) => ({ ...r, id: r.id ?? newId() }))
+    if (!NO_GUESS.has(table))
+      upsertLocal(
+        table,
+        sent.map((r) => guessRow(table, r, r.id)),
+      )
+    hold(table)
+    try {
+      const out = await db.insert(table, sent)
+      patchGroup(table, (r) => sent.some((s) => s.id === r.id) || out.some((o) => o.id === r.id), out)
+      afterWrite(table)
+      return Array.isArray(rows) ? out : out[0]
+    } catch (e) {
+      if (!NO_GUESS.has(table))
+        removeLocal(
+          table,
+          sent.map((s) => s.id),
+        )
+      throw e
+    } finally {
+      release(table)
+    }
   })
+
 export const update = (table, id, patch) =>
   tracked(async () => {
-    const row = await db.update(table, id, patch)
-    upsertLocal(table, [row])
-    afterWrite(table)
-    return row
+    const before = get(table).rows.find((r) => r.id === id)
+    if (before) upsertLocal(table, [{ ...before, ...patch }])
+    hold(table)
+    try {
+      const row = await db.update(table, id, patch)
+      upsertLocal(table, [row])
+      afterWrite(table)
+      return row
+    } catch (e) {
+      if (before) revertFields(table, id, before, patch)
+      throw e
+    } finally {
+      release(table)
+    }
   })
+
 export const upsert = (table, rows, opts) =>
   tracked(async () => {
-    const out = await db.upsert(table, Array.isArray(rows) ? rows : [rows], opts)
-    upsertLocal(table, out)
-    afterWrite(table)
-    return Array.isArray(rows) ? out : out[0]
+    const list = Array.isArray(rows) ? rows : [rows]
+    const keys = String(opts?.onConflict ?? '')
+      .split(',')
+      .map((k) => k.trim())
+      .filter(Boolean)
+    // Match each row to the cached row the database will treat as the same one (same conflict columns), so toggling an existing row is a change, not a duplicate.
+    const undo = []
+    const guesses = []
+    for (const r of list) {
+      const cached = keys.length
+        ? get(table).rows.find((x) => keys.every((k) => k === 'user_id' || x[k] === r[k]))
+        : r.id
+          ? get(table).rows.find((x) => x.id === r.id)
+          : null
+      if (cached) {
+        undo.push({ id: cached.id, before: cached, patched: r })
+        upsertLocal(table, [{ ...cached, ...r }])
+      } else if (!NO_GUESS.has(table)) {
+        const g = guessRow(table, r)
+        guesses.push(g)
+        upsertLocal(table, [g])
+      }
+    }
+    hold(table)
+    try {
+      const out = await db.upsert(table, list, opts)
+      const temp = new Set(guesses.map((g) => g.id))
+      const ids = new Set(out.map((r) => r.id))
+      patchGroup(table, (r) => temp.has(r.id) || ids.has(r.id), out)
+      afterWrite(table)
+      return Array.isArray(rows) ? out : out[0]
+    } catch (e) {
+      removeLocal(
+        table,
+        guesses.map((g) => g.id),
+      )
+      for (const u of undo) revertFields(table, u.id, u.before, u.patched)
+      throw e
+    } finally {
+      release(table)
+    }
   })
+
 export const remove = (table, id) =>
   tracked(async () => {
-    await db.remove(table, id)
-    removeLocal(table, [id])
+    const before = get(table).rows.find((r) => r.id === id)
+    if (before) removeLocal(table, [id])
+    hold(table)
+    try {
+      await db.remove(table, id)
+      removeLocal(table, [id])
+    } catch (e) {
+      if (before && !get(table).rows.some((r) => r.id === id)) upsertLocal(table, [before])
+      throw e
+    } finally {
+      release(table)
+    }
   })
+
 export const removeMany = (table, ids) =>
   tracked(async () => {
-    await db.removeMany(table, ids)
+    const gone = get(table).rows.filter((r) => ids.includes(r.id))
     removeLocal(table, ids)
+    hold(table)
+    try {
+      await db.removeMany(table, ids)
+      removeLocal(table, ids)
+    } catch (e) {
+      const back = gone.filter((r) => !get(table).rows.some((x) => x.id === r.id))
+      if (back.length) upsertLocal(table, back)
+      throw e
+    } finally {
+      release(table)
+    }
   })
 
 // ---------------------------------------------------------------------- hooks
