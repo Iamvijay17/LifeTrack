@@ -13,6 +13,7 @@ export class AppError extends Error {
 const TABLE_MIGRATION = {
   calendar_events: '0011_calendar.sql',
   calendar_event_exceptions: '0011_calendar.sql',
+  task_reschedules: '0016_task_reschedules.sql',
   recurring_rules: '0008_recurring_rules.sql',
   foods: '0009_nutrition.sql',
   food_logs: '0009_nutrition.sql',

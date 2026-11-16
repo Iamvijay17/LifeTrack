@@ -96,7 +96,7 @@ export default function NotificationsPage() {
           { value: 'prefs', label: 'Preferences' },
         ]}
       />
-      <DataGate loading={loading} error={error} onRetry={refetch} cards={0}>
+      <DataGate loading={loading} error={error} onRetry={refetch} cards={0} skeleton="list">
         {tab === 'inbox' && (
           <InboxTab
             rows={data.notifications}

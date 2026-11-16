@@ -8,6 +8,8 @@ import { DEFAULT_TOPICS, DEFAULT_EXERCISES } from '@lifetrack/constants/defaults
 import { CONFLICT_KEYS } from '@lifetrack/constants/schema'
 import { uid, localDayMinutes, isValidDay, zonedToMs } from '@lifetrack/utils'
 import { exceptionOverrides, expandEvent, isOccurrenceDate, normalizeRule, ruleBefore, ruleFrom, shiftSeries } from '@lifetrack/core/calendarRecurrence'
+import { checkPlacement, dismissKey, rescheduleKey, sameSlot } from '@lifetrack/core/recovery'
+import { isOpen } from '@lifetrack/core/tasks'
 import { AppError } from './errors'
 
 /**
@@ -465,5 +467,122 @@ export function createApi(store) {
    */
   const raiseCalendarAlert = ({ key, title, body = '', link = '', priority = 'normal', dueAt = null }) => raiseNotification({ key, kind: 'event', title, body, link, priority, dueAt })
 
-  return { saveRow, deleteRow, createTask, setTaskStatus, setHabitStatus, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, logWater, removeWaterLog, saveNutritionGoals, saveFavoriteFoods, saveFoodCopy, deleteFood, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, postDueRecurring, toggleRecurringRule, fireDueReminders, toggleReminder, rescheduleReminder, clearReadNotifications, markNotificationRead, markNotificationUnread, markAllRead, snoozeNotification, dismissNotification, dismissNotifications, restoreNotification, deleteNotifications, raiseNotification, createCalendarEvent, saveCalendarEvent, deleteCalendarEvent, applyCalendarChange, raiseCalendarAlert }
+
+  // ---------------------------------------------------------- smart recovery
+  // Moving a slipped task is a change to the task itself (due_date / start_time / end_time, the columns the Planner and Calendar already use) plus one
+  // row in task_reschedules, so the history and the duplicate guard live in the database. Order matters: the history row is written FIRST because its
+  // unique `dedupe_key` is the lock (two devices accepting the same suggestion: the second insert fails before any task is touched); if the task update
+  // then fails, the claim is deleted again, so a failed move leaves nothing behind.
+  const RECOVERY_TABLES = ['tasks', 'task_reschedules', 'calendar_events', 'calendar_event_exceptions', 'interview_events']
+  const hm = (t) => (t ? String(t).slice(0, 5) : null)
+  const recoveryData = () => ({
+    tasks: store.peek('tasks'),
+    events: store.peek('calendar_events'),
+    exceptions: store.peek('calendar_event_exceptions'),
+    interviews: store.peek('interview_events'),
+    habits: store.peek('habits'),
+    habitLogs: store.peek('habit_logs'),
+    reschedules: store.peek('task_reschedules'),
+  })
+  const SOURCE_OF = { recover: 'recovery', rebalance: 'rebalance', manual: 'manual' }
+  const SKIP_TEXT = {
+    missing: 'The task no longer exists.',
+    changed: 'It was changed elsewhere since this suggestion was made.',
+    duplicate: 'That move was already applied.',
+    closed: 'It is already finished.',
+  }
+
+  /**
+   * Accepts reschedule suggestions (or manual adjustments). Each change: { taskId, from: { date, start, end }, to: { date, start, end }, reason?, kind? }.
+   * Every change is checked against fresh data right before it is saved: the task must still be exactly where the suggestion found it, the move must not
+   * already have happened, and the new time must not overlap an event, an interview or another timed task (core checkPlacement).
+   * Changes are independent: one that fails does not block the others. Resolves to { applied: [history rows], skipped: [{ taskId, code, message }], batchId }.
+   * @param o { tz, prefs, today, nowMs, source: 'recovery' | 'rebalance' | 'manual' }
+   */
+  async function applyReschedules(changes, { tz, prefs = {}, today, nowMs = Date.now(), source = 'recovery' } = {}) {
+    if (!changes?.length) return { applied: [], skipped: [], batchId: null }
+    await Promise.all(RECOVERY_TABLES.map((t) => store.refetch(t)))
+    const batchId = uid()
+    const applied = []
+    const skipped = []
+    const skip = (c, code, message) => skipped.push({ taskId: c.taskId, code, message: message ?? SKIP_TEXT[code] ?? 'It could not be moved.' })
+    for (const c of changes) {
+      const task = store.peek('tasks').find((t) => t.id === c.taskId)
+      if (!task) { skip(c, 'missing'); continue }
+      if (!isOpen(task)) { skip(c, 'closed'); continue }
+      if (!sameSlot(task, c.from)) { skip(c, 'changed'); continue }
+      const key = rescheduleKey(c.taskId, c.from, c.to)
+      if (store.peek('task_reschedules').some((r) => r.dedupe_key === key && !r.undone_at)) { skip(c, 'duplicate'); continue }
+      const check = checkPlacement(recoveryData(), { today, tz, nowMs, prefs }, { taskId: c.taskId, ...c.to })
+      if (!check.ok) { skip(c, check.errors[0].code, check.errors[0].message); continue }
+      let claim
+      try {
+        claim = await store.insert('task_reschedules', {
+          task_id: task.id, title: task.title.slice(0, 200), action: 'rescheduled', source: SOURCE_OF[c.kind] ?? source,
+          from_date: c.from.date, from_start: c.from.start ?? null, from_end: c.from.end ?? null, to_date: c.to.date, to_start: c.to.start, to_end: c.to.end,
+          reason: (c.reason ?? '').slice(0, 500), batch_id: batchId, dedupe_key: key,
+        })
+      } catch (e) {
+        if (e?.code === '23505') { skip(c, 'duplicate'); continue }
+        throw e
+      }
+      try {
+        await store.update('tasks', task.id, { due_date: c.to.date, start_time: c.to.start, end_time: c.to.end })
+        applied.push(claim)
+      } catch (e) {
+        await store.remove('task_reschedules', claim.id).catch(() => {})
+        skip(c, 'failed', e?.code === '23505' ? 'A repeating task cannot have two occurrences on one day.' : e?.message ? 'The task could not be saved.' : undefined)
+      }
+    }
+    return { applied, skipped, batchId }
+  }
+
+  /**
+   * Puts tasks back where a reschedule found them. Only a move that is still in place is undone (if the task was edited or moved again since, it is left
+   * alone and reported). Resolves to { undone: [history rows], skipped: [{ id, code, message }] }.
+   */
+  async function undoReschedules(ids) {
+    await Promise.all([store.refetch('tasks'), store.refetch('task_reschedules')])
+    const undone = []
+    const skipped = []
+    for (const id of ids) {
+      const row = store.peek('task_reschedules').find((r) => r.id === id)
+      const task = row && store.peek('tasks').find((t) => t.id === row.task_id)
+      if (!row || row.action !== 'rescheduled' || row.undone_at) { skipped.push({ id, code: 'not_applicable', message: 'That move was already undone.' }); continue }
+      if (!task) { skipped.push({ id, code: 'missing', message: 'The task no longer exists.' }); continue }
+      if (task.due_date !== row.to_date || hm(task.start_time) !== hm(row.to_start) || hm(task.end_time) !== hm(row.to_end)) {
+        skipped.push({ id, code: 'changed', message: 'The task was changed again since, so it was left as it is.' })
+        continue
+      }
+      const stamp = nowIso()
+      const marked = await store.update('task_reschedules', id, { undone_at: stamp }) // frees the dedupe key first
+      try {
+        await store.update('tasks', task.id, { due_date: row.from_date, start_time: hm(row.from_start), end_time: hm(row.from_end) })
+        undone.push(marked)
+      } catch (e) {
+        await store.update('task_reschedules', id, { undone_at: null }).catch(() => {})
+        skipped.push({ id, code: 'failed', message: e?.code === '23505' ? 'A repeating task already has an occurrence on that day.' : 'The task could not be restored.' })
+      }
+    }
+    return { undone, skipped }
+  }
+
+  /** "Not now": hides suggestions for these tasks until `until` (a date). Asking twice for the same task and day changes nothing. Resolves to how many were recorded. */
+  async function dismissRecovery(items, until) {
+    let n = 0
+    for (const it of items) {
+      try {
+        await store.insert('task_reschedules', {
+          task_id: it.taskId, title: (it.title ?? '').slice(0, 200), action: 'dismissed', source: 'recovery',
+          from_date: it.from.date, from_start: it.from.start ?? null, from_end: it.from.end ?? null, hide_until: until, dedupe_key: dismissKey(it.taskId, it.from, until),
+        })
+        n++
+      } catch (e) {
+        if (e?.code !== '23505') throw e
+      }
+    }
+    return n
+  }
+
+  return { saveRow, deleteRow, createTask, setTaskStatus, setHabitStatus, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, logWater, removeWaterLog, saveNutritionGoals, saveFavoriteFoods, saveFoodCopy, deleteFood, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, postDueRecurring, toggleRecurringRule, fireDueReminders, toggleReminder, rescheduleReminder, clearReadNotifications, markNotificationRead, markNotificationUnread, markAllRead, snoozeNotification, dismissNotification, dismissNotifications, restoreNotification, deleteNotifications, raiseNotification, createCalendarEvent, saveCalendarEvent, deleteCalendarEvent, applyCalendarChange, raiseCalendarAlert, applyReschedules, undoReschedules, dismissRecovery }
 }

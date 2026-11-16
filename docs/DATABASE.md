@@ -174,6 +174,7 @@ A **restrictive** policy `app_lock_gate` (`as restrictive for all to authenticat
 | Table | Key columns and constraints | Indexes |
 | --- | --- | --- |
 | `calendar_events` | `title` 1–200; `starts_at` < `ends_at` (UTC instants); `timezone`; `all_day`; `category` (8 keys); `priority` (adds `urgent`); `color` `#RRGGBB`; `rrule` JSON checked for shape; `alert_minutes` ≤ 5 items, 0–40320; links `goal_id`, `topic_id`, `application_id`, `routine_id` (set null, same-owner trigger) | `(user_id, starts_at)`, recurring partial, link FKs |
+| `task_reschedules` | `task_id` (cascade); `action` `rescheduled|dismissed`; `source`; `from_date` + optional times; `to_*` required when rescheduled; `hide_until` required when dismissed. **U** `(user_id, dedupe_key)` where not null and not undone | `(user_id, task_id, created_at)`, batch |
 | `calendar_event_exceptions` | `event_id` (cascade); `occurrence_date`; `status` `modified|cancelled`; nullable override columns. **U** `(event_id, occurrence_date)` | `(user_id)` |
 
 `tasks` also gained `start_time`, `end_time`, `color`, `location`, `alert_minutes`; see [CALENDAR.md](CALENDAR.md).
@@ -254,6 +255,8 @@ All RPCs: `revoke all … from public, anon; grant execute … to authenticated`
 | `0012_security.sql` | `user_security`, `app_unlocks`, `passkeys`, `webauthn_challenges`, `password_attempts`; the app-lock, passkey, session and password-hook functions; restrictive policy `app_lock_gate` on 6 tables; needs `pgcrypto` in `extensions` | **Security & Privacy** (see [APP_SECURITY.md](APP_SECURITY.md)). Until it is run the app opens as before and the Security page says what to run |
 | `0013_notification_center.sql` | `reminders.priority/body`, `weekdays`/`yearly` repeats; `notifications.priority/due_at/snoozed_until/dismissed_at`, kinds `job`/`goal`, 2 partial indexes; `user_settings.notification_settings` | **Notification & Reminder Center** (see [NOTIFICATIONS.md](NOTIFICATIONS.md)). Numbered 0013 because `0012` is reserved for the Security & Privacy migration |
 | `0011_calendar.sql` | `calendar_events`, `calendar_event_exceptions`; `tasks.start_time/end_time/color/location/alert_minutes`, `urgent` priority, `Routine`/`Custom` categories, `yearly` repeat; `user_settings.calendar_prefs`; `notifications.kind` `event` | **Calendar** (see [CALENDAR.md](CALENDAR.md)) |
+| `0016_task_reschedules.sql` | `task_reschedules` (history of moved and rejected recovery suggestions; unique `dedupe_key` while not undone) | **Smart Recovery** (see [SMART_RECOVERY.md](SMART_RECOVERY.md)). Additive; `0015` is the module locks |
+| `0017_appearance.sql` | `user_settings.appearance_prefs` (jsonb object, default `{}`): accent, text size, spacing, motion, sidebar order and favourites | **Personal appearance** (see [PREMIUM_EXPERIENCE.md](PREMIUM_EXPERIENCE.md)). Additive. If it has not been run, the app keeps the look on the device and says so once |
 | `0014_device_keys.sql` | `device_keys`, `device_key_challenges`; the `dk_*` and phone-key list / rename / remove functions; `app_unlocks.method` accepts `device`; a trigger on `user_security` | **Fingerprint / face unlock on phones** (see [APP_SECURITY.md §9](APP_SECURITY.md)). Needs `0012` first. Without it the phone offers the PIN only |
 
 Operational notes:

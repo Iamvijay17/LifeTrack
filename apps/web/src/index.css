@@ -14,6 +14,7 @@
   --muted-foreground: 99 99 107;
   --primary: 124 58 237;
   --primary-solid: 124 58 237;
+  --primary-solid-2: 98 70 234;
   --primary-foreground: 255 255 255;
   --secondary: 109 40 217;
   --accent: 237 233 254;
@@ -44,6 +45,7 @@
   --muted-foreground: 161 161 170;
   --primary: 139 92 246;
   --primary-solid: 124 58 237;
+  --primary-solid-2: 98 70 234;
   --primary-foreground: 255 255 255;
   --secondary: 167 139 250;
   --accent: 39 39 44;
@@ -64,6 +66,51 @@
   --shadow-card: inset 0 1px 0 rgb(255 255 255 / 0.035), 0 1px 2px rgb(0 0 0 / 0.5);
   --shadow-raised: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 2px 4px rgb(0 0 0 / 0.4), 0 16px 32px -14px rgb(0 0 0 / 0.75);
   --shadow-overlay: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 8px 20px rgb(0 0 0 / 0.5), 0 36px 72px -16px rgb(0 0 0 / 0.85);
+}
+
+/* ───────────────────────── Personal appearance ─────────────────────────
+   Set on <html> by lib/appearance.js (and public/theme-init.js before first paint). Text size is the root font size, so every rem scales with it.
+   Compact tightens the common paddings and gaps; the layout itself does not change. */
+html[data-density='compact'] {
+  --pad: 0.75rem;
+}
+@media (min-width: 768px) {
+  html[data-density='compact'] {
+    --pad: 1rem;
+  }
+}
+html[data-density='compact'] main :is(.p-4, .p-5) {
+  padding: 0.75rem;
+}
+html[data-density='compact'] main :is(.gap-4, .gap-5, .gap-6) {
+  gap: 0.75rem;
+}
+html[data-density='compact'] main :is(.gap-3) {
+  gap: 0.5rem;
+}
+html[data-density='compact'] main :is(.space-y-4, .space-y-5, .space-y-6) > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 0.75rem;
+}
+html[data-density='compact'] main :is(.space-y-8) > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 1.25rem;
+}
+html[data-density='compact'] main :is(.py-3) {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+/* "Reduce motion" chosen in Settings behaves exactly like the operating system's setting. */
+html[data-motion='reduced'] *,
+html[data-motion='reduced'] ::before,
+html[data-motion='reduced'] ::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+html[data-motion='reduced'] .skeleton::after,
+html[data-motion='reduced'] .lt-ambient {
+  animation: none !important;
 }
 
 /* Each module's accent. Mirrors moduleAccents in packages/design-tokens. Applies to a page (on <html>) or to a single tile. */
@@ -238,6 +285,15 @@
 .dark[data-module='help'],
 .dark [data-module='help'] {
   --mod-text: 125 211 252;
+}
+
+/* Motion and breakpoint tokens for plain CSS. They mirror components/motion/tokens.js (durations, easing) and Tailwind's screens (sm 640 · md 768 · lg 1024 · xl 1280). */
+:root {
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
 }
 
 @layer base {

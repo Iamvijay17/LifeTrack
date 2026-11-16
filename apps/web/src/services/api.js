@@ -48,4 +48,7 @@ export const {
   deleteCalendarEvent,
   applyCalendarChange,
   raiseCalendarAlert,
+  applyReschedules,
+  undoReschedules,
+  dismissRecovery,
 } = createApi(store)

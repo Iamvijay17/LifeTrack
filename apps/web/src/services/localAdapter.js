@@ -173,6 +173,7 @@ export const localAdapter = {
       workouts: [['exercise_logs', 'workout_id']],
       goals: [['milestones', 'goal_id']],
       calendar_events: [['calendar_event_exceptions', 'event_id']],
+      tasks: [['task_reschedules', 'task_id']],
     }
     for (const [child, col] of cascade[table] ?? []) db[child] = (db[child] ?? []).filter((r) => !set.has(r[col]))
     const setNull = {

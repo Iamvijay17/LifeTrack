@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { Lock, MoreHorizontal } from 'lucide-react'
-import { NAV, NAV_GROUPS, MOBILE_PRIMARY } from '@/lib/nav'
+import { arrangeNav, mobilePrimaryItems } from '@/lib/nav'
+import { useAppearance } from '@/hooks/useAppearance'
 import { Dialog } from '@/components/ui/dialog'
 import { LayoutGroup, m, spring } from '@/components/motion/primitives'
 import { tick } from '@/lib/celebrate'
@@ -23,7 +24,10 @@ function Pill() {
 export function MobileNav() {
   const [more, setMore] = useState(false)
   const { isLocked } = useModuleLocks()
-  const primary = NAV.filter((n) => MOBILE_PRIMARY.includes(n.to))
+  const { sidebar } = useAppearance()
+  const primary = mobilePrimaryItems(sidebar)
+  const onBar = new Set(primary.map((n) => n.to))
+  const { groups } = arrangeNav({ order: sidebar.order })
   const item = (isActive) =>
     cn(
       'lt-press relative flex flex-1 flex-col items-center gap-0.5 pb-1.5 pt-2 text-[10.5px] font-medium transition-colors',
@@ -61,8 +65,8 @@ export function MobileNav() {
       </nav>
       <Dialog open={more} onOpenChange={setMore} title="All pages">
         <div className="space-y-4">
-          {NAV_GROUPS.map((g) => {
-            const items = g.items.filter((n) => !MOBILE_PRIMARY.includes(n.to))
+          {groups.map((g) => {
+            const items = g.items.filter((n) => !onBar.has(n.to))
             if (!items.length) return null
             return (
               <section key={g.title}>

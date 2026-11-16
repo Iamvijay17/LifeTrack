@@ -18,6 +18,7 @@ import { addDays, eachDay, startOfWeek } from '@/lib/dates'
 import { plural } from '@/lib/utils'
 import { TaskDialog } from '@/features/planner/TaskDialog'
 import { TaskSection } from '@/features/planner/TaskList'
+import { RecoveryBanner } from '@/features/recovery/RecoveryBanner'
 import { groupTasksForDay } from '@/domain/tasks'
 import { taskBulkItems, taskItems, taskPageItems } from './contextMenu'
 
@@ -102,7 +103,8 @@ export default function PlannerPage() {
           )}
         </div>
       </section>
-      <DataGate loading={loading} error={error} onRetry={refetch} cards={0}>
+      <DataGate loading={loading} error={error} onRetry={refetch} cards={0} skeleton="list">
+        <RecoveryBanner tasks={data.tasks} today={today} tz={settings.timezone} />
         <LayoutGroup id="planner">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <Card className="order-2 lg:order-none lg:col-span-2">

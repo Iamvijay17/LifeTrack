@@ -95,7 +95,7 @@ export default function FinancePage() {
           </>
         }
       />
-      <DataGate loading={loading} error={error} onRetry={refetch}>
+      <DataGate loading={loading} error={error} onRetry={refetch} skeleton="chart">
         <div className="space-y-5">
           <MonthNav month={month} today={today} onChange={setChosen} />
           <FinanceStats

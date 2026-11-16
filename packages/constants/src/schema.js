@@ -34,6 +34,7 @@ export const TABLES = [
   'notifications',
   'calendar_events',
   'calendar_event_exceptions',
+  'task_reschedules',
 ]
 export const ALL_TABLES = ['user_settings', ...TABLES]
 
@@ -70,6 +71,7 @@ export const DEFAULTS = {
     notification_settings: {},
     focus_prefs: { short_break: 5, long_break: 15, long_every: 4 },
     calendar_prefs: {},
+    appearance_prefs: {},
   },
   learning_topics: { notes: s, revision_dates: [], archived: false },
   goals: {
@@ -224,6 +226,7 @@ export const DEFAULTS = {
     ends_at: null,
     alert_minutes: null,
   },
+  task_reschedules: { title: s, source: 'recovery', from_start: null, from_end: null, to_date: null, to_start: null, to_end: null, reason: s, batch_id: null, dedupe_key: null, hide_until: null, undone_at: null },
 }
 
 /** Unique constraints (mirrors the SQL). `when` makes a constraint partial. */
@@ -243,4 +246,5 @@ export const UNIQUES = {
   journal_entries: [{ cols: ['user_id', 'entry_date'] }],
   notifications: [{ cols: ['user_id', 'dedupe_key'], when: (r) => r.dedupe_key != null }],
   calendar_event_exceptions: [{ cols: ['event_id', 'occurrence_date'] }],
+  task_reschedules: [{ cols: ['user_id', 'dedupe_key'], when: (r) => r.dedupe_key != null && r.undone_at == null }],
 }

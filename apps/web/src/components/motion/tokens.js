@@ -17,5 +17,6 @@ export const spring = {
 /** True when animation should not run: the visitor asked for less motion, or the tests turned it off. */
 export function motionOff() {
   if (MotionGlobalConfig.skipAnimations) return true
+  if (typeof document !== 'undefined' && document.documentElement.dataset.motion === 'reduced') return true // the person's own choice in Settings
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
 }

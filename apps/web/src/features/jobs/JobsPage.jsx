@@ -108,7 +108,7 @@ export default function JobsPage() {
           </>
         }
       />
-      <DataGate loading={loading} error={error} onRetry={refetch}>
+      <DataGate loading={loading} error={error} onRetry={refetch} skeleton="table">
         <div className="space-y-5">
           <JobsStats appliedThisWeek={appliedThisWeek} active={activePipelineCount(apps)} total={apps.length} funnel={stats} apps={apps} />
           <Reminders followups={followups} upcoming={upcoming} tz={tz} onOpen={open} />

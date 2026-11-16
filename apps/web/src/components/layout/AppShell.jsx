@@ -20,20 +20,14 @@ import { useRecurringRunner } from '@/features/finance/useRecurringRunner'
 import { useCalendarAlerts } from '@/features/calendar/useCalendarAlerts'
 import { ContextMenuProvider, useContextMenu } from '@/components/context-menu'
 import { QuickAddMenu, QuickFab, QuickActionsProvider } from '@/features/quick/QuickActions'
+import { CommandCenterProvider } from '@/features/command/CommandCenter'
 import { useSettings } from '@/hooks/useSettings'
 import { useThemeSync } from '@/hooks/useTheme'
+import { setAppearance, useAppearance, useAppearanceSync } from '@/hooks/useAppearance'
 import { seedDefaults } from '@/services/api'
 import { moduleForPath, navItemForPath } from '@/lib/modules'
 import { pageTitle } from '@/lib/nav'
 import { cn } from '@/lib/utils'
-
-const read = () => {
-  try {
-    return localStorage.getItem('lifetrack:sidebar') === '1'
-  } catch {
-    return false
-  }
-}
 
 /** The sticky top bar. On its own so that crossing the scroll threshold repaints only this, and its hairline appears only once content is under it. */
 function Header() {
@@ -86,20 +80,14 @@ function Header() {
 
 function Shell() {
   const menu = useContextMenu()
-  const [collapsed, setCollapsed] = useState(read)
-  const toggle = () =>
-    setCollapsed((c) => {
-      try {
-        localStorage.setItem('lifetrack:sidebar', c ? '0' : '1')
-      } catch {
-        /* preference only */
-      }
-      return !c
-    })
+  const { sidebar } = useAppearance()
+  const collapsed = sidebar.collapsed
+  const toggle = () => setAppearance({ sidebar: { collapsed: !collapsed } })
   const { pathname } = useLocation()
   const outlet = useOutlet()
   const main = useRef(null)
   useThemeSync()
+  useAppearanceSync()
   useReminderRunner()
   useSmartNotifications()
   useNotificationDelivery()
@@ -136,58 +124,60 @@ function Shell() {
 
   return (
     <QuickActionsProvider>
-      <a
-        href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-primary-solid focus:px-3 focus:py-1.5 focus:text-white"
-      >
-        Skip to content
-      </a>
-      <ChartGradients />
-      <AnimatePresence initial={false}>
-        <m.div
-          key={module}
-          aria-hidden
-          data-module={module}
-          className="lt-ambient"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.8 }}
-        />
-      </AnimatePresence>
-      <Sidebar collapsed={collapsed} onToggle={toggle} />
-      {/* Right-clicking the page's empty space opens the menu the page registered (usePageContextMenu); the header keeps the browser's own. */}
-      <div
-        className={cn('min-h-dvh transition-[padding] duration-200 ease-out', collapsed ? 'md:pl-[68px]' : 'md:pl-60')}
-        {...menu.pageProps({ label: 'Page actions' })}
-      >
-        <Banners />
-        <Header />
-        <main
-          id="main"
-          ref={main}
-          tabIndex={-1}
-          className="mx-auto w-full max-w-[76rem] px-4 pb-28 pt-4 outline-none focus-visible:ring-0 md:px-6 md:pb-10 md:pt-5"
+      <CommandCenterProvider>
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-primary-solid focus:px-3 focus:py-1.5 focus:text-white"
         >
-          {/* A page leaves quickly and the next one rises in. Nothing here waits on data: each page shows its own skeleton. */}
-          <AnimatePresence mode="wait" initial={false}>
-            <m.div
-              key={pathname}
-              data-reveal
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, transition: { duration: 0.09, ease: ease.in } }}
-              transition={{ duration: 0.26, ease: ease.out }}
-            >
-              <ErrorBoundary variant="section" resetKey={pathname}>
-                <Suspense fallback={<PageLoader message={messageForPath(pathname)} />}>{outlet}</Suspense>
-              </ErrorBoundary>
-            </m.div>
-          </AnimatePresence>
-        </main>
-      </div>
-      <MobileNav />
-      <QuickFab />
+          Skip to content
+        </a>
+        <ChartGradients />
+        <AnimatePresence initial={false}>
+          <m.div
+            key={module}
+            aria-hidden
+            data-module={module}
+            className="lt-ambient"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8 }}
+          />
+        </AnimatePresence>
+        <Sidebar collapsed={collapsed} onToggle={toggle} />
+        {/* Right-clicking the page's empty space opens the menu the page registered (usePageContextMenu); the header keeps the browser's own. */}
+        <div
+          className={cn('min-h-dvh transition-[padding] duration-200 ease-out', collapsed ? 'md:pl-[68px]' : 'md:pl-60')}
+          {...menu.pageProps({ label: 'Page actions' })}
+        >
+          <Banners />
+          <Header />
+          <main
+            id="main"
+            ref={main}
+            tabIndex={-1}
+            className="mx-auto w-full max-w-[76rem] px-4 pb-28 pt-4 outline-none focus-visible:ring-0 md:px-6 md:pb-10 md:pt-5"
+          >
+            {/* A page leaves quickly and the next one rises in. Nothing here waits on data: each page shows its own skeleton. */}
+            <AnimatePresence mode="wait" initial={false}>
+              <m.div
+                key={pathname}
+                data-reveal
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, transition: { duration: 0.09, ease: ease.in } }}
+                transition={{ duration: 0.26, ease: ease.out }}
+              >
+                <ErrorBoundary variant="section" resetKey={pathname}>
+                  <Suspense fallback={<PageLoader message={messageForPath(pathname)} />}>{outlet}</Suspense>
+                </ErrorBoundary>
+              </m.div>
+            </AnimatePresence>
+          </main>
+        </div>
+        <MobileNav />
+        <QuickFab />
+      </CommandCenterProvider>
     </QuickActionsProvider>
   )
 }

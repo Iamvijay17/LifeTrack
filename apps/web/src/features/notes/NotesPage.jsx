@@ -45,6 +45,13 @@ export default function NotesPage() {
     setParams({}, { replace: true })
   }, [params, loading, data.notes, setParams])
 
+  // The Command Center's "New note" arrives as ?new=1.
+  useEffect(() => {
+    if (params.get('new') !== '1') return
+    setDlg({ open: true, note: null })
+    setParams({}, { replace: true })
+  }, [params, setParams])
+
   const categories = useMemo(() => noteCategories(data.notes), [data.notes])
   const tags = useMemo(() => noteTags(data.notes), [data.notes])
   const list = useMemo(() => filterNotes(data.notes, { q, category, tag }), [data.notes, q, category, tag])
@@ -107,7 +114,7 @@ export default function NotesPage() {
       {tab === 'journal' ? (
         <Journal date={day} />
       ) : (
-        <DataGate loading={loading} error={error} onRetry={refetch} cards={0}>
+        <DataGate loading={loading} error={error} onRetry={refetch} cards={0} skeleton="list">
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <div className="relative min-w-40 max-w-sm flex-1">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

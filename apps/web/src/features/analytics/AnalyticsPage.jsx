@@ -53,7 +53,7 @@ export default function AnalyticsPage() {
           {fmtDay(from, 'd MMM yyyy')} – {fmtDay(to, 'd MMM yyyy')}
         </span>
       </div>
-      <DataGate loading={loading} error={error} onRetry={refetch}>
+      <DataGate loading={loading} error={error} onRetry={refetch} skeleton="chart">
         <div className="space-y-8">
           <LearningSection learning={a.learning} />
           <JobsSection jobs={a.jobs} />

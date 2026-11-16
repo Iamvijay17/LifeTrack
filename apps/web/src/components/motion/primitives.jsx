@@ -2,6 +2,7 @@ import { memo, useEffect, useId, useLayoutEffect, useRef, useState } from 'react
 import { LazyMotion, MotionConfig, m, useMotionValue, useSpring } from 'motion/react'
 import { drawCountable, hasCountable, parseCountable } from '@lifetrack/utils'
 import { cn } from '@/lib/utils'
+import { useAppearance } from '@/hooks/useAppearance'
 import { duration, ease, motionOff, spring } from './tokens'
 
 export { AnimatePresence, LayoutGroup, m } from 'motion/react'
@@ -18,13 +19,17 @@ const loadFeatures = () => features
  */
 export function MotionProvider({ children }) {
   const [failure, setFailure] = useState(null)
+  const appearance = useAppearance()
   useEffect(() => {
     features.catch(setFailure)
   }, [])
   if (failure) throw failure
   return (
     <LazyMotion features={loadFeatures}>
-      <MotionConfig reducedMotion="user" transition={{ duration: duration.base, ease: ease.out }}>
+      <MotionConfig
+        reducedMotion={appearance.motion === 'reduced' ? 'always' : 'user'}
+        transition={{ duration: duration.base, ease: ease.out }}
+      >
         {children}
       </MotionConfig>
     </LazyMotion>

@@ -440,7 +440,7 @@ export default function OverviewPage() {
         streak={streak}
         onCustomize={() => setCustomizing(true)}
       />
-      <DataGate loading={loading || habitsLoading} error={error || habitsError} onRetry={refetch}>
+      <DataGate loading={loading || habitsLoading} error={error || habitsError} onRetry={refetch} skeleton="dashboard">
         <LockedModulesNotice className="mb-4" />
         {!fresh && <KpiStrip kpis={kpis} />}
         <Stagger gap={0.05} className="grid grid-cols-1 gap-4 lg:grid-cols-12" data-testid="widget-grid">

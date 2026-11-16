@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate } from '@/components/shared/states'
@@ -81,6 +82,15 @@ export default function FocusPage() {
     if (!validMinutes) return toast.error(`Choose a duration between ${MIN_MINUTES} and ${MAX_MINUTES} minutes.`)
     timer.start({ mode: setup.mode, plannedMinutes: minutes, ...parseFocusTarget(setup.target), label: setup.label })
   }
+  // The Command Center's "Start a focus session" arrives as ?start=1: begin a block with the current setup, unless one is already running.
+  const [params, setParams] = useSearchParams()
+  const autoStarted = useRef(false)
+  useEffect(() => {
+    if (params.get('start') !== '1' || loading || autoStarted.current) return
+    autoStarted.current = true
+    if (!timer.timer) start()
+    setParams({}, { replace: true })
+  })
   const [stopEarly] = useAction(
     async () => {
       const t = timer.timer
