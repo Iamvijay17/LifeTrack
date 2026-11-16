@@ -109,27 +109,3 @@ export const isCustomized = (prefs) =>
     if (k === 'sizes') return v && Object.keys(v).length > 0
     return v === false
   })
-
-/**
- * Ready-made layouts to start from. `show` lists the widgets that stay (in this order, ahead of the rest); everything else is hidden.
- * Only widgets that already exist are used, so a preset can never show something that has no data behind it.
- */
-export const LAYOUT_PRESETS = [
-  { key: 'balanced', label: 'Balanced', description: 'Everything, in the standard order.', show: null },
-  { key: 'focus', label: 'Focus', description: 'Today, your priorities, goals and habits. Nothing else.', show: ['today', 'priorities', 'goals', 'habits', 'upcoming', 'progress'] },
-  { key: 'health', label: 'Health', description: 'Fitness, sleep, food and habits next to your daily progress.', show: ['progress', 'fitness', 'sleep', 'nutrition', 'habits', 'score'] },
-  { key: 'career', label: 'Career', description: 'Learning, job search and goals alongside today.', show: ['today', 'learning', 'jobs', 'goals', 'priorities', 'upcoming'] },
-]
-
-/** The `dashboard_widgets` value for a preset (the default layout for 'balanced'). Unknown keys give the default. */
-export function presetPrefs(key) {
-  const preset = LAYOUT_PRESETS.find((p) => p.key === key)
-  if (!preset?.show) return defaultLayoutPrefs()
-  const prefs = { order: [...preset.show, ...COMMAND_KEYS.filter((k) => !preset.show.includes(k))] }
-  for (const k of COMMAND_KEYS) if (!preset.show.includes(k)) prefs[k] = false
-  return prefs
-}
-
-/** Which preset these prefs are exactly, or null once they have been changed by hand. */
-export const presetOf = (prefs) =>
-  LAYOUT_PRESETS.find((p) => JSON.stringify(presetPrefs(p.key)) === JSON.stringify(prefs ?? {}))?.key ?? (isCustomized(prefs) ? null : 'balanced')

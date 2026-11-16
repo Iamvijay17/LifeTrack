@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { COMMAND_KEYS } from '../src/commandCenter'
+import { WIDGET_TYPES } from '../src/dashboardBuilder'
 import {
   LOCKABLE_MODULES,
   LOCK_SCOPES,
@@ -24,7 +24,7 @@ describe('the module list', () => {
     expect(new Set(tables).size).toBe(tables.length)
   })
   it('names real dashboard widgets and real, distinct pages', () => {
-    for (const w of LOCKABLE_MODULES.flatMap((m) => m.widgets)) expect(COMMAND_KEYS).toContain(w)
+    for (const w of LOCKABLE_MODULES.flatMap((m) => m.widgets)) expect(WIDGET_TYPES).toContain(w)
     const routes = LOCKABLE_MODULES.flatMap((m) => m.routes)
     expect(new Set(routes).size).toBe(routes.length)
     for (const r of routes) expect(r).toMatch(/^\/[a-z]+$/)

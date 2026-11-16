@@ -11,7 +11,6 @@ import {
   readStoredAppearance,
 } from '@/lib/appearance'
 import { MAX_PINNED, NAV, arrangeNav, mobilePrimaryItems, moveNavItem } from '@/lib/nav'
-import { LAYOUT_PRESETS, presetOf, presetPrefs, COMMAND_KEYS } from '@lifetrack/core/commandCenter'
 
 const WHITE = [255, 255, 255]
 const BG = { light: [248, 248, 250], dark: [9, 9, 11] }
@@ -125,18 +124,5 @@ describe('navigation arrangement', () => {
     expect(mobilePrimaryItems({}).map((n) => n.to)).toEqual(['/', '/planner', '/habits', '/finance'])
     const five = NAV.slice(0, 6).map((n) => n.to)
     expect(mobilePrimaryItems({ pinned: five })).toHaveLength(MAX_PINNED)
-  })
-})
-
-describe('dashboard layout presets', () => {
-  it('every preset only uses real widgets, hides the rest, and is recognised again', () => {
-    for (const p of LAYOUT_PRESETS) {
-      const prefs = presetPrefs(p.key)
-      for (const k of p.show ?? []) expect(COMMAND_KEYS).toContain(k)
-      for (const k of COMMAND_KEYS) expect(prefs[k] === false).toBe(p.show ? !p.show.includes(k) : false)
-      expect(presetOf(prefs)).toBe(p.key)
-    }
-    expect(presetOf({ today: false })).toBeNull()
-    expect(presetPrefs('nope')).toEqual({})
   })
 })

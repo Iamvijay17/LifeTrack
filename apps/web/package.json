@@ -39,6 +39,7 @@
     "motion": "^14.9.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-grid-layout": "^1.5.4",
     "react-hook-form": "^7.91.0",
     "react-router-dom": "^7.18.0",
     "recharts": "^2.15.4",

@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useContextMenu, usePageContextMenu } from '@/components/context-menu'
 import { DataGate } from '@/components/shared/states'
-import { Stagger, StaggerItem } from '@/components/motion/primitives'
 import { useQuick } from '@/features/quick/QuickActions'
 import { useHabits } from '@/features/habits/useHabits'
 import { refetchLoaded, useTable, useTables } from '@/hooks/store'
@@ -18,7 +17,10 @@ import { activeDayStreak } from '@/domain/streaks'
 import { dashboardGoals, greetingFor, recentActivity, todayHeadlines } from '@/domain/dashboard'
 import { dayStatus } from '@/domain/nutrition'
 import { gettingStartedSteps, isBrandNew } from '@lifetrack/core/dashboard'
-import { COMMAND_NEEDING_DATA, layoutOf } from '@lifetrack/core/commandCenter'
+import { COMMAND_NEEDING_DATA } from '@lifetrack/core/commandCenter'
+import { visibleWidgets } from '@lifetrack/core/dashboardBuilder'
+
+const widgetLabel = (type) => widgetDef(type)?.label ?? type
 import { moduleOfWidget, tableClosed } from '@lifetrack/core/moduleLocks'
 import { lifeScore } from '@lifetrack/core/lifeScore'
 import {
@@ -36,14 +38,12 @@ import { activePipelineCount } from '@/domain/jobs'
 import { addDays, eachDay, fmtDay, startOfWeek, timeStrInTz } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
 import { celebrate } from '@/lib/celebrate'
-import { cn } from '@/lib/utils'
 import { healthWeek } from '@/domain/health'
 import { LockedCard, LockedModulesNotice } from '@/features/security/ModuleUnlock'
 import { useModuleLocks } from '@/features/security/useModuleLocks'
 import { dashboardPageMenu, dashboardWidgetMenu } from './contextMenu'
 import { DashboardHero } from './DashboardHero'
 import { ActivityCard } from './ActivityCard'
-import { CustomizeDialog } from './CustomizeDialog'
 import { GettingStartedCard } from './GettingStartedCard'
 import { GoalsCard } from './GoalsCard'
 import { PrioritiesCard } from './PrioritiesCard'
@@ -62,21 +62,18 @@ import { JobsCard } from './JobsCard'
 import { KpiStrip } from './KpiStrip'
 import { LearningCard } from './LearningCard'
 import { SleepCard } from './SleepCard'
-import { useDashboardLayout } from './useDashboardLayout'
-import { isWidgetOn } from './widgets'
-
-// Spelled out in full, so Tailwind can see them. Widgets stack in one column until `lg`, then take their own span of 12.
-const SPAN = {
-  4: 'lg:col-span-4',
-  5: 'lg:col-span-5',
-  6: 'lg:col-span-6',
-  7: 'lg:col-span-7',
-  8: 'lg:col-span-8',
-  9: 'lg:col-span-9',
-  10: 'lg:col-span-10',
-  11: 'lg:col-span-11',
-  12: 'lg:col-span-12',
-}
+import { BudgetCard, CalendarCard, FocusCard, InterviewsCard, NotesCard, TransactionsCard } from './MoreCards'
+import { DashboardGrid } from './builder/DashboardGrid'
+import { EditBar, SaveNote } from './builder/EditBar'
+import { TemplatesDialog } from './builder/TemplatesDialog'
+import { WidgetLibrary } from './builder/WidgetLibrary'
+import { WidgetSettings } from './builder/WidgetSettings'
+import { WorkspaceBar } from './builder/WorkspaceBar'
+import { useDashboardBuilder } from './builder/useDashboardBuilder'
+import { widgetMenu } from './builder/widgetMenu'
+import { ConflictDialog, EmptyWorkspace } from './builder/Dialogs'
+import { widgetDef } from '@lifetrack/core/dashboardBuilder'
+import { useConfirm } from '@/components/shared/Confirm'
 
 const TABLES = [
   'tasks',
@@ -103,7 +100,10 @@ export default function OverviewPage() {
   const { displayName } = useAuth()
   const { settings, save: saveSettings } = useSettings()
   const quick = useQuick()
-  const [customizing, setCustomizing] = useState(false)
+  const [libraryOpen, setLibraryOpen] = useState(false)
+  const [templatesOpen, setTemplatesOpen] = useState(false)
+  const [configuring, setConfiguring] = useState(null)
+  const confirm = useConfirm()
   const { timezone: tz, week_starts_on: weekStartsOn, currency } = settings
   const locks = useModuleLocks()
   const closedKey = locks.closed.join()
@@ -125,16 +125,50 @@ export default function OverviewPage() {
   const nutritionSettings = tableClosed(closed, 'nutrition_settings') ? NO_ROWS : allNutritionSettings
   const { habits, logs: habitLogs, stats: habitStats, loading: habitsLoading, error: habitsError } = useHabits(today, weekStartsOn)
 
-  const layout = useDashboardLayout(settings.dashboard_widgets, saveSettings)
+  const builder = useDashboardBuilder(settings.dashboard_widgets, saveSettings)
+  const { active, editing, ops } = builder
   const navigate = useNavigate()
   const ctx = useContextMenu()
+  const startEditing = builder.startEdit
   usePageContextMenu(() =>
-    dashboardPageMenu({ prefs: layout.prefs, layout, refresh: () => refetchLoaded(), customize: () => setCustomizing(true) }),
+    dashboardPageMenu({
+      editing,
+      refresh: () => refetchLoaded(),
+      edit: startEditing,
+      addWidget: () => {
+        if (!editing) startEditing()
+        setLibraryOpen(true)
+      },
+    }),
   )
   const resetLayout = () => {
-    setCustomizing(false) // the Undo below is a toast, which a modal dialog would sit on top of
-    const before = layout.reset()
-    toast.success('Dashboard layout restored', { action: { label: 'Undo', onClick: () => layout.restore(before) } })
+    const before = builder.current()
+    ops.resetWorkspace()
+    toast.success('Dashboard layout restored', { action: { label: 'Undo', onClick: () => ops.restore(before) } })
+  }
+  const askRemove = useCallback(
+    async (widget) => {
+      const name = widget.title || widgetLabel(widget.type)
+      const ok = await confirm({
+        title: `Remove ${name}?`,
+        description: `It is taken off ${active.name} only. Your tasks, habits, goals, transactions and other data are not deleted. You can add it back from the library.`,
+        confirmLabel: 'Remove widget',
+      })
+      if (ok) ops.removeWidget(widget.id)
+    },
+    [confirm, active.name, ops],
+  )
+  const cancelEditing = async () => {
+    if (
+      builder.dirty &&
+      !(await confirm({
+        title: 'Discard your changes?',
+        description: 'Your saved dashboard stays as it was.',
+        confirmLabel: 'Discard changes',
+      }))
+    )
+      return
+    builder.cancel()
   }
   const [undo] = useAction((task) => setTaskStatus(task, 'pending', today))
   const [complete] = useAction(async (task) => {
@@ -200,7 +234,8 @@ export default function OverviewPage() {
   }, [tasks, habits, habitLogs, sessions, workouts, healthLogs, applications, interviews, settings, tz])
   const score = useMemo(() => scoreFor(today), [scoreFor, today])
   const weekLife = useMemo(() => lifeScore(scoreFor, today, 7), [scoreFor, today])
-  const scoreOn = isWidgetOn(layout.prefs, 'score')
+  const hasWidget = (type) => active.widgets.some((w) => w.type === type && !w.hidden)
+  const scoreOn = hasWidget('score')
   const monthLife = useMemo(() => (scoreOn ? lifeScore(scoreFor, today, 30) : null), [scoreOn, scoreFor, today])
 
   const headlines = useMemo(
@@ -372,10 +407,19 @@ export default function OverviewPage() {
   }, [remaining, agenda.total, loading, habitsLoading])
 
   // A brand-new account sees the guide rather than rows of zeros; everything appears after the first real entry.
-  const guideOn = isWidgetOn(layout.prefs, 'getting_started')
+  const guideOn = hasWidget('getting_started')
   const fresh = guideOn && isBrandNew(tasks, habits, data.goals, data.transactions, healthLogs, sessions, workouts, applications)
   const hidden = (key) => (fresh && COMMAND_NEEDING_DATA.includes(key)) || (key === 'getting_started' && guide.complete)
 
+  const focusMinutes = useMemo(
+    () =>
+      Math.round(
+        sessions
+          .filter((x) => x.session_date === today && x.status === 'completed')
+          .reduce((sum, x) => sum + (x.duration_seconds ?? 0), 0) / 60,
+      ),
+    [sessions, today],
+  )
   const greeting = greetingFor(Number(timeStrInTz(new Date(), tz).slice(0, 2)))
 
   const firstName = displayName ? `, ${displayName.split(' ')[0]}` : ''
@@ -385,7 +429,7 @@ export default function OverviewPage() {
         <GettingStartedCard
           guide={guide}
           onQuick={quick.open}
-          onDismiss={() => layout.setVisible('getting_started', false)}
+          onDismiss={() => ops.setHidden(active.widgets.find((w) => w.type === 'getting_started')?.id, true)}
           className={cls}
         />
       ),
@@ -427,8 +471,37 @@ export default function OverviewPage() {
     weekly: (cls) => <WeeklyScoreCard scoreFor={scoreFor} today={today} weekStartsOn={weekStartsOn} streak={streak} className={cls} />,
     activity: (cls) => <ActivityCard items={activity} className={cls} />,
     quick: () => <QuickActionsGrid onOpen={quick.open} />,
+    focus: (cls) => (
+      <FocusCard
+        minutes={focusMinutes}
+        targetMinutes={settings.daily_study_target_minutes}
+        running={sessions.some((x) => x.status === 'running')}
+        className={cls}
+      />
+    ),
+    notes: (cls, cfg) => <NotesCard count={cfg.count} className={cls} />,
+    calendar: (cls) => <CalendarCard today={today} weekStartsOn={weekStartsOn} tasks={tasks} interviews={interviews} className={cls} />,
+    budget: (cls) => <BudgetCard sum={finance.sum} money={money} className={cls} />,
+    transactions: (cls, cfg) => <TransactionsCard transactions={data.transactions} count={cfg.count} money={money} className={cls} />,
+    interviews: (cls, cfg) => (
+      <InterviewsCard interviews={interviews} applications={applications} tz={tz} count={cfg.count} className={cls} />
+    ),
   }
-  const rows = layoutOf(layout.prefs, (key) => !hidden(key))
+  // What each visible widget shows. A widget with nothing to show yet (a new account) or whose module is locked is handled here, so the grid
+  // only ever sees cards that have content.
+  const items = visibleWidgets(active)
+    .filter((w) => !hidden(w.type))
+    .map((widget) => {
+      const module = moduleOfWidget(widget.type)
+      const node =
+        module && locks.isLocked(module) ? (
+          <LockedCard module={module} className="h-full" />
+        ) : (
+          widgets[widget.type]?.('h-full', widget.config)
+        )
+      return { widget, node }
+    })
+    .filter((x) => x.node)
 
   return (
     <>
@@ -438,38 +511,93 @@ export default function OverviewPage() {
         tz={tz}
         agenda={agenda}
         streak={streak}
-        onCustomize={() => setCustomizing(true)}
+        editing={editing}
+        onCustomize={startEditing}
       />
       <DataGate loading={loading || habitsLoading} error={error || habitsError} onRetry={refetch} skeleton="dashboard">
         <LockedModulesNotice className="mb-4" />
         {!fresh && <KpiStrip kpis={kpis} />}
-        <Stagger gap={0.05} className="grid grid-cols-1 gap-4 lg:grid-cols-12" data-testid="widget-grid">
-          {rows.map(({ key, span, size }) => (
-            <StaggerItem
-              key={key}
-              data-widget={key}
-              data-size={size}
-              className={cn('min-w-0 [container-type:inline-size]', SPAN[span] ?? 'lg:col-span-12')}
-              {...ctx.bind(() => dashboardWidgetMenu({ key, prefs: layout.prefs, layout, go: navigate }), { label: 'Widget actions' })}
-            >
-              {moduleOfWidget(key) && locks.isLocked(moduleOfWidget(key)) ? (
-                <LockedCard module={moduleOfWidget(key)} className="h-full" />
-              ) : (
-                widgets[key]('h-full')
-              )}
-            </StaggerItem>
-          ))}
-        </Stagger>
+        {editing && (
+          <EditBar
+            dirty={builder.dirty}
+            status={builder.status}
+            onAdd={() => setLibraryOpen(true)}
+            onTemplates={() => setTemplatesOpen(true)}
+            onReset={resetLayout}
+            onCancel={cancelEditing}
+            onSave={builder.commit}
+          />
+        )}
+        <div className="mb-3 flex flex-wrap items-center gap-x-3">
+          <div className="min-w-0 flex-1">
+            <WorkspaceBar state={builder.state} active={active} ops={ops} onSelect={builder.select} />
+          </div>
+          {!editing && <SaveNote status={builder.status} />}
+        </div>
+        {items.length === 0 ? (
+          <EmptyWorkspace
+            name={active.name}
+            editing={editing}
+            onAdd={() => (editing ? setLibraryOpen(true) : (startEditing(), setLibraryOpen(true)))}
+          />
+        ) : (
+          <DashboardGrid
+            workspace={active}
+            items={items}
+            editing={editing}
+            onLayout={ops.setLayout}
+            onMove={ops.moveInColumn}
+            menuFor={(widget) =>
+              widgetMenu({ widget, workspace: active, state: builder.state, ops, configure: setConfiguring, confirmRemove: askRemove })
+            }
+            bindFor={(widget) =>
+              ctx.bind(
+                () =>
+                  dashboardWidgetMenu({
+                    widget,
+                    editing,
+                    go: navigate,
+                    edit: startEditing,
+                    menu: widgetMenu({
+                      widget,
+                      workspace: active,
+                      state: builder.state,
+                      ops,
+                      configure: setConfiguring,
+                      confirmRemove: askRemove,
+                    }),
+                  }),
+                { label: 'Widget actions' },
+              )
+            }
+          />
+        )}
       </DataGate>
-      <CustomizeDialog
-        open={customizing}
-        onOpenChange={setCustomizing}
-        prefs={layout.prefs}
-        onToggle={layout.setVisible}
-        onReorder={layout.setOrder}
-        onResize={layout.setSize}
-        onReset={resetLayout}
+      <WidgetLibrary
+        open={libraryOpen}
+        onOpenChange={setLibraryOpen}
+        workspace={active}
+        onAdd={(type) => {
+          if (!editing) startEditing()
+          ops.addWidget(type)
+        }}
+        onShow={(id) => ops.setHidden(id, false)}
       />
+      <TemplatesDialog
+        open={templatesOpen}
+        onOpenChange={setTemplatesOpen}
+        workspace={active}
+        templates={builder.state.templates}
+        onApply={(tpl) => {
+          if (!editing) startEditing()
+          ops.applyTemplate(tpl)
+        }}
+        onNew={(tpl) => ops.createWorkspace(tpl.name, tpl.id)}
+        onSave={ops.saveAsTemplate}
+        onDelete={ops.deleteTemplate}
+      />
+      <WidgetSettings widget={configuring} onClose={() => setConfiguring(null)} onSave={ops.updateWidget} />
+      <ConflictDialog conflict={builder.conflict} onResolve={builder.resolveConflict} />
     </>
   )
 }

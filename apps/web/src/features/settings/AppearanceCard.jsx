@@ -1,6 +1,6 @@
 import { useId } from 'react'
 import { Check, LayoutDashboard, Palette, RotateCcw } from 'lucide-react'
-import { LAYOUT_PRESETS, presetOf, presetPrefs } from '@lifetrack/core/commandCenter'
+import { Link } from 'react-router-dom'
 import { SettingsSection } from '@/components/shared/SettingsSection'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/form'
@@ -114,8 +114,6 @@ export function AppearanceCard() {
     applyTheme(theme) // apply immediately, then persist to the account
     await save({ theme })
   })
-  const [setLayout] = useAction(async (key) => save({ dashboard_widgets: presetPrefs(key) }), { success: 'Dashboard layout changed' })
-  const layout = presetOf(settings.dashboard_widgets)
   return (
     <SettingsSection headingAs="h3" icon={Palette} title="Appearance" desc="How LifeTrack looks. Follows your account on every device.">
       <Row title="Theme" desc="Dark, light, or whatever your device uses.">
@@ -148,28 +146,12 @@ export function AppearanceCard() {
           <LayoutDashboard className="h-4 w-4 text-muted-foreground" aria-hidden />
           <p className="text-sm font-medium">Dashboard layout</p>
         </div>
-        <div role="radiogroup" aria-label="Dashboard layout" className="grid gap-2 sm:grid-cols-2">
-          {LAYOUT_PRESETS.map((p) => (
-            <button
-              key={p.key}
-              type="button"
-              role="radio"
-              aria-checked={layout === p.key}
-              onClick={() => layout !== p.key && setLayout(p.key)}
-              className={cn(
-                'lt-press min-h-11 rounded-lg border p-3 text-left transition-colors',
-                layout === p.key ? 'border-mod/60 bg-mod/10' : 'border-border bg-surface-2/50 hover:border-muted-foreground/40',
-              )}
-            >
-              <span className="block text-sm font-medium">{p.label}</span>
-              <span className="block text-xs text-muted-foreground">{p.description}</span>
-            </button>
-          ))}
-        </div>
         <p className="text-xs text-muted-foreground">
-          {layout
-            ? 'Fine-tune it with “Customize” on the dashboard.'
-            : 'Your own arrangement. Pick one above to replace it, or change it with “Customize” on the dashboard.'}
+          Drag, resize and add widgets, keep several dashboards (workspaces) and start from a template with{' '}
+          <Link to="/" className="text-mod-text underline underline-offset-2">
+            Edit dashboard
+          </Link>
+          .
         </p>
       </div>
       <div className="flex justify-end border-t border-border pt-3">

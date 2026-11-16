@@ -34,7 +34,7 @@ describe('with Finance locked', () => {
     const locked = await screen.findByTestId('locked-finance', {}, { timeout: 40_000 })
     rightClick(locked.closest('[data-widget]'))
     // layout actions are fine (they show no data); opening the locked module is not offered
-    expect(await screen.findByRole('menuitem', { name: 'Hide widget' })).toBeInTheDocument()
+    expect(await screen.findByRole('menuitem', { name: 'Edit dashboard' })).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: /Open Finance/ })).toBeNull()
     expect(document.body.textContent).not.toMatch(/Secret lunch|1,234/)
     fireEvent.keyDown(document, { key: 'Escape' })

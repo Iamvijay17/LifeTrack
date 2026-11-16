@@ -129,30 +129,27 @@ describe('Tasks (Daily Planner)', () => {
 })
 
 describe('Dashboard', () => {
-  it('empty-space menu refreshes, customises and manages widgets', async () => {
+  it('empty-space menu refreshes and starts editing; in edit mode a widget menu hides it, and Cancel brings it back', async () => {
     const user = userEvent.setup()
     await db.insert('tasks', [{ title: 'Seed', due_date: TODAY }])
     renderApp('/')
     await screen.findByTestId('widget-grid', {}, { timeout: 40_000 })
     rightClick(screen.getByRole('main'))
     expect(await item('Refresh data')).toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: 'Reset layout' })).toBeNull() // default layout: nothing to reset
-    await user.click(screen.getByRole('menuitem', { name: 'Customize dashboard' }))
-    expect(await screen.findByRole('dialog')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Close' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(screen.getByRole('menuitem', { name: 'Add widget' })).toBeInTheDocument()
+    await user.click(screen.getByRole('menuitem', { name: 'Edit dashboard' }))
+    expect(await screen.findByTestId('edit-bar')).toBeInTheDocument()
 
-    // a widget: hide it, then it comes back through Add widget
+    // a widget: its menu now has the editing actions; hide it, then Cancel puts the saved layout back
     const widget = within(screen.getByTestId('widget-grid')).getAllByText(/./, { selector: '[data-widget] *' })[0].closest('[data-widget]')
     const key = widget.dataset.widget
     rightClick(widget)
-    await user.click(await item('Hide widget'))
+    await user.click(await item('Hide for now'))
     await waitFor(() => expect(screen.getByTestId('widget-grid').querySelector(`[data-widget="${key}"]`)).toBeNull())
-    rightClick(screen.getByRole('main'))
-    await user.click(await item('Add widget'))
-    const sub = await screen.findByRole('menu', { name: 'Add widget' })
-    await user.click(within(sub).getAllByRole('menuitem')[0])
+    await user.click(within(screen.getByTestId('edit-bar')).getByRole('button', { name: 'Cancel' }))
+    await user.click(await screen.findByRole('button', { name: 'Discard changes' }))
     await waitFor(() => expect(screen.getByTestId('widget-grid').querySelector(`[data-widget="${key}"]`)).not.toBeNull())
+    expect(screen.queryByTestId('edit-bar')).toBeNull()
     void gone
   })
 })

@@ -10,8 +10,6 @@ import { NutritionCard } from '@/features/overview/NutritionCard'
 import { dayStatus } from '@/domain/nutrition'
 import { GoalsCard } from '@/features/overview/GoalsCard'
 import { ActivityCard } from '@/features/overview/ActivityCard'
-import { CustomizeDialog } from '@/features/overview/CustomizeDialog'
-import { COMMAND_WIDGETS } from '@lifetrack/core/commandCenter'
 
 const wrap = (ui) => render(<MemoryRouter>{ui}</MemoryRouter>)
 const money = (p) => `₹${p / 100}`
@@ -139,26 +137,5 @@ describe('ActivityCard', () => {
   it('empty state', () => {
     render(<ActivityCard items={[]} />)
     expect(screen.getByText('Your activity will show up here.')).toBeInTheDocument()
-  })
-})
-
-describe('CustomizeDialog', () => {
-  it('reflects prefs (default on) and reports toggles', async () => {
-    const onToggle = vi.fn()
-    render(<CustomizeDialog open onOpenChange={() => {}} prefs={{ score: false }} onToggle={onToggle} />)
-    const score = screen.getByRole('switch', { name: 'Life Score' })
-    expect(score).toHaveAttribute('aria-checked', 'false')
-    expect(screen.getByRole('switch', { name: "Today's progress" })).toHaveAttribute('aria-checked', 'true')
-    await userEvent.click(score)
-    expect(onToggle).toHaveBeenCalledWith('score', true)
-  })
-})
-
-describe('CustomizeDialog arranging', () => {
-  it('lists widgets in the saved order, with the rest after them', () => {
-    render(<CustomizeDialog open onOpenChange={() => {}} prefs={{ order: ['quick', 'score'] }} onToggle={() => {}} onReorder={() => {}} />)
-    const names = screen.getAllByRole('switch').map((s) => s.getAttribute('aria-label'))
-    expect(names.slice(0, 2)).toEqual(['Quick actions', 'Life Score'])
-    expect(names).toHaveLength(COMMAND_WIDGETS.length)
   })
 })

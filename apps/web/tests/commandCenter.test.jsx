@@ -1,10 +1,8 @@
 import '@testing-library/jest-dom/vitest'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, render, renderHook, screen, within } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { toast } from 'sonner'
-import { CustomizeDialog } from '@/features/overview/CustomizeDialog'
 import { FitnessCard } from '@/features/overview/FitnessCard'
 import { HabitsCard } from '@/features/overview/HabitsCard'
 import { JobsCard } from '@/features/overview/JobsCard'
@@ -14,8 +12,6 @@ import { ScoreCard } from '@/features/overview/ScoreCard'
 import { SleepCard } from '@/features/overview/SleepCard'
 import { SpendingCard } from '@/features/overview/SpendingCard'
 import { WeeklyScoreCard } from '@/features/overview/WeeklyScoreCard'
-import { useDashboardLayout } from '@/features/overview/useDashboardLayout'
-import { useSaveStatus } from '@/hooks/store'
 import { SCORE_CATEGORIES } from '@lifetrack/core/score'
 import { lifeScore } from '@lifetrack/core/lifeScore'
 import { fitnessSnapshot, habitsSnapshot, jobsSnapshot, learningSnapshot, sleepSnapshot } from '@lifetrack/core/snapshots'
@@ -266,132 +262,5 @@ describe('module widgets', () => {
     expect(screen.getByText('Left to spend')).toBeInTheDocument()
     expect(screen.getByText('no budget set')).toBeInTheDocument()
     expect(screen.getByText(/Nothing recorded this month/)).toBeInTheDocument()
-  })
-})
-
-describe('CustomizeDialog: sizes, moving and restoring', () => {
-  const open = (props) => render(<CustomizeDialog open onOpenChange={() => {}} prefs={{}} {...props} />)
-  it('picks a size for a widget and reports it', async () => {
-    const onResize = vi.fn()
-    open({ onResize })
-    await userEvent.click(screen.getByRole('radio', { name: 'Finance: Large' }))
-    expect(onResize).toHaveBeenCalledWith('spending', 'lg')
-  })
-  it('shows the current size, the default when nothing is saved', () => {
-    open({ prefs: { sizes: { goals: 'full' } } })
-    expect(screen.getByRole('radio', { name: 'Goal progress: Full width' })).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByRole('radio', { name: 'Recent activity: Small' })).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByRole('radio', { name: 'Career & learning: Medium' })).toHaveAttribute('aria-checked', 'true')
-  })
-  it('offers only the sizes a widget is built for, and none for a full-width widget', () => {
-    open()
-    expect(screen.queryByRole('radio', { name: 'Today agenda: Small' })).toBeNull()
-    expect(screen.getByRole('radio', { name: 'Today agenda: Medium' })).toBeInTheDocument()
-    expect(screen.getAllByText('Always full width').length).toBeGreaterThan(0)
-  })
-  it('a hidden widget has no size picker', () => {
-    open({ prefs: { goals: false } })
-    expect(screen.queryByRole('radio', { name: /Goal progress/ })).toBeNull()
-  })
-  it('moves a widget with the arrows, and the ends cannot move further', async () => {
-    const onReorder = vi.fn()
-    open({ prefs: { order: ['quick', 'today'] }, onReorder })
-    expect(screen.getByRole('button', { name: 'Move Quick actions up' })).toBeDisabled()
-    await userEvent.click(screen.getByRole('button', { name: 'Move Quick actions down' }))
-    expect(onReorder.mock.calls[0][0].slice(0, 2)).toEqual(['today', 'quick'])
-  })
-  it('Restore default layout is disabled until something changed, then asks to reset', async () => {
-    const onReset = vi.fn()
-    const { unmount } = open({ onReset })
-    expect(screen.getByRole('button', { name: /Restore default layout/ })).toBeDisabled()
-    unmount()
-    open({ prefs: { sizes: { goals: 'md' } }, onReset })
-    await userEvent.click(screen.getByRole('button', { name: /Restore default layout/ }))
-    expect(onReset).toHaveBeenCalledTimes(1)
-  })
-})
-
-describe('useDashboardLayout', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-    vi.clearAllMocks()
-  })
-  afterEach(() => vi.useRealTimers())
-
-  it('shows a change at once and saves several changes as one request', async () => {
-    const save = vi.fn().mockResolvedValue(undefined)
-    const { result } = renderHook(() => useDashboardLayout({}, save))
-    act(() => {
-      result.current.setVisible('goals', false)
-      result.current.setSize('activity', 'md')
-      result.current.setOrder(['quick', 'today'])
-    })
-    expect(result.current.prefs).toEqual({ goals: false, sizes: { activity: 'md' }, order: ['quick', 'today'] })
-    expect(save).not.toHaveBeenCalled()
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(400)
-    })
-    expect(save).toHaveBeenCalledTimes(1)
-    expect(save).toHaveBeenCalledWith({ dashboard_widgets: { goals: false, sizes: { activity: 'md' }, order: ['quick', 'today'] } })
-  })
-  it('keeps what is already saved (other devices, the mobile app) when it changes one thing', async () => {
-    const save = vi.fn().mockResolvedValue(undefined)
-    const { result } = renderHook(() => useDashboardLayout({ nutrition: false, mobileOnly: true }, save))
-    act(() => result.current.setSize('goals', 'lg'))
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(400)
-    })
-    expect(save).toHaveBeenCalledWith({ dashboard_widgets: { nutrition: false, mobileOnly: true, sizes: { goals: 'lg' } } })
-  })
-  it('ignores a size the widget is not built for, with nothing saved', async () => {
-    const save = vi.fn().mockResolvedValue(undefined)
-    const { result } = renderHook(() => useDashboardLayout({}, save))
-    act(() => result.current.setSize('today', 'sm'))
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(400)
-    })
-    expect(save).not.toHaveBeenCalled()
-  })
-  it('reset saves straight away and hands back what it replaced for Undo', async () => {
-    const save = vi.fn().mockResolvedValue(undefined)
-    const { result } = renderHook(() => useDashboardLayout({ goals: false }, save))
-    let before
-    await act(async () => {
-      before = result.current.reset()
-    })
-    expect(before).toEqual({ goals: false })
-    expect(save).toHaveBeenCalledWith({ dashboard_widgets: {} })
-    await act(async () => {
-      result.current.restore(before)
-    })
-    expect(save).toHaveBeenLastCalledWith({ dashboard_widgets: { goals: false } })
-  })
-  it('goes back to the saved layout and says so when the save fails', async () => {
-    const save = vi.fn().mockRejectedValue(new Error('offline'))
-    const { result } = renderHook(() => useDashboardLayout({ goals: true }, save))
-    act(() => result.current.setVisible('goals', false))
-    expect(result.current.prefs.goals).toBe(false)
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(400)
-    })
-    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("Couldn't save your layout"))
-    expect(result.current.prefs.goals).toBe(true)
-  })
-  it('counts a change that is still waiting as "saving" (so leaving the page is guarded) until it is written', async () => {
-    const save = vi.fn().mockResolvedValue(undefined)
-    const { result } = renderHook(() => ({ layout: useDashboardLayout({}, save), status: useSaveStatus() }))
-    act(() => result.current.layout.setVisible('goals', false))
-    expect(result.current.status.status).toBe('saving')
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(400)
-    })
-    expect(result.current.status.status).toBe('saved')
-  })
-  it('saves a pending change when the dashboard is left', async () => {
-    const save = vi.fn().mockResolvedValue(undefined)
-    const { result, unmount } = renderHook(() => useDashboardLayout({}, save))
-    act(() => result.current.setVisible('nutrition', false))
-    unmount()
-    expect(save).toHaveBeenCalledWith({ dashboard_widgets: { nutrition: false } })
   })
 })

@@ -27,7 +27,7 @@ const Chip = ({ children }) => (
 )
 
 /** The top of the day: who, when and how it's going. The `h1` of the page lives here. */
-export function DashboardHero({ greeting, date, tz, agenda, streak, weekAvg, onCustomize }) {
+export function DashboardHero({ greeting, date, tz, agenda, streak, weekAvg, editing, onCustomize }) {
   const { doneCount, total } = agenda
   return (
     <m.section
@@ -57,9 +57,9 @@ export function DashboardHero({ greeting, date, tz, agenda, streak, weekAvg, onC
         <div className="text-[2rem] leading-none text-foreground/90 md:text-[2.5rem]">
           <LiveClock tz={tz} />
         </div>
-        <Button variant="outline" size="sm" onClick={onCustomize}>
+        <Button variant="outline" size="sm" onClick={onCustomize} disabled={editing} aria-pressed={editing}>
           <SlidersHorizontal className="h-4 w-4" aria-hidden />
-          Customize
+          {editing ? 'Editing…' : 'Edit dashboard'}
         </Button>
       </div>
     </m.section>
