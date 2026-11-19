@@ -103,7 +103,7 @@ export function ScoreCard({ daily, week, month, className }) {
                 {c.applicableDays > 0 ? (
                   <Progress value={c.fraction * 100} tone={c.fraction >= 1 ? 'success' : 'primary'} label={`${c.label} completion`} />
                 ) : (
-                  <span className="text-muted-foreground/70">not tracked</span>
+                  <span className="text-muted-foreground">not tracked</span>
                 )}
                 <span
                   className="text-right tabular-nums text-muted-foreground"

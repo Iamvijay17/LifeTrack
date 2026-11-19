@@ -130,7 +130,7 @@ export const NotificationCard = memo(function NotificationCard({
               {dismissed && <Badge>Dismissed</Badge>}
 
               {/* Always there on a phone; on a computer they appear when you point at or tab into the card. They share the badges' row, so they add no height. */}
-              <div className="-my-1.5 ml-auto flex items-center gap-0.5 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+              <div className="-my-1.5 ml-auto flex items-center gap-0.5 transition-opacity md:group-hover:opacity-100 md:group-focus-within:opacity-100 [@media(hover:hover)]:md:opacity-0">
                 {n.link && view !== 'history' && (
                   <Link
                     to={safeLink(n.link)}

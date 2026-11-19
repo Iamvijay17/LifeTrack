@@ -10,8 +10,8 @@ import * as store from '@/hooks/store'
 import { useAction } from '@/hooks/useAction'
 import { useConfirm } from '@/components/shared/Confirm'
 
-const PRIORITY_TONE = { high: 'danger', medium: 'warning', low: 'neutral' }
-const PRIORITY_MARK = { high: 'bg-danger', medium: 'bg-warning', low: 'bg-muted-foreground/40' }
+const PRIORITY_TONE = { urgent: 'danger', high: 'danger', medium: 'warning', low: 'neutral' }
+const PRIORITY_MARK = { urgent: 'bg-danger', high: 'bg-danger', medium: 'bg-warning', low: 'bg-muted-foreground/40' }
 
 export function TaskRow({ task, today, onEdit, showDue, rowProps }) {
   const confirm = useConfirm()

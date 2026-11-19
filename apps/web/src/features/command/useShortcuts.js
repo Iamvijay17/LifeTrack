@@ -54,8 +54,11 @@ export function useShortcuts({ toggle, open, help, go, create, paletteOpen }) {
         e.preventDefault()
         h.open()
       } else if (key === '?') {
-        e.preventDefault()
-        h.help()
+        // A page with its own shortcut list (the Calendar) handles '?' itself. Its listener runs after this one, so wait until the key press
+        // has been handled everywhere and open the app-wide sheet only if no page took it. ('?' has no browser default to prevent.)
+        setTimeout(() => {
+          if (!e.defaultPrevented && !overlayOpen()) handlers.current.help()
+        }, 0)
       } else if ((key === 'g' || key === 'c') && !e.shiftKey) {
         pending = key
         timer = setTimeout(disarm, CHORD_MS)

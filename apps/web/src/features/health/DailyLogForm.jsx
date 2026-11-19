@@ -18,8 +18,8 @@ const schema = z
   .object({
     bedtime: optionalTime,
     wake_time: optionalTime,
-    water_ml: numberInRange(0, 20000, 'Water'),
-    steps: numberInRange(0, 200000, 'Steps'),
+    water_ml: numberInRange(0, 20000, 'Water', { int: true }),
+    steps: numberInRange(0, 200000, 'Steps', { int: true }),
     energy_level: z.string(),
     weight_kg: numberInRange(20, 500, 'Weight'),
     notes: z.string().max(1000),

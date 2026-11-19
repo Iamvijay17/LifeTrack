@@ -41,9 +41,12 @@ function useFormValue({ forwardedRef, name, value, defaultValue, onChange, onBlu
     [forwardedRef],
   )
   const commit = (v) => {
+    const changed = v !== innerRef.current
     innerRef.current = v
     setInner(v)
     onChange?.({ type: 'change', target: controlled ? { name, value: v } : elRef.current })
+    // A pick is input, like typing: an `input` event bubbles to the form, so a dialog knows something changed (FormDialog's "Discard changes?").
+    if (changed) btnRef.current?.dispatchEvent(new Event('input', { bubbles: true }))
   }
   const blur = () => onBlur?.({ type: 'blur', target: controlled ? { name, value: current } : elRef.current })
   const hidden = <input ref={setRef} name={name} hidden readOnly tabIndex={-1} aria-hidden="true" />
@@ -79,7 +82,12 @@ export const Select = forwardRef(function Select(
   const options = readOptions(children)
   const [hi, setHi] = useState(0)
   const listId = useId()
-  const selected = options.find((o) => o.value === current) ?? options[0]
+  // A value that is not one of the options (a category from another month, a goal no longer listed) shows a neutral dash, never another
+  // option's label. Only an empty value with no empty option shows the first option, as a native <select> would.
+  const known = options.find((o) => o.value === current)
+  // null / undefined ("none") are empty like '' (useFormValue already turns them into ''): they show the '' option, else the first one.
+  const unknown = !known && current != null && current !== ''
+  const label = known ? known.label : unknown ? '—' : (options[0]?.label ?? '')
   const openList = () => {
     setHi(
       Math.max(
@@ -129,7 +137,7 @@ export const Select = forwardRef(function Select(
         className={cn(trigger, className)}
         {...aria}
       >
-        <span className="truncate">{selected?.label ?? ''}</span>
+        <span className={cn('truncate', unknown && 'text-muted-foreground')}>{label}</span>
         <ChevronDown className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')} />
       </button>
       <Popup

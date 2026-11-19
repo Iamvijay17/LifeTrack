@@ -166,7 +166,7 @@ function sourceItems(d, { from, to, tz }) {
         endMs: startMs + INTERVIEW_MINUTES * 60000,
         done: iv.status === 'completed',
         movable: iv.status === 'scheduled',
-        href: '/jobs',
+        href: iv.application_id ? `/jobs?app=${iv.application_id}` : '/jobs',
       }),
     )
   }
@@ -214,7 +214,7 @@ function sourceItems(d, { from, to, tz }) {
   }
   for (const a of d.applications ?? [])
     if (!CLOSED_APPLICATION.includes(a.status) && inRange(a.followup_date))
-      out.push(lane({ key: `followup:${a.id}`, kind: 'deadline', sourceType: 'application', id: a.id, row: a, title: `Follow up with ${a.company}`, category: 'jobs', color: categoryMeta('jobs').color, date: a.followup_date, href: '/jobs' }))
+      out.push(lane({ key: `followup:${a.id}`, kind: 'deadline', sourceType: 'application', id: a.id, row: a, title: `Follow up with ${a.company}`, category: 'jobs', color: categoryMeta('jobs').color, date: a.followup_date, href: `/jobs?app=${a.id}` }))
   for (const r of d.recurringRules ?? [])
     if (r.active && inRange(r.next_date))
       out.push(lane({ key: `bill:${r.id}`, kind: 'deadline', sourceType: 'recurring_rule', id: r.id, row: r, title: r.note || `${r.category} ${r.type === 'income' ? 'income' : 'payment'}`, category: 'finance', color: categoryMeta('finance').color, date: r.next_date, href: '/finance' }))

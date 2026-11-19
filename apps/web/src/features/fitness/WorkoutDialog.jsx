@@ -6,28 +6,32 @@ import { Button } from '@/components/ui/button'
 import { Field, Input, Select, Textarea } from '@/components/ui/form'
 import { ExercisePicker } from './catalog/ExercisePicker'
 import { formExercisesToLogs, groupSets, routineToFormExercises } from '@/domain/fitness'
-import { nonNegativeNumber, optionalNumber, requiredDay } from '@/lib/validation'
+import { nonNegativeNumber, optionalNumber, optionalWholeNumber, requiredDay, wholeNumber } from '@/lib/validation'
 import { useAction } from '@/hooks/useAction'
 import { useDialogForm } from '@/hooks/useDialogForm'
 import { saveWorkout } from '@/services/api'
 import { WorkoutSets } from './WorkoutSets'
 
-const schema = z.object({
-  workout_date: requiredDay(),
-  routine_id: z.string(),
-  name: z.string().trim().min(1, 'Name the workout').max(80),
-  kind: z.enum(['strength', 'cardio', 'mixed', 'other']),
-  duration_minutes: optionalNumber(1440, 'Duration'),
-  cardio_minutes: optionalNumber(1440, 'Cardio minutes'),
-  cardio_distance_km: optionalNumber(1000, 'Distance'),
-  notes: z.string().max(2000),
-  exercises: z.array(
-    z.object({
-      name: z.string().trim().min(1, 'Exercise name'),
-      sets: z.array(z.object({ reps: nonNegativeNumber(1000, 'Reps'), weight: nonNegativeNumber(1000, 'Weight') })),
-    }),
-  ),
-})
+// A cardio workout hides the exercise rows, so it neither checks nor saves them (a hidden empty row must not block Save).
+const schema = z.preprocess(
+  (v) => (v?.kind === 'cardio' ? { ...v, exercises: [] } : v),
+  z.object({
+    workout_date: requiredDay(),
+    routine_id: z.string(),
+    name: z.string().trim().min(1, 'Name the workout').max(80),
+    kind: z.enum(['strength', 'cardio', 'mixed', 'other']),
+    duration_minutes: optionalWholeNumber(1440, 'Duration'),
+    cardio_minutes: optionalWholeNumber(1440, 'Cardio minutes'),
+    cardio_distance_km: optionalNumber(1000, 'Distance'),
+    notes: z.string().max(2000),
+    exercises: z.array(
+      z.object({
+        name: z.string().trim().min(1, 'Exercise name'),
+        sets: z.array(z.object({ reps: wholeNumber(1000, 'Reps'), weight: nonNegativeNumber(1000, 'Weight') })),
+      }),
+    ),
+  }),
+)
 
 const toNumberOrNull = (x) => (x === '' ? null : Number(x))
 
@@ -67,6 +71,7 @@ export function WorkoutDialog({ open, onOpenChange, workout, sets = [], routines
     control,
     handleSubmit,
     setValue,
+    getValues,
     watch,
     formState: { errors },
   } = useDialogForm({
@@ -99,7 +104,7 @@ export function WorkoutDialog({ open, onOpenChange, workout, sets = [], routines
         cardio_distance_km: toNumberOrNull(v.cardio_distance_km),
         notes: v.notes,
       }
-      await saveWorkout(row, formExercisesToLogs(v.exercises, library), workout)
+      await saveWorkout(row, v.kind === 'cardio' ? [] : formExercisesToLogs(v.exercises, library), workout)
       onOpenChange(false)
     },
     { success: workout ? 'Workout updated' : 'Workout logged' },
@@ -173,7 +178,7 @@ export function WorkoutDialog({ open, onOpenChange, workout, sets = [], routines
                 </Button>
               </div>
               {errors.exercises?.[i]?.name && <p className="text-xs text-danger">{errors.exercises[i].name.message}</p>}
-              <WorkoutSets control={control} register={register} index={i} errors={errors} />
+              <WorkoutSets control={control} register={register} getValues={getValues} index={i} errors={errors} />
             </div>
           ))}
           <Button type="button" variant="outline" size="sm" onClick={() => append({ name: '', sets: [{ reps: 10, weight: 0 }] })}>

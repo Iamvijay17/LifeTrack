@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { pickOption } from './pickers'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { render, screen, waitFor, act, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { groupTasksForDay, byPriority, isOpen } from '@/domain/tasks'
 import { filterNotes, notePreview, noteCategories, noteTags } from '@/domain/notes'
@@ -27,6 +27,7 @@ vi.mock('@/services/api', () => ({ createTask: mocks.createTask }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 import { Journal } from '@/features/notes/Journal'
+import { ConfirmProvider } from '@/components/shared/Confirm'
 import { NoteDialog } from '@/features/notes/NoteDialog'
 import { TaskDialog } from '@/features/planner/TaskDialog'
 
@@ -174,6 +175,16 @@ describe('TaskDialog', () => {
       expect(mocks.update).toHaveBeenCalledWith('tasks', 't1', expect.objectContaining({ title: 'Renamed', priority: 'high' })),
     )
   })
+  it('saves every priority and repeat the pickers offer (urgent, yearly)', async () => {
+    const user = userEvent.setup()
+    open()
+    await user.type(screen.getByLabelText('Title'), 'Renew passport')
+    await pickOption(user, screen.getByLabelText('Priority'), 'urgent')
+    await pickOption(user, screen.getByLabelText('Repeat'), 'yearly')
+    await user.click(screen.getByRole('button', { name: 'Add task' }))
+    await waitFor(() => expect(mocks.createTask).toHaveBeenCalledTimes(1))
+    expect(mocks.createTask.mock.calls[0][0]).toMatchObject({ priority: 'urgent', recurrence: 'yearly', due_date: '2026-11-02' })
+  })
   it('does not wipe what you typed when the parent re-renders', async () => {
     const user = userEvent.setup()
     const { rerender } = open()
@@ -279,6 +290,25 @@ describe('Journal', () => {
     const { rerender } = render(<Journal date="2026-11-02" />)
     rerender(<Journal date="2026-11-03" />)
     expect(screen.getByLabelText('Reflection')).toHaveValue('Tomorrow')
+  })
+  it("asks before deleting the day's entry, and a cancelled prompt deletes nothing", async () => {
+    const user = userEvent.setup()
+    mocks.remove.mockResolvedValue(undefined)
+    mocks.rows.journal_entries = [entry()]
+    render(
+      <ConfirmProvider>
+        <Journal date="2026-11-02" />
+      </ConfirmProvider>,
+    )
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    const ask = await screen.findByRole('dialog')
+    expect(within(ask).getByText('Delete this journal entry?')).toBeInTheDocument()
+    await user.click(within(ask).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(mocks.remove).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith('journal_entries', 'e1'))
   })
   it('flags an over-long reflection instead of failing silently', async () => {
     const user = userEvent.setup()

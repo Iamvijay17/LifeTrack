@@ -6,23 +6,34 @@ import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { Progress } from '@/components/ui/misc'
 import { useAction } from '@/hooks/useAction'
-import { buildExport, importBackup, parseBackup, summarizeBackup } from '@/services/backup'
+import { useToday } from '@/hooks/useToday'
+import { AppError } from '@/services/errors'
+import { buildExport, importBackup, MAX_BACKUP_BYTES, parseBackup, summarizeBackup } from '@/services/backup'
 import { download } from '@/services/csv'
+
+// When the backup was made, as the person reads it; a hand-edited or missing date says so instead of "Invalid Date".
+const exportedAt = (v) => {
+  const d = v ? new Date(v) : null
+  return d && Number.isFinite(d.getTime()) ? `exported ${d.toLocaleString()}` : 'export date unknown'
+}
 
 /** Full JSON backup, and restore (a merge by id: restoring never deletes anything that already exists). */
 export function BackupCard() {
   const file = useRef(null)
   const [pending, setPending] = useState(null) // a parsed backup waiting for confirmation
   const [progress, setProgress] = useState(null)
+  const today = useToday() // the file is named after the day in the person's time zone, not the UTC date
 
   const [exportAll, exporting] = useAction(
     async () => {
       const data = await buildExport()
-      download(`lifetrack-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data, null, 2), 'application/json')
+      download(`lifetrack-backup-${today}.json`, JSON.stringify(data, null, 2), 'application/json')
     },
     { success: 'Backup downloaded' },
   )
   const [pick] = useAction(async (f) => {
+    // Checked before reading: a huge file would otherwise be read into memory whole (and freeze the tab) only to be refused.
+    if (f.size > MAX_BACKUP_BYTES) throw new AppError('That backup file is too large.')
     setPending({ ...parseBackup(await f.text()), name: f.name })
   })
   const [restore, restoring] = useAction(
@@ -70,7 +81,7 @@ export function BackupCard() {
         open={!!pending}
         onOpenChange={(o) => !o && !restoring && setPending(null)}
         title="Restore backup?"
-        description={pending && `${pending.name} · exported ${new Date(pending.exported_at).toLocaleString()}`}
+        description={pending && `${pending.name} · ${exportedAt(pending.exported_at)}`}
         footer={
           <>
             <Button variant="outline" disabled={restoring} onClick={() => setPending(null)}>

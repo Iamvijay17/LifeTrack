@@ -22,7 +22,7 @@ export function FilterBar({ value, onChange, counts, compact = false, showPriori
         )}
       >
         {label}
-        <span className={cn('tabular-nums', on ? 'text-mod-text/80' : 'text-muted-foreground/70')}>{count}</span>
+        <span className={cn('tabular-nums', on ? 'text-mod-text/80' : 'text-muted-foreground')}>{count}</span>
       </button>
     )
   }

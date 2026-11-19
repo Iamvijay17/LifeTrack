@@ -40,6 +40,15 @@ describe('food entry form', () => {
     expect(bad({ notes: 'x'.repeat(301) }).success).toBe(false)
     expect(bad({ protein_g: '' }).success).toBe(true) // optional nutrients default to 0
   })
+  it('checks every total against the database limits (food_logs: protein 2000, carbs 4000, fat 2000, fibre 1000), not just calories', () => {
+    const issue = (o: object) => foodLogFormSchema.safeParse({ ...form, kcal: '1', ...o }).error?.issues[0]
+    expect(issue({ protein_g: '450', quantity: '5' })).toMatchObject({ path: ['quantity'], message: 'That is more than 2,000 g of protein in total' })
+    expect(issue({ carbs_g: '900', quantity: '5' })?.message).toBe('That is more than 4,000 g of carbs in total')
+    expect(issue({ fat_g: '450', quantity: '5' })?.message).toBe('That is more than 2,000 g of fat in total')
+    expect(issue({ fiber_g: '200', quantity: '6' })?.message).toBe('That is more than 1,000 g of fibre in total')
+    expect(issue({ kcal: '4000', quantity: '6' })?.message).toBe('That is more than 20,000 kcal in total')
+    expect(foodLogFormSchema.safeParse({ ...form, protein_g: '400', quantity: '5' }).success).toBe(true) // exactly 2000 g is allowed
+  })
   it('an empty nutrient is stored as 0, and a linked food keeps its ids', () => {
     const p = foodLogFormToPayload(foodLogFormSchema.parse({ ...form, protein_g: '', food_id: '7b7a2f0e-0000-4000-8000-000000000000', base_key: 'idli', variant: 'Ragi idli', log_time: '08:15' }))
     expect(p).toMatchObject({ protein_g: 0, base_key: 'idli', variant: 'Ragi idli', log_time: '08:15' })

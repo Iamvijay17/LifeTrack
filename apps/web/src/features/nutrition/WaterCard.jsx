@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Droplets, Plus, Trash2, Undo2 } from 'lucide-react'
+import { Droplets, Lock, Plus, Trash2, Undo2 } from 'lucide-react'
 import { AnimatedValue, ease, m } from '@/components/motion/primitives'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/form'
 import { useAction } from '@/hooks/useAction'
 import { useConfirm } from '@/components/shared/Confirm'
+import { useModuleLocks } from '@/features/security/useModuleLocks'
 import { logWater, removeWaterLog } from '@/services/api'
 import { MAX_WATER_ML, WATER_PRESETS, fmtMl, isValidWaterAmount, percentOfGoal } from '@/domain/nutrition'
 import { fmtDay } from '@/lib/dates'
@@ -15,16 +16,19 @@ const timeLabel = (w) => (w.log_time ? w.log_time.slice(0, 5) : '')
 /**
  * The day's water. The glass fills to today's share of the goal; +250 / +500 / custom add an entry, "Undo" takes the last one back.
  * `day` = { entries, total, other, last } from waterDay(); `date` is the day being viewed; `nowTime()` gives the time (HH:mm, user's timezone) that stamps a new entry.
+ * Every drink also updates the day's total in Sleep & Health, so while Health is locked (module lock) the buttons are off and the card says why.
  */
 export function WaterCard({ day, goal, date, today, nowTime }) {
   const confirm = useConfirm()
+  const locks = useModuleLocks()
+  const healthLocked = locks.isLocked('health')
   const [custom, setCustom] = useState('')
   const [showCustom, setShowCustom] = useState(false)
   const [add, adding] = useAction((ml) => logWater(date, ml, date === today ? nowTime() : null), { success: (_r) => 'Water added' })
   const [undo, undoing] = useAction((entry) => removeWaterLog(entry), { success: 'Last drink removed' })
   const [del] = useAction((entry) => removeWaterLog(entry), { success: 'Entry deleted' })
   const percent = Math.min(100, percentOfGoal(day.total, goal) ?? 0)
-  const busy = adding || undoing
+  const busy = adding || undoing || healthLocked
   const amount = Math.floor(Number(custom))
   const submitCustom = async (e) => {
     e.preventDefault()
@@ -63,7 +67,7 @@ export function WaterCard({ day, goal, date, today, nowTime }) {
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="flex items-center justify-between gap-2 text-muted-foreground">
           <span className="text-xs font-medium">Water{date === today ? ' today' : ` · ${fmtDay(date, 'd MMM')}`}</span>
-          <span className="grid h-7 w-7 place-items-center rounded-md bg-sky-400/15 text-sky-500">
+          <span data-module="health" className="lt-icon-soft h-7 w-7 rounded-md">
             <Droplets className="h-3.5 w-3.5" aria-hidden />
           </span>
         </div>
@@ -79,6 +83,19 @@ export function WaterCard({ day, goal, date, today, nowTime }) {
               : 'No water goal set'}
           </div>
         </div>
+        {healthLocked && (
+          <p role="status" data-testid="water-locked" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+            <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span>Water also counts in Health &amp; sleep, which is locked.</span>
+            <button
+              type="button"
+              onClick={() => locks.unlock('health')}
+              className="rounded font-medium text-foreground underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              Unlock
+            </button>
+          </p>
+        )}
         <div className="grid grid-cols-3 gap-2">
           {WATER_PRESETS.map((ml) => (
             <Button key={ml} variant="outline" size="sm" disabled={busy} onClick={() => add(ml)} aria-label={`Add ${ml} millilitres`}>
@@ -125,8 +142,9 @@ export function WaterCard({ day, goal, date, today, nowTime }) {
                   <span className="flex-1 tabular-nums">{w.amount_ml} ml</span>
                   <button
                     type="button"
+                    disabled={healthLocked}
                     aria-label={`Delete ${w.amount_ml} ml entry`}
-                    className="grid h-6 w-6 place-items-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-danger"
+                    className="grid h-6 w-6 place-items-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-danger disabled:pointer-events-none disabled:opacity-50"
                     onClick={async () => {
                       if (
                         await confirm({ title: 'Delete this water entry?', description: `${w.amount_ml} ml will come off today's total.` })

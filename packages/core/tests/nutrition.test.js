@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { STARTER_FOODS } from '../../constants/src/foods.js'
 import {
-  dayStatus, analyze, buildCatalog, calendarTotals, dailySeries, dayMeals, dayTotals, duplicateDraft, entryDraftFromFood, entryRow, firstLogDate, foodNutrition,
+  dayStatus, analyze, buildCatalog, calendarTotals, dailySeries, dayMeals, dayTotals, duplicateDraft, entryDraftFromFood, entryName, entryRow, firstLogDate, foodNutrition,
   frequentFoods, guessMeal, hasGoals, goalsOf, isValidWaterAmount, liveFavorites, macroSplit, missingDays, mealDistribution, percentOfGoal, perServing,
   recentFoods, remainingOf, round, scaleNutrition, searchFoods, servingOptions, standoutDays, sumNutrition, toggleFavorite, topFoods, viewRange, waterDay, weeklyTrend,
 } from '../src/nutrition.js'
@@ -105,6 +105,17 @@ describe('catalogue', () => {
     expect(idli.kcal * 3 * 1.5).toBeCloseTo(row.kcal, 5)
     const gheeRoast = entryDraftFromFood(buildCatalog([], STARTER_FOODS).find((f) => f.ref === 'starter:ghee-dosa'), { variant: 'Ghee roast (large, crisp)', quantity: 2, meal: 'dinner', date: '2026-11-02' })
     expect(entryRow(gheeRoast)).toMatchObject({ name: 'Ghee dosa (Ghee roast (large, crisp))', variant: 'Ghee roast (large, crisp)', kcal: 480 })
+  })
+  it('an entry name fits the 120 characters food_logs allows: a long food name is shortened, the variant kept', () => {
+    const long = 'N'.repeat(80), variant = 'V'.repeat(60) // the longest a food name and a variant label can be
+    const name = entryName(long, variant)
+    expect(name).toHaveLength(120)
+    expect(name.endsWith(` (${variant})`)).toBe(true)
+    expect(name).toContain('…')
+    expect(entryName('Idli', 'Ragi')).toBe('Idli (Ragi)')
+    expect(entryName('Idli')).toBe('Idli')
+    const food = { ...buildCatalog([], STARTER_FOODS).find((f) => f.ref === 'starter:idli'), name: long, variants: [{ label: variant, kcal: 1, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0 }] }
+    expect(entryDraftFromFood(food, { variant, meal: 'breakfast', date: '2026-11-02' }).name.length).toBeLessThanOrEqual(120)
   })
   it('a stored entry rescales per serving and back without drifting', () => {
     for (const [total, qty] of [[58, 3], [100, 3], [0.7, 7], [348, 2]]) {

@@ -697,7 +697,7 @@ describe('multi-select', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Edit a' }))
     expect(await screen.findByText('1 task selected')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Actions' }))
-    expect(screen.getByRole('menu', { name: 'Actions for 1 tasks' })).toBeInTheDocument()
+    expect(screen.getByRole('menu', { name: 'Actions for 1 task' })).toBeInTheDocument() // singular for one ("2 entries" for nouns in -y)
     fireEvent.keyDown(document, { key: 'Escape' })
     await user.click(screen.getByRole('button', { name: 'Clear selection' }))
     expect(screen.queryByText('1 task selected')).toBeNull()

@@ -91,6 +91,7 @@ export function buildReport(d, from, to, { today, settings, weekStartsOn = 1 }) 
         to,
         today,
         weekStartsOn,
+        tz,
       ),
     )
     .filter((x) => x.expected > 0)

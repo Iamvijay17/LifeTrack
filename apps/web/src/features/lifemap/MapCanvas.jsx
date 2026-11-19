@@ -258,13 +258,17 @@ export function MapCanvas({ map, vis, selected, onSelect, onMove, onLink, view, 
       e.preventDefault()
       const n = map.byKey.get(key)
       const step = e.shiftKey ? 40 : 10
+      // One save per burst of nudges: the previous burst's timer is cancelled before it is replaced (a node nudged just before is saved now).
+      const prev = pending.current
+      clearTimeout(prev?.timer)
+      if (prev && prev.key !== key) onMove(prev.key, prev.x, prev.y)
+      const from = prev?.key === key ? prev : n
       const to = {
-        x: (pending.current?.key === key ? pending.current.x : n.x) + ({ ArrowLeft: -step, ArrowRight: step }[e.key] ?? 0),
-        y: (pending.current?.key === key ? pending.current.y : n.y) + ({ ArrowUp: -step, ArrowDown: step }[e.key] ?? 0),
+        x: from.x + ({ ArrowLeft: -step, ArrowRight: step }[e.key] ?? 0),
+        y: from.y + ({ ArrowUp: -step, ArrowDown: step }[e.key] ?? 0),
       }
       pending.current = { key, ...to }
       setDrag({ key, ...to })
-      clearTimeout(pending.current.timer)
       pending.current.timer = setTimeout(() => {
         const p = pending.current
         pending.current = null

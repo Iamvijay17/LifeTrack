@@ -131,6 +131,27 @@ describe('TimerWidget', () => {
       expect.objectContaining({ plannedMinutes: 25, actualSeconds: 600, completed: false, date: TODAY }),
     )
   })
+  it('says "saved" only when something was recorded: not for a stop under a minute, nor for a stopped break', async () => {
+    const { toast } = await import('sonner')
+    toast.mockClear()
+    toast.success.mockClear()
+    const running = (mode) => ({
+      ...idle(),
+      timer: { mode, plannedMinutes: 25, taskId: null, topicId: null, label: '' },
+      running: true,
+      left: 1200,
+    })
+    mocks.recordFocus.mockResolvedValueOnce(null) // under a minute: nothing stored
+    const { unmount } = render(<TimerWidget timer={running('focus')} today={TODAY} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Stop' }))
+    expect(toast).toHaveBeenCalledWith('Stopped. Under a minute, so nothing was recorded.')
+    expect(toast.success).not.toHaveBeenCalled()
+    unmount()
+    render(<TimerWidget timer={running('short_break')} today={TODAY} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Stop' }))
+    expect(mocks.recordFocus).toHaveBeenCalledTimes(1)
+    expect(toast.success).not.toHaveBeenCalled()
+  })
   it('offers Resume while paused', async () => {
     const timer = { ...idle(), timer: { mode: 'short_break', plannedMinutes: 5 }, running: false, left: 200 }
     render(<TimerWidget timer={timer} today={TODAY} />)

@@ -23,7 +23,7 @@ export function RecurringRuleDialog({ open, onOpenChange, rule, transactions, to
     control,
     watch,
     setValue,
-    formState: { errors },
+    formState: { errors, isDirty },
     onSubmit,
     pending,
   } = useEntityForm({
@@ -46,12 +46,14 @@ export function RecurringRuleDialog({ open, onOpenChange, rule, transactions, to
       title={rule ? 'Edit recurring rule' : 'New recurring rule'}
       pending={pending}
       onSubmit={onSubmit}
+      dirty={isDirty}
     >
       <Controller
         control={control}
         name="type"
         render={({ field }) => (
           <Segmented
+            aria-label="Transaction type"
             className="w-full [&>button]:flex-1"
             value={field.value}
             options={TYPES}

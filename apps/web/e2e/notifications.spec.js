@@ -116,7 +116,7 @@ test.describe('notifications', () => {
     await page.getByRole('menuitem', { name: 'Pick date & time…' }).click()
     const dlg = page.getByRole('dialog', { name: 'Snooze until…' })
     await pickDate(dlg.getByLabel('Date'), new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date())) // today, where the app keeps its time; earlier days cannot be picked
-    await pickTime(dlg.getByLabel('Time'), '09:00')
+    await pickTime(dlg.getByLabel('Time'), '00:00') // midnight is past at any time of day (09:00 was still ahead in a morning run)
     await dlg.getByRole('button', { name: 'Snooze' }).click()
     await expect(dlg.getByRole('alert')).toHaveText('Pick a time in the future')
   })

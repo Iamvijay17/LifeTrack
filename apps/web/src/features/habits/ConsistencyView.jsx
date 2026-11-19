@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select } from '@/components/ui/form'
 import { useAction } from '@/hooks/useAction'
 import {
-  dayKind,
   explainStreak,
   missedDays,
   monthMap,

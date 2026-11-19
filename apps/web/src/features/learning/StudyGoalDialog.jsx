@@ -36,10 +36,12 @@ export function StudyGoalDialog({ open, onOpenChange, goal, topics }) {
   const [save, pending] = useAction(
     async (v) => {
       const topic = topics.find((t) => t.id === v.topic_id)
+      // The category follows the topic; an edit that leaves the topic alone keeps the goal's own category (it may have been set in Goals).
+      const topicChanged = !goal || (goal.topic_id ?? '') !== v.topic_id
       const row = {
         title: v.title,
         topic_id: v.topic_id || null,
-        category: topic?.group_name ?? 'Learning',
+        category: topicChanged ? (topic?.group_name ?? 'Learning') : goal.category,
         target_minutes: Math.round(v.target_hours * 60),
         due_date: v.due_date || null,
         status: v.status,

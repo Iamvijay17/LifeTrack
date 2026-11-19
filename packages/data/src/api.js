@@ -44,9 +44,13 @@ export function createApi(store) {
     if (status === 'pending') patch.completed_at = null
     const updated = await store.update('tasks', task.id, patch)
     if (status === 'done' && task.status !== 'done') {
-      let next = nextOccurrence(task)
+      // Tasks keep no anchor column: the series' earliest occurrence still on record gives the day it aims for, so a series on the 31st returns
+      // to the 31st after a short month instead of staying on the 28th. Without the other occurrences loaded it falls back to the task's own day.
+      const first = task.series_id ? store.peek('tasks').reduce((m, t) => (t.series_id === task.series_id && t.due_date && t.due_date < m ? t.due_date : m), task.due_date ?? '') : task.due_date
+      const anchorDay = first ? Number(first.slice(8)) : undefined
+      let next = nextOccurrence(task, anchorDay)
       // Skip occurrences already in the past so a late completion doesn't spawn a pile of overdue copies.
-      while (next && today && next < today) next = nextDueDate(next, task.recurrence)
+      while (next && today && next < today) next = nextDueDate(next, task.recurrence, anchorDay)
       if (next && (!task.recurrence_until || next <= task.recurrence_until)) {
         const { id, created_at, updated_at, ...rest } = task
         try {

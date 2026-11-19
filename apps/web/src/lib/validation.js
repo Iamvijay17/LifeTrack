@@ -32,9 +32,21 @@ export const nonNegativeNumber = (max, label) =>
 /** Like nonNegativeNumber, but the field may be left blank ('' means "not provided"). */
 export const optionalNumber = (max, label) => z.union([z.literal(''), nonNegativeNumber(max, label)])
 
+/**
+ * A count stored in an integer column (reps, minutes): 0 or more, at most `max`, and whole (the database refuses 12.5).
+ * A refine, not `.int()`: inside optionalWholeNumber's union an `.int()` failure would only say "Invalid input".
+ */
+export const wholeNumber = (max, label) => nonNegativeNumber(max, label).refine(Number.isInteger, `${label}: use a whole number`)
+
+/** Like wholeNumber, but the field may be left blank. */
+export const optionalWholeNumber = (max, label) => z.union([z.literal(''), wholeNumber(max, label)])
+
 /** A time of day 'HH:MM', or '' when left blank. */
 export const optionalTime = z.string().refine((v) => v === '' || /^\d{2}:\d{2}$/.test(v), 'Use HH:MM')
 
-/** A number typed as text that must lie in [min, max]; '' (blank) is allowed. */
-export const numberInRange = (min, max, label) =>
-  z.string().refine((v) => v === '' || (Number.isFinite(Number(v)) && Number(v) >= min && Number(v) <= max), `${label}: ${min}–${max}`)
+/** A number typed as text that must lie in [min, max]; '' (blank) is allowed. `{ int: true }` also asks for a whole number (integer columns). */
+export const numberInRange = (min, max, label, { int = false } = {}) =>
+  z
+    .string()
+    .refine((v) => v === '' || (Number.isFinite(Number(v)) && Number(v) >= min && Number(v) <= max), `${label}: ${min}–${max}`)
+    .refine((v) => !int || v === '' || Number.isInteger(Number(v)), `${label}: use a whole number`)

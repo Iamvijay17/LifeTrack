@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/misc'
 import { Menu } from '@/components/ui/menu'
-import { EmptyState } from '@/components/shared/states'
+import { DataGate, EmptyState } from '@/components/shared/states'
 import { useTable } from '@/hooks/store'
 import { useConfirmedDelete } from '@/hooks/useConfirmedDelete'
 import { savingsGoalPercent } from '@/domain/finance'
@@ -49,7 +49,7 @@ function GoalTile({ goal: g, money, onFunds, onEdit, onDelete }) {
 }
 
 export function SavingsGoals({ money }) {
-  const { rows } = useTable('savings_goals')
+  const { rows, loading, error, refetch } = useTable('savings_goals')
   const [dlg, setDlg] = useState({ open: false, goal: null })
   const [funds, setFunds] = useState(null)
   const removeGoal = useConfirmedDelete('savings_goals', 'Savings goal deleted')
@@ -65,31 +65,33 @@ export function SavingsGoals({ money }) {
         </Button>
       </CardHeader>
       <CardContent>
-        {rows.length === 0 ? (
-          <EmptyState
-            icon={PiggyBank}
-            title="No savings goals"
-            description="Set a target — an emergency fund, a laptop, a trip — and track what you've put aside."
-            action={
-              <Button size="sm" onClick={newGoal}>
-                Create a savings goal
-              </Button>
-            }
-          />
-        ) : (
-          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {rows.map((g) => (
-              <GoalTile
-                key={g.id}
-                goal={g}
-                money={money}
-                onFunds={setFunds}
-                onEdit={(goal) => setDlg({ open: true, goal })}
-                onDelete={(goal) => removeGoal(goal.id, { title: 'Delete this savings goal?', description: goal.name })}
-              />
-            ))}
-          </ul>
-        )}
+        <DataGate loading={loading} error={error} onRetry={refetch} cards={0} skeleton="text">
+          {rows.length === 0 ? (
+            <EmptyState
+              icon={PiggyBank}
+              title="No savings goals"
+              description="Set a target — an emergency fund, a laptop, a trip — and track what you've put aside."
+              action={
+                <Button size="sm" onClick={newGoal}>
+                  Create a savings goal
+                </Button>
+              }
+            />
+          ) : (
+            <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {rows.map((g) => (
+                <GoalTile
+                  key={g.id}
+                  goal={g}
+                  money={money}
+                  onFunds={setFunds}
+                  onEdit={(goal) => setDlg({ open: true, goal })}
+                  onDelete={(goal) => removeGoal(goal.id, { title: 'Delete this savings goal?', description: goal.name })}
+                />
+              ))}
+            </ul>
+          )}
+        </DataGate>
       </CardContent>
       <SavingsGoalDialog open={dlg.open} goal={dlg.goal} onOpenChange={(o) => setDlg((d) => ({ ...d, open: o }))} />
       {funds && <AddFundsDialog goal={funds} money={money} onClose={() => setFunds(null)} />}

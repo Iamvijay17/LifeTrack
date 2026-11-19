@@ -69,6 +69,9 @@ export function ApplicationDialog({ open, onOpenChange, app, today, defaultStatu
         followup_date: v.followup_date || null,
         salary_paise: salary_lpa.trim() ? lpaToPaise(salary_lpa) : null,
       }
+      // Changing the status here follows the same rule as moving the card (setApplicationStatus): becoming "applied" with no applied date
+      // fills in today.
+      if (row.status === 'applied' && row.status !== app?.status && !row.applied_date) row.applied_date = today
       if (app) await store.update('job_applications', app.id, row)
       else await store.insert('job_applications', row)
       onOpenChange(false)
@@ -111,11 +114,6 @@ export function ApplicationDialog({ open, onOpenChange, app, today, defaultStatu
         </Field>
         <Field label="Source">
           <Input list="job-sources" {...register('source')} />
-          <datalist id="job-sources">
-            {APPLICATION_SOURCES.map((s) => (
-              <option key={s} value={s} />
-            ))}
-          </datalist>
         </Field>
         <Field label="Resume version">
           <Input placeholder="e.g. v3-react" {...register('resume_version')} />
@@ -127,6 +125,12 @@ export function ApplicationDialog({ open, onOpenChange, app, today, defaultStatu
           <Input type="date" {...register('followup_date')} />
         </Field>
       </div>
+      {/* Outside the Field, so the Source label is wired to its input (a Field labels its one child). */}
+      <datalist id="job-sources">
+        {APPLICATION_SOURCES.map((s) => (
+          <option key={s} value={s} />
+        ))}
+      </datalist>
       <Field label="Job description URL" error={errors.jd_url?.message}>
         <Input type="url" inputMode="url" placeholder="https://" {...register('jd_url')} />
       </Field>

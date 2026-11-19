@@ -23,6 +23,11 @@ describe('savings goal form + amounts', () => {
     expect(p).toEqual({ name: 'Fund', target_paise: 1000000, saved_paise: 0, target_date: null })
     expect(insertSchemas.savings_goals.safeParse(p).success).toBe(true)
     expect(savingsGoalToForm({ name: 'a', target_paise: 100, saved_paise: 50 })).toMatchObject({ target: '1', saved: '0.50' })
+    // an edit leaves an unchanged "saved" out, so it never overwrites funds added elsewhere (add_savings is atomic)
+    const initial = savingsGoalToForm({ name: 'Fund', target_paise: 1000000, saved_paise: 50000 })
+    expect(savingsGoalToPayload({ ...initial, name: 'Big fund' }, initial)).toEqual({ name: 'Big fund', target_paise: 1000000, target_date: null })
+    expect(savingsGoalToPayload({ ...initial, saved: '600' }, initial)).toMatchObject({ saved_paise: 60000 })
+    expect(savingsGoalToPayload({ ...initial, saved: '' }, initial)).toMatchObject({ saved_paise: 0 }) // cleared on purpose
   })
   it('parseAmountOrThrow', () => {
     expect(parseAmountOrThrow('25000', 'bad')).toBe(2500000)

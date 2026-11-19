@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { pickDate } from './pickers'
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, renderHook, act, fireEvent } from '@testing-library/react'
+import { render, screen, renderHook, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { buildAnalytics } from '@/domain/analytics'
 import { buildReport } from '@/domain/report'
@@ -305,7 +305,7 @@ describe('report CSV', () => {
     expect(lines).toContain('Study hours,1')
     expect(lines).toContain('')
     const header = lines.indexOf(
-      'Date,Daily score,Tasks done,Tasks planned,Study (min),Focus (min),Workout,Habits done,Sleep (h),Spent (paise)',
+      'Date,Daily score,Tasks done,Tasks planned,Study (min),Focus (min),Workout,Habits done,Sleep (h),Spent (minor units)',
     )
     expect(header).toBeGreaterThan(0)
     expect(lines.slice(header + 1)).toHaveLength(3)

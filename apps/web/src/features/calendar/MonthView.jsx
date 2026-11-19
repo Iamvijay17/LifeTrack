@@ -101,7 +101,7 @@ export function MonthView({ days, month, items, today, selected, prefs, onSelect
                     e.stopPropagation()
                     onCreate({ date: d, allDay: true })
                   }}
-                  className="hidden rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 md:block"
+                  className="hidden rounded-md p-1 text-muted-foreground transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 md:block [@media(hover:hover)]:opacity-0"
                 >
                   <Plus className="h-3.5 w-3.5" />
                 </button>

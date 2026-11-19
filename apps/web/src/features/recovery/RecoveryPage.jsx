@@ -12,6 +12,7 @@ import { plural } from '@/lib/utils'
 import { applyReschedules, dismissRecovery, saveRow, undoReschedules } from '@/services/api'
 import * as store from '@/hooks/store'
 import { useAction } from '@/hooks/useAction'
+import { toAppError } from '@/services/errors'
 import { AdjustDialog } from './AdjustDialog'
 import { DayLoadPanel } from './DayLoadPanel'
 import { HistoryPanel } from './HistoryPanel'
@@ -91,10 +92,12 @@ export default function RecoveryPage() {
     return res.undone.length > 0
   }, [])
 
+  // A toast's Undo runs outside any action, so its failure is reported here rather than left as an unhandled rejection.
+  const undoFailed = (e) => toast.error(`Couldn't undo: ${toAppError(e).message}`)
   const report = (res) => {
     if (res.applied.length) {
       toast.success(`${plural(res.applied.length, 'task')} rescheduled`, {
-        action: { label: 'Undo', onClick: () => undo(res.applied.map((h) => h.id)) },
+        action: { label: 'Undo', onClick: () => undo(res.applied.map((h) => h.id)).catch(undoFailed) },
       })
     }
     for (const k of res.skipped) toast.error(k.message)
@@ -126,7 +129,7 @@ export default function RecoveryPage() {
           const row = store
             .peek('task_reschedules')
             .find((x) => x.task_id === r.s.taskId && x.action === 'dismissed' && !x.undone_at && x.hide_until === until)
-          if (row) saveRow('task_reschedules', row, { undone_at: new Date().toISOString() })
+          if (row) saveRow('task_reschedules', row, { undone_at: new Date().toISOString() }).catch(undoFailed)
         },
       },
     })

@@ -90,8 +90,8 @@ describe('missing-migration errors', () => {
     )
   })
   it('names the calendar migration for calendar tables', () => {
-    expect(toAppError({ code: 'PGRST205', message: "Could not find the table 'public.calendar_events' in the schema cache" }).message).toMatch(
-      /0011_calendar\.sql/,
-    )
+    expect(
+      toAppError({ code: 'PGRST205', message: "Could not find the table 'public.calendar_events' in the schema cache" }).message,
+    ).toMatch(/0011_calendar\.sql/)
   })
 })

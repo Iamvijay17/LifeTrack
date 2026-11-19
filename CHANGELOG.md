@@ -5,6 +5,59 @@ store build numbers are auto-incremented by EAS. Add new entries under **Unrelea
 
 ## [Unreleased]
 See `docs/UX_AUDIT.md` for the full audit behind these changes, and `docs/DESIGN_SYSTEM.md` for the design and motion system.
+### Fixed (November 2026 complete audit; details in `LIFETRACK_COMPLETE_AUDIT_REPORT.md`)
+
+**Data integrity**
+- A write to a table that had not been loaded made it look loaded with just that row. For example, Finance showed one auto-posted transaction (web and mobile).
+- Backup restore stopped part-way. Topics are now remapped for focus sessions and calendar events, and habit check-ins, calendar exceptions, map positions and dedupe-keyed rows merge by their natural keys.
+- A delete quietly refused by a module lock is reported as an error instead of "Deleted".
+- Erase all data sends ids in batches.
+
+**Security**
+- `/reset-password` now sets a password only when opened from the emailed link. Signed-in visits go to Security, which asks for the current password.
+- Deleting the account needs an unlocked session, and turning the PIN off needs a live session. **Run `0021_audit_fixes.sql`** (additive; it also adds a missing index on `task_reschedules.task_id`).
+- `send-reminders` survives an unknown time zone and pages through every active reminder. **Redeploy it.**
+- Job-post links are opened only for web addresses.
+- Sign-out works offline and forgets the palette's recent item titles.
+
+**Forms**
+- Urgent priority and yearly repeat could not be saved on a task.
+- Decimal reps, minutes, water or steps are refused with a clear message instead of a database error.
+- Food totals are checked against every database limit.
+- Logging measurements twice in a day no longer wipes the first entry.
+- Cardio workouts no longer save hidden exercise sets.
+- Editing a savings goal no longer undoes money another device added.
+
+**Product**
+- Paused habits no longer count against the Life Score, daily progress, Today agenda, Analytics or the evening nudge.
+- Journal and milestone deletes now ask first.
+- Water undo removes the right amount.
+- The Health lock is respected in Nutrition and Fitness.
+- Filters reset with the month in Finance; the Jobs board ignores the Table-only status filter.
+- The Companion shows interviews.
+- Toasts no longer claim saves that did not happen.
+- Monthly tasks return to their original day after a short month.
+- Several UTC-vs-local date mistakes are fixed.
+- `?` on the Calendar opens its own shortcut list.
+- Browser-tab titles show on sub-pages.
+
+**Performance**
+- The dashboard no longer loads the chart library (about 105 KB gz).
+- Background runners no longer re-render the app shell.
+- Unchanged refreshes keep their snapshot.
+- A short tab switch while live sync is connected no longer re-downloads every table.
+
+**Accessibility and contrast**
+- Light-mode contrast is fixed for muted text and module icons.
+- Hover-only controls are now reachable on touch tablets.
+- Picker and segmented fields are labelled and count as changes for "Discard changes?".
+
+**Tooling**
+- The schema-vs-database drift test runs again; it had been silently skipping 85 checks.
+- The secret scan covers `supabase/functions`, `scripts` and `.github`.
+- `.gitignore` covers every `.env.*` file.
+- Tooling-only dependency advisories are allow-listed with reasons.
+
 ### Added
 - **Consistency Protection** (web, Habits → Consistency): habits that forgive a missed day without hiding it. **Planned rest days** (daily habits) and **Pause / Resume** make days neutral, so they can be neither missed nor break a streak; a missed day in the last 7 is offered a way back (**I did it**, recorded as *made up*, or **Skip day**) and nothing changes unless you choose; this week's consistency is shown with its working, plus a monthly calendar, personal records (longest streak, best week and month), a recovery history and a "How is this calculated?" panel. Check-ins are never edited. **Run `0018_consistency.sql`** (additive: `habits.rest_days`, `habit_pauses`, `habit_logs.recovered_at`). See `docs/CONSISTENCY_PROTECTION.md`.
 - **Sound & Feedback Studio** (web, Settings): ten events (clicks, task, habit and goal completion, timer start / pause / completion, notifications, errors, successes) each with a switch, a volume and a preview; four built-in profiles (Minimal, Focus, Productivity, Silent) with a separate profile that takes over during focus blocks; restore defaults. Replaces the five on/off groups (existing choices are converted). Device-only, no migration. See `docs/SOUND_STUDIO.md`.

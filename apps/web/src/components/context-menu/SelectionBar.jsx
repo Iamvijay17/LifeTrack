@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { ListChecks, X } from 'lucide-react'
+import { plural } from '@/lib/format'
 import { useContextMenu } from './ContextMenuProvider'
 
 /**
@@ -13,7 +14,7 @@ export function SelectionBar({ selection, noun = 'item', build }) {
   if (selection.size === 0) return null
   const openActions = () => {
     const r = btn.current.getBoundingClientRect()
-    menu.open({ x: r.left, y: r.top - 8, items: build(), label: `Actions for ${selection.size} ${noun}s` })
+    menu.open({ x: r.left, y: r.top - 8, items: build(), label: `Actions for ${plural(selection.size, noun)}` })
   }
   return createPortal(
     <div
@@ -22,8 +23,7 @@ export function SelectionBar({ selection, noun = 'item', build }) {
       className="lt-ctx fixed inset-x-0 bottom-20 z-40 mx-auto flex w-fit max-w-[calc(100vw-1.5rem)] animate-ctx-in items-center gap-1 rounded-lg p-1.5 text-[13px] md:bottom-6"
     >
       <span aria-live="polite" className="px-2.5 font-medium">
-        {selection.size} {noun}
-        {selection.size === 1 ? '' : 's'} selected
+        {plural(selection.size, noun)} selected
       </span>
       <button
         ref={btn}

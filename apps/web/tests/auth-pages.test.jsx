@@ -157,6 +157,19 @@ describe('ResetPasswordPage', () => {
     expect(screen.getByText('Link expired')).toBeInTheDocument()
     expect(screen.queryByLabelText('New password')).not.toBeInTheDocument()
   })
+  it('a signed-in visit that did not come from the reset link is sent to Security (which asks for the current password)', () => {
+    mocks.state.session = { user: { id: 'u' } }
+    render(
+      <MemoryRouter initialEntries={['/reset-password']}>
+        <Routes>
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/security" element={<p>security page</p>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(screen.getByText('security page')).toBeInTheDocument()
+    expect(mocks.auth.updatePassword).not.toHaveBeenCalled()
+  })
   it('with a session it validates, updates the password, clears recovery mode and goes home', async () => {
     mocks.state.session = { user: { id: 'u' } }
     mocks.state.recovery = true

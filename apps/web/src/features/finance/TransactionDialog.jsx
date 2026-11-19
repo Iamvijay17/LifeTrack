@@ -53,7 +53,7 @@ export function TransactionDialog({ open, onOpenChange, txn, copyOf, transaction
     control,
     watch,
     setValue,
-    formState: { errors },
+    formState: { errors, isDirty },
     onSubmit,
     pending,
   } = useEntityForm({
@@ -83,12 +83,14 @@ export function TransactionDialog({ open, onOpenChange, txn, copyOf, transaction
       title={txn ? 'Edit transaction' : copyOf ? 'Duplicate transaction' : 'Add transaction'}
       pending={pending}
       onSubmit={onSubmit}
+      dirty={isDirty}
     >
       <Controller
         control={control}
         name="type"
         render={({ field }) => (
           <Segmented
+            aria-label="Transaction type"
             className="w-full [&>button]:flex-1"
             value={field.value}
             options={[

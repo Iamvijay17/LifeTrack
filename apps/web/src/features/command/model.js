@@ -307,8 +307,14 @@ export function captureRow(kind, text, today) {
 const CONTEXT = {
   '': [{ id: 'ctx-task', label: 'Add a task for today', quick: 'task' }],
   planner: [{ id: 'ctx-task', label: 'Add a task', quick: 'task' }],
-  calendar: [{ id: 'ctx-task', label: 'Add a task', quick: 'task' }],
-  habits: [{ id: 'ctx-habit', label: 'Complete a habit', quick: 'habit' }],
+  calendar: [
+    { id: 'ctx-event', label: 'Add a calendar event', to: '/calendar?new=1' },
+    { id: 'ctx-task', label: 'Add a task', quick: 'task' },
+  ],
+  habits: [
+    { id: 'ctx-new-habit', label: 'Create a habit', to: '/habits?new=1' },
+    { id: 'ctx-habit', label: 'Complete a habit', quick: 'habit' },
+  ],
   notes: [{ id: 'ctx-note', label: 'Write a new note', to: '/notes?new=1' }],
   fitness: [
     { id: 'ctx-workout', label: 'Record a workout', quick: 'workout' },
@@ -385,7 +391,17 @@ export const GO_KEYS = {
   i: '/notifications',
   ',': '/settings',
 }
-export const CREATE_KEYS = { t: 'task', w: 'workout', f: 'food', n: 'note', r: 'reminder', e: 'expense', s: 'focus' }
+export const CREATE_KEYS = {
+  t: 'task',
+  w: 'workout',
+  f: 'food',
+  n: 'note',
+  r: 'reminder',
+  e: 'expense',
+  s: 'focus',
+  h: 'habit',
+  v: 'event',
+}
 
 /** What each create shortcut and quick action opens: a quick-add dialog (`quick`) or a page that opens its own form (`to`). */
 export const CREATE_TARGETS = {
@@ -396,6 +412,8 @@ export const CREATE_TARGETS = {
   note: { to: '/notes?new=1' },
   reminder: { to: '/notifications?tab=reminders&new=1' },
   focus: { to: '/focus?start=1' },
+  habit: { to: '/habits?new=1' },
+  event: { to: '/calendar?new=1' },
 }
 
 /** Is the event aimed at something the person types into? Single-key shortcuts must stay out of the way of these. */
@@ -408,4 +426,58 @@ export function isTypingTarget(target) {
       String(target.type).toLowerCase(),
     )
   return !!target.isContentEditable || target.getAttribute?.('contenteditable') === 'true' || !!target.closest?.('[role="textbox"]')
+}
+
+// ------------------------------------------------------------------------------------------------------------------------ usage
+
+/** Counts a run of an action: `{ [id]: { n, at } }`. Returns a new map, keeping the 40 most recently used. */
+export function bumpUsage(map, id, now = Date.now()) {
+  const cur = map?.[id]
+  const next = { ...(map ?? {}), [id]: { n: (cur?.n ?? 0) + 1, at: now } }
+  const keep = Object.entries(next)
+    .sort((a, b) => b[1].at - a[1].at)
+    .slice(0, 40)
+  return Object.fromEntries(keep)
+}
+
+/** Drops anything malformed from stored usage. */
+export function sanitizeUsage(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, v]) => v && Number.isFinite(v.n) && v.n > 0 && Number.isFinite(v.at))
+      .map(([k, v]) => [k, { n: v.n, at: v.at }]),
+  )
+}
+
+/** Ids run at least `min` times, most-used first (ties: most recent first), at most `max`. */
+export function frequentIds(map, { min = 2, max = 3 } = {}) {
+  return Object.entries(map ?? {})
+    .filter(([, v]) => v.n >= min)
+    .sort((a, b) => b[1].n - a[1].n || b[1].at - a[1].at)
+    .slice(0, max)
+    .map(([id]) => id)
+}
+
+/** Ids run most recently, newest first. */
+export function recentIds(map, max = 3) {
+  return Object.entries(map ?? {})
+    .sort((a, b) => b[1].at - a[1].at)
+    .slice(0, max)
+    .map(([id]) => id)
+}
+
+/** Index of the first item of the next (or previous) section from `cursor`, wrapping. `sizes` are the section lengths. */
+export function jumpSection(sizes, cursor, dir) {
+  const starts = []
+  let at = 0
+  for (const n of sizes) {
+    if (n > 0) starts.push(at)
+    at += n
+  }
+  if (!starts.length) return 0
+  if (dir > 0) return starts.find((s) => s > cursor) ?? starts[0]
+  const before = starts.filter((s) => s < cursor)
+  const current = starts.filter((s) => s <= cursor).pop()
+  return current !== undefined && current < cursor ? current : (before.pop() ?? starts[starts.length - 1])
 }

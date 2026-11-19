@@ -8,5 +8,25 @@
     "id": "GHSA-3g3m-2fjr-6pw4",
     "reason": "glob AbortSignal issue reachable only through @expo/cli build tooling; never bundled into the app or run on user input.",
     "reviewBy": "2027-02-01"
+  },
+  {
+    "id": "GHSA-fc5q-39xc-vjpf",
+    "reason": "picomatch ReDoS (no patched release yet) reachable only through jest / @expo/cli file watching on developer-controlled globs; never bundled into the web or mobile app or run on user input.",
+    "reviewBy": "2027-02-01"
+  },
+  {
+    "id": "GHSA-w4xr-hqv8-ch44",
+    "reason": "node-forge 1.4.2 TLS client crash, reachable only through @expo/cli (dev-server certificates); never bundled into the app. Fixed in 1.4.3: drop this entry when expo's CLI picks it up.",
+    "reviewBy": "2027-02-01"
+  },
+  {
+    "id": "GHSA-6cv4-p8m7-4r25",
+    "reason": "node-forge 1.4.2 header/cookie ReDoS, reachable only through @expo/cli build tooling; never bundled into the app. Fixed in 1.4.3: drop this entry when expo's CLI picks it up.",
+    "reviewBy": "2027-02-01"
+  },
+  {
+    "id": "GHSA-j8rw-jp99-435v",
+    "reason": "node-forge 1.4.2 TLS handshake crash, reachable only through @expo/cli build tooling; never bundled into the app. Fixed in 1.4.3: drop this entry when expo's CLI picks it up.",
+    "reviewBy": "2027-02-01"
   }
 ]

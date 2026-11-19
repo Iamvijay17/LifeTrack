@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Field, Input, Select, Switch } from '@/components/ui/form'
 import { Badge } from '@/components/ui/misc'
 import { isKindEnabled } from '@/domain/reminders'
+import { toAppError } from '@/services/errors'
 import { showSystemNotification, useBrowserNotifications } from './browserNotifications'
 import { formatWhen } from './notificationFormat'
 import { categoryStyle } from './notificationTheme'
@@ -54,21 +55,28 @@ export function PreferencesTab({ settings, prefs, tz, onSettings, onCategory }) 
   const [draft, setDraft] = useState(settings)
   useEffect(() => setDraft(settings), [settings])
   const errors = validateSettings(draft)
+  // A save that fails is said, and the form goes back to what is really saved (never an unhandled rejection).
+  const failed = (e) => {
+    setDraft(settings)
+    toast.error(`Couldn't save your notification settings: ${toAppError(e).message}`)
+  }
+  const saveSettings = (patch) => Promise.resolve(onSettings(patch)).catch(failed)
+  const saveCategory = (kind, on) => Promise.resolve(onCategory(kind, on)).catch(failed)
   const edit = (patch) => {
     const next = { ...draft, ...patch }
     setDraft(next)
     const problems = validateSettings(next)
-    if (!Object.keys(problems).length) onSettings(patch)
+    if (!Object.keys(problems).length) saveSettings(patch)
   }
   const editQuiet = (patch) => edit({ quiet: { ...draft.quiet, ...patch } })
 
   const setDesktop = async (on) => {
-    if (!on) return onSettings({ desktop: false })
+    if (!on) return saveSettings({ desktop: false })
     if (!browser.supported) return toast.error('This browser can’t show desktop notifications.')
     if (browser.permission === 'denied')
       return toast.error('Notifications are blocked for this site. Allow them in your browser’s site settings, then turn this on again.')
     const result = browser.permission === 'granted' ? 'granted' : await browser.request()
-    if (result === 'granted') onSettings({ desktop: true })
+    if (result === 'granted') saveSettings({ desktop: true })
     else toast.error('Permission wasn’t granted, so desktop notifications stay off.')
   }
   const sendTest = async () => {
@@ -185,7 +193,7 @@ export function PreferencesTab({ settings, prefs, tz, onSettings, onCategory }) 
                     <p className="truncate text-xs text-muted-foreground">{COVERS[c.value]}</p>
                   </div>
                 </div>
-                <Switch checked={isKindEnabled(prefs, c.value)} onChange={(v) => onCategory(c.value, v)} label={c.label} />
+                <Switch checked={isKindEnabled(prefs, c.value)} onChange={(v) => saveCategory(c.value, v)} label={c.label} />
               </div>
             )
           })}

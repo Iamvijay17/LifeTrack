@@ -30,6 +30,8 @@ import {
   Timer,
   Wallet,
   Zap,
+  CalendarPlus,
+  Flame,
 } from 'lucide-react'
 import { AnimatePresence, LayoutGroup, duration, ease, m, spring } from '@/components/motion/primitives'
 import { useTables } from '@/hooks/store'
@@ -54,11 +56,14 @@ import {
   captureRow,
   contextActions,
   filterCommands,
+  frequentIds,
+  jumpSection,
+  recentIds,
   highlightParts,
   parseCapture,
   searchData,
 } from './model'
-import { useRecents } from './useRecents'
+import { useRecents, useUsage } from './useRecents'
 import { useShortcuts } from './useShortcuts'
 
 const Ctx = createContext({ open: () => {}, close: () => {}, toggle: () => {}, help: () => {} })
@@ -96,6 +101,15 @@ const ACTIONS = [
   { id: 'a-reminder', label: 'New reminder', icon: Bell, module: 'notifications', create: 'reminder', keywords: 'remind alert' },
   { id: 'a-expense', label: 'Add expense', icon: Wallet, module: 'finance', create: 'expense', keywords: 'spend money transaction' },
   { id: 'a-water', label: 'Log water', icon: Droplets, module: 'health', quick: 'water', keywords: 'drink hydration' },
+  { id: 'a-new-habit', label: 'Create habit', icon: Flame, module: 'habits', create: 'habit', keywords: 'new routine streak' },
+  {
+    id: 'a-event',
+    label: 'Add calendar event',
+    icon: CalendarPlus,
+    module: 'calendar',
+    create: 'event',
+    keywords: 'schedule meeting appointment',
+  },
   { id: 'a-habit', label: 'Complete habit', icon: Check, module: 'habits', quick: 'habit', keywords: 'check in routine' },
   { id: 'a-study', label: 'Start study session', icon: BookOpen, module: 'learning', quick: 'study', keywords: 'learn timer' },
   { id: 'a-app', label: 'Add job application', icon: Briefcase, module: 'jobs', quick: 'application', keywords: 'career apply' },
@@ -125,6 +139,7 @@ export function CommandCenterProvider({ children }) {
   const today = useToday()
   const run = useDo()
   const { recents, remember, clear } = useRecents()
+  const { usage, count } = useUsage()
 
   const api = useMemo(
     () => ({
@@ -151,13 +166,14 @@ export function CommandCenterProvider({ children }) {
   const execute = useCallback(
     (item) => {
       setState((s) => ({ ...s, open: false }))
+      if (!item.kind && !item.capture && item.id) count(String(item.usageId ?? item.id))
       if (item.kind && item.to)
         remember({ id: String(item.id), kind: item.kind, label: item.label, sub: item.sub, to: item.to, module: item.module })
       if (item.capture) capture(item.capture.kind, item.capture.text)
       else if (item.run) item.run()
       else run(item)
     },
-    [capture, remember, run],
+    [capture, count, remember, run],
   )
 
   return (
@@ -169,6 +185,7 @@ export function CommandCenterProvider({ children }) {
         setView={(view) => setState((s) => ({ ...s, view }))}
         onOpenChange={(open) => setState((s) => ({ ...s, open, view: 'main' }))}
         recents={recents}
+        usage={usage}
         clearRecents={clear}
         execute={execute}
         today={today}
@@ -210,7 +227,7 @@ function Marked({ text, query }) {
 }
 
 /** The sections of the list for what is typed and where the person is. Pure of React state except for the data it is handed. */
-function useSections({ q, dq, data, closed, pathname, recents, clearRecents, today }) {
+function useSections({ q, dq, data, closed, pathname, recents, usage, clearRecents, today }) {
   const { settings, save } = useSettings()
   const dark = settings.theme === 'dark' || (settings.theme === 'system' && document.documentElement.classList.contains('dark'))
   return useMemo(() => {
@@ -221,6 +238,7 @@ function useSections({ q, dq, data, closed, pathname, recents, clearRecents, tod
       ...c,
       icon: ACTIONS.find((a) => same(a, c))?.icon ?? Sparkles,
       module: ACTIONS.find((a) => same(a, c))?.module ?? pageModule,
+      usageId: ACTIONS.find((a) => same(a, c))?.id ?? c.id, // the same action counts once, wherever it is offered
     }))
     const prefs = [
       {
@@ -236,6 +254,12 @@ function useSections({ q, dq, data, closed, pathname, recents, clearRecents, tod
     ]
     const actions = ACTIONS.filter(open)
     const others = actions.filter((a) => !here.some((c) => same(a, c))) // what is on this page is offered once, under "On this page"
+    const pool = [...others, ...here.filter(open), ...prefs.filter((p) => !['p-out', 'p-clear'].includes(p.id))]
+    const byId = (ids) => ids.map((id) => pool.find((a) => (a.usageId ?? a.id) === id)).filter(Boolean)
+    const frequent = byId(frequentIds(usage))
+    const lately = byId(recentIds(usage, 5))
+      .filter((a) => !frequent.includes(a))
+      .slice(0, 2)
     const sections = []
 
     if (!q.trim()) {
@@ -244,8 +268,15 @@ function useSections({ q, dq, data, closed, pathname, recents, clearRecents, tod
         .slice(0, 6)
         .map((r) => ({ ...r, icon: KIND_ICON[r.kind] ?? Clock }))
       if (recent.length) sections.push({ key: 'recent', title: 'Recent', items: recent })
-      if (here.length) sections.push({ key: 'here', title: 'On this page', items: here.filter(open) })
-      sections.push({ key: 'actions', title: 'Quick actions', items: others })
+      if (here.some((c) => open(c) && !frequent.includes(c) && !lately.includes(c)))
+        sections.push({
+          key: 'here',
+          title: 'On this page',
+          items: here.filter((c) => open(c) && !frequent.includes(c) && !lately.includes(c)),
+        })
+      if (frequent.length) sections.push({ key: 'frequent', title: 'Frequently used', items: frequent })
+      if (lately.length) sections.push({ key: 'lately', title: 'Recent actions', items: lately })
+      sections.push({ key: 'actions', title: 'Quick actions', items: others.filter((a) => !frequent.includes(a) && !lately.includes(a)) })
       sections.push({
         key: 'go',
         title: 'Go to',
@@ -288,7 +319,7 @@ function useSections({ q, dq, data, closed, pathname, recents, clearRecents, tod
     if (commands.length) sections.push({ key: 'commands', title: 'Actions', items: commands })
     if (!cap?.kind && captureItems.length) sections.push({ key: 'capture', title: 'Quick capture', items: captureItems })
     return sections
-  }, [q, dq, data, closed, pathname, recents, clearRecents, today, dark, save])
+  }, [q, dq, data, closed, pathname, recents, usage, clearRecents, today, dark, save])
 }
 
 const SHEET = [
@@ -299,6 +330,7 @@ const SHEET = [
       ['/', 'Open the search'],
       ['?', 'Show this sheet'],
       ['↑ ↓', 'Move through results'],
+      ['Tab', 'Jump to the next group (Shift Tab: previous)'],
       ['↵', 'Run the selected result'],
       ['Esc', 'Clear, go back, close'],
     ],
@@ -340,13 +372,13 @@ function Shortcuts() {
   )
 }
 
-function Results({ q, handle, onActive, onHelp, execute, recents, clearRecents, today }) {
+function Results({ q, handle, onActive, onHelp, execute, recents, usage, clearRecents, today }) {
   const [dq, flush] = useDebounced(q, 120)
   const { pathname } = useLocation()
   const locks = useModuleLocks()
   const { data, loading, error, refetch } = useTables(...SEARCH_TABLES)
   const closed = locks.closed
-  const sections = useSections({ q, dq, data, closed, pathname, recents, clearRecents, today })
+  const sections = useSections({ q, dq, data, closed, pathname, recents, usage, clearRecents, today })
   const flat = useMemo(() => sections.flatMap((s) => s.items), [sections])
   const [cursor, setCursor] = useState(0)
   useEffect(() => setCursor(0), [q])
@@ -364,6 +396,14 @@ function Results({ q, handle, onActive, onHelp, execute, recents, clearRecents, 
   useEffect(() => {
     handle.current = {
       move: (d) => setCursor((c) => (flat.length ? (c + d + flat.length) % flat.length : 0)),
+      section: (d) =>
+        setCursor((c) =>
+          jumpSection(
+            sections.map((s) => s.items.length),
+            c,
+            d,
+          ),
+        ),
       enter: () => {
         if (settled) return choose()
         enterWaiting.current = true // typed and Enter within the debounce: run the result of what is on screen once it catches up
@@ -472,7 +512,7 @@ function Results({ q, handle, onActive, onHelp, execute, recents, clearRecents, 
   )
 }
 
-function Palette({ open, view, setView, onOpenChange, recents, clearRecents, execute, today }) {
+function Palette({ open, view, setView, onOpenChange, recents, usage, clearRecents, execute, today }) {
   const [q, setQ] = useState('')
   const input = useRef(null)
   const list = useRef({})
@@ -487,6 +527,9 @@ function Palette({ open, view, setView, onOpenChange, recents, clearRecents, exe
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault()
       list.current.move?.(e.key === 'ArrowDown' ? 1 : -1)
+    } else if (e.key === 'Tab' && !help) {
+      e.preventDefault() // Tab hops between the result groups; Esc leaves
+      list.current.section?.(e.shiftKey ? -1 : 1)
     } else if (e.key === 'Enter') {
       e.preventDefault()
       list.current.enter?.()
@@ -570,6 +613,7 @@ function Palette({ open, view, setView, onOpenChange, recents, clearRecents, exe
                     onHelp={() => setView('shortcuts')}
                     execute={execute}
                     recents={recents}
+                    usage={usage}
                     clearRecents={clearRecents}
                     today={today}
                   />
@@ -578,6 +622,9 @@ function Palette({ open, view, setView, onOpenChange, recents, clearRecents, exe
                   <span className="flex items-center gap-1">
                     <Key>↑</Key>
                     <Key>↓</Key> move
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Key>Tab</Key> next group
                   </span>
                   <span className="flex items-center gap-1">
                     <Key>↵</Key> select

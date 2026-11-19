@@ -71,7 +71,7 @@ export function FinanceStats({ sum, expenseCount, isOverride, money, onEditBudge
   return (
     <section className="lt-hero">
       <div className="grid grid-cols-2 divide-border/70 lg:grid-cols-[1fr_1fr_1fr_1.15fr] lg:divide-x">
-        <Figure icon={TrendingUp} tint="bg-emerald-500/15 text-emerald-500" label="Income" value={money(sum.income)} />
+        <Figure icon={TrendingUp} tint="bg-success/15 text-success" label="Income" value={money(sum.income)} />
         <Figure
           icon={TrendingDown}
           tint="bg-rose-500/15 text-rose-500"

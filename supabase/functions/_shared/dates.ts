@@ -94,12 +94,12 @@ export function sleepMinutes(bedtime: string | null | undefined, wake: string | 
 }
 export const minutesToHours = (mins: number): number => Math.round((mins / 60) * 10) / 10
 
-/** Combine a yyyy-MM-dd and HH:mm in `tz` into a UTC ISO string (IST has no DST; works for any fixed/DST zone via iteration). */
+/**
+ * Combine a yyyy-MM-dd and HH:mm in `tz` into a UTC ISO string. Uses the offset in force at that wall-clock time (zonedToMs), not at a guessed
+ * instant hours away, so times on a daylight-saving change day are right (03:00 on the day New York falls back is 08:00Z, not 07:00Z).
+ */
 export function zonedToIso(day: string, time: string, tz: string = DEFAULT_TZ): string {
-  const guess = new Date(`${day}T${time}:00Z`)
-  const asLocal = new Date(guess.toLocaleString('en-US', { timeZone: tz }))
-  const asUtc = new Date(guess.toLocaleString('en-US', { timeZone: 'UTC' }))
-  return new Date(guess.getTime() + (asUtc.getTime() - asLocal.getTime())).toISOString()
+  return new Date(zonedToMs(day, time, tz)).toISOString()
 }
 
 export const TIMEZONES = [

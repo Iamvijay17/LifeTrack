@@ -20,7 +20,8 @@ export function LoginPage() {
   } = useForm({ resolver: zodResolver(z.object({ email, password: z.string().min(1, 'Enter your password') })) })
   const { error, submit } = useSubmit(async (v) => {
     await auth.signIn(v.email, v.password)
-    nav(loc.state?.from ?? '/', { replace: true })
+    const from = loc.state?.from
+    nav(typeof from === 'string' && from.startsWith('/') && !from.startsWith('//') ? from : '/', { replace: true }) // in-app paths only
   })
   if (session) return <Navigate to="/" replace />
   return (
@@ -159,6 +160,10 @@ export function ResetPasswordPage() {
     clearRecovery()
     nav('/', { replace: true })
   })
+  // This page sets a password WITHOUT the current one, so it is only for someone who arrived from the emailed reset link. A plain signed-in visit
+  // (it sits outside the app lock) would otherwise let anyone at a locked device change the password, sign in again and get past the PIN.
+  // Signed-in people change their password under Security, which asks for the current one.
+  if (!loading && session && !recovery) return <Navigate to="/security" replace />
   if (!loading && !session)
     return (
       <AuthLayout
@@ -172,7 +177,7 @@ export function ResetPasswordPage() {
       />
     )
   return (
-    <AuthLayout title="Choose a new password" subtitle={recovery ? undefined : 'You are signed in. Set a new password below.'}>
+    <AuthLayout title="Choose a new password">
       <form onSubmit={handleSubmit(submit)} noValidate className="space-y-4">
         <Err>{error}</Err>
         <NewPasswordFields register={register} errors={errors} watch={watch} passwordLabel="New password" email={session?.user?.email} />

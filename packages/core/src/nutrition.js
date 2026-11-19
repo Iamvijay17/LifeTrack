@@ -196,12 +196,20 @@ export function foodNutrition(food, variantLabel = '') {
   return pickNutrition(variant ?? food)
 }
 
+/** A logged entry's name may be 120 characters (food_logs), but a food name (80) plus " (variant)" (60) can be longer: shorten the food name, keep the variant. */
+export const ENTRY_NAME_MAX = 120
+export function entryName(name, variant = '') {
+  const suffix = variant ? ` (${variant})` : ''
+  if (name.length + suffix.length <= ENTRY_NAME_MAX) return name + suffix
+  return `${name.slice(0, ENTRY_NAME_MAX - suffix.length - 1).trimEnd()}…${suffix}`
+}
+
 /** What the "add a food" form starts from after picking a food: per-serving nutrition for the chosen variant and serving size. */
 export function entryDraftFromFood(food, { variant = '', serving = null, quantity = 1, meal, date, time = '' }) {
   const option = serving ?? { label: food.serving_label, factor: 1 }
   const per = scaleNutrition(foodNutrition(food, variant), 1, option.factor)
   return {
-    name: variant ? `${food.name} (${variant})` : food.name,
+    name: entryName(food.name, variant),
     category: food.category,
     food_id: food.id,
     base_key: food.base_key,

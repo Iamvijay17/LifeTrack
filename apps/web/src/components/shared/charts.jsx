@@ -1,5 +1,6 @@
 import { Area, Bar, CartesianGrid, Line, Pie, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { motionOff } from '@/components/motion/tokens'
+import { EmptyChart } from './chartParts'
 export { ChartGradients, G, SparkBars, SparkDots } from './chartParts'
 
 export const C = {
@@ -55,21 +56,6 @@ export function seriesSummary(title, rows, key, unit = '') {
   if (points.length <= 12) return `${title}: ${points.map(text).join(', ')}.`
   const values = points.map((r) => r[key])
   return `${title}: ${points.length} points from ${points[0].label} to ${points.at(-1).label}, lowest ${Math.min(...values)}${unit}, highest ${Math.max(...values)}${unit}, latest ${text(points.at(-1))}.`
-}
-
-/** A chart that has nothing to draw yet: the ghost of the bars it will show. */
-function EmptyChart({ text }) {
-  const bars = [38, 62, 46, 80, 54, 70, 44]
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-sm text-muted-foreground">
-      <div aria-hidden className="flex h-12 items-end gap-1.5">
-        {bars.map((h, i) => (
-          <span key={i} className="w-2.5 rounded-t-[3px] bg-mod/15" style={{ height: `${h}%` }} />
-        ))}
-      </div>
-      <p className="max-w-xs text-[13px]">{text}</p>
-    </div>
-  )
 }
 
 /** `summary` is what screen readers get instead of the drawing. */

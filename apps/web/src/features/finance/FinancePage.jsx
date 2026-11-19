@@ -110,6 +110,7 @@ export default function FinancePage() {
           <SavingsGoals money={money} />
           <RecurringRules money={money} transactions={data.transactions} today={today} />
           <TransactionList
+            key={month} // another month starts with no filters: its categories are not this month's
             monthTx={monthTx}
             month={month}
             money={money}

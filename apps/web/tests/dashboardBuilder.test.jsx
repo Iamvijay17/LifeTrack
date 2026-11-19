@@ -102,6 +102,21 @@ describe('useDashboardBuilder', () => {
     expect(result.current.editing).toBe(false)
   })
 
+  it('closing the conflict dialog keeps editing: the draft stays and nothing is written', async () => {
+    const { result, save } = hook()
+    act(() => result.current.startEdit())
+    act(() => result.current.ops.removeWidget('w_score'))
+    remote.row = writeState({}, readState({}))
+    await act(async () => {
+      await result.current.commit()
+    })
+    await act(async () => result.current.resolveConflict('dismiss'))
+    expect(save).not.toHaveBeenCalled()
+    expect(result.current.conflict).toBe(null)
+    expect(result.current.editing).toBe(true)
+    expect(result.current.active.widgets.some((w) => w.id === 'w_score')).toBe(false)
+  })
+
   it('a failed save keeps the draft, says so, and can be retried', async () => {
     const { result, save } = hook()
     save.mockRejectedValueOnce(new Error('offline'))

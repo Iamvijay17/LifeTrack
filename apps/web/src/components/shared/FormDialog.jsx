@@ -6,6 +6,8 @@ import { useConfirm } from '@/components/shared/Confirm'
 /**
  * Standard modal form: submit is disabled while saving (no duplicate submissions); the form stays open on failure; the buttons stay visible
  * while a long form scrolls. Dismissing it by accident (Esc, X, a click outside) asks first if anything was typed; the Cancel button doesn't.
+ * "Typed" is any `input` event in the form: text fields, and our Select / date / time pickers, which send one when a value is picked.
+ * Controls that send none (a Segmented choice) count when the dialog passes `dirty` (react-hook-form's `formState.isDirty`).
  */
 export function FormDialog({
   open,
@@ -18,6 +20,7 @@ export function FormDialog({
   children,
   extraFooter,
   className,
+  dirty = false,
 }) {
   const formId = useId()
   const confirm = useConfirm()
@@ -27,7 +30,7 @@ export function FormDialog({
   }, [open])
   const dismiss = async (nextOpen) => {
     if (pending) return
-    if (!nextOpen && typed.current) {
+    if (!nextOpen && (typed.current || dirty)) {
       const typingIn = document.activeElement
       const discard = await confirm({
         title: 'Discard your changes?',

@@ -18,7 +18,7 @@ const AMOUNT_CLASS = { income: 'text-success', expense: 'text-foreground', savin
 const SIGN = { income: '+', expense: '−', savings: '' }
 const NO_FILTERS = { type: '', category: '', method: '', q: '', from: '', to: '' }
 const TYPE_ICON = {
-  income: { icon: ArrowDownLeft, cls: 'bg-emerald-500/15 text-emerald-500' },
+  income: { icon: ArrowDownLeft, cls: 'bg-success/15 text-success' },
   expense: { icon: ArrowUpRight, cls: 'bg-muted text-muted-foreground' },
   savings: { icon: PiggyBank, cls: 'bg-violet-500/15 text-violet-500' },
 }

@@ -62,14 +62,15 @@ export function TopicDialog({ open, onOpenChange, topic, groups = TOPIC_GROUPS, 
       onSubmit={handleSubmit(save)}
     >
       <div className="grid grid-cols-2 gap-3">
+        {/* The suggestions sit outside the Field, so the label is wired to the input itself. */}
         <Field label="Category" error={errors.group_name?.message}>
           <Input list="topic-groups" {...register('group_name')} />
-          <datalist id="topic-groups">
-            {groups.map((g) => (
-              <option key={g} value={g} />
-            ))}
-          </datalist>
         </Field>
+        <datalist id="topic-groups">
+          {groups.map((g) => (
+            <option key={g} value={g} />
+          ))}
+        </datalist>
         <Field label="Topic" error={errors.name?.message}>
           <Input {...register('name')} />
         </Field>

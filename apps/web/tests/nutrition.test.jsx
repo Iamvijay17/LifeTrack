@@ -532,6 +532,15 @@ describe('goals dialog', () => {
       3000,
     )
   })
+  it('a background settings write while the dialog is open keeps what is being typed', async () => {
+    const user = userEvent.setup()
+    const row = { id: 'g', calorie_goal: 1800, protein_goal_g: null, carbs_goal_g: null, fat_goal_g: null, fiber_goal_g: null }
+    const { rerender } = render(<GoalsDialog open onOpenChange={vi.fn()} settingsRow={{ ...row, updated_at: 'a' }} />)
+    await user.clear(screen.getByLabelText('Calories (kcal)'))
+    await user.type(screen.getByLabelText('Calories (kcal)'), '2100')
+    rerender(<GoalsDialog open onOpenChange={vi.fn()} settingsRow={{ ...row, favorite_foods: ['x'], updated_at: 'b' }} />)
+    expect(screen.getByLabelText('Calories (kcal)')).toHaveValue('2100')
+  })
   it('rejects out-of-range targets with a message', async () => {
     const user = userEvent.setup()
     render(<GoalsDialog open onOpenChange={vi.fn()} settingsRow={null} />)
@@ -572,6 +581,49 @@ describe('Food & Nutrition page', () => {
     await userEvent.click(screen.getByRole('button', { name: /add idli again/i }))
     await waitFor(() => expect(mocks.saveRow).toHaveBeenCalled())
     expect(mocks.saveRow.mock.calls[0][2]).toMatchObject({ name: 'Idli', log_date: DAY, kcal: 116, quantity: 2 })
+  })
+  it('only the viewed day\'s entries stay selected ("2 entries"), so a bulk action never reaches another day', async () => {
+    mocks.tables.food_logs = [E({ id: 'a' }), E({ id: 'c', meal_type: 'lunch', name: 'Dal', base_key: 'dal', kcal: 160 })]
+    const user = userEvent.setup()
+    page()
+    const select = async (name) => {
+      await user.keyboard('{Control>}')
+      await user.click(within(await screen.findByTestId(name === 'Idli' ? 'meal-breakfast' : 'meal-lunch')).getByText(name))
+      await user.keyboard('{/Control}')
+    }
+    await select('Idli')
+    expect(screen.getByText('1 entry selected')).toBeInTheDocument()
+    await select('Dal')
+    expect(screen.getByText('2 entries selected')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Previous day' }))
+    await waitFor(() => expect(screen.queryByText(/selected$/)).toBeNull())
+  })
+  it('resetting an edited built-in food says it was reset, not removed', async () => {
+    const { toast } = await import('sonner')
+    mocks.tables.foods = [
+      {
+        id: 'f1',
+        base_key: 'idli',
+        name: 'My idli',
+        category: 'Tiffin',
+        serving_label: '1 idli',
+        kcal: 60,
+        protein_g: 2,
+        carbs_g: 12,
+        fat_g: 0,
+        fiber_g: 1,
+      },
+    ]
+    mocks.deleteFood.mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    page()
+    await screen.findByText('Log your first meal')
+    await user.click(screen.getByRole('tab', { name: 'Foods' }))
+    await user.type(await screen.findByLabelText(/search/i), 'My idli')
+    await user.click(await screen.findByRole('button', { name: 'Actions for My idli' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Reset to original' }))
+    await waitFor(() => expect(mocks.deleteFood).toHaveBeenCalled())
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('My idli reset to the original'))
   })
   it('deleting an entry asks first and does nothing if you cancel', async () => {
     mocks.tables.food_logs = [E()]

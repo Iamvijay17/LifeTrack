@@ -77,9 +77,13 @@ export const NAV_GROUPS = [
 export const NAV = NAV_GROUPS.flatMap((g) => g.items)
 export const MOBILE_PRIMARY = ['/', '/planner', '/habits', '/finance']
 
-/** The browser tab title for a route. */
+// Pages below a section that have a name of their own; any other sub-page takes its section's name.
+const SUB_TITLES = { '/automation/history': 'Automation history' }
+
+/** The browser tab title for a route: the page, else its section (`/fitness/exercises/12` → Gym & Fitness), else the app. */
 export function pageTitle(pathname) {
-  const page = NAV.find((n) => n.to === pathname)
+  if (SUB_TITLES[pathname]) return `${SUB_TITLES[pathname]} · LifeTrack`
+  const page = NAV.find((n) => n.to === pathname) ?? NAV.find((n) => n.to !== '/' && pathname?.startsWith(`${n.to}/`))
   return page ? `${page.label} · LifeTrack` : 'LifeTrack'
 }
 

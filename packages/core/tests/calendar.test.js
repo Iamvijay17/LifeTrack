@@ -83,6 +83,8 @@ describe('buildCalendarItems', () => {
     const kinds = Object.fromEntries(items.map((i) => [i.key, i]))
     expect(Object.keys(kinds).sort()).toEqual(['bill:b1', 'followup:a1', 'goal:g1', 'interview:iv1', 'milestone:m1', 'reminder:r1', 'revision:tp1:2026-11-14'])
     expect(kinds['interview:iv1']).toMatchObject({ kind: 'interview', title: 'Interview · Acme · Technical', category: 'jobs', startMin: 960, endMin: 1020, movable: true, location: 'https://meet' })
+    expect(kinds['interview:iv1'].href).toBe('/jobs?app=a1') // opens the application, as JobsPage reads ?app=
+    expect(kinds['followup:a1'].href).toBe('/jobs?app=a1')
     expect(kinds['reminder:r1']).toMatchObject({ point: true, startMin: 570, recurring: true, category: 'finance', movable: true })
     expect(kinds['goal:g1']).toMatchObject({ kind: 'deadline', allDay: true, movable: false, href: '/goals', category: 'jobs' })
     expect(kinds['bill:b1']).toMatchObject({ allDay: true, title: 'Rent', href: '/finance' })

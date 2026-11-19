@@ -4,6 +4,7 @@ import { bulkDelete, changeField, copyDetails, count } from '@/components/contex
 import { JOB_STATUSES, STATUS_LABEL } from '@/domain/jobs'
 import { addDays, fmtDay } from '@/lib/dates'
 import { formatLpa } from '@/lib/money'
+import { isSafeUrl } from '@lifetrack/core/notes'
 import * as store from '@/hooks/store'
 import { moveApplication } from './moveStatus'
 
@@ -43,7 +44,7 @@ export function applicationItems(app, d) {
     {
       label: 'Open job posting',
       icon: ExternalLink,
-      hidden: !app.jd_url,
+      hidden: !isSafeUrl(app.jd_url ?? ''), // web links only (see ApplicationDetail)
       onSelect: () => void window.open(app.jd_url, '_blank', 'noopener,noreferrer'),
     },
     {

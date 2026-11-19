@@ -88,7 +88,7 @@ function MyExercises({ groups, onCreate, onBrowse, chipProps }) {
                   <button
                     aria-label={`Remove ${e.name}`}
                     // Always visible on touch layouts, where there is no hover; revealed on hover or keyboard focus with a mouse.
-                    className="-my-1 -mr-1.5 rounded p-1.5 text-muted-foreground hover:text-danger md:my-0 md:mr-0 md:p-0 md:opacity-0 md:focus:opacity-100 md:group-hover:opacity-100"
+                    className="-my-1 -mr-1.5 rounded p-1.5 text-muted-foreground hover:text-danger md:my-0 md:mr-0 md:p-0 [@media(hover:hover)]:md:opacity-0 md:focus:opacity-100 md:group-hover:opacity-100"
                     onClick={() =>
                       removeExercise(e.id, {
                         title: `Remove ${e.name} from the library?`,

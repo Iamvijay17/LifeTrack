@@ -68,6 +68,42 @@ describe('export / restore round trip', () => {
     expect(logs.find((l) => l.name === 'Idli').food_id).toBe(idli.id) // log follows B's copy
   })
 
+  it('remaps focus sessions and calendar events to the target account topics, and merges rows keyed by natural or dedupe keys', async () => {
+    setUserId('A')
+    await seedDefaults()
+    const react = (await db.list('learning_topics')).find((t) => t.name === 'React')
+    await store.insert('focus_sessions', { session_date: '2026-01-02', planned_minutes: 25, topic_id: react.id })
+    await store.insert('calendar_events', {
+      title: 'Study React',
+      starts_at: '2026-01-02T10:00:00.000Z',
+      ends_at: '2026-01-02T11:00:00.000Z',
+      topic_id: react.id,
+    })
+    const habit = await store.insert('habits', { name: 'Read' })
+    await store.insert('habit_logs', { habit_id: habit.id, log_date: '2026-01-02' })
+    await store.insert('notifications', { title: 'Tasks due', dedupe_key: 'src:tasks-today:2026-01-02' })
+    const file = JSON.stringify(await buildExport())
+
+    // Same account, after the check-in was undone and redone (new id, same habit + day) and today's nudge was raised again.
+    const [log] = await db.list('habit_logs')
+    await store.remove('habit_logs', log.id)
+    await store.insert('habit_logs', { habit_id: habit.id, log_date: '2026-01-02' })
+    const [n] = await db.list('notifications')
+    await store.remove('notifications', n.id)
+    await store.insert('notifications', { title: 'Tasks due', dedupe_key: 'src:tasks-today:2026-01-02' })
+    await importBackup(parseBackup(file))
+    expect(await db.list('habit_logs')).toHaveLength(1)
+    expect(await db.list('notifications')).toHaveLength(1)
+
+    store.resetStore()
+    setUserId('B')
+    await seedDefaults()
+    await importBackup(parseBackup(file))
+    const topic = (await db.list('learning_topics')).find((t) => t.name === 'React')
+    expect((await db.list('focus_sessions'))[0].topic_id).toBe(topic.id)
+    expect((await db.list('calendar_events'))[0].topic_id).toBe(topic.id)
+  })
+
   it('is idempotent: importing the same file twice changes nothing', async () => {
     setUserId('A')
     await store.insert('tasks', { title: 't1' })

@@ -31,7 +31,7 @@ export default function ExerciseDetailPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { catalog, loading, error, retry } = useCatalog()
-  const { data } = useTables('exercises')
+  const { data, loading: libraryLoading } = useTables('exercises')
   const [add, adding] = useAction((row) => store.insert('exercises', row), { success: 'Added to your exercises' })
 
   const back = () => (location.key !== 'default' ? navigate(-1) : navigate(BROWSE))
@@ -71,7 +71,8 @@ export default function ExerciseDetailPage() {
         title={e.name}
         description={`${e.category} · ${e.equipment}`}
         actions={
-          mine ? (
+          // Until your exercises have loaded it is not known whether this one is among them, so neither the badge nor "Add" shows yet.
+          libraryLoading ? null : mine ? (
             <Badge tone="success">
               <Check className="h-3 w-3" aria-hidden /> In your exercises
             </Badge>

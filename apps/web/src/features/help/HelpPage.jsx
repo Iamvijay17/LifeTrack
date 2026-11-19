@@ -197,7 +197,7 @@ export default function HelpPage() {
               {faqs.map(({ q: question, a, cat: c }) => (
                 <Disclosure key={question} open={Boolean(q) && faqs.length <= 3} summary={question}>
                   <p className="text-sm text-muted-foreground">{a}</p>
-                  {q && <p className="mt-1 text-[11px] text-muted-foreground/70">{c}</p>}
+                  {q && <p className="mt-1 text-[11px] text-muted-foreground">{c}</p>}
                 </Disclosure>
               ))}
             </Card>

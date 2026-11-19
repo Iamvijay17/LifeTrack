@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
 import { CATEGORIES_BY_TYPE, PAYMENT_METHODS, TX_TYPES } from '@lifetrack/core/finance'
 import { FREQUENCIES } from '@lifetrack/core/recurring'
@@ -94,11 +94,17 @@ export function RecurringRuleForm({ visible, rule, today, onClose }: { visible: 
 
 export function SavingsGoalForm({ visible, goal, onClose }: { visible: boolean; goal: any | null; onClose: () => void }) {
   const { values, errors, set, reset, validate } = useZodForm(savingsGoalFormSchema, blankSavingsGoal())
-  useEffect(() => { if (visible) reset(goal ? savingsGoalToForm(goal) : blankSavingsGoal()) }, [visible, goal?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  // The values the sheet opened with: an unchanged "saved so far" is left out of the update, so money another device added meanwhile stays.
+  const opened = useRef<ReturnType<typeof savingsGoalToForm> | null>(null)
+  useEffect(() => {
+    if (!visible) return
+    opened.current = goal ? savingsGoalToForm(goal) : null
+    reset(opened.current ?? blankSavingsGoal())
+  }, [visible, goal?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   const [save, pending] = useAction(async () => {
     const v = validate()
     if (!v) return
-    const row = savingsGoalToPayload(v)
+    const row = savingsGoalToPayload(v, opened.current)
     if (goal) await store.update('savings_goals', goal.id, row); else await store.insert('savings_goals', row)
     onClose()
   })

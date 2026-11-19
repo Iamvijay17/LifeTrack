@@ -7,12 +7,12 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
 const catalogJson = readFileSync(path.resolve(process.cwd(), 'public/exercises/catalog.json'), 'utf8')
-const mocks = vi.hoisted(() => ({ insert: vi.fn(), exercises: [] }))
+const mocks = vi.hoisted(() => ({ insert: vi.fn(), exercises: [], libraryLoading: false }))
 vi.mock('@/hooks/store', () => ({
   insert: mocks.insert,
   remove: vi.fn(),
   removeMany: vi.fn(),
-  useTables: () => ({ data: { exercises: mocks.exercises }, loading: false, error: null }),
+  useTables: () => ({ data: { exercises: mocks.exercises }, loading: mocks.libraryLoading, error: null }),
 }))
 vi.mock('@/components/shared/Confirm', () => ({ useConfirm: () => vi.fn() }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
@@ -27,6 +27,7 @@ let fetchCalls
 beforeEach(() => {
   mocks.insert.mockReset().mockResolvedValue({})
   mocks.exercises = []
+  mocks.libraryLoading = false
   fetchCalls = 0
   vi.stubGlobal(
     'fetch',
@@ -196,6 +197,13 @@ describe('ExerciseDetailPage', () => {
     page('Plank')
     expect(await screen.findByText('In your exercises')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Add to my exercises/ })).toBeNull()
+  })
+  it('offers neither "Add" nor "In your exercises" until your exercises have loaded (no flash of the wrong one)', async () => {
+    mocks.libraryLoading = true
+    page('Plank')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Plank' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Add to my exercises/ })).toBeNull()
+    expect(screen.queryByText('In your exercises')).toBeNull()
   })
   it('degrades gracefully with no images and with no instructions', async () => {
     page('Kettlebell_Halo')

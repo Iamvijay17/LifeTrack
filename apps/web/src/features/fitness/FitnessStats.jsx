@@ -1,12 +1,14 @@
 import { Check, Dumbbell, Moon, Scale, Timer, Trophy, X } from 'lucide-react'
 import { StatCard } from '@/components/shared/StatCard'
 import { AnimatedValue } from '@/components/motion/primitives'
+import { LockedStat } from '@/features/security/ModuleUnlock'
+import { useModuleLocks } from '@/features/security/useModuleLocks'
 import { fmtDay, weekday } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
 const LOOK = {
   done: { icon: Check, cls: 'lt-icon-tile', text: 'trained' },
-  rest: { icon: Moon, cls: 'bg-sky-500/15 text-sky-400', text: 'rest day' },
+  rest: { icon: Moon, cls: 'lt-icon-soft', module: 'health', text: 'rest day' },
   skipped: { icon: X, cls: 'bg-muted text-muted-foreground', text: 'skipped' },
   planned: { icon: Dumbbell, cls: 'border border-dashed border-mod/50 text-mod-text', text: 'planned' },
   open: { icon: null, cls: 'bg-muted/60', text: 'open' },
@@ -28,7 +30,7 @@ function WeekTiles({ days, today, workouts, plan }) {
               : planned
                 ? 'planned'
                 : 'open'
-        const { icon: Icon, cls, text } = LOOK[state]
+        const { icon: Icon, cls, module, text } = LOOK[state]
         return (
           <li key={d} className="flex flex-col items-center gap-1">
             <span className={cn('text-[10px] font-medium uppercase', d === today ? 'text-mod-text' : 'text-muted-foreground')}>
@@ -37,6 +39,7 @@ function WeekTiles({ days, today, workouts, plan }) {
             <span
               role="img"
               aria-label={`${fmtDay(d, 'EEEE')}: ${text}`}
+              data-module={module}
               className={cn(
                 'grid aspect-square w-full max-w-10 place-items-center rounded-lg',
                 cls,
@@ -52,8 +55,12 @@ function WeekTiles({ days, today, workouts, plan }) {
   )
 }
 
-/** `stats` is weekStats(); `latestWeight` the newest health log that has a weight (or null). The week tiles appear when `week` is given. */
+/**
+ * `stats` is weekStats(); `latestWeight` the newest health log that has a weight (or null). The week tiles appear when `week` is given.
+ * Body weight is Health data: while Health is locked (module lock) its tile is the locked one.
+ */
 export function FitnessStats({ stats, latestWeight, week }) {
+  const { isLocked } = useModuleLocks()
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <section className="lt-hero col-span-2 flex flex-col justify-between gap-4 p-4 md:p-5 lg:row-span-2">
@@ -81,13 +88,17 @@ export function FitnessStats({ stats, latestWeight, week }) {
         sub={stats.cardio ? `${stats.cardio} min cardio` : 'this week'}
       />
       <StatCard icon={Trophy} label="Volume" value={`${Math.round(stats.vol).toLocaleString('en-IN')} kg`} sub="reps × weight, this week" />
-      <StatCard
-        icon={Scale}
-        label="Body weight"
-        value={latestWeight ? `${latestWeight.weight_kg} kg` : '—'}
-        sub={latestWeight ? `as of ${fmtDay(latestWeight.log_date, 'd MMM')}` : 'not logged yet'}
-        className="col-span-2"
-      />
+      {isLocked('health') ? (
+        <LockedStat module="health" label="Body weight" className="col-span-2" />
+      ) : (
+        <StatCard
+          icon={Scale}
+          label="Body weight"
+          value={latestWeight ? `${latestWeight.weight_kg} kg` : '—'}
+          sub={latestWeight ? `as of ${fmtDay(latestWeight.log_date, 'd MMM')}` : 'not logged yet'}
+          className="col-span-2"
+        />
+      )}
     </div>
   )
 }

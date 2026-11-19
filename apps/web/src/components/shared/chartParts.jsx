@@ -49,6 +49,21 @@ export const ChartGradients = () => (
   </svg>
 )
 
+/** A chart that has nothing to draw yet: the ghost of the bars it will show. */
+export function EmptyChart({ text }) {
+  const bars = [38, 62, 46, 80, 54, 70, 44]
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-sm text-muted-foreground">
+      <div aria-hidden className="flex h-12 items-end gap-1.5">
+        {bars.map((h, i) => (
+          <span key={i} className="w-2.5 rounded-t-[3px] bg-mod/15" style={{ height: `${h}%` }} />
+        ))}
+      </div>
+      <p className="max-w-xs text-[13px]">{text}</p>
+    </div>
+  )
+}
+
 /** A tiny bar chart for tiles, drawn without a chart library. `values` are numbers or null; `highlight` is the index to emphasise. */
 export function SparkBars({ values, highlight, className = 'h-8' }) {
   const max = Math.max(1, ...values.map((v) => v ?? 0))

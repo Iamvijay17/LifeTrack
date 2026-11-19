@@ -324,6 +324,21 @@ describe('RemindersTab and PreferencesTab', () => {
       await user.click(screen.getByRole('switch', { name: 'Calendar' }))
       expect(onCategory).toHaveBeenCalledWith('event', false)
     })
+    it('a save that fails is reported and the form goes back to what is saved (no unhandled rejection)', async () => {
+      const { toast } = await import('sonner')
+      toast.error.mockClear()
+      const user = userEvent.setup()
+      const onSettings = vi.fn().mockRejectedValue(new Error('offline'))
+      const onCategory = vi.fn().mockRejectedValue(new Error('offline'))
+      prefsTab({ onSettings, onCategory })
+      await user.click(screen.getByRole('switch', { name: 'Quiet hours' }))
+      await waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/Couldn't save your notification settings: offline/)),
+      )
+      expect(screen.getByRole('switch', { name: 'Quiet hours' })).toHaveAttribute('aria-checked', 'false')
+      await user.click(screen.getByRole('switch', { name: 'Tasks' }))
+      await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(2))
+    })
     it('quiet hours show their times once on, save valid changes, and explain (not save) an invalid one', async () => {
       const user = userEvent.setup()
       const { onSettings } = prefsTab()

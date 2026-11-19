@@ -5,9 +5,27 @@ import { resetStore, startSync, stopSync } from './store'
 
 const Ctx = createContext(null)
 
+// Did this page load come from the emailed password-reset link (PKCE `?code=`, or an older `#...type=recovery`)? Read once, before the auth
+// client consumes the URL, because the PASSWORD_RECOVERY event can fire before anyone listens. Only such a visit may set a password without
+// the current one (see ResetPasswordPage).
+const ARRIVED_FROM_RESET_LINK =
+  typeof window !== 'undefined' &&
+  window.location.pathname.startsWith('/reset-password') &&
+  (/[?&]code=/.test(window.location.search) || /type=recovery/.test(window.location.hash))
+
+// Per-account conveniences that hold item titles (the palette's recently opened notes, transactions…). They are dropped on sign-out so a
+// shared browser keeps no trace of them; the rest (timer state, nudge memory) holds no personal content.
+const forgetOnSignOut = (uid) => {
+  try {
+    localStorage.removeItem(`lifetrack:recents:${uid}`)
+  } catch {
+    /* storage unavailable: nothing was kept */
+  }
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(undefined) // undefined = still resolving
-  const [recovery, setRecovery] = useState(false)
+  const [recovery, setRecovery] = useState(ARRIVED_FROM_RESET_LINK)
   const [realtime, setRealtime] = useState('CONNECTING')
   const lastUser = useRef(null)
 
@@ -26,6 +44,7 @@ export function AuthProvider({ children }) {
     const off = auth.onChange((event, s) => {
       const id = s?.user?.id ?? null
       const changed = id !== lastUser.current
+      if (event === 'SIGNED_OUT' && lastUser.current) forgetOnSignOut(lastUser.current)
       lastUser.current = id
       setUserId(id)
       if (changed) resetStore()

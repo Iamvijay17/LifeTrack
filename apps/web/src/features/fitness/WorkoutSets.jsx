@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/form'
 
 /** The sets (reps × weight) of one exercise inside the workout form. */
-export function WorkoutSets({ control, register, index, errors }) {
+export function WorkoutSets({ control, register, getValues, index, errors }) {
   const { fields, append, remove } = useFieldArray({ control, name: `exercises.${index}.sets` })
   return (
     <div className="space-y-1.5">
@@ -37,7 +37,8 @@ export function WorkoutSets({ control, register, index, errors }) {
         variant="ghost"
         size="sm"
         onClick={() => {
-          const last = fields.at(-1) // a new set starts as a copy of the previous one
+          // A new set starts as a copy of the previous one, as typed now (`fields` only holds the values each row started with).
+          const last = getValues(`exercises.${index}.sets`)?.at(-1)
           append({ reps: last?.reps ?? 10, weight: last?.weight ?? 0 })
         }}
       >

@@ -1,8 +1,8 @@
 import { QueryClient } from '@tanstack/react-query'
 import { createApi, withSchemaValidation } from '@lifetrack/data'
-import { DEFAULTS } from '@lifetrack/constants/schema'
+import { ALL_TABLES, DEFAULTS } from '@lifetrack/constants/schema'
 import { insertSchemas, updateSchemas } from '@lifetrack/schemas'
-import { createQueryStore, type DbAdapter } from '../src/data/queryStore'
+import { createQueryStore, tableKey, type DbAdapter } from '../src/data/queryStore'
 
 /** In-memory Postgres stand-in with the unique constraints the real schema has. */
 export function fakeDb() {
@@ -74,9 +74,13 @@ export function fakeDb() {
   }
   return { tables, raw }
 }
+// Starts like a fresh account whose screens have already fetched their (empty) tables: the store only patches tables that were fetched,
+// as a screen's useQuery does before anything can be written from it (see queryStore.test.ts for a write to a never-fetched table).
 export const setup = () => {
   const { tables, raw } = fakeDb()
   const db = withSchemaValidation(raw, { insertSchemas, updateSchemas }) as DbAdapter
-  const store = createQueryStore(db, new QueryClient())
+  const qc = new QueryClient()
+  for (const t of ALL_TABLES) qc.setQueryData(tableKey(t), [])
+  const store = createQueryStore(db, qc)
   return { tables, store, api: createApi(store as any) }
 }

@@ -212,3 +212,31 @@ describe('isTypingTarget', () => {
     expect(isTypingTarget(null)).toBe(false)
   })
 })
+
+describe('usage and section jumping', () => {
+  it('counts runs, ranks frequent and recent actions', async () => {
+    const { bumpUsage, frequentIds, recentIds, sanitizeUsage } = await import('@/features/command/model')
+    let u = {}
+    u = bumpUsage(u, 'a', 1)
+    u = bumpUsage(u, 'b', 2)
+    u = bumpUsage(u, 'a', 3)
+    u = bumpUsage(u, 'a', 4)
+    u = bumpUsage(u, 'b', 5)
+    expect(frequentIds(u)).toEqual(['a', 'b'])
+    expect(frequentIds(bumpUsage({}, 'x', 1))).toEqual([])
+    expect(recentIds(u, 1)).toEqual(['b'])
+    expect(sanitizeUsage({ a: { n: 2, at: 1 }, b: 'x', c: { n: 0, at: 1 } })).toEqual({ a: { n: 2, at: 1 } })
+    expect(sanitizeUsage([1])).toEqual({})
+  })
+  it('jumps between groups with Tab and Shift Tab, wrapping', async () => {
+    const { jumpSection } = await import('@/features/command/model')
+    const sizes = [2, 0, 3, 1] // starts at 0, 2, 5
+    expect(jumpSection(sizes, 0, 1)).toBe(2)
+    expect(jumpSection(sizes, 3, 1)).toBe(5)
+    expect(jumpSection(sizes, 5, 1)).toBe(0)
+    expect(jumpSection(sizes, 3, -1)).toBe(2)
+    expect(jumpSection(sizes, 2, -1)).toBe(0)
+    expect(jumpSection(sizes, 0, -1)).toBe(5)
+    expect(jumpSection([0, 0], 0, 1)).toBe(0)
+  })
+})

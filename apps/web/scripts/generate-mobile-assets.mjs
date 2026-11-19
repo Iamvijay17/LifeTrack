@@ -10,7 +10,7 @@ const MARK = (stroke) => `<g fill="none" stroke="${stroke}" stroke-width="40" st
 const GRAD = '<defs><linearGradient id="g" x1="420" y1="100" x2="90" y2="440" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#A78BFA"/><stop offset=".5" stop-color="#7C3AED"/><stop offset="1" stop-color="#5B21B6"/></linearGradient></defs>'
 // The mark occupies roughly x 66–446, y 80–440 of a 512 box. `scale` sizes it inside the canvas; centred on the glyph's visual centre.
 const svg = ({ size, scale, bg, stroke }) => {
-  const c = 256, vc = { x: 256, y: 258 }
+  const vc = { x: 256, y: 258 }
   const t = `translate(${size / 2} ${size / 2}) scale(${scale * size / 512}) translate(${-vc.x} ${-vc.y})`
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${GRAD}${bg ? `<rect width="${size}" height="${size}" fill="${bg}"/>` : ''}<g transform="${t}">${MARK(stroke)}</g></svg>`
 }

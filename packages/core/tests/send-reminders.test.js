@@ -44,6 +44,26 @@ describe('send-reminders pipeline', () => {
     expect(state.reminders[0]).toMatchObject({ active: false, last_fired_on: '2026-11-02' })
     expect(stats).toMatchObject({ checked: 1, fired: 1, pushed: 2, pushErrors: 0 })
   })
+  it("one user's unknown time zone falls back to the default and never stops everyone else's reminders", async () => {
+    const reminders = [R({ id: 'bad', user_id: U2 }), R({ id: 'good', user_id: U1 })]
+    const settings = { [U1]: IST, [U2]: { timezone: 'Mars/Olympus_Mons', notification_prefs: {} } }
+    const { state, db } = fakeDb({ reminders, settings, tokens: [tok('a', U1), tok('b', U2)] })
+    const { sent, push } = okPush()
+    const stats = await runReminders({ db, push, core, nowMs: T_0930_IST })
+    expect(state.notifications.map((n) => n.user_id).sort()).toEqual([U1, U2].sort()) // the bad zone is read as Asia/Kolkata
+    expect(sent.flat()).toHaveLength(2)
+    expect(stats).toMatchObject({ fired: 2, failed: 0 })
+  })
+  it('a reminder that fails to save is counted and skipped; the rest still fire and push', async () => {
+    const { state, db } = fakeDb({ reminders: [R({ id: 'boom', user_id: U2 }), R({ id: 'ok', user_id: U1 })], settings: { [U1]: IST, [U2]: IST }, tokens: [tok('a', U1)] })
+    const insert = db.insertNotification
+    db.insertNotification = async (row) => (row.user_id === U2 ? Promise.reject(new Error('db down')) : insert(row))
+    const { sent, push } = okPush()
+    const stats = await runReminders({ db, push, core, nowMs: T_0930_IST })
+    expect(stats).toMatchObject({ fired: 1, failed: 1, pushed: 1 })
+    expect(sent.flat().map((m) => m.to)).toEqual(['ExpoPushToken[a]'])
+    expect(state.reminders.find((r) => r.id === 'boom').active).toBe(true) // not advanced: tried again next minute
+  })
   it('does nothing before the reminder time', async () => {
     const { state, db } = fakeDb({ reminders: [R()], settings: { [U1]: IST }, tokens: [tok('a')] })
     const { sent, push } = okPush()

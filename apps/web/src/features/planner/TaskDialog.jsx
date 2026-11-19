@@ -14,9 +14,9 @@ const schema = z
     title: z.string().trim().min(1, 'Give the task a title').max(200, 'Keep it under 200 characters'),
     notes: z.string().max(2000),
     category: z.enum(TASK_CATEGORIES),
-    priority: z.enum(['low', 'medium', 'high']),
+    priority: z.enum(PRIORITIES.map((p) => p.value)),
     due_date: optionalDay,
-    recurrence: z.enum(['none', 'daily', 'weekdays', 'weekly', 'monthly']),
+    recurrence: z.enum(RECURRENCES.map((r) => r.value)),
     recurrence_until: optionalDay,
   })
   .superRefine((v, ctx) => {
@@ -83,7 +83,7 @@ export function TaskDialog({ open, onOpenChange, task, defaultDate = '' }) {
             ))}
           </Select>
         </Field>
-        <Field label="Priority">
+        <Field label="Priority" error={errors.priority?.message}>
           <Select {...register('priority')}>
             {PRIORITIES.map((p) => (
               <option key={p.value} value={p.value}>
@@ -95,7 +95,7 @@ export function TaskDialog({ open, onOpenChange, task, defaultDate = '' }) {
         <Field label="Due date" error={errors.due_date?.message}>
           <Input type="date" {...register('due_date')} />
         </Field>
-        <Field label="Repeat">
+        <Field label="Repeat" error={errors.recurrence?.message}>
           <Select {...register('recurrence')}>
             {RECURRENCES.map((r) => (
               <option key={r.value} value={r.value}>

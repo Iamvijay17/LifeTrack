@@ -1,7 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { fmtClock, localDayMinutes, minutesToTime, tzOffsetMs, zonedToMs } from '../src'
+import { fmtClock, localDayMinutes, minutesToTime, tzOffsetMs, zonedToIso, zonedToMs } from '../src'
 
 const iso = (ms: number) => new Date(ms).toISOString()
+
+describe('zonedToIso on daylight-saving change days (interviews, reminders)', () => {
+  it('uses the offset in force at that local time, not at a guessed instant', () => {
+    // New York falls back on 2026-11-01 (02:00 EDT -> 01:00 EST)
+    expect(zonedToIso('2026-11-01', '00:30', 'America/New_York')).toBe('2026-11-01T04:30:00.000Z') // EDT
+    expect(zonedToIso('2026-11-01', '01:30', 'America/New_York')).toBe('2026-11-01T05:30:00.000Z') // the first 01:30 (EDT)
+    expect(zonedToIso('2026-11-01', '02:30', 'America/New_York')).toBe('2026-11-01T07:30:00.000Z') // EST
+    expect(zonedToIso('2026-11-01', '03:00', 'America/New_York')).toBe('2026-11-01T08:00:00.000Z') // EST (was 07:00Z: an hour early)
+    // and springs forward on 2026-03-08 (02:00 EST -> 03:00 EDT)
+    expect(zonedToIso('2026-03-08', '03:00', 'America/New_York')).toBe('2026-03-08T07:00:00.000Z') // EDT (was 08:00Z)
+    expect(zonedToIso('2026-03-08', '01:30', 'America/New_York')).toBe('2026-03-08T06:30:00.000Z') // EST
+    expect(zonedToIso('2026-11-10', '09:00', 'Asia/Kolkata')).toBe('2026-11-10T03:30:00.000Z')
+  })
+})
 
 describe('zonedToMs (wall clock -> instant)', () => {
   it('a zone without daylight saving is a fixed offset', () => {

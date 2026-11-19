@@ -256,6 +256,10 @@ describe('small helpers', () => {
   it('titles pages', () => {
     expect(pageTitle('/planner')).toBe('Daily Planner · LifeTrack')
     expect(pageTitle('/nope')).toBe('LifeTrack')
+    expect(pageTitle('/fitness/exercises/12')).toBe('Gym & Fitness · LifeTrack')
+    expect(pageTitle('/automation/history')).toBe('Automation history · LifeTrack')
+    expect(pageTitle('/automation/abc')).toBe('Automation Studio · LifeTrack')
+    expect(pageTitle('/plannerx')).toBe('LifeTrack')
   })
   it('offers categories the user has already used, so they follow them across devices', () => {
     const tx = [

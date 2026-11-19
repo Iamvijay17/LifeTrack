@@ -33,7 +33,7 @@ export function FoodEntryForm({ open, onOpenChange, entry, values, categories = 
     register,
     control,
     watch,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = form
   const [save, pending] = useAction(
     async (v) => {
@@ -55,6 +55,7 @@ export function FoodEntryForm({ open, onOpenChange, entry, values, categories = 
       title={title ?? (entry ? 'Edit food entry' : 'Add food entry')}
       pending={pending}
       onSubmit={form.handleSubmit(save)}
+      dirty={isDirty}
       submitLabel={entry ? 'Save changes' : `Add to ${MEAL_LABEL[live.meal_type] ?? 'meal'}`}
       className="md:max-w-xl"
     >
@@ -66,6 +67,7 @@ export function FoodEntryForm({ open, onOpenChange, entry, values, categories = 
         name="meal_type"
         render={({ field }) => (
           <Segmented
+            aria-label="Meal"
             className="w-full [&>button]:flex-1"
             value={field.value}
             onChange={field.onChange}

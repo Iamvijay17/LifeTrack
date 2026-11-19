@@ -230,6 +230,27 @@ describe('module pages and the rest of the app', () => {
     expect(screen.queryByTestId('module-locked')).toBeNull()
   })
 
+  it('with Health locked, Fitness opens but its Body tab and body-weight tile show the Health lock, not "No measurements yet"', async () => {
+    await lockedModules(['health'])
+    renderApp('/fitness?tab=body')
+    expect(await screen.findByRole('heading', { name: 'Gym & Fitness' }, { timeout: 15_000 })).toBeInTheDocument()
+    expect(await screen.findByTestId('locked-health')).toBeInTheDocument()
+    expect(within(screen.getByTestId('locked-stat-health')).getByRole('button', { name: /Body weight is locked/ })).toBeInTheDocument()
+    expect(screen.queryByText('No measurements yet.')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Log' })).toBeNull()
+  })
+
+  it('with Health locked, the water card in Nutrition is off and says why (a drink also writes the health log)', async () => {
+    const user = userEvent.setup()
+    await lockedModules(['health'])
+    renderApp('/nutrition')
+    const note = await screen.findByTestId('water-locked', {}, { timeout: 15_000 })
+    expect(note).toHaveTextContent(/Health & sleep, which is locked/)
+    expect(screen.getByRole('button', { name: 'Add 250 millilitres' })).toBeDisabled()
+    await user.click(within(note).getByRole('button', { name: 'Unlock' }))
+    expect(await screen.findByRole('dialog', { name: 'Unlock Health & sleep' })).toBeInTheDocument()
+  })
+
   it('the sidebar marks a locked module', async () => {
     await lockedModules(['finance', 'jobs'])
     renderApp('/habits')

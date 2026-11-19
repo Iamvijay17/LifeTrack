@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useContextMenu, usePageContextMenu } from '@/components/context-menu'
 import { PageHeader } from '@/components/shared/PageHeader'
@@ -181,6 +181,22 @@ export default function CalendarPage() {
 
   // ------------------------------------------------------------------- opening things
   const create = useCallback((at = {}, kind = 'event') => setForm({ open: true, state: { kind, at } }), [])
+
+  // The Command Center's "Add calendar event" arrives as ?new=1 (the form opens once, then the flag is dropped).
+  const [newParams, setNewParams] = useSearchParams()
+  useEffect(() => {
+    if (newParams.get('new') !== '1') return
+    create({ date: view === 'month' ? selected : date, allDay: false })
+    setNewParams(
+      (prev) => {
+        const n = new URLSearchParams(prev)
+        n.delete('new')
+        return n
+      },
+      { replace: true },
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs on the flag only
+  }, [newParams])
   const open = useCallback((item) => setDetails(item), [])
   const edit = (item) => {
     setDetails(null)

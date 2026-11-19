@@ -53,7 +53,8 @@ export default function JobsPage() {
 
   const apps = data.job_applications
   const detail = apps.find((a) => a.id === openId) ?? null
-  const filtered = useMemo(() => filterApplications(apps, filters), [apps, filters])
+  // The status filter is only offered in the table: the board's columns already are the statuses, so it would only empty them silently.
+  const filtered = useMemo(() => filterApplications(apps, view === 'table' ? filters : { ...filters, status: '' }), [apps, filters, view])
   const sources = useMemo(() => applicationSources(apps), [apps])
   const stats = useMemo(
     () => funnel(apps, data.application_history, data.interview_events, ...ALL_TIME),

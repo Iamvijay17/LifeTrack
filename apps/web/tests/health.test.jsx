@@ -126,6 +126,11 @@ describe('health domain', () => {
       false,
       false,
     ])
+    // water and steps are integer columns: a decimal is refused here instead of by the database (22P02)
+    const steps = numberInRange(0, 200000, 'Steps', { int: true })
+    expect(steps.safeParse('8000').success).toBe(true)
+    expect(steps.safeParse('').success).toBe(true)
+    expect(steps.safeParse('8000.5').error.issues[0].message).toBe('Steps: use a whole number')
   })
 })
 
@@ -244,8 +249,7 @@ describe('WaterDialog', () => {
     await waitFor(() => expect(mocks.addWater).toHaveBeenCalledWith(DAY, 330))
     await waitFor(() => expect(screen.getByLabelText('Custom amount in ml')).toHaveValue(null))
   })
-  it('shows progress against the goal and offers Undo only when there is water to undo', async () => {
-    const user = userEvent.setup()
+  it('shows progress against the goal and offers Undo only for a drink added here', () => {
     const { unmount } = open()
     expect(screen.queryByRole('button', { name: /Undo last/ })).toBeNull()
     expect(screen.getByText(/0 ml of 3000 ml today/)).toBeInTheDocument()
@@ -253,8 +257,19 @@ describe('WaterDialog', () => {
     mocks.rows = [H({ water_ml: 1500 })]
     open()
     expect(screen.getByText(/1500 ml of 3000 ml today/)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Undo last 250 ml' }))
-    await waitFor(() => expect(mocks.addWater).toHaveBeenCalledWith(DAY, -250))
+    expect(screen.queryByRole('button', { name: /Undo last/ })).toBeNull() // nothing added here yet: no amount to take back
+  })
+  it('Undo takes back exactly the last amount added, and says so', async () => {
+    const { toast } = await import('sonner')
+    const user = userEvent.setup()
+    mocks.rows = [H({ water_ml: 1500 })]
+    open()
+    await user.click(screen.getByRole('button', { name: '500' }))
+    await waitFor(() => expect(toast.success).toHaveBeenLastCalledWith('Water logged'))
+    await user.click(await screen.findByRole('button', { name: 'Undo last 500 ml' }))
+    await waitFor(() => expect(mocks.addWater).toHaveBeenLastCalledWith(DAY, -500))
+    await waitFor(() => expect(toast.success).toHaveBeenLastCalledWith('Last drink removed'))
+    expect(screen.queryByRole('button', { name: /Undo last/ })).toBeNull() // one undo per drink
   })
 })
 
