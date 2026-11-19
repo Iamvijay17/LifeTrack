@@ -8,6 +8,14 @@ export function isPaused(habit, date) {
   return false
 }
 
+/** The habit rows with their `habit_pauses` rows attached as `habit.pauses` (copies; the stored rows are never modified, a habit without pauses is returned as is). */
+export function withPauses(habits, habitPauses) {
+  if (!habitPauses?.length) return habits
+  const by = new Map()
+  for (const p of habitPauses) by.set(p.habit_id, [...(by.get(p.habit_id) ?? []), { start_date: p.start_date, end_date: p.end_date ?? null }])
+  return habits.map((h) => (by.has(h.id) ? { ...h, pauses: by.get(h.id) } : h))
+}
+
 /** Is `date` a planned rest day (a weekday the person marked as "never expected") or a paused day? Neither can be missed. */
 export function isRestDay(habit, date) {
   return (habit.rest_days ?? []).includes(weekday(date)) || isPaused(habit, date)
@@ -106,13 +114,13 @@ export function streaks(habit, logs, today, weekStartsOn = 1) {
   return { current, longest, unit: 'd' }
 }
 
-/** Completion over [from,to] (clamped to start..today). expected excludes skipped/rest days and a still-pending today. */
-export function completion(habit, logs, from, to, today, weekStartsOn = 1) {
+/** Completion over [from,to] (clamped to start..today). expected excludes skipped/rest days and a still-pending today. `tz` dates the archive day. */
+export function completion(habit, logs, from, to, today, weekStartsOn = 1, tz = DEFAULT_TZ) {
   const map = buildLogMap(logs)
   const lo = from < habit.start_date ? habit.start_date : from
   let hi = to > today ? today : to
   // An archived habit stops accruing "missed" days on the day it was archived (its earlier history still counts).
-  const archivedOn = habit.archived_at ? dateStrInTz(habit.archived_at, DEFAULT_TZ) : null
+  const archivedOn = habit.archived_at ? dateStrInTz(habit.archived_at, tz || DEFAULT_TZ) : null
   if (archivedOn && archivedOn < hi) hi = archivedOn
   if (lo > hi) return { done: 0, expected: 0, rate: null }
   if (habit.frequency === 'weekly') {

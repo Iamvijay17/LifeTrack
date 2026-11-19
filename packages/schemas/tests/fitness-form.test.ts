@@ -23,6 +23,13 @@ describe('workout form', () => {
     expect(workoutFormSchema.safeParse({ ...blankWorkout('2026-11-02'), exercises: [{ name: 'x', sets: [{ reps: '-1', weight: '5' }] }] }).success).toBe(false)
     expect(workoutFormSchema.safeParse({ ...blankWorkout('2026-11-02'), duration_minutes: '2000' }).success).toBe(false)
     expect(workoutFormSchema.safeParse({ ...blankWorkout('2026-11-02'), exercises: [{ name: '', sets: [] }] }).success).toBe(false)
+    // integer columns: reps, duration and cardio minutes must be whole numbers, with a message that says so
+    const msg = (o: object) => workoutFormSchema.safeParse({ ...blankWorkout('2026-11-02'), ...o }).error?.issues[0].message
+    expect(msg({ duration_minutes: '45.5' })).toBe('Duration: use a whole number')
+    expect(msg({ cardio_minutes: '20.5' })).toBe('Cardio minutes: use a whole number')
+    expect(msg({ exercises: [{ name: 'x', sets: [{ reps: '8.5', weight: '5' }] }] })).toBe('Reps: use a whole number')
+    expect(workoutFormSchema.safeParse({ ...blankWorkout('2026-11-02'), exercises: [{ name: 'x', sets: [{ reps: '8', weight: '62.5' }] }] }).success).toBe(true)
+    expect(routineFormSchema.safeParse({ ...blankRoutine(), name: 'x', exercises: [{ name: 'a', sets: '2.5', reps: 1, weight_kg: 0 }] }).success).toBe(false)
   })
 })
 describe('measurement form', () => {
@@ -33,7 +40,7 @@ describe('measurement form', () => {
     expect(w).toEqual({ body: null, weight: 71.5, date: '2026-11-02' })
     const t = measurementFormToPayloads(measurementFormSchema.parse({ ...base, waist_cm: '82.5', body_fat_pct: '15' }))
     expect(t.weight).toBeNull()
-    expect(t.body).toMatchObject({ measured_on: '2026-11-02', waist_cm: 82.5, body_fat_pct: 15, chest_cm: null })
+    expect(t.body).toEqual({ measured_on: '2026-11-02', waist_cm: 82.5, body_fat_pct: 15 }) // only what was filled in: the per-day upsert keeps the rest
     expect(insertSchemas.body_measurements.safeParse(t.body).success).toBe(true)
     expect(measurementFormSchema.safeParse({ ...base, weight_kg: '10' }).success).toBe(false)
   })

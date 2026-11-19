@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { pickDate } from './pickers'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import {
   daysLeft,
@@ -192,6 +192,12 @@ describe('Milestones', () => {
     await user.click(screen.getByRole('button', { name: 'Mark done: Design' }))
     expect(mocks.toggle).toHaveBeenCalledWith(a)
     expect(screen.getByRole('button', { name: 'Mark not done: Build' })).toHaveAttribute('aria-pressed', 'true')
+    // Deleting asks first: a cancelled prompt deletes nothing.
+    mocks.confirm.mockResolvedValueOnce(false)
+    await user.click(screen.getByRole('button', { name: 'Delete milestone Build' }))
+    await waitFor(() => expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: 'Delete this milestone?' })))
+    expect(mocks.remove).not.toHaveBeenCalled()
+    mocks.confirm.mockResolvedValueOnce(true)
     await user.click(screen.getByRole('button', { name: 'Delete milestone Build' }))
     await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith('milestones', 'b'))
   })

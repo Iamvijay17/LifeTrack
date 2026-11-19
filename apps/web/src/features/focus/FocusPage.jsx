@@ -74,7 +74,9 @@ export default function FocusPage() {
   useEffect(() => {
     document.title = timer.timer ? `${fmtClock(timer.left)} · ${MODE_LABEL[timer.timer.mode]} — LifeTrack` : pageTitle('/focus')
     return () => {
-      document.title = 'LifeTrack'
+      // Leaving the page: the next page may already have set its own title (a lazy page mounts after this cleanup), so put
+      // back the title of wherever the browser is now rather than a bare 'LifeTrack'.
+      document.title = pageTitle(window.location.pathname)
     }
   }, [timer.timer, timer.left])
 
@@ -86,29 +88,34 @@ export default function FocusPage() {
   const [params, setParams] = useSearchParams()
   const autoStarted = useRef(false)
   useEffect(() => {
-    if (params.get('start') !== '1' || loading || autoStarted.current) return
-    autoStarted.current = true
-    if (!timer.timer) start()
-    setParams({}, { replace: true })
+    if (params.get('start') !== '1') {
+      autoStarted.current = false // the request was consumed, so the palette's next "Start a focus session" starts again
+      return
+    }
+    if (loading) return
+    if (!autoStarted.current) {
+      autoStarted.current = true
+      if (!timer.timer) start()
+    }
+    setParams({}, { replace: true }) // always clear it, or a second ?start=1 would be the same URL and never arrive
   })
-  const [stopEarly] = useAction(
-    async () => {
-      const t = timer.timer
-      const spent = timer.stop()
-      if (t.mode !== 'focus') return
-      const saved = await recordFocus({
-        plannedMinutes: t.plannedMinutes,
-        actualSeconds: spent,
-        completed: false,
-        taskId: t.taskId,
-        topicId: t.topicId,
-        label: t.label,
-        date: today,
-      })
-      if (!saved) toast('Stopped — under a minute, so nothing was recorded.')
-    },
-    { success: 'Stopped and saved' },
-  )
+  const [stopEarly] = useAction(async () => {
+    const t = timer.timer
+    const spent = timer.stop()
+    if (t.mode !== 'focus') return
+    const saved = await recordFocus({
+      plannedMinutes: t.plannedMinutes,
+      actualSeconds: spent,
+      completed: false,
+      taskId: t.taskId,
+      topicId: t.topicId,
+      label: t.label,
+      date: today,
+    })
+    // Only a session that was actually recorded is "saved".
+    if (saved) toast.success('Stopped and saved')
+    else toast('Stopped — under a minute, so nothing was recorded.')
+  })
   const skipBreak = () => {
     timer.stop()
     setSetup((s) => ({ ...s, mode: 'focus' }))

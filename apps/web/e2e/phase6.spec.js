@@ -191,7 +191,7 @@ test.describe('reminders & notifications', () => {
 })
 
 test.describe('focus mode', () => {
-  test('runs a timer, stops early and records the session', async ({ page }) => {
+  test('runs a timer and stops early (under a minute, so nothing is recorded)', async ({ page }) => {
     await register(page)
     await page.goto('/focus')
     await expect(page.getByRole('timer')).toHaveAccessibleName('25:00 remaining')
@@ -207,7 +207,9 @@ test.describe('focus mode', () => {
     await page.reload() // the running timer survives a reload
     await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible()
     await page.getByRole('button', { name: /Stop & save/ }).click()
-    await expect(page.getByText('Stopped and saved').first()).toBeVisible()
+    // A few seconds is under the one-minute minimum: the page says nothing was recorded, and no longer also claims "Stopped and saved".
+    await expect(page.getByText(/under a minute, so nothing was recorded/).first()).toBeVisible()
+    await expect(page.getByText('Stopped and saved')).toHaveCount(0)
   })
 
   test('manual record of a completed block shows in the totals', async ({ page }) => {

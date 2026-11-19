@@ -44,7 +44,7 @@ export function PrioritiesCard({ priorities, hasTasksToday, openTasks, doneTasks
                 >
                   <CheckButton done={false} onToggle={() => onComplete(t)} label={`Complete ${t.title}`} />
                   <span className="line-clamp-2 min-w-0 flex-1 break-words py-2 text-sm">{t.title}</span>
-                  <span aria-hidden className="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground/70">
+                  <span aria-hidden className="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">
                     {i + 1}
                   </span>
                 </m.li>

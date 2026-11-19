@@ -136,24 +136,23 @@ const QUICK = [15, 25, 50]
 export function TimerWidget({ timer, today }) {
   const [minutes, setMinutes] = useState(25)
   const active = timer.timer
-  const [stop] = useAction(
-    async () => {
-      const t = timer.timer
-      const spent = timer.stop()
-      if (t.mode !== 'focus') return
-      const saved = await recordFocus({
-        plannedMinutes: t.plannedMinutes,
-        actualSeconds: spent,
-        completed: false,
-        taskId: t.taskId,
-        topicId: t.topicId,
-        label: t.label,
-        date: today,
-      })
-      if (!saved) toast('Stopped. Under a minute, so nothing was recorded.')
-    },
-    { success: 'Stopped and saved' },
-  )
+  const [stop] = useAction(async () => {
+    const t = timer.timer
+    const spent = timer.stop()
+    if (t.mode !== 'focus') return
+    const saved = await recordFocus({
+      plannedMinutes: t.plannedMinutes,
+      actualSeconds: spent,
+      completed: false,
+      taskId: t.taskId,
+      topicId: t.topicId,
+      label: t.label,
+      date: today,
+    })
+    // Only a session that was actually recorded is "saved" (a stopped break, or under a minute, records nothing).
+    if (saved) toast.success('Stopped and saved')
+    else toast('Stopped. Under a minute, so nothing was recorded.')
+  })
   const ModeIcon = active?.mode === 'focus' || !active ? Timer : Coffee
   return (
     <Panel title="Focus timer" icon={ModeIcon} aside={active ? MODE_LABEL[active.mode] : undefined}>

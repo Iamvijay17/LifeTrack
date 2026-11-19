@@ -21,10 +21,15 @@ site_url = "http://localhost:4173"
 additional_redirect_urls = ["http://localhost:4173", "lifetrack://auth-callback"]
 jwt_expiry = 3600
 enable_signup = true
+# Same rule as the apps (packages/core/src/security.js): GoTrue's own default is 6, so a direct API call could set a shorter password.
+# Set the same minimum in the hosted project (Authentication > Providers > Email > Minimum password length).
+minimum_password_length = 8
 
 [auth.email]
 enabled = true
 double_confirm_changes = true
+# A session older than 24 hours must re-authenticate to change the password (docs/APP_SECURITY.md). Turn it on in the hosted project too.
+secure_password_change = true
 # Off for tests so sign-up returns a session immediately. Keep confirmation ON in the hosted project.
 enable_confirmations = false
 

@@ -336,22 +336,14 @@ export function ItemDialog({ open, onOpenChange, state, prefs, today, askScope, 
   const sd = register('start_date')
   const st = register('start_time')
 
-  const [save, pending] = useAction(
-    async (values) => {
-      const { kind: k, values: row } = toPayload(values, { tz: prefs.timezone })
+  const [persist, pending] = useAction(
+    async (k, row, scope) => {
       if (!editing) {
         if (k === 'task') await createTask(row)
         else await createCalendarEvent({ ...row, id: newId })
       } else if (k === 'task') {
         await store.update('tasks', item.id, row)
       } else {
-        let scope = 'all'
-        if (item.row.rrule) {
-          const before = JSON.stringify(normalizeRule(item.row.rrule, item.occurrenceDate))
-          const changed = before !== JSON.stringify(normalizeRule(row.rrule, item.occurrenceDate))
-          scope = await askScope('edit', { title: item.title, disableThis: changed })
-          if (!scope) return undefined // cancelled: leave the form open
-        }
         await saveCalendarEvent(item.row, row, { scope, occurrenceDate: item.occurrenceDate })
       }
       onOpenChange(false)
@@ -359,6 +351,18 @@ export function ItemDialog({ open, onOpenChange, state, prefs, today, askScope, 
     },
     { success: editing ? 'Saved' : kind === 'task' ? 'Task added' : 'Event added' },
   )
+  // A repeating event asks how far the change reaches before anything is saved, so cancelling that question saves (and announces) nothing.
+  const save = async (values) => {
+    const { kind: k, values: row } = toPayload(values, { tz: prefs.timezone })
+    let scope = 'all'
+    if (editing && k !== 'task' && item.row.rrule) {
+      const before = JSON.stringify(normalizeRule(item.row.rrule, item.occurrenceDate))
+      const changed = before !== JSON.stringify(normalizeRule(row.rrule, item.occurrenceDate))
+      scope = await askScope('edit', { title: item.title, disableThis: changed })
+      if (!scope) return undefined // cancelled: leave the form open
+    }
+    return persist(k, row, scope)
+  }
 
   const title = editing ? (kind === 'task' ? 'Edit task' : 'Edit event') : kind === 'task' ? 'New task' : 'New event'
   return (

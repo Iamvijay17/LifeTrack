@@ -72,7 +72,8 @@ export function WorkoutForm({ visible, workout, sets, routines, library, today, 
     reset(r ? { ...blankWorkout(date), routine_id: r.id, name: r.name, exercises: routineToExercises(r) } : blankWorkout(date))
   }, [visible, workout?.id, date, routineId]) // eslint-disable-line react-hooks/exhaustive-deps
   const [save, pending] = useAction(async () => {
-    const v = validate()
+    // A cardio workout hides the exercise rows: they are neither checked nor saved (a routine's sets would otherwise be logged unseen).
+    const v = validate(values.kind === 'cardio' ? { ...values, exercises: [] } : undefined)
     if (!v) return
     await api.saveWorkout(workoutFormToPayload(v), workoutRows(v.exercises, library), workout)
     onClose()

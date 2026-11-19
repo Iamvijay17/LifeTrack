@@ -13,6 +13,12 @@ describe('health form', () => {
     expect(healthFormSchema.safeParse({ ...base, water_ml: '20001' }).success).toBe(false)
     expect(healthFormSchema.safeParse({ ...base, steps: 'abc' }).success).toBe(false)
   })
+  it('water and steps are whole numbers (integer columns refuse 12.5)', () => {
+    expect(healthFormSchema.safeParse({ ...base, water_ml: '250.5' }).error?.issues[0].message).toBe('Water: use a whole number')
+    expect(healthFormSchema.safeParse({ ...base, steps: '8000.2' }).error?.issues[0].message).toBe('Steps: use a whole number')
+    expect(healthFormSchema.safeParse({ ...base, water_ml: '250', steps: '8000' }).success).toBe(true)
+    expect(healthFormSchema.safeParse({ ...base, weight_kg: '71.5' }).success).toBe(true) // weight is numeric, decimals fine
+  })
   it('maps to a database-valid payload', () => {
     const p = healthFormToPayload(healthFormSchema.parse({ ...base, bedtime: '23:30', wake_time: '06:30', water_ml: '1500', energy_level: '4', weight_kg: '71.5' }))
     expect(p).toMatchObject({ sleep_minutes: 420, water_ml: 1500, energy_level: 4, weight_kg: 71.5, steps: 0 })

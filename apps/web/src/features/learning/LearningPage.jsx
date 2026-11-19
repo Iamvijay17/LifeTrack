@@ -158,7 +158,7 @@ export default function LearningPage() {
           <Segmented value={tab} onChange={setTab} options={TABS} />
 
           {tab === 'overview' && (
-            <OverviewTab running={running} goals={data.goals} topics={topics} today={today} week={week} weekMinutes={weekMinutes} />
+            <OverviewTab running={running} goals={studyGoals} topics={topics} today={today} week={week} weekMinutes={weekMinutes} />
           )}
           {tab === 'goals' && (
             <GoalsTab
@@ -200,7 +200,7 @@ export default function LearningPage() {
         open={sessDlg.open}
         session={sessDlg.session}
         defaultTarget={sessDlg.target ?? ''}
-        goals={data.goals}
+        goals={studyGoals}
         topics={topics}
         today={today}
         onOpenChange={(o) => setSessDlg((d) => ({ ...d, open: o }))}

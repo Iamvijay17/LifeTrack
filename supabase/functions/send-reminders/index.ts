@@ -23,11 +23,23 @@ Deno.serve(async (req) => {
   const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
   const must = <T>(r: { data: T | null; error: { message: string } | null }) => { if (r.error) throw new Error(r.error.message); return r.data as T }
 
+  // PostgREST returns at most 1000 rows per request (max_rows): page through every active reminder, in a stable order, or the same
+  // first 1000 would come back every minute and other people's reminders would never fire. Id lists go in the URL, so they are sliced.
+  const PAGE = 1000
+  const SLICE = 200
+  const slices = (ids: string[]) => Array.from({ length: Math.ceil(ids.length / SLICE) }, (_, i) => ids.slice(i * SLICE, (i + 1) * SLICE))
   const db = {
-    listActiveReminders: async (maxDate: string) => must(await sb.from('reminders').select('*').eq('active', true).lte('remind_date', maxDate)),
+    listActiveReminders: async (maxDate: string) => {
+      const all: any[] = []
+      for (let from = 0; ; from += PAGE) {
+        const page = must(await sb.from('reminders').select('*').eq('active', true).lte('remind_date', maxDate).order('id').range(from, from + PAGE - 1)) as any[]
+        all.push(...page)
+        if (page.length < PAGE) return all
+      }
+    },
     listSettings: async (ids: string[]) => {
-      if (!ids.length) return new Map()
-      const rows = must(await sb.from('user_settings').select('user_id,timezone,notification_prefs,notification_settings').in('user_id', ids)) as any[]
+      const rows: any[] = []
+      for (const part of slices(ids)) rows.push(...(must(await sb.from('user_settings').select('user_id,timezone,notification_prefs,notification_settings').in('user_id', part)) as any[]))
       return new Map(rows.map((r) => [r.user_id, r]))
     },
     insertNotification: async (row: Record<string, unknown>) => {
@@ -36,7 +48,11 @@ Deno.serve(async (req) => {
       return data
     },
     updateReminder: async (id: string, patch: Record<string, unknown>) => { must(await sb.from('reminders').update(patch).eq('id', id).select('id')) },
-    listTokens: async (ids: string[]) => must(await sb.from('device_push_tokens').select('user_id,token').in('user_id', ids)),
+    listTokens: async (ids: string[]) => {
+      const rows: any[] = []
+      for (const part of slices(ids)) rows.push(...(must(await sb.from('device_push_tokens').select('user_id,token').in('user_id', part)) as any[]))
+      return rows
+    },
     deleteTokens: async (tokens: string[]) => { must(await sb.from('device_push_tokens').delete().in('token', tokens).select('id')) },
   }
   const expoToken = Deno.env.get('EXPO_ACCESS_TOKEN')

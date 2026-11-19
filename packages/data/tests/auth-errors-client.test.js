@@ -58,6 +58,12 @@ describe('createSupabaseAuth', () => {
     const f = createSupabaseAuth(failing)
     for (const fn of [() => f.signOut(), () => f.sendPasswordReset('a@b.c'), () => f.updatePassword('x'), () => f.updateDisplayName('x')]) await expect(fn()).rejects.toThrow('boom')
   })
+  it('signOut that cannot reach the server still signs this device out (local scope)', async () => {
+    const calls = []
+    const offline = mkClient({ auth: { signOut: async (o) => (calls.push(o?.scope ?? 'global'), o?.scope === 'local' ? { error: null } : { error: { message: 'Failed to fetch' } }) } })
+    await expect(createSupabaseAuth(offline).signOut()).resolves.toBeUndefined()
+    expect(calls).toEqual(['global', 'local'])
+  })
   it('deleteAccount calls the RPC, then signs out (even if that sign-out fails); an RPC error stops before signing out', async () => {
     const c = mkClient({ auth: { signOut: async () => { throw new Error('already gone') } } })
     await expect(createSupabaseAuth(c).deleteAccount()).resolves.toBeUndefined()
@@ -99,5 +105,26 @@ describe('client factory', () => {
     const c = createSupabaseClient({ url: 'https://abc.supabase.co', anonKey: 'anon', auth: { storage, detectSessionInUrl: false, flowType: 'pkce' } })
     expect(typeof c.from).toBe('function'); expect(typeof c.auth.signInWithPassword).toBe('function')
     c.auth.stopAutoRefresh()
+  })
+})
+
+describe('audit: missing tables and schemas', () => {
+  it('a missing table names the migration that creates it, or the base one when the table is unknown', async () => {
+    const { toAppError } = await import('../src/errors')
+    expect(toAppError({ code: '42P01', message: 'relation "public.habit_pauses" does not exist' }).message).toMatch(/habit_pauses.*0018_consistency\.sql/)
+    expect(toAppError({ code: 'PGRST205', message: 'Could not find the table in the schema cache' }).message).toMatch(/0003_focus_notes_goals_reminders\.sql/)
+    expect(toAppError({ code: 'PGRST205' }).message).toMatch(/missing the latest LifeTrack tables\. In Supabase/)
+  })
+  it('an unknown error shows its own short message, a custom one, or a generic line, never a long internal dump', async () => {
+    const { toAppError } = await import('../src/errors')
+    expect(toAppError({ message: 'Short and clear' }).message).toBe('Short and clear')
+    expect(toAppError({ userMessage: 'Try the other button', message: 'x' }).message).toBe('Try the other button')
+    expect(toAppError({ message: 'x'.repeat(200) }).message).toBe('Something went wrong. Please try again.')
+  })
+  it('the validating adapter refuses a table it has no schema for', async () => {
+    const { withSchemaValidation } = await import('../src/validatingAdapter')
+    const inner = { insert: async (t, rows) => rows, update: async () => ({}), upsert: async (t, rows) => rows }
+    const v = withSchemaValidation(inner, { insertSchemas: {}, updateSchemas: {} })
+    expect(() => v.insert('nope', [{ a: 1 }])).toThrow('No schema for table "nope"') // refused before any request
   })
 })

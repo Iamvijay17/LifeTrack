@@ -223,7 +223,7 @@ The root `SECURITY.md` still contains `[security contact email]`.
 
 | # | Capability | Status | Notes |
 | --- | --- | --- | --- |
-| 1 | Global search / command palette (Ctrl/Cmd + K): pages, tasks, notes, goals, job applications, habits, transactions, quick actions, theme, sign out | ✅ web · ❌ mobile | **Does not search foods, workouts or exercises** 🟡 |
+| 1 | Global search / command palette (Ctrl/Cmd + K): pages, tasks, notes, goals, job applications, habits, transactions, quick actions, theme, sign out | ✅ web · ❌ mobile | Searches the food log and workouts; **not the exercise catalog or foods database** 🟡 · see [COMMAND_CENTER.md](COMMAND_CENTER.md) |
 | 2 | Quick actions: Add task, Start study, Log workout, Add expense, Log water, Complete habit, Job application | ✅ | No "Log food" quick action 🟡 |
 | 3 | Live sync across devices (Realtime + refetch) with status dot | ✅ | |
 | 4 | Theme sync across devices (`user_settings.theme`) and system theme | ✅ | |

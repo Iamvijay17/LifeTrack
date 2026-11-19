@@ -8,6 +8,7 @@ import { todayAgenda } from './agenda'
 import { budgetAlert, budgetForMonth, summarize } from './finance'
 import { categoryEnabled, fromItemPriority, topPriority } from './notifications'
 import { ruleStatus, ruleTitle } from './recurring'
+import { withPauses } from './streaks'
 import { isOpen } from './tasks'
 
 /** The tables each category needs, so the app only loads what the person has not switched off. */
@@ -29,8 +30,8 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 const names = (list, max = 3) => list.slice(0, max).join(' · ') + (list.length > max ? ` · +${list.length - max} more` : '')
 
 /**
- * @param d    raw rows, named as todayAgenda names them: { tasks, habits, habitLogs, workouts, routines, interviews, applications, topics,
- *             recurringRules, goals, milestones, transactions, budgets }. Anything missing counts as empty.
+ * @param d    raw rows, named as todayAgenda names them: { tasks, habits, habitLogs, habitPauses, workouts, routines, interviews, applications, topics,
+ *             recurringRules, goals, milestones, transactions, budgets }. Anything missing counts as empty (no pauses: habits count as never paused).
  * @param ctx  { nowMs, tz, settings: notificationSettings(), prefs: notification_prefs, user: { week_starts_on, workout_plan, monthly_budget_paise, currency } }
  * @returns candidates: { key, kind, priority, title, body, link, dueMs, expiresMs }. One is due when dueMs <= now < expiresMs (see dueCandidates).
  */
@@ -52,7 +53,7 @@ export function sourceCandidates(d, { nowMs, tz, settings, prefs = {}, user = {}
   const agenda = todayAgenda(
     {
       tasks: on('task') ? d.tasks : [],
-      habits: on('habit') ? d.habits : [],
+      habits: on('habit') ? withPauses(d.habits ?? [], d.habitPauses) : [],
       habitLogs: on('habit') ? d.habitLogs : [],
       workouts: on('workout') ? d.workouts : [],
       routines: on('workout') ? d.routines : [],

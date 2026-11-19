@@ -10,5 +10,8 @@ export function relativeTime(iso, nowMs = Date.now()) {
   return `${Math.round(mins / 1440)}d ago`
 }
 
-/** "1 rejection", "3 rejections". */
-export const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
+/** A noun for `n` things: "task" → "tasks", "entry" → "entries" (a consonant + y), "day" → "days"; `n === 1` keeps it as it is. */
+export const pluralWord = (word, n = 2) => (n === 1 ? word : /[^aeiou]y$/i.test(word) ? `${word.slice(0, -1)}ies` : `${word}s`)
+
+/** "1 rejection", "3 rejections", "2 entries". */
+export const plural = (n, word) => `${n} ${pluralWord(word, n)}`

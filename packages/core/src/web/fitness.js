@@ -118,14 +118,15 @@ const MEASURE_FIELDS = ['chest_cm', 'waist_cm', 'hips_cm', 'arm_cm', 'thigh_cm',
 /**
  * Body-metrics form -> what to store. Tape measurements go to body_measurements (one row per day); body weight goes to the
  * daily health log. `empty` is true when nothing at all was entered.
+ * The row is upserted on (user, day), so it carries only the fields that were filled in: logging the waist later the same day keeps the
+ * chest and hips from earlier (a blank field means "not measured now", not "erase").
  */
 export function splitMeasurements(v) {
-  const num = (x) => (x === '' ? null : Number(x))
-  const measurements = Object.fromEntries(MEASURE_FIELDS.map((k) => [k, num(v[k])]))
-  const hasTape = MEASURE_FIELDS.some((k) => measurements[k] != null)
+  const measurements = Object.fromEntries(MEASURE_FIELDS.filter((k) => v[k] !== '' && v[k] != null).map((k) => [k, Number(v[k])]))
+  const hasTape = Object.keys(measurements).length > 0
   const weight = v.weight_kg === '' ? null : Number(v.weight_kg)
   return {
-    tape: hasTape ? { measured_on: v.measured_on, ...measurements, notes: v.notes } : null,
+    tape: hasTape ? { measured_on: v.measured_on, ...measurements, ...(v.notes ? { notes: v.notes } : {}) } : null,
     weight,
     empty: !hasTape && weight == null, // notes alone are not a measurement
   }

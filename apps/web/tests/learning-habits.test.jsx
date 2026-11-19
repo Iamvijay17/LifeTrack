@@ -8,15 +8,28 @@ import { parseTarget, targetValue, sessionName, weekSeries, historyOf, topicGrou
 import { buildHabitStats, summarizeHabits, heatmapCounts, scheduleLabel } from '@/domain/habits'
 import { pctText } from '@/lib/format'
 
-const mocks = vi.hoisted(() => ({ insert: vi.fn(), update: vi.fn(), remove: vi.fn(), setHabitStatus: vi.fn(), confirm: vi.fn() }))
+const mocks = vi.hoisted(() => ({
+  insert: vi.fn(),
+  update: vi.fn(),
+  remove: vi.fn(),
+  setHabitStatus: vi.fn(),
+  confirm: vi.fn(),
+  stopStudy: vi.fn(),
+}))
 vi.mock('@/hooks/store', () => ({ insert: mocks.insert, update: mocks.update, remove: mocks.remove, upsert: vi.fn() }))
-vi.mock('@/services/api', () => ({ setHabitStatus: mocks.setHabitStatus }))
+vi.mock('@/services/api', () => ({
+  setHabitStatus: mocks.setHabitStatus,
+  stopStudy: mocks.stopStudy,
+  startStudy: vi.fn(),
+  discardStudy: vi.fn(),
+}))
 vi.mock('@/components/shared/Confirm', () => ({ useConfirm: () => mocks.confirm }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 import { SessionDialog } from '@/features/learning/SessionDialog'
 import { StudyGoalDialog } from '@/features/learning/StudyGoalDialog'
 import { TopicDialog, parseRevisionDates } from '@/features/learning/TopicDialog'
+import { StudyTimer } from '@/features/learning/StudyTimer'
 import { HabitDialog } from '@/features/habits/HabitDialog'
 import { HabitRow } from '@/features/habits/HabitRow'
 import { useConfirmedDelete } from '@/hooks/useConfirmedDelete'
@@ -28,6 +41,7 @@ beforeEach(() => {
   mocks.update.mockResolvedValue({})
   mocks.remove.mockResolvedValue(undefined)
   mocks.setHabitStatus.mockResolvedValue({})
+  mocks.stopStudy.mockResolvedValue({})
 })
 const TODAY = '2026-11-02' // Monday
 
@@ -253,6 +267,63 @@ describe('SessionDialog', () => {
     await waitFor(() => expect(mocks.update).toHaveBeenCalledTimes(1))
     expect(mocks.update.mock.calls[0][2]).not.toHaveProperty('source')
   })
+  it('editing keeps the link to a goal that is no longer offered (only study goals are listed)', async () => {
+    const user = userEvent.setup()
+    render(
+      <SessionDialog
+        {...props}
+        session={{ id: 's2', goal_id: 'gx', topic_id: 't9', session_date: TODAY, duration_seconds: 600, problems_solved: 0, notes: '' }}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(mocks.update).toHaveBeenCalledTimes(1))
+    expect(mocks.update.mock.calls[0][2]).toMatchObject({ goal_id: 'gx', topic_id: 't9' })
+  })
+})
+
+describe('StudyTimer: saving a stopped session', () => {
+  const running = {
+    id: 's1',
+    started_at: new Date(Date.now() - 30 * 60000).toISOString(),
+    status: 'running',
+    goal_id: null,
+    topic_id: null,
+  }
+  const stopForm = async (user) => {
+    render(<StudyTimer running={running} goals={[]} topics={[]} today={TODAY} />)
+    await user.click(screen.getByRole('button', { name: /Stop & save/ }))
+    return { minutes: screen.getByLabelText('Minutes studied'), problems: screen.getByLabelText('Problems solved (DSA)') }
+  }
+  const save = (user) => user.click(screen.getByRole('button', { name: 'Save session' }))
+  it('refuses blank or negative minutes, and an empty session (no minutes, no problems)', async () => {
+    const user = userEvent.setup()
+    const { minutes, problems } = await stopForm(user)
+    await user.clear(minutes)
+    await save(user)
+    expect(await screen.findByText('Enter the minutes studied (0 or more)')).toBeInTheDocument()
+    await user.type(minutes, '-5')
+    await save(user)
+    expect(await screen.findByText('Enter the minutes studied (0 or more)')).toBeInTheDocument()
+    await user.clear(minutes)
+    await user.type(minutes, '0')
+    await save(user)
+    expect(await screen.findByText('Enter minutes studied or problems solved')).toBeInTheDocument()
+    await user.clear(problems)
+    await user.type(problems, '-1')
+    await save(user)
+    expect(await screen.findByText('Enter a whole number, 0 or more')).toBeInTheDocument()
+    expect(mocks.stopStudy).not.toHaveBeenCalled()
+  })
+  it('saves minutes, or problems alone', async () => {
+    const user = userEvent.setup()
+    const { minutes, problems } = await stopForm(user)
+    await user.clear(minutes)
+    await user.type(minutes, '0')
+    await user.clear(problems)
+    await user.type(problems, '3')
+    await save(user)
+    await waitFor(() => expect(mocks.stopStudy).toHaveBeenCalledWith(running, { minutes: 0, problems_solved: 3, notes: '' }))
+  })
 })
 
 describe('StudyGoalDialog and TopicDialog', () => {
@@ -270,6 +341,29 @@ describe('StudyGoalDialog and TopicDialog', () => {
         expect.objectContaining({ title: 'Finish React', category: 'Frontend', target_minutes: 1200, topic_id: 't1', due_date: null }),
       ),
     )
+  })
+  it("editing keeps the goal's own category unless the topic changes", async () => {
+    const user = userEvent.setup()
+    const topics = [
+      { id: 't1', name: 'React', group_name: 'Frontend' },
+      { id: 't2', name: 'SQL', group_name: 'Backend' },
+    ]
+    const goal = { id: 'g1', title: 'React', topic_id: 't1', category: 'Career', target_minutes: 600, status: 'active', notes: '' }
+    const { unmount } = render(<StudyGoalDialog open onOpenChange={() => {}} goal={goal} topics={topics} />)
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(mocks.update).toHaveBeenCalledWith('goals', 'g1', expect.objectContaining({ category: 'Career' })))
+    unmount()
+    mocks.update.mockClear()
+    render(<StudyGoalDialog open onOpenChange={() => {}} goal={goal} topics={topics} />)
+    await pickOption(user, screen.getByLabelText('Related topic (optional)'), 't2')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() =>
+      expect(mocks.update).toHaveBeenCalledWith('goals', 'g1', expect.objectContaining({ category: 'Backend', topic_id: 't2' })),
+    )
+  })
+  it('the topic Category label is wired to its input (the suggestions list sits outside the field)', () => {
+    render(<TopicDialog open onOpenChange={() => {}} today={TODAY} groups={['Frontend']} />)
+    expect(screen.getByLabelText('Category')).toHaveAttribute('list', 'topic-groups')
   })
   it('picks revision dates from the calendar, de-duplicates and sorts them, and lets you remove one', async () => {
     const user = userEvent.setup()

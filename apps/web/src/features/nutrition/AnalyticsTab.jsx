@@ -18,7 +18,8 @@ const VIEWS = [
 ]
 const SUBTITLE = { daily: 'last 14 days', weekly: 'last 8 weeks', monthly: '' }
 
-function DayCard({ icon, label, point, onOpen, tone }) {
+/** `tone` colours the icon tile; with `module` it takes that module's accent (e.g. `lt-icon-soft` + 'health' for a sky tile). */
+function DayCard({ icon, label, point, onOpen, tone, module }) {
   return (
     <button
       type="button"
@@ -26,7 +27,9 @@ function DayCard({ icon, label, point, onOpen, tone }) {
       onClick={() => point && onOpen(point.d)}
       className="lt-press flex w-full items-center gap-3 rounded-xl border border-border bg-card/60 p-3 text-left transition-colors enabled:hover:border-mod/50 disabled:opacity-60"
     >
-      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${tone}`}>{icon}</span>
+      <span data-module={module} className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${tone}`}>
+        {icon}
+      </span>
       <span className="min-w-0">
         <span className="block text-xs text-muted-foreground">{label}</span>
         <span className="block text-sm font-semibold tabular-nums">{point ? fmtKcal(point.kcal) : '—'}</span>
@@ -285,7 +288,8 @@ export function AnalyticsTab({ n, today, weekStartsOn, onOpenDay, waterGoal }) {
               label="Lowest calories"
               point={a.days.lowest}
               onOpen={onOpenDay}
-              tone="bg-sky-400/15 text-sky-500"
+              tone="lt-icon-soft"
+              module="health"
             />
           </CardContent>
         </Card>

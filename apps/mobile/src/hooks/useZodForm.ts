@@ -10,8 +10,9 @@ export function useZodForm<S extends z.ZodTypeAny>(schema: S, initial: z.input<S
     setErrors((e) => { if (!(key as string in e)) return e; const { [key as string]: _drop, ...rest } = e; return rest })
   }, [])
   const reset = useCallback((next: z.input<S>) => { setValues(next); setErrors({}) }, [])
-  const validate = useCallback((): z.output<S> | null => {
-    const r = schema.safeParse(values)
+  // `over`: validate these values instead of the current ones (e.g. without fields the form hides), still reporting errors by field.
+  const validate = useCallback((over?: z.input<S>): z.output<S> | null => {
+    const r = schema.safeParse(over ?? values)
     if (r.success) { setErrors({}); return r.data }
     const out: Record<string, string> = {}
     for (const i of r.error.issues) { const k = String(i.path[0] ?? '_'); if (!(k in out)) out[k] = i.message }

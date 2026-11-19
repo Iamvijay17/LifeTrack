@@ -80,6 +80,21 @@ function Header() {
   )
 }
 
+/**
+ * The background jobs that run while the app is open. They read the data tables (tasks, reminders, notifications…), so they live in their own
+ * component: a change to one of those tables re-renders this, not the sidebar, header and navigation around every page.
+ */
+function Runners() {
+  useReminderRunner()
+  useSmartNotifications()
+  useNotificationDelivery()
+  useRecurringRunner()
+  useCalendarAlerts()
+  useAutomationRunner()
+  useCompanionShortcut()
+  return null
+}
+
 function Shell() {
   const menu = useContextMenu()
   const { sidebar } = useAppearance()
@@ -90,13 +105,6 @@ function Shell() {
   const main = useRef(null)
   useThemeSync()
   useAppearanceSync()
-  useReminderRunner()
-  useSmartNotifications()
-  useNotificationDelivery()
-  useRecurringRunner()
-  useCalendarAlerts()
-  useAutomationRunner()
-  useCompanionShortcut()
 
   // First sign-in on any device: create default topics / exercise library once (idempotent via unique keys).
   const { row, loading } = useSettings()
@@ -135,6 +143,7 @@ function Shell() {
         >
           Skip to content
         </a>
+        <Runners />
         <ChartGradients />
         <AnimatePresence initial={false}>
           <m.div

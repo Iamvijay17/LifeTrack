@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   confirm: vi.fn(),
   addFunds: vi.fn(),
   rows: { savings_goals: [] },
+  state: {}, // per table: { loading, error } the store reports
 }))
 vi.mock('@/hooks/store', () => ({
   insert: mocks.insert,
@@ -32,7 +33,7 @@ vi.mock('@/hooks/store', () => ({
   remove: mocks.remove,
   upsert: mocks.upsert,
   peek: mocks.peek,
-  useTable: (t) => ({ rows: mocks.rows[t] ?? [] }),
+  useTable: (t) => ({ rows: mocks.rows[t] ?? [], refetch: () => {}, ...mocks.state[t] }),
 }))
 vi.mock('@/services/api', async (orig) => ({ ...(await orig()), addSavingsFunds: mocks.addFunds }))
 vi.mock('@/hooks/useSettings', () => ({ useSettings: () => ({ settings: { currency: 'INR' } }) }))
@@ -44,6 +45,7 @@ import { BudgetDialog } from '@/features/finance/BudgetDialog'
 import { SavingsGoalDialog } from '@/features/finance/SavingsGoalDialog'
 import { AddFundsDialog } from '@/features/finance/AddFundsDialog'
 import { SavingsGoals } from '@/features/finance/SavingsGoals'
+import { RecurringRules } from '@/features/finance/RecurringRules'
 import { TransactionList } from '@/features/finance/TransactionList'
 import { FinanceStats } from '@/features/finance/FinanceStats'
 import { formatMoney } from '@/lib/money'
@@ -65,6 +67,7 @@ const T = (o) => ({
 beforeEach(() => {
   Object.values(mocks).forEach((m) => m.mockReset?.())
   mocks.rows = { savings_goals: [] }
+  mocks.state = {}
   mocks.insert.mockResolvedValue({})
   mocks.update.mockResolvedValue({})
   mocks.upsert.mockResolvedValue({})
@@ -156,6 +159,7 @@ describe('TransactionDialog', () => {
   it('switching type swaps to a valid category for that type', async () => {
     const user = userEvent.setup()
     open()
+    expect(screen.getByRole('tablist', { name: 'Transaction type' })).toBeInTheDocument() // the choice is a named form field
     await user.click(screen.getByRole('tab', { name: 'Income' }))
     expect(screen.getByLabelText('Category')).toHavePickerValue('Salary')
   })
@@ -234,6 +238,41 @@ describe('savings goals', () => {
     await user.click(screen.getByRole('button', { name: 'Add' }))
     expect(await screen.findByText('Enter an amount greater than 0.')).toBeInTheDocument()
     expect(mocks.addFunds).not.toHaveBeenCalled()
+  })
+  it('editing leaves "saved" out unless it was changed, so funds added on another device meanwhile are kept', async () => {
+    const user = userEvent.setup()
+    const goal = { id: 'g1', name: 'Laptop', target_paise: 5000000, saved_paise: 100000, target_date: null }
+    const { rerender } = render(<SavingsGoalDialog open onOpenChange={() => {}} goal={goal} />)
+    // another device adds ₹500 while this dialog is open (the store hands down the new row)
+    rerender(<SavingsGoalDialog open onOpenChange={() => {}} goal={{ ...goal, saved_paise: 150000 }} />)
+    await user.clear(screen.getByLabelText('What are you saving for?'))
+    await user.type(screen.getByLabelText('What are you saving for?'), 'New laptop')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() =>
+      expect(mocks.update).toHaveBeenCalledWith('savings_goals', 'g1', { name: 'New laptop', target_paise: 5000000, target_date: null }),
+    )
+    mocks.update.mockClear()
+    await user.clear(screen.getByLabelText('Saved so far'))
+    await user.type(screen.getByLabelText('Saved so far'), '2000')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(mocks.update).toHaveBeenCalledWith('savings_goals', 'g1', expect.objectContaining({ saved_paise: 200000 })))
+  })
+  it('SavingsGoals waits for the load (no "Create" empty state while loading or after a failed load)', () => {
+    mocks.state.savings_goals = { loading: true }
+    const { unmount } = render(<SavingsGoals money={money} />)
+    expect(screen.queryByText('No savings goals')).toBeNull()
+    expect(screen.getByRole('status')).toHaveTextContent('Loading')
+    unmount()
+    mocks.state.savings_goals = { loading: false, error: 'Network down' }
+    render(<SavingsGoals money={money} />)
+    expect(screen.queryByText('No savings goals')).toBeNull()
+    expect(screen.getByRole('alert')).toHaveTextContent('Network down')
+  })
+  it('RecurringRules waits for the load too', () => {
+    mocks.state.recurring_rules = { loading: true }
+    render(<RecurringRules money={money} transactions={[]} today={TODAY} />)
+    expect(screen.queryByText('No recurring transactions')).toBeNull()
+    expect(screen.getByRole('status')).toHaveTextContent('Loading')
   })
   it('SavingsGoals shows progress capped at 100% and an empty state', () => {
     const { unmount } = render(<SavingsGoals money={money} />)

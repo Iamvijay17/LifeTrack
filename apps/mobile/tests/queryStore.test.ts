@@ -28,6 +28,7 @@ describe('query store (createApi contract)', () => {
   })
   it('rpc returns the database result and patch/patchGroup update the cache without refetching', async () => {
     const { store, db } = setup()
+    await store.load('health_logs'); await store.load('exercise_logs') // only loaded tables are patched (see the next test)
     ;(db.rpc as any).mockResolvedValueOnce({ id: 'w1', log_date: '2026-11-02', water_ml: 750 })
     const row = await store.rpc('add_water', { p_date: '2026-11-02', p_ml: 250 })
     store.patch('health_logs', [row])
@@ -55,6 +56,16 @@ describe('query store (createApi contract)', () => {
     await store.remove('tasks', 'a')
     expect(store.peek('tasks').map((r) => r.id)).toEqual(['n1'])
   })
+  it('a write to a table that was never fetched leaves it unfetched, so the first load still brings every row', async () => {
+    const { store, db, tables } = setup()
+    tables.transactions = [{ id: 'old', amount_paise: 1 }]
+    await store.insert('transactions', { amount_paise: 2 })
+    store.patch('transactions', [{ id: 'x' }])
+    expect(store.peek('transactions')).toEqual([])
+    await store.load('transactions')
+    expect(store.peek('transactions').map((r) => r.id)).toEqual(['old', 'n1'])
+    expect(db.list).toHaveBeenCalledWith('transactions')
+  })
   it('returns arrays for array input and single rows otherwise', async () => {
     const { store } = setup()
     expect(Array.isArray(await store.insert('tasks', [{ title: 'a' }, { title: 'b' }]))).toBe(true)
@@ -68,6 +79,7 @@ describe('query store (createApi contract)', () => {
   it('drives the shared createApi (one running study timer rule + task creation)', async () => {
     const { store, db } = setup()
     const api = createApi(store as any)
+    await store.load('study_sessions')
     await api.createTask({ title: 'daily', recurrence: 'daily', due_date: '2024-05-01' })
     expect((db.insert as any).mock.calls[0][1][0].series_id).toBeTruthy()
     await api.startStudy({}, '2024-05-01')

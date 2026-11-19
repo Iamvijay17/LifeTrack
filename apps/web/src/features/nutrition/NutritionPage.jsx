@@ -13,7 +13,7 @@ import { useConfirmedDelete } from '@/hooks/useConfirmedDelete'
 import { useSettings } from '@/hooks/useSettings'
 import { useToday } from '@/hooks/useToday'
 import { saveFavoriteFoods } from '@/services/api'
-import { duplicateDraft, entryRow, guessMeal, perServing, toggleFavorite as toggleFav } from '@/domain/nutrition'
+import { duplicateDraft, entriesOn, entryRow, guessMeal, perServing, toggleFavorite as toggleFav } from '@/domain/nutrition'
 import { timeStrInTz } from '@/lib/dates'
 import { entryBulkItems, entryItems, mealSectionItems, nutritionPageItems } from './contextMenu'
 import { AnalyticsTab } from './AnalyticsTab'
@@ -101,7 +101,8 @@ export default function NutritionPage() {
     )
   }, [params, setParams, actions, day])
   const menu = useContextMenu()
-  const sel = useSelection(useMemo(() => n.logs.map((l) => l.id), [n.logs]))
+  // Only the viewed day's entries are on screen, so only they can be selected ("select all" must not reach other days).
+  const sel = useSelection(useMemo(() => entriesOn(n.logs, day).map((l) => l.id), [n.logs, day]))
   const bulk = (ids) => entryBulkItems(ids.map((id) => n.logs.find((l) => l.id === id)).filter(Boolean))
   usePageContextMenu(() =>
     nutritionPageItems({

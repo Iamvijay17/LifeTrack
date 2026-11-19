@@ -244,19 +244,16 @@ describe('fitness domain', () => {
     notes: '',
   }
   it('splits body metrics: tape → measurements, weight → health log, nothing → empty (notes alone do not count)', () => {
+    // only the filled-in fields: the row is upserted per day, so a blank must not erase what was measured earlier that day
     expect(splitMeasurements({ ...blankMetrics, waist_cm: '82.5', notes: 'AM' })).toEqual({
-      tape: {
-        measured_on: TODAY,
-        chest_cm: null,
-        waist_cm: 82.5,
-        hips_cm: null,
-        arm_cm: null,
-        thigh_cm: null,
-        body_fat_pct: null,
-        notes: 'AM',
-      },
+      tape: { measured_on: TODAY, waist_cm: 82.5, notes: 'AM' },
       weight: null,
       empty: false,
+    })
+    expect(splitMeasurements({ ...blankMetrics, chest_cm: '100', hips_cm: '0' }).tape).toEqual({
+      measured_on: TODAY,
+      chest_cm: 100,
+      hips_cm: 0,
     })
     expect(splitMeasurements({ ...blankMetrics, weight_kg: '80' })).toMatchObject({ tape: null, weight: 80, empty: false })
     expect(splitMeasurements({ ...blankMetrics, notes: 'just a note' })).toMatchObject({ tape: null, weight: null, empty: true })
@@ -338,6 +335,17 @@ describe('WorkoutDialog', () => {
     expect(screen.queryByLabelText('Exercise 1')).toBeNull()
     expect(screen.getByLabelText('Distance (km)')).toBeInTheDocument()
   })
+  it('a cardio workout saves no sets, and a hidden empty exercise row does not block it', async () => {
+    const user = userEvent.setup()
+    render(<WorkoutDialog {...base} routineId="r1" />)
+    await user.click(screen.getByRole('button', { name: 'Add exercise' })) // an empty row: invalid while visible
+    await pickOption(user, screen.getByLabelText('Type'), 'cardio')
+    await user.type(screen.getByLabelText('Cardio minutes'), '30')
+    await user.click(document.querySelector('button[type=submit]'))
+    await waitFor(() => expect(mocks.saveWorkout).toHaveBeenCalledTimes(1))
+    expect(mocks.saveWorkout.mock.calls[0][0]).toMatchObject({ kind: 'cardio', cardio_minutes: 30 })
+    expect(mocks.saveWorkout.mock.calls[0][1]).toEqual([])
+  })
   it('a new set copies the previous one', async () => {
     const user = userEvent.setup()
     render(<WorkoutDialog {...base} routineId="r1" />)
@@ -345,6 +353,26 @@ describe('WorkoutDialog', () => {
     await user.click(sets.getByRole('button', { name: 'Set' }))
     expect(screen.getByLabelText('Set 4 reps')).toHaveValue(8)
     expect(screen.getByLabelText('Set 4 weight')).toHaveValue(60)
+  })
+  it('a new set copies the previous one as typed, not as it started', async () => {
+    const user = userEvent.setup()
+    render(<WorkoutDialog {...base} routineId="r1" />)
+    const card = within(screen.getByLabelText('Exercise 1').closest('div.space-y-2'))
+    await user.clear(card.getByLabelText('Set 3 reps'))
+    await user.type(card.getByLabelText('Set 3 reps'), '6')
+    await user.clear(card.getByLabelText('Set 3 weight'))
+    await user.type(card.getByLabelText('Set 3 weight'), '65')
+    await user.click(card.getByRole('button', { name: 'Set' }))
+    expect(card.getByLabelText('Set 4 reps')).toHaveValue(6)
+    expect(card.getByLabelText('Set 4 weight')).toHaveValue(65)
+  })
+  it('reps and minutes must be whole numbers (integer columns)', async () => {
+    const user = userEvent.setup()
+    render(<WorkoutDialog {...base} routineId="r1" />)
+    await user.type(screen.getByLabelText('Duration (min)'), '45.5')
+    await user.click(document.querySelector('button[type=submit]'))
+    expect(await screen.findByText('Duration: use a whole number')).toBeInTheDocument()
+    expect(mocks.saveWorkout).not.toHaveBeenCalled()
   })
 })
 
@@ -408,7 +436,7 @@ describe('MeasurementDialog', () => {
     await waitFor(() =>
       expect(mocks.upsert).toHaveBeenCalledWith(
         'body_measurements',
-        expect.objectContaining({ measured_on: TODAY, waist_cm: 82, chest_cm: null }),
+        { measured_on: TODAY, waist_cm: 82 },
         { onConflict: 'user_id,measured_on' },
       ),
     )

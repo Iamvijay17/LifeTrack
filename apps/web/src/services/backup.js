@@ -59,24 +59,43 @@ const NATURAL = [
   'budgets',
   'foods',
   'nutrition_settings',
+  'habit_logs',
+  'calendar_event_exceptions',
+  'life_map_positions',
+  // Rows the apps make once per event (a reminder firing, a nudge for a day, a reschedule, an automation run): the same key may
+  // already exist in the account under another id, e.g. today's "tasks due" nudge raised again before the restore.
+  'notifications',
+  'task_reschedules',
+  'automation_executions',
 ]
+// Every foreign key that can point at a NATURAL table whose ids get remapped (see 0001, 0003, 0009 and 0011).
 const FK_REMAP = {
   goals: { topic_id: 'learning_topics' },
   study_sessions: { topic_id: 'learning_topics' },
+  focus_sessions: { topic_id: 'learning_topics' },
+  calendar_events: { topic_id: 'learning_topics' },
   exercise_logs: { exercise_id: 'exercises' },
   food_logs: { food_id: 'foods' },
 }
+const DEDUPE_KEYED = {
+  notifications: ['dedupe_key'],
+  task_reschedules: ['dedupe_key'],
+  automation_executions: ['workflow_id', 'dedupe_key'],
+}
 // foods: only the user's copy of a starter food (base_key) is unique; custom foods are free to repeat. nutrition_settings: one row per user.
-const naturalKey = (table, row) =>
-  table === 'foods'
-    ? row.base_key
-      ? `starter:${row.base_key}`
-      : null
-    : CONFLICT_KEYS[table]
-        .split(',')
-        .filter((c) => c !== 'user_id')
-        .map((c) => row[c])
-        .join('\u0001')
+// Dedupe-keyed rows are unique only while they carry a key (and, for reschedules, only while not undone): others never merge (null).
+export const naturalKey = (table, row) => {
+  if (table === 'foods') return row.base_key ? `starter:${row.base_key}` : null
+  if (DEDUPE_KEYED[table]) {
+    if (row.dedupe_key == null || (table === 'task_reschedules' && row.undone_at != null)) return null
+    return DEDUPE_KEYED[table].map((c) => row[c]).join('\u0001')
+  }
+  return CONFLICT_KEYS[table]
+    .split(',')
+    .filter((c) => c !== 'user_id')
+    .map((c) => row[c])
+    .join('\u0001')
+}
 
 /**
  * Restore = merge: rows are upserted by id into the CURRENT account (ownership is re-stamped),
@@ -92,7 +111,7 @@ export async function importBackup(backup, onProgress) {
     let rows = backup.tables[table].map(strip)
     try {
       if (NATURAL.includes(table)) {
-        const existing = new Map((await db.list(table)).map((r) => [naturalKey(table, r), r.id]))
+        const existing = new Map((await db.list(table)).map((r) => [naturalKey(table, r), r.id]).filter(([k]) => k != null))
         rows = rows.map((r) => {
           const key = naturalKey(table, r)
           const id = key == null ? undefined : existing.get(key)

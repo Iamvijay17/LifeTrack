@@ -25,11 +25,6 @@ const undoToast = async (user, text) => {
 }
 const rows = (table) => db.list(table)
 const gone = () => waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
-async function openPage(path, ready) {
-  renderApp(path)
-  return ready ? await ready() : null
-}
-
 describe('Tasks (Daily Planner)', () => {
   const taskRow = async (title) => (await screen.findByText(title, {}, { timeout: 40_000 })).closest('li')
 
@@ -347,12 +342,16 @@ describe('Gym & Fitness', () => {
     rightClick(await row('Skipped'))
     expect(screen.queryByRole('menuitem', { name: 'Edit workout' })).toBeNull() // only a completed workout has sets to edit
     await user.click(await item('Mark completed'))
-    await waitFor(async () => expect((await rows('workouts')).find((x) => x.name === 'Skipped').status).toBe('completed'))
+    await waitFor(async () => {
+      const all = await rows('workouts')
+      expect(all.some((x) => x.name === 'Skipped')).toBe(false) // a day marked completed is a workout, no longer called "Skipped"
+      expect(all.find((x) => x.name === 'Workout')?.status).toBe('completed')
+    })
 
-    rightClick(await row('Skipped'))
+    rightClick(await row('Workout'))
     await user.click(await item('Delete workout'))
     await user.click(await within(await screen.findByRole('dialog')).findByRole('button', { name: 'Delete' }))
-    await waitFor(async () => expect((await rows('workouts')).some((x) => x.name === 'Skipped')).toBe(false))
+    await waitFor(async () => expect((await rows('workouts')).some((x) => x.name === 'Workout')).toBe(false))
 
     rightClick(screen.getByRole('main'))
     await user.click(await item('Log workout'))

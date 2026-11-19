@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Pause, Pencil, Play, Plus, Repeat, Trash2 } from 'lucide-react'
 import { signFor } from '@lifetrack/core/finance'
 import { frequencyLabel, ruleSchedule, ruleStatus, ruleTitle, sortRules } from '@lifetrack/core/recurring'
-import { EmptyState } from '@/components/shared/states'
+import { DataGate, EmptyState } from '@/components/shared/states'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/misc'
@@ -16,7 +16,7 @@ import { RecurringRuleDialog } from './RecurringRuleDialog'
 
 /** Rent, EMI, subscriptions: rules that add their transactions by themselves when they fall due. */
 export function RecurringRules({ money, transactions, today }) {
-  const { rows } = useTable('recurring_rules')
+  const { rows, loading, error, refetch } = useTable('recurring_rules')
   const rules = useMemo(() => sortRules(rows), [rows])
   const [dlg, setDlg] = useState({ open: false, rule: null })
   const [toggle] = useAction((rule) => toggleRecurringRule(rule, today))
@@ -33,62 +33,64 @@ export function RecurringRules({ money, transactions, today }) {
         </Button>
       </CardHeader>
       <CardContent className={rules.length ? 'p-0 pt-3' : undefined}>
-        {rules.length === 0 ? (
-          <EmptyState
-            icon={Repeat}
-            title="No recurring transactions"
-            description="Add rent, EMI or a subscription once, and it's logged for you each time it falls due."
-            action={
-              <Button size="sm" onClick={newRule}>
-                Add a recurring rule
-              </Button>
-            }
-          />
-        ) : (
-          <ul className="divide-y divide-border/70">
-            {rules.map((r) => {
-              const status = ruleStatus(r)
-              const title = ruleTitle(r)
-              return (
-                <li
-                  key={r.id}
-                  className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/30 md:px-5"
-                  data-testid="recurring-rule"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className={cn('truncate text-sm font-medium', status !== 'active' && 'text-muted-foreground')}>{title}</p>
-                    <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                      {frequencyLabel(r.frequency)} · {ruleSchedule(r)}
-                      <Badge tone="neutral">{r.category}</Badge>
-                    </p>
-                  </div>
-                  <span className="text-sm font-semibold tabular-nums">
-                    {signFor(r.type)}
-                    {money(r.amount_paise)}
-                  </span>
-                  <Menu
-                    label={`Actions for ${title}`}
-                    items={[
-                      ...(status === 'active' ? [{ label: 'Pause', icon: Pause, onClick: () => toggle(r) }] : []),
-                      ...(status === 'paused' ? [{ label: 'Resume', icon: Play, onClick: () => toggle(r) }] : []),
-                      { label: 'Edit', icon: Pencil, onClick: () => setDlg({ open: true, rule: r }) },
-                      {
-                        label: 'Delete',
-                        icon: Trash2,
-                        danger: true,
-                        onClick: () =>
-                          removeRule(r.id, {
-                            title: 'Delete this recurring rule?',
-                            description: `${title}. Transactions it already added stay.`,
-                          }),
-                      },
-                    ]}
-                  />
-                </li>
-              )
-            })}
-          </ul>
-        )}
+        <DataGate loading={loading} error={error} onRetry={refetch} cards={0} skeleton="text">
+          {rules.length === 0 ? (
+            <EmptyState
+              icon={Repeat}
+              title="No recurring transactions"
+              description="Add rent, EMI or a subscription once, and it's logged for you each time it falls due."
+              action={
+                <Button size="sm" onClick={newRule}>
+                  Add a recurring rule
+                </Button>
+              }
+            />
+          ) : (
+            <ul className="divide-y divide-border/70">
+              {rules.map((r) => {
+                const status = ruleStatus(r)
+                const title = ruleTitle(r)
+                return (
+                  <li
+                    key={r.id}
+                    className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/30 md:px-5"
+                    data-testid="recurring-rule"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className={cn('truncate text-sm font-medium', status !== 'active' && 'text-muted-foreground')}>{title}</p>
+                      <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                        {frequencyLabel(r.frequency)} · {ruleSchedule(r)}
+                        <Badge tone="neutral">{r.category}</Badge>
+                      </p>
+                    </div>
+                    <span className="text-sm font-semibold tabular-nums">
+                      {signFor(r.type)}
+                      {money(r.amount_paise)}
+                    </span>
+                    <Menu
+                      label={`Actions for ${title}`}
+                      items={[
+                        ...(status === 'active' ? [{ label: 'Pause', icon: Pause, onClick: () => toggle(r) }] : []),
+                        ...(status === 'paused' ? [{ label: 'Resume', icon: Play, onClick: () => toggle(r) }] : []),
+                        { label: 'Edit', icon: Pencil, onClick: () => setDlg({ open: true, rule: r }) },
+                        {
+                          label: 'Delete',
+                          icon: Trash2,
+                          danger: true,
+                          onClick: () =>
+                            removeRule(r.id, {
+                              title: 'Delete this recurring rule?',
+                              description: `${title}. Transactions it already added stay.`,
+                            }),
+                        },
+                      ]}
+                    />
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </DataGate>
       </CardContent>
       <RecurringRuleDialog
         open={dlg.open}

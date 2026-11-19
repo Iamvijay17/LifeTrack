@@ -27,7 +27,7 @@ export function EraseCard() {
     <SettingsSection
       icon={AlertTriangle}
       title="Erase all data"
-      desc="Deletes every task, habit, note, log and record but keeps your account and settings. This cannot be undone."
+      desc="Deletes every task, habit, note, log and record, including your nutrition targets and favourite foods, but keeps your account and app settings. This cannot be undone."
     >
       <Button variant="outline" className="border-danger/50 text-danger hover:bg-danger/10" onClick={() => setOpen(true)}>
         <Trash2 className="h-4 w-4" />

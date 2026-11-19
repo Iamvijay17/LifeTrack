@@ -7,7 +7,7 @@ import { MonthCalendar } from '@/components/shared/MonthCalendar'
 import { notePreview } from '@/domain/notes'
 import { useTable } from '@/hooks/store'
 import { budgetTone, signFor } from '@lifetrack/core/finance'
-import { fmtDateTime, fmtDay, monthStart } from '@/lib/dates'
+import { dateStrInTz, fmtDateTime, fmtDay, monthStart } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 import { WidgetEmpty } from './parts'
 
@@ -78,7 +78,7 @@ export function NotesCard({ count = 4, className }) {
             {shown.map((n) => (
               <li key={n.id}>
                 <Link
-                  to="/notes"
+                  to={`/notes?note=${n.id}`}
                   className="block rounded-lg border border-border bg-surface-2/40 px-3 py-2 transition-colors hover:bg-muted/40"
                 >
                   <span className="block truncate text-sm font-medium">{n.title || 'Untitled'}</span>
@@ -94,16 +94,19 @@ export function NotesCard({ count = 4, className }) {
 }
 
 /** A month grid. A day is marked when a task is due on it or an interview is scheduled for it. */
-export function CalendarCard({ today, weekStartsOn, tasks, interviews, className }) {
+export function CalendarCard({ today, weekStartsOn, tasks, interviews, tz, className }) {
   const navigate = useNavigate()
   const [month, setMonth] = useState(monthStart(today))
   const busy = useMemo(() => {
     const m = new Map()
     for (const t of tasks) if (t.due_date && t.status !== 'done') m.set(t.due_date, (m.get(t.due_date) ?? 0) + 1)
-    for (const i of interviews)
-      if (i.status === 'scheduled' && i.scheduled_at) m.set(i.scheduled_at.slice(0, 10), (m.get(i.scheduled_at.slice(0, 10)) ?? 0) + 1)
+    for (const i of interviews) {
+      if (i.status !== 'scheduled' || !i.scheduled_at) continue
+      const day = dateStrInTz(i.scheduled_at, tz) // the day in the person's zone, not the UTC date
+      m.set(day, (m.get(day) ?? 0) + 1)
+    }
     return m
-  }, [tasks, interviews])
+  }, [tasks, interviews, tz])
   return (
     <Card data-module="calendar" data-testid="calendar-card" className={className}>
       <CardHeader>
@@ -120,7 +123,7 @@ export function CalendarCard({ today, weekStartsOn, tasks, interviews, className
           today={today}
           weekStartsOn={weekStartsOn}
           selected={null}
-          onSelect={() => navigate('/calendar')}
+          onSelect={(d) => navigate(`/calendar?date=${d}`)}
           labelFor={(d) => (busy.get(d) ? `${busy.get(d)} due` : '')}
           markFor={(d) =>
             busy.get(d) && <span aria-hidden className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-mod" />

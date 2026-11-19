@@ -38,6 +38,12 @@ export default function HabitsPage() {
   const { active, doneOnDay, longest, bestCurrent, avg30 } = summarizeHabits(stats, day)
   const visible = stats.filter((s) => showArchived || !s.habit.archived_at)
   const newHabit = () => setDialog({ open: true, habit: null })
+  // The Command Center's "Create habit" arrives as ?new=1.
+  useEffect(() => {
+    if (params.get('new') !== '1') return
+    setDialog({ open: true, habit: null })
+    setParams({}, { replace: true })
+  }, [params, setParams])
   const menu = useContextMenu()
   const sel = useSelection(useMemo(() => visible.map((s) => s.habit.id), [visible]))
   const bulk = (ids) => habitBulkItems(ids.map((id) => stats.find((s) => s.habit.id === id)).filter(Boolean), { date: day })

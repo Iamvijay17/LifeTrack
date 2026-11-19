@@ -59,7 +59,9 @@ export function load(table, { force = false } = {}) {
       }
       const stale = ver(table) !== startVer || dirty.has(table)
       if (stale && attempt < MAX_ATTEMPTS) continue
-      set(table, { rows, status: 'ready', error: null })
+      // A refresh that brought nothing new keeps the rows (and the snapshot) on screen, so subscribers do not all re-render for nothing.
+      const now = get(table)
+      if (now.status !== 'ready' || now.error || !sameRows(now.rows, rows)) set(table, { rows, status: 'ready', error: null })
       if (stale) scheduleRefetch(table)
       return
     }
@@ -67,6 +69,18 @@ export function load(table, { force = false } = {}) {
   const p = run().finally(() => inflight.delete(table))
   inflight.set(table, p)
   return p
+}
+
+/** Same rows in the same order: compared by id and updated_at, or the whole row for tables without updated_at. */
+function sameRows(a, b) {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i]
+    const y = b[i]
+    if (x.id !== y.id) return false
+    if (x.updated_at && y.updated_at ? x.updated_at !== y.updated_at : JSON.stringify(x) !== JSON.stringify(y)) return false
+  }
+  return true
 }
 
 export const refetch = (table) => load(table, { force: true })
@@ -100,7 +114,16 @@ export function resetStore() {
 }
 
 // ------------------------------------------------------------ cache patching
+// Only a loaded table is patched. Putting rows into one that was never loaded (or is still on its first load) used to mark it 'ready'
+// with just those rows, and its real load then never ran: a recurring charge posted while on /planner left Finance, its totals and its CSV
+// export showing that one transaction. Such a table is left alone; its first load fetches everything, the new row included.
+const loaded = (table) => {
+  if (get(table).status === 'ready') return true
+  bump(table) // a first load already in flight started before this write: it fetches again
+  return false
+}
 const upsertLocal = (table, rows) => {
+  if (!loaded(table)) return
   const cur = [...get(table).rows]
   for (const r of rows) {
     const i = cur.findIndex((x) => x.id === r.id)
@@ -111,12 +134,14 @@ const upsertLocal = (table, rows) => {
   set(table, { rows: cur, status: 'ready' })
 }
 const removeLocal = (table, ids) => {
+  if (!loaded(table)) return
   const s = new Set(ids)
   bump(table)
   set(table, { rows: get(table).rows.filter((r) => !s.has(r.id)) })
 }
 /** Replace the cached rows matching `drop` with `rows` (used by operations that rewrite a group of rows atomically). */
 export const patchGroup = (table, drop, rows) => {
+  if (!loaded(table)) return
   const kept = get(table).rows.filter((r) => !drop(r))
   bump(table)
   set(table, { rows: [...kept, ...rows], status: 'ready' })
@@ -130,7 +155,9 @@ const sameFields = (a, b) => Object.keys(b).every((k) => JSON.stringify(a[k]) ==
  * `payload` is absent for the local DEV adapter, which falls back to a refetch.
  */
 export function applyChange(table, payload) {
-  if (get(table).status !== 'ready') return // not loaded (or still loading): the load itself will see the change
+  const status = get(table).status
+  if (status === 'loading') return void bump(table) // the snapshot being fetched may predate this change: fetch again when it lands
+  if (status !== 'ready') return // not loaded: its first load will see the change
   if (!payload?.eventType) return scheduleRefetch(table)
   if (payload.eventType === 'DELETE') {
     const id = payload.old?.id
@@ -270,6 +297,7 @@ export const insert = (table, rows) =>
     const list = Array.isArray(rows) ? rows : [rows]
     // The id is chosen here and sent with the insert, so the stand-in IS the row: nothing is swapped, and anything watching ids sees one row, not two.
     const sent = NO_GUESS.has(table) ? list : list.map((r) => ({ ...r, id: r.id ?? newId() }))
+    const my = epoch
     if (!NO_GUESS.has(table))
       upsertLocal(
         table,
@@ -278,11 +306,12 @@ export const insert = (table, rows) =>
     hold(table)
     try {
       const out = await db.insert(table, sent)
+      if (my !== epoch) return Array.isArray(rows) ? out : out[0] // signed out / locked meanwhile: the cache was reset, leave it empty
       patchGroup(table, (r) => sent.some((s) => s.id === r.id) || out.some((o) => o.id === r.id), out)
       afterWrite(table)
       return Array.isArray(rows) ? out : out[0]
     } catch (e) {
-      if (!NO_GUESS.has(table))
+      if (!NO_GUESS.has(table) && my === epoch)
         removeLocal(
           table,
           sent.map((s) => s.id),
@@ -295,16 +324,18 @@ export const insert = (table, rows) =>
 
 export const update = (table, id, patch) =>
   tracked(async () => {
+    const my = epoch
     const before = get(table).rows.find((r) => r.id === id)
     if (before) upsertLocal(table, [{ ...before, ...patch }])
     hold(table)
     try {
       const row = await db.update(table, id, patch)
+      if (my !== epoch) return row
       upsertLocal(table, [row])
       afterWrite(table)
       return row
     } catch (e) {
-      if (before) revertFields(table, id, before, patch)
+      if (before && my === epoch) revertFields(table, id, before, patch)
       throw e
     } finally {
       release(table)
@@ -319,6 +350,7 @@ export const upsert = (table, rows, opts) =>
       .map((k) => k.trim())
       .filter(Boolean)
     // Match each row to the cached row the database will treat as the same one (same conflict columns), so toggling an existing row is a change, not a duplicate.
+    const my = epoch
     const undo = []
     const guesses = []
     for (const r of list) {
@@ -339,12 +371,14 @@ export const upsert = (table, rows, opts) =>
     hold(table)
     try {
       const out = await db.upsert(table, list, opts)
+      if (my !== epoch) return Array.isArray(rows) ? out : out[0]
       const temp = new Set(guesses.map((g) => g.id))
       const ids = new Set(out.map((r) => r.id))
       patchGroup(table, (r) => temp.has(r.id) || ids.has(r.id), out)
       afterWrite(table)
       return Array.isArray(rows) ? out : out[0]
     } catch (e) {
+      if (my !== epoch) throw e
       removeLocal(
         table,
         guesses.map((g) => g.id),
@@ -358,14 +392,15 @@ export const upsert = (table, rows, opts) =>
 
 export const remove = (table, id) =>
   tracked(async () => {
+    const my = epoch
     const before = get(table).rows.find((r) => r.id === id)
     if (before) removeLocal(table, [id])
     hold(table)
     try {
       await db.remove(table, id)
-      removeLocal(table, [id])
+      if (my === epoch) removeLocal(table, [id])
     } catch (e) {
-      if (before && !get(table).rows.some((r) => r.id === id)) upsertLocal(table, [before])
+      if (before && my === epoch && !get(table).rows.some((r) => r.id === id)) upsertLocal(table, [before])
       throw e
     } finally {
       release(table)
@@ -374,13 +409,15 @@ export const remove = (table, id) =>
 
 export const removeMany = (table, ids) =>
   tracked(async () => {
+    const my = epoch
     const gone = get(table).rows.filter((r) => ids.includes(r.id))
     removeLocal(table, ids)
     hold(table)
     try {
       await db.removeMany(table, ids)
-      removeLocal(table, ids)
+      if (my === epoch) removeLocal(table, ids)
     } catch (e) {
+      if (my !== epoch) throw e
       const back = gone.filter((r) => !get(table).rows.some((x) => x.id === r.id))
       if (back.length) upsertLocal(table, back)
       throw e
@@ -431,6 +468,7 @@ export function useTables(...tables) {
 // ------------------------------------------------------------------- realtime
 const MIN_SYNC_GAP = 5_000
 const POLL_MS = 90_000
+const AWAY_REFRESH_MS = 60_000
 let unsub = null
 let pollTimer = null
 let connected = false
@@ -462,12 +500,23 @@ export function startSync(onStatus) {
       }
     },
   )
+  // Coming back to the tab re-downloads every loaded table. While Realtime is connected it has been delivering the changes, so a short
+  // look away (another tab for a minute) is not worth a full re-download; a longer absence is, since a hidden tab's socket may be throttled.
+  let awaySince = 0
+  const markAway = () => {
+    if (!awaySince) awaySince = Date.now()
+  }
   const onVisible = () => {
-    if (document.visibilityState === 'visible') syncAll()
+    if (document.visibilityState === 'hidden') return markAway()
+    const away = awaySince ? Date.now() - awaySince : 0
+    awaySince = 0
+    if (connected && away < AWAY_REFRESH_MS) return
+    syncAll()
   }
   const onOnline = () => syncAll({ force: true })
   window.addEventListener('visibilitychange', onVisible)
   window.addEventListener('focus', onVisible)
+  window.addEventListener('blur', markAway)
   window.addEventListener('online', onOnline)
   // Safety net only while Realtime is NOT delivering changes; when it is connected the poll would just re-download data.
   pollTimer = setInterval(() => {
@@ -476,6 +525,7 @@ export function startSync(onStatus) {
   stopFns = () => {
     window.removeEventListener('visibilitychange', onVisible)
     window.removeEventListener('focus', onVisible)
+    window.removeEventListener('blur', markAway)
     window.removeEventListener('online', onOnline)
     clearInterval(pollTimer)
   }

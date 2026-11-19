@@ -11,5 +11,7 @@ export function useHabits(today, weekStartsOn = 1) {
     () => buildHabitStats(data.habits, data.habit_logs, today, weekStartsOn, pauses),
     [data.habits, data.habit_logs, pauses, today, weekStartsOn],
   )
-  return { habits: data.habits, logs: data.habit_logs, pauses, stats, loading, error, refetch }
+  // The habit rows with their pauses attached (the stats carry them), so every caller that works out "due" or "missed" sees paused days as neutral.
+  const habits = useMemo(() => stats.map((s) => s.habit), [stats])
+  return { habits, logs: data.habit_logs, pauses, stats, loading, error, refetch }
 }

@@ -27,7 +27,14 @@ export const createSupabaseAuth = (supabase, redirects = {}, { verifierClient } 
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw new AppError(/invalid login/i.test(error.message) ? 'Incorrect email or password.' : toAppError(error).message)
   },
-  async signOut() { const { error } = await supabase.auth.signOut(); if (error) throw toAppError(error) },
+  // supabase-js keeps the session when the server call fails (offline, 5xx), which left "Sign out" doing nothing. This device is then signed
+  // out locally (no request); the server session ends with its token. Only if even that fails is the first error reported.
+  async signOut() {
+    const { error } = await supabase.auth.signOut()
+    if (!error) return
+    const { error: local } = await supabase.auth.signOut({ scope: 'local' })
+    if (local) throw toAppError(error)
+  },
   async sendPasswordReset(email) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: resolve(redirects.passwordReset) })
     if (error) throw toAppError(error)

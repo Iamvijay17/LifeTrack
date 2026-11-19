@@ -8,6 +8,9 @@ import * as store from '@/hooks/store'
 const SERVER = ['id', 'created_at', 'updated_at', 'user_id']
 const strip = (row, extra = []) => Object.fromEntries(Object.entries(row).filter(([k]) => ![...SERVER, ...extra].includes(k)))
 
+// The names a rest / skipped day is saved with (FitnessPage's markOff): a day marked completed later is a workout, not a "Rest day".
+const OFF_NAMES = ['Rest day', 'Skipped']
+
 /** A logged workout (or a rest / skipped day). `d`: { today, sets, onEdit } */
 export function workoutItems(w, d) {
   const completed = w.status === 'completed'
@@ -17,7 +20,8 @@ export function workoutItems(w, d) {
       label: 'Mark completed',
       icon: CheckCheck,
       hidden: completed,
-      onSelect: () => changeField('workouts', w, { status: 'completed' }, 'Marked completed'),
+      onSelect: () =>
+        changeField('workouts', w, { status: 'completed', ...(OFF_NAMES.includes(w.name) ? { name: 'Workout' } : {}) }, 'Marked completed'),
     },
     {
       label: 'Duplicate to today',

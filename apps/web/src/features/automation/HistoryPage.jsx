@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
 import { ChevronDown, RotateCcw, Workflow } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate, EmptyState } from '@/components/shared/states'
@@ -23,7 +24,12 @@ const PAGE = 25
 function Row({ e, tz, open, onToggle }) {
   const s = statusMeta(e.status)
   const trig = triggerDef(e.trigger_kind)
-  const [retry, retrying] = useAction(() => retryExecution(e.id, { today: todayStr(tz) }), { success: 'Retried' })
+  const [retry, retrying] = useAction(async () => {
+    const run = await retryExecution(e.id, { today: todayStr(tz) })
+    // The retry itself can fail again at a step: say what happened rather than "Retried".
+    if (run?.status === 'failed') toast.error(run.error ? `Retried, but it failed again: ${run.error}` : 'Retried, but it failed again.')
+    else toast.success('Retried')
+  })
   const ok = (e.steps ?? []).filter((x) => x.type === 'action' && x.status === 'ok').length
   return (
     <Card className="overflow-hidden p-0" data-testid="execution">

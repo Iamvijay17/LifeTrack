@@ -4,6 +4,8 @@ import { Chart, C, grid, tooltip, xAxis, yAxis, seriesSummary } from '@/componen
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useConfirmedDelete } from '@/hooks/useConfirmedDelete'
+import { LockedCard } from '@/features/security/ModuleUnlock'
+import { useModuleLocks } from '@/features/security/useModuleLocks'
 import { fmtDay } from '@/lib/dates'
 
 const PARTS = [
@@ -19,9 +21,12 @@ const describe = (m) =>
     .map(([label, key]) => `${label} ${m[key]}`)
     .join(' · ')
 
+/** Weight comes from the health log and measurements are Health data too, so while Health is locked (module lock) the tab shows its locked card. */
 export function BodyTab({ weightData, measurements, onLog }) {
   const removeEntry = useConfirmedDelete('body_measurements', 'Entry deleted')
+  const { isLocked } = useModuleLocks()
   const sorted = [...measurements].sort((a, b) => b.measured_on.localeCompare(a.measured_on))
+  if (isLocked('health')) return <LockedCard module="health" />
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Card>

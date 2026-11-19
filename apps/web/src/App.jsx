@@ -50,7 +50,8 @@ function Protected({ children }) {
   const { session, loading } = useAuth()
   const loc = useLocation()
   if (loading) return <InitialAppLoader />
-  if (!session) return <Navigate to="/login" replace state={{ from: loc.pathname }} />
+  // Keep the query and hash too: deep links such as /jobs?app=… or /fitness?tab=library should land where they pointed after signing in.
+  if (!session) return <Navigate to="/login" replace state={{ from: `${loc.pathname}${loc.search}${loc.hash}` }} />
   // Everything behind the sign-in is mounted only while the server says this session is unlocked (see AppLockGate). The provider lives here, not
   // above the routes: it is only needed once someone is signed in, and as the layout element it stays mounted while they move between pages.
   return (

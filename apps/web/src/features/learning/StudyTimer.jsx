@@ -25,16 +25,12 @@ export function StudyTimer({ running, goals, topics, today }) {
   const [target, setTarget] = useState('')
   const [stopOpen, setStopOpen] = useState(false)
   const [form, setForm] = useState({ minutes: '', problems: '0', notes: '' })
+  const [error, setError] = useState(null) // { minutes } or { problems }: the stop form's validation message
   const [start, starting] = useAction(() => startStudy(parseTarget(target, goals), today), { success: 'Timer started' })
   const [discard] = useAction(() => discardStudy(running), { success: 'Timer discarded — no time counted' })
   const [stop, stopping] = useAction(
-    async () => {
-      const mins = Number(form.minutes)
-      await stopStudy(running, {
-        minutes: Number.isFinite(mins) ? mins : undefined,
-        problems_solved: Math.max(0, Math.floor(Number(form.problems) || 0)),
-        notes: form.notes,
-      })
+    async (minutes, problems) => {
+      await stopStudy(running, { minutes, problems_solved: problems, notes: form.notes })
       setStopOpen(false)
     },
     { success: 'Session saved' },
@@ -45,9 +41,16 @@ export function StudyTimer({ running, goals, topics, today }) {
   const label = running
     ? (goals.find((g) => g.id === running.goal_id)?.title ?? topics.find((t) => t.id === running.topic_id)?.name ?? 'Study session')
     : ''
+  // The database refuses negative values, and a session with no minutes and no problems would count as studied with nothing in it.
   const submit = (e) => {
     e.preventDefault()
-    stop()
+    const minutes = form.minutes.trim() === '' ? NaN : Number(form.minutes)
+    const problems = form.problems.trim() === '' ? 0 : Number(form.problems)
+    if (!Number.isFinite(minutes) || minutes < 0) return setError({ minutes: 'Enter the minutes studied (0 or more)' })
+    if (!Number.isInteger(problems) || problems < 0) return setError({ problems: 'Enter a whole number, 0 or more' })
+    if (Math.round(minutes * 60) === 0 && problems === 0) return setError({ minutes: 'Enter minutes studied or problems solved' })
+    setError(null)
+    stop(minutes, problems)
   }
   const minutesOver = Number(form.minutes) > elapsed / 60 + 0.5
 
@@ -88,6 +91,7 @@ export function StudyTimer({ running, goals, topics, today }) {
                 className="flex-1"
                 onClick={() => {
                   setForm({ minutes: String(Math.max(0, Math.round(elapsed / 60))), problems: '0', notes: '' })
+                  setError(null)
                   setStopOpen(true)
                 }}
               >
@@ -136,7 +140,7 @@ export function StudyTimer({ running, goals, topics, today }) {
         <Field
           label="Minutes studied"
           hint="Adjust down if you took breaks. It can't exceed the elapsed time."
-          error={minutesOver ? 'Capped at the elapsed time' : undefined}
+          error={error?.minutes ?? (minutesOver ? 'Capped at the elapsed time' : undefined)}
         >
           <Input
             type="number"
@@ -146,7 +150,7 @@ export function StudyTimer({ running, goals, topics, today }) {
             onChange={(e) => setForm({ ...form, minutes: e.target.value })}
           />
         </Field>
-        <Field label="Problems solved (DSA)">
+        <Field label="Problems solved (DSA)" error={error?.problems}>
           <Input
             type="number"
             min={0}

@@ -7,6 +7,7 @@ import { Field, Textarea } from '@/components/ui/form'
 import { EmptyState } from '@/components/shared/states'
 import { useTable } from '@/hooks/store'
 import { useAction } from '@/hooks/useAction'
+import { useConfirmedDelete } from '@/hooks/useConfirmedDelete'
 import { useRecordForm } from '@/hooks/useRecordForm'
 import * as store from '@/hooks/store'
 import { CONFLICT_KEYS } from '@lifetrack/constants/schema'
@@ -49,7 +50,12 @@ export function Journal({ date }) {
     },
     { success: 'Journal saved' },
   )
-  const [clear] = useAction(() => store.remove('journal_entries', entry.id), { success: 'Entry deleted' })
+  const removeEntry = useConfirmedDelete('journal_entries', 'Entry deleted')
+  const clear = () =>
+    removeEntry(entry.id, {
+      title: 'Delete this journal entry?',
+      description: `The entry for ${fmtDay(date, 'EEE, d MMM')} is removed for good.`,
+    })
   const past = [...rows]
     .sort((a, b) => b.entry_date.localeCompare(a.entry_date))
     .filter((r) => r.entry_date !== date)

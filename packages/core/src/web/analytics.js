@@ -1,7 +1,7 @@
-import { addDays, diffDays, eachDay, fmtDay, inRange, monthKey, startOfWeek, monthStart, weekday } from '@lifetrack/utils'
+import { addDays, dateStrInTz, diffDays, eachDay, fmtDay, inRange, monthKey, startOfWeek, monthStart, weekday } from '@lifetrack/utils'
 import { counted, countedMinutes, problemsSolved } from './learning'
 import { funnel, salaryProgression } from './jobs'
-import { completion, streaks } from './streaks'
+import { completion, streaks, withPauses } from './streaks'
 import { categoryBreakdown } from './finance'
 import { goalPercent } from './goals'
 
@@ -83,7 +83,7 @@ export function buildAnalytics(data, { from, to, today, weekStartsOn, plan = {},
     () => 1,
   )
   const salary = salaryProgression(
-    data.job_applications.filter((x) => inRange(x.applied_date ?? x.created_at.slice(0, 10), from, to)),
+    data.job_applications.filter((x) => inRange(x.applied_date ?? dateStrInTz(x.created_at, tz), from, to)),
     tz,
   ).map((d) => ({
     ...d,
@@ -166,10 +166,10 @@ export function buildAnalytics(data, { from, to, today, weekStartsOn, plan = {},
     categories: categoryBreakdown(tx),
   }
 
-  // habits
-  const perHabit = data.habits.map((h) => {
+  // habits (paused days are neutral, so each habit sees its own pauses; `habit_pauses` is optional and may be missing)
+  const perHabit = withPauses(data.habits, data.habit_pauses).map((h) => {
     const logs = data.habit_logs.filter((l) => l.habit_id === h.id)
-    return { habit: h, ...completion(h, logs, from, to, today, w), ...streaks(h, logs, today, w) }
+    return { habit: h, ...completion(h, logs, from, to, today, w, tz), ...streaks(h, logs, today, w) }
   })
   const totalDone = perHabit.reduce((s, x) => s + x.done, 0)
   const totalExpected = perHabit.reduce((s, x) => s + x.expected, 0)

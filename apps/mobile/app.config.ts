@@ -12,7 +12,17 @@ if (process.env.EAS_BUILD_PROFILE === 'production') {
   for (const name of ['EAS_PROJECT_ID', 'EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_ANON_KEY', 'EXPO_PUBLIC_WEB_URL']) {
     if (!process.env[name]) throw new Error(`${name} is not set for the production build (see docs/NATIVE.md).`)
   }
-  if (/service[_-]?role|sb_secret_/i.test(`${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`)) throw new Error('A secret key was supplied as the public Supabase key.')
+  const key = `${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`
+  if (/service[_-]?role|sb_secret_/i.test(key) || jwtRole(key) === 'service_role') throw new Error('A secret key was supplied as the public Supabase key.')
+}
+
+// A legacy Supabase key is a JWT: its role is inside the base64 payload, so "service_role" never shows in the plain text of the key.
+function jwtRole(token: string): string | null {
+  try {
+    return JSON.parse(Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8')).role ?? null
+  } catch {
+    return null
+  }
 }
 
 const config: ExpoConfig = {

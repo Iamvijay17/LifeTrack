@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useTables } from '@/hooks/store'
+import { useTable, useTables } from '@/hooks/store'
 import { useNow } from '@/hooks/useNow'
 import { useToday } from '@/hooks/useToday'
 import { planRecovery } from '@/domain/recovery'
@@ -7,7 +7,6 @@ import { useCalendarPrefs } from '@/features/calendar/calendarPrefs'
 
 export const RECOVERY_TABLES = [
   'tasks',
-  'task_reschedules',
   'calendar_events',
   'calendar_event_exceptions',
   'interview_events',
@@ -25,7 +24,10 @@ export function useRecovery() {
   const today = useToday()
   const nowMs = useNow(60_000)
   const { prefs, update } = useCalendarPrefs()
-  const { data, loading, error, refetch } = useTables(...RECOVERY_TABLES)
+  const { data, loading: tablesLoading, error, refetch } = useTables(...RECOVERY_TABLES)
+  // The history is optional (migration 0016): if the table is missing it fails on its own and the page works without history or dismissals.
+  const { rows: reschedules, loading: historyLoading } = useTable('task_reschedules')
+  const loading = tablesLoading || historyLoading
   const source = useMemo(
     () => ({
       tasks: data.tasks,
@@ -36,9 +38,9 @@ export function useRecovery() {
       reminders: data.reminders,
       habits: data.habits,
       habitLogs: data.habit_logs,
-      reschedules: data.task_reschedules,
+      reschedules,
     }),
-    [data],
+    [data, reschedules],
   )
   const ctx = useMemo(() => ({ today, tz: prefs.timezone, nowMs, prefs }), [today, prefs, nowMs])
   const plan = useMemo(() => planRecovery(source, ctx), [source, ctx])

@@ -48,7 +48,8 @@ export function Progress({ value, tone = 'primary', className, label }) {
   )
 }
 
-export function Segmented({ value, onChange, options, className }) {
+/** A row of choices. Name it with `aria-label` when it is a form field (e.g. "Transaction type"), so screen readers say what is chosen. */
+export function Segmented({ value, onChange, options, className, 'aria-label': ariaLabel }) {
   const group = useId()
   const onKeyDown = (e) => {
     const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key]
@@ -63,6 +64,7 @@ export function Segmented({ value, onChange, options, className }) {
     <LayoutGroup id={group}>
       <div
         role="tablist"
+        aria-label={ariaLabel}
         onKeyDown={onKeyDown}
         className={cn(
           'scrollbar-none inline-flex max-w-full overflow-x-auto rounded-lg border border-border bg-surface-2/70 p-0.5',

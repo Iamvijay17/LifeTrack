@@ -27,7 +27,14 @@ export function FoodsTab({ n, onCreate, onEdit, toggleFavorite }) {
   const [query, setQuery] = useState('')
   const [scope, setScope] = useState('all')
   const [category, setCategory] = useState('all')
-  const [remove] = useAction((food) => deleteFood(food), { success: (_r) => 'Food removed' })
+  // Removing an edited starter food brings the original back, so it is a reset, not a removal.
+  const [remove] = useAction(
+    async (food) => {
+      await deleteFood(food)
+      return food
+    },
+    { success: (food) => (food.source === 'edited' ? `${food.name} reset to the original` : 'Food removed') },
+  )
   const foods = useMemo(() => {
     const pool = scope === 'mine' ? n.catalog.filter((f) => f.source !== 'starter') : n.catalog
     return searchFoods(pool, { query, category, scope: scope === 'favorites' ? 'favorites' : 'all', favorites: n.favorites })

@@ -19,7 +19,7 @@ import { addDays, fmtDay } from '@/lib/dates'
 import { setTaskStatus } from '@/services/api'
 import * as store from '@/hooks/store'
 
-const PRIORITIES = ['high', 'medium', 'low']
+const PRIORITIES = ['urgent', 'high', 'medium', 'low']
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1)
 const finished = (t) => t.status === 'done' || t.status === 'cancelled' || t.status === 'skipped'
 

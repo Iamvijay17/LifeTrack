@@ -5,7 +5,7 @@ import { FormDialog } from '@/components/shared/FormDialog'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Textarea } from '@/components/ui/form'
 import { ExercisePicker } from './catalog/ExercisePicker'
-import { nonNegativeNumber } from '@/lib/validation'
+import { nonNegativeNumber, wholeNumber } from '@/lib/validation'
 import { useAction } from '@/hooks/useAction'
 import { useDialogForm } from '@/hooks/useDialogForm'
 import * as store from '@/hooks/store'
@@ -17,8 +17,8 @@ const schema = z.object({
     .array(
       z.object({
         name: z.string().trim().min(1, 'Exercise name'),
-        sets: nonNegativeNumber(20, 'Sets'),
-        reps: nonNegativeNumber(1000, 'Reps'),
+        sets: wholeNumber(20, 'Sets'),
+        reps: wholeNumber(1000, 'Reps'),
         weight_kg: nonNegativeNumber(1000, 'Weight'),
       }),
     )

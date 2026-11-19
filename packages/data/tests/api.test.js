@@ -73,6 +73,37 @@ describe('tasks', () => {
     await api.setTaskStatus(w, 'done', '2026-11-06')
     expect(db('tasks').filter((x) => x.title === 'weekdays').map((x) => x.due_date).sort()).toEqual(['2026-11-06', '2026-11-09']) // Monday
   })
+  it('a monthly series on the 31st comes back to the 31st after a short month', async () => {
+    const jan = await api.createTask({ title: 'rent', recurrence: 'monthly', due_date: '2027-01-31' })
+    await api.setTaskStatus(jan, 'done', '2027-01-31')
+    const feb = store.peek('tasks').find((x) => x.due_date === '2027-02-28')
+    expect(feb.series_id).toBe(jan.series_id)
+    await api.setTaskStatus(feb, 'done', '2027-02-28')
+    expect(db('tasks').map((x) => x.due_date).sort()).toEqual(['2027-01-31', '2027-02-28', '2027-03-31'])
+  })
+  it('the anchor day comes from the earliest occurrence of the SAME series only, and a task without a series or a date still works', async () => {
+    const feb = await api.createTask({ title: 'rent', recurrence: 'monthly', due_date: '2027-02-28' }) // cut short by February
+    store.patch('tasks', [
+      { id: 'old', title: 'rent', series_id: feb.series_id, due_date: '2027-01-31', status: 'done' }, // the series started on the 31st
+      { id: 'other', title: 'gym', series_id: 'another-series', due_date: '2026-12-05', status: 'done' }, // another series, earlier: ignored
+      { id: 'undated', title: 'rent', series_id: feb.series_id, due_date: null, status: 'done' }, // no date: ignored
+    ])
+    await api.setTaskStatus(feb, 'done', '2027-02-28')
+    expect(db('tasks').filter((x) => x.title === 'rent').map((x) => x.due_date).sort()).toEqual(['2027-02-28', '2027-03-31']) // back on the 31st
+    const legacy = (await store.insert('tasks', [{ title: 'legacy', recurrence: 'monthly', due_date: '2027-01-31', series_id: null }]))[0]
+    await api.setTaskStatus(legacy, 'done', '2027-01-31')
+    expect(db('tasks').filter((x) => x.title === 'legacy').map((x) => x.due_date).sort()).toEqual(['2027-01-31', '2027-02-28'])
+    const undated = (await store.insert('tasks', [{ title: 'someday', recurrence: 'monthly', series_id: null }]))[0]
+    await api.setTaskStatus(undated, 'done', TODAY)
+    expect(db('tasks').filter((x) => x.title === 'someday')).toHaveLength(1) // nothing to repeat from
+  })
+  it('saveRow creates a row without an entity and updates the given one', async () => {
+    const created = await api.saveRow('notes', null, { title: 'Draft', body: 'one' })
+    expect(db('notes')).toHaveLength(1)
+    await api.saveRow('notes', created, { body: 'two' })
+    expect(db('notes')).toHaveLength(1)
+    expect(db('notes')[0]).toMatchObject({ id: created.id, title: 'Draft', body: 'two' })
+  })
   it('a non-recurring or already-done task does not spawn anything', async () => {
     const t = await api.createTask({ title: 'once', due_date: TODAY })
     const done = await api.setTaskStatus(t, 'done', TODAY)

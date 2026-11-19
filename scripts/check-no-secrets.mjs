@@ -4,7 +4,7 @@ import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 const SKIP = new Set(['node_modules', '.git', 'coverage', '.expo', 'ios', 'android'])
-const EXT = /\.(js|jsx|ts|tsx|mjs|cjs|json|html|map|env)$/
+const EXT = /\.(js|jsx|ts|tsx|mjs|cjs|json|html|map|env|ya?ml|toml)$/
 
 /** Decode a JWT payload; returns null if it is not one. */
 export function jwtRole(token) {
@@ -32,7 +32,7 @@ export function scanDir(dir, found = []) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const dirs = process.argv.slice(2).length ? process.argv.slice(2) : ['apps/web/src', 'apps/web/dist', 'apps/mobile/app', 'apps/mobile/src', 'apps/mobile/dist', 'packages']
+  const dirs = process.argv.slice(2).length ? process.argv.slice(2) : ['apps/web/src', 'apps/web/dist', 'apps/mobile/app', 'apps/mobile/src', 'apps/mobile/dist', 'packages', 'supabase/functions', 'scripts', '.github']
   const found = dirs.flatMap((d) => scanDir(d))
   if (found.length) { console.error('Secret material found in client code:\n' + found.join('\n')); process.exit(1) }
   console.log(`No service-role/secret keys in: ${dirs.filter(existsSync).join(', ')}`)

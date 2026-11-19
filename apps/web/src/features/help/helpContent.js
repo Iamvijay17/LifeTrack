@@ -112,7 +112,8 @@ export const GUIDES = [
   },
   {
     module: 'lifemap',
-    summary: 'See how your daily habits and tasks lead to your goals. Everything on the map is already in LifeTrack; you only draw the connections.',
+    summary:
+      'See how your daily habits and tasks lead to your goals. Everything on the map is already in LifeTrack; you only draw the connections.',
     steps: [
       'Goals, milestones and habits appear on their own. Add a project or an area of life with Add, and bring a task onto the map by linking it.',
       'Drag from the dot on the right edge of one item onto another to connect them: the first one contributes to the second. Or select an item and use Connect to.',

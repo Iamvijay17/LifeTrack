@@ -480,7 +480,9 @@ export default function OverviewPage() {
       />
     ),
     notes: (cls, cfg) => <NotesCard count={cfg.count} className={cls} />,
-    calendar: (cls) => <CalendarCard today={today} weekStartsOn={weekStartsOn} tasks={tasks} interviews={interviews} className={cls} />,
+    calendar: (cls) => (
+      <CalendarCard today={today} weekStartsOn={weekStartsOn} tasks={tasks} interviews={interviews} tz={tz} className={cls} />
+    ),
     budget: (cls) => <BudgetCard sum={finance.sum} money={money} className={cls} />,
     transactions: (cls, cfg) => <TransactionsCard transactions={data.transactions} count={cfg.count} money={money} className={cls} />,
     interviews: (cls, cfg) => (

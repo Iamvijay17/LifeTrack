@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 // @ts-expect-error plain JS module shared with the apps
 import { lockoutSecondsAfter, passwordLockoutSecondsAfter, revokesSession, validatePin, weakPinReason } from '../../../packages/core/src/security.js'
@@ -724,7 +724,10 @@ describe('the migration itself', () => {
   it('can be run again without losing a thing', async () => {
     const t = await setup().then(async (x) => (await x.enable(), x))
     const before = (await t.admin(`select pin_hash, pin_set_at from user_security where user_id = $1`, [t.user])).rows[0]
-    await ctx.db.exec(readFileSync(new URL('../../migrations/0012_security.sql', import.meta.url), 'utf8'))
+    // Re-run the way the docs say to (setup-all.sql, i.e. every migration in order): 0012 alone would put back function bodies that later
+    // migrations replaced (0015 and 0021 re-create some of them).
+    const dir = new URL('../../migrations/', import.meta.url)
+    for (const f of readdirSync(dir).filter((x) => x.endsWith('.sql') && x >= '0012').sort()) await ctx.db.exec(readFileSync(new URL(f, dir), 'utf8'))
     expect((await t.admin(`select pin_hash, pin_set_at from user_security where user_id = $1`, [t.user])).rows[0]).toEqual(before)
     expect(await t.call(t.laptop, `verify_pin($1)`, [PIN])).toEqual({ ok: true })
     const policies = (await t.admin(`select tablename from pg_policies where policyname = 'app_lock_gate' order by 1`)).rows.map((r) => r.tablename)
@@ -746,5 +749,23 @@ describe('the migration itself', () => {
     await ctx.asService((q) => q(`select pk_issue_challenge($1,$2,'register',repeat('e', 43))`, [t.user, t.phone]))
     await t.call(t.phone, 'delete_my_account()')
     for (const table of ['user_security', 'app_unlocks', 'passkeys', 'webauthn_challenges']) expect((await t.admin(`select 1 from ${table} where user_id = $1`, [t.user])).rows, table).toHaveLength(0)
+  })
+})
+
+describe('audit fixes (0021)', () => {
+  it('a locked session cannot delete the account; the unlocked one can', async () => {
+    const t = await setup()
+    await t.enable() // phone set the PIN and is unlocked; laptop never entered it
+    expect(await ctx.fails(t.call(t.laptop, 'delete_my_account()'))).toMatch(/locked/i)
+    expect((await t.admin(`select 1 from auth.users where id = $1`, [t.user])).rows).toHaveLength(1)
+    await t.call(t.phone, 'delete_my_account()')
+    expect((await t.admin(`select 1 from auth.users where id = $1`, [t.user])).rows).toHaveLength(0)
+  })
+  it('an ended session cannot keep guessing the PIN through disable_app_lock', async () => {
+    const t = await setup()
+    await t.enable()
+    await t.admin(`delete from auth.sessions where id = $1`, [t.laptop]) // e.g. signed out after ten wrong PINs; its token still works for a while
+    expect(await ctx.fails(t.call(t.laptop, `disable_app_lock($1)`, [PIN]))).toMatch(/session has ended/i)
+    expect(await t.state(t.phone)).toMatchObject({ app_lock_enabled: true })
   })
 })

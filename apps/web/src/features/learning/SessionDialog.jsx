@@ -43,8 +43,10 @@ export function SessionDialog({ open, onOpenChange, session, goals, topics, toda
 
   const [save, pending] = useAction(
     async (v) => {
+      // An edit that keeps "Studied" as it was keeps the session's own links, even to a goal that is no longer offered as a study goal.
+      const keep = session && v.target === targetValue(session)
       const row = {
-        ...parseTarget(v.target, goals),
+        ...(keep ? { goal_id: session.goal_id ?? null, topic_id: session.topic_id ?? null } : parseTarget(v.target, goals)),
         session_date: v.session_date,
         duration_seconds: Math.round(v.minutes * 60),
         problems_solved: v.problems_solved,

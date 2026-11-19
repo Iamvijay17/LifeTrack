@@ -50,7 +50,10 @@ export function useSmartNotifications() {
       busy = true
       try {
         const { settings, prefs, tz, userSettings } = latest.current
-        await Promise.all([...sourceTables(prefs, settings), 'notifications'].map((t) => store.load(t)))
+        const wanted = sourceTables(prefs, settings)
+        // Habit pauses are optional (migration 0018): a missing table means "never paused", it must not hold back the habit nudge.
+        const pausesToo = wanted.includes('habits') ? ['habit_pauses'] : []
+        await Promise.all([...wanted, ...pausesToo, 'notifications'].map((t) => store.load(t)))
         if (stopped || !store.isReady('notifications')) return
         // Skip any category whose data is not all there.
         const usable = { ...prefs }
@@ -62,6 +65,7 @@ export function useSmartNotifications() {
             tasks: peek('tasks'),
             habits: peek('habits'),
             habitLogs: peek('habit_logs'),
+            habitPauses: store.isReady('habit_pauses') ? peek('habit_pauses') : [],
             workouts: peek('workouts'),
             routines: peek('routines'),
             interviews: peek('interview_events'),

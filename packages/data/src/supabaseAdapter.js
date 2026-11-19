@@ -1,14 +1,24 @@
 import { getUserId } from './session'
-import { toAppError } from './errors'
+import { AppError, toAppError } from './errors'
 import { ALL_TABLES } from '@lifetrack/constants/schema'
 
 // Stable paging order per table (application_history has changed_at, not created_at).
 const ORDER_COLUMN = { application_history: 'changed_at' }
 const PAGE = 1000 // PostgREST returns at most 1000 rows per request: page through everything.
+const DELETE_SLICE = 100 // ids per delete request (~4 KB of URL)
 
 const check = ({ data, error }) => {
   if (error) throw toAppError(error)
   return data
+}
+// A row that Row Level Security lets you see but not delete (a module locked by another device or the server's auto-lock) makes a delete
+// report 0 rows instead of an error. Anything the delete did not return is looked up again: still there means it was refused.
+const NOT_DELETED = () => new AppError('This could not be deleted. It may be locked: unlock it and try again.', { code: '42501' })
+const confirmDeleted = async (supabase, table, asked, deleted) => {
+  if (deleted.length >= asked.length) return
+  const done = new Set(deleted.map((r) => r.id))
+  const left = check(await supabase.from(table).select('id').in('id', asked.filter((id) => !done.has(id))))
+  if (left.length) throw NOT_DELETED()
 }
 const guard = async (fn) => {
   try {
@@ -37,7 +47,9 @@ export const createSupabaseAdapter = (supabase) => ({
         rows.push(...data)
         if (data.length < PAGE) break
       }
-      return rows
+      // Offset paging while another device inserts can return a row on two pages: keep each id once so nothing is counted twice.
+      const seen = new Set()
+      return rows.filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)))
     }),
 
   insert: (table, rows) =>
@@ -61,12 +73,16 @@ export const createSupabaseAdapter = (supabase) => ({
 
   remove: (table, id) =>
     guard(async () => {
-      check(await supabase.from(table).delete().eq('id', id).select('id'))
+      await confirmDeleted(supabase, table, [id], check(await supabase.from(table).delete().eq('id', id).select('id')))
     }),
 
+  // The ids travel in the URL (`id=in.(…)`), so a long list is sent in slices: a few hundred uuids would pass the gateway's URL limit.
   removeMany: (table, ids) =>
     guard(async () => {
-      if (ids.length) check(await supabase.from(table).delete().in('id', ids).select('id'))
+      for (let i = 0; i < ids.length; i += DELETE_SLICE) {
+        const slice = ids.slice(i, i + DELETE_SLICE)
+        await confirmDeleted(supabase, table, slice, check(await supabase.from(table).delete().in('id', slice).select('id')))
+      }
     }),
 
   /** Calls a database function (security invoker, so RLS still applies). */

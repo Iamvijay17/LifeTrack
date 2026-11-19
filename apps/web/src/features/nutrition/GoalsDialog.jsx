@@ -21,7 +21,7 @@ export function GoalsDialog({ open, onOpenChange, settingsRow }) {
   const form = useDialogForm({
     open,
     schema: nutritionGoalsFormSchema,
-    recordKey: `${settingsRow?.id}|${settingsRow?.updated_at}|${settings.water_goal_ml}`,
+    recordKey: settingsRow?.id, // not updated_at: a background settings write must not wipe targets being typed (opening reloads them)
     valuesFor: () => nutritionGoalsToForm(settingsRow, settings.water_goal_ml),
   })
   const {

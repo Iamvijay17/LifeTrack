@@ -160,7 +160,7 @@ export function useDashboardBuilder(prefs, save) {
     async (choice) => {
       const c = conflict
       setConflict(null)
-      if (!c) return
+      if (!c || choice === 'dismiss') return // dismissed: keep editing, nothing is dropped or written
       if (choice === 'theirs') {
         draftRef.current = null
         setDraft(null)

@@ -92,6 +92,29 @@ describe('MapCanvas', () => {
     vi.useRealTimers()
   })
 
+  it('a burst of nudges is one save after the last key, and moving to another item saves the first', () => {
+    vi.useFakeTimers()
+    const { props, map } = canvas()
+    const goalNode = screen.getByRole('button', { name: /^Goal: Learn React/ })
+    const n = map.byKey.get(GK)
+    fireEvent.keyDown(goalNode, { key: 'ArrowDown' })
+    vi.advanceTimersByTime(300)
+    fireEvent.keyDown(goalNode, { key: 'ArrowDown' })
+    vi.advanceTimersByTime(300) // past the first key's pause: its timer was replaced, so nothing is saved mid-burst
+    expect(props.onMove).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(200)
+    expect(props.onMove).toHaveBeenCalledTimes(1)
+    expect(props.onMove).toHaveBeenCalledWith(GK, n.x, n.y + 20)
+    const h = map.byKey.get(HK)
+    fireEvent.keyDown(goalNode, { key: 'ArrowLeft' })
+    fireEvent.keyDown(screen.getByRole('button', { name: /^Habit: Study daily/ }), { key: 'ArrowRight' })
+    expect(props.onMove).toHaveBeenLastCalledWith(GK, n.x - 10, n.y) // the goal's move is kept, not dropped
+    vi.advanceTimersByTime(600)
+    expect(props.onMove).toHaveBeenLastCalledWith(HK, h.x + 10, h.y)
+    expect(props.onMove).toHaveBeenCalledTimes(3)
+    vi.useRealTimers()
+  })
+
   it('draws a line for each connection, green once what feeds it is done, and says so in its title', () => {
     const { container } = canvas()
     const titles = [...container.querySelectorAll('[data-edge] title')].map((t) => t.textContent)

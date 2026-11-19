@@ -9,6 +9,7 @@ import { nextMilestonePosition } from '@/domain/goals'
 import { fmtDay } from '@/lib/dates'
 import { optionalDay } from '@/lib/validation'
 import { useAction } from '@/hooks/useAction'
+import { useConfirmedDelete } from '@/hooks/useConfirmedDelete'
 import * as store from '@/hooks/store'
 import { toggleMilestone } from '@/services/api'
 import { cn } from '@/lib/utils'
@@ -37,7 +38,7 @@ export function Milestones({ goal, milestones }) {
     reset()
   })
   const [toggle] = useAction(toggleMilestone)
-  const [remove] = useAction((id) => store.remove('milestones', id))
+  const remove = useConfirmedDelete('milestones', 'Milestone deleted')
   const error = errors.title?.message ?? errors.due?.message
 
   return (
@@ -54,7 +55,8 @@ export function Milestones({ goal, milestones }) {
             <span className={cn('min-w-0 flex-1 truncate', m.done && 'text-muted-foreground line-through')}>{m.title}</span>
             {m.due_date && <span className="text-xs text-muted-foreground">{fmtDay(m.due_date, 'd MMM')}</span>}
             <button
-              onClick={() => remove(m.id)}
+              type="button"
+              onClick={() => remove(m.id, { title: 'Delete this milestone?', description: `"${m.title}" is removed from the goal.` })}
               aria-label={`Delete milestone ${m.title}`}
               className="lt-press text-muted-foreground transition-colors hover:text-danger"
             >

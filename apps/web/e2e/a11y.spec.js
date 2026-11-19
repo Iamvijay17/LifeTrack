@@ -63,7 +63,7 @@ test('global search and a form dialog are accessible', async ({ page }) => {
   const box = page.getByRole('combobox', { name: 'Search everything' })
   await box.fill('plan')
   await expect(box).toHaveAttribute('aria-expanded', 'true')
-  await expect(box).toHaveAttribute('aria-activedescendant', /search-opt-0/)
+  await expect(box).toHaveAttribute('aria-activedescendant', /cmd-opt-0/) // the Command Center palette's first result
   const v = await scan(page)
   expect(v, summary(v)).toEqual([])
 })

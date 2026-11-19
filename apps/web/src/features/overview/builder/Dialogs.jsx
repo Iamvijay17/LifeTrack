@@ -19,12 +19,15 @@ export function EmptyWorkspace({ name, onAdd }) {
   )
 }
 
-/** Another device saved the dashboard while this one was being edited. Nothing is overwritten until the person chooses. */
+/**
+ * Another device saved the dashboard while this one was being edited. Nothing is overwritten until the person chooses.
+ * Closing it (Esc, a click outside) is not a choice: the edits stay and saving asks again.
+ */
 export function ConflictDialog({ conflict, onResolve }) {
   return (
     <Dialog
       open={!!conflict}
-      onOpenChange={(o) => !o && onResolve('theirs')}
+      onOpenChange={(o) => !o && onResolve('dismiss')}
       title="Your dashboard changed elsewhere"
       description="It was saved from another device or tab after you started editing. Saving now would replace that version."
       footer={

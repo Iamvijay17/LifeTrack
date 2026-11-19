@@ -106,12 +106,13 @@ export function weeklyApplications(apps, today, weekStartsOn, weeks = 8) {
 // -------------------------------------------------------------- interviews
 const DAY_MS = 864e5
 
-/** Scheduled interviews in the next `days` days (from `nowMs`), each with its application attached; interviews whose application is gone are dropped. */
+/** Scheduled interviews in the next `days` days (from `nowMs`), soonest first, each with its application attached; interviews whose application is gone are dropped. */
 export function upcomingInterviews(events, apps, nowMs, days = 7) {
   const now = new Date(nowMs).toISOString()
   const soon = new Date(nowMs + days * DAY_MS).toISOString()
   return events
     .filter((e) => e.status === 'scheduled' && e.scheduled_at >= now && e.scheduled_at <= soon)
+    .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))
     .map((e) => ({ ...e, app: apps.find((a) => a.id === e.application_id) }))
     .filter((e) => e.app)
 }

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { savingsGoalToPayload } from '@lifetrack/schemas'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { Field, Input } from '@/components/ui/form'
 import { moneyField, optionalDay } from '@/lib/validation'
@@ -28,17 +29,14 @@ export function SavingsGoalDialog({ open, onOpenChange, goal }) {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, defaultValues },
   } = useDialogForm({ open, schema, recordKey: goal?.id, valuesFor: () => (goal ? fromGoal(goal) : blank) })
 
   const [save, pending] = useAction(
     async (v) => {
-      const row = {
-        name: v.name.trim(),
-        target_paise: parseMoney(v.target),
-        saved_paise: v.saved ? parseMoney(v.saved) : 0,
-        target_date: v.target_date || null,
-      }
+      // An edit leaves "saved" out unless it was changed here (`defaultValues` = what the dialog opened with), so funds another device added
+      // meanwhile are not overwritten.
+      const row = savingsGoalToPayload(v, goal ? defaultValues : null)
       if (goal) await store.update('savings_goals', goal.id, row)
       else await store.insert('savings_goals', row)
       onOpenChange(false)

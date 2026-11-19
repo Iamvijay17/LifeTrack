@@ -132,7 +132,7 @@ export default function CompanionPage() {
   useThemeSync()
   useAppearanceSync()
 
-  const { data, loading } = useTables('tasks', 'goals', 'milestones', 'reminders', 'interviews', 'job_applications')
+  const { data, loading } = useTables('tasks', 'goals', 'milestones', 'reminders', 'interview_events', 'job_applications')
   const { stats } = useHabits(today, settings.week_starts_on)
   const snap = useMemo(
     () =>
@@ -143,7 +143,7 @@ export default function CompanionPage() {
           goals: data.goals,
           milestones: data.milestones,
           reminders: data.reminders,
-          interviews: data.interviews,
+          interviews: data.interview_events,
           applications: data.job_applications,
         },
         { today, tz: settings.timezone, nowMs: Date.now() },

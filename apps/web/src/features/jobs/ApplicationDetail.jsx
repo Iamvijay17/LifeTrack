@@ -2,6 +2,7 @@ import { CalendarPlus, ExternalLink, ListChecks, Pencil, Plus, Trash2 } from 'lu
 import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/form'
+import { isSafeUrl } from '@lifetrack/core/notes'
 import { STATUS_LABEL, JOB_STATUSES, checklistProgress } from '@/domain/jobs'
 import { fmtDay } from '@/lib/dates'
 import { formatLpa } from '@/lib/money'
@@ -75,7 +76,8 @@ export function ApplicationDetail({ app, history, events, tz, today, onClose, on
             <Pencil className="h-3.5 w-3.5" />
             Edit
           </Button>
-          {app.jd_url && (
+          {/* Only web links: a value imported from a backup is not form-validated, and React does not block javascript: URLs. */}
+          {isSafeUrl(app.jd_url ?? '') && (
             <a
               href={app.jd_url}
               target="_blank"

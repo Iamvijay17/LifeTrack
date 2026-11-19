@@ -333,4 +333,38 @@ describe('accessibility', () => {
     await act(async () => {})
     for (const g of screen.getAllByRole('group')) expect(g).toHaveAccessibleName()
   })
+  it('offers Create habit and Add calendar event as deep links', async () => {
+    setup()
+    await openPalette()
+    await userEvent.click(screen.getByRole('option', { name: /Create habit/ }))
+    expect(where()).toBe('/habits?new=1')
+    await openPalette()
+    await userEvent.click(screen.getByRole('option', { name: /Add calendar event/ }))
+    expect(where()).toBe('/calendar?new=1')
+  })
+
+  it('Tab jumps to the next group and Shift+Tab back', async () => {
+    setup()
+    const input = await openPalette()
+    const first = () => document.getElementById(input.getAttribute('aria-activedescendant'))
+    expect(first()).toHaveAttribute('aria-selected', 'true')
+    const group = () => first().closest('[role="group"]').getAttribute('aria-label')
+    const start = group()
+    await userEvent.tab()
+    expect(group()).not.toBe(start)
+    await userEvent.tab({ shift: true })
+    expect(group()).toBe(start)
+  })
+
+  it('surfaces actions you run repeatedly under Frequently used', async () => {
+    setup()
+    for (let n = 0; n < 2; n++) {
+      await openPalette()
+      await userEvent.click(screen.getByRole('option', { name: /Create (a )?habit/ }))
+    }
+    await openPalette()
+    const freq = screen.getByRole('group', { name: 'Frequently used' })
+    expect(within(freq).getByRole('option', { name: /Create (a )?habit/ })).toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem('lifetrack:usage:user-a'))['a-new-habit'].n).toBe(2)
+  })
 })

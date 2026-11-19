@@ -149,7 +149,7 @@ export function MapToolbar({ map, vis, f, setF, onPick, onAdd, onFit, onZoom, on
               }
               className={cn(
                 'inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-xs transition-colors',
-                on ? 'border-border bg-card text-foreground' : 'border-dashed border-border text-muted-foreground/60',
+                on ? 'border-border bg-card text-foreground' : 'border-dashed border-border text-muted-foreground',
               )}
             >
               <Icon className="h-3.5 w-3.5" style={{ color: on ? st.color : undefined }} aria-hidden />

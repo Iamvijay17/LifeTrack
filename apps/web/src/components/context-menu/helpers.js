@@ -1,6 +1,7 @@
 // Small builders the module menus share. They go through the app's own data layer (hooks/store), so every menu action is the same write a form or
 // button would make: same validation in the adapters, same cache update, same save indicator.
 import * as store from '@/hooks/store'
+import { plural } from '@/lib/format'
 import { copyText } from './clipboard'
 
 const SERVER_FIELDS = ['id', 'created_at', 'updated_at', 'user_id']
@@ -28,8 +29,8 @@ export const copyDetails = (title, fields) => {
   return copyText(lines.join('\n'), { success: 'Copied to clipboard' })
 }
 
-/** `n` things, for messages: plural(3, 'task') → "3 tasks". */
-export const count = (n, noun) => `${n} ${noun}${n === 1 ? '' : 's'}`
+/** `n` things, for messages: count(3, 'task') → "3 tasks", count(2, 'entry') → "2 entries". */
+export const count = (n, noun) => plural(n, noun)
 
 /** Deletes several rows of one table at once, with the wording a bulk confirm dialog needs. */
 export const bulkDelete = (table, ids, noun) => ({
