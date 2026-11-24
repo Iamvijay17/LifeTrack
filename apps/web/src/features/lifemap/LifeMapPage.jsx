@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Waypoints } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { FirstUseHint } from '@/components/shared/FirstUseHint'
 import { DataGate, EmptyState } from '@/components/shared/states'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { useTables } from '@/hooks/store'
@@ -141,6 +142,9 @@ export default function LifeMapPage() {
           </Button>
         }
       />
+      <FirstUseHint id="lifemap" title="Connect your life areas">
+        Drag nodes to arrange them and link related ones. Your layout is saved automatically.
+      </FirstUseHint>
       <DataGate loading={loading || habitsLoading} error={error} onRetry={refetch}>
         {empty ? (
           <EmptyState

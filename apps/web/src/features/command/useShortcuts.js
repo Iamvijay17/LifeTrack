@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { CREATE_KEYS, GO_KEYS, isTypingTarget } from './model'
+import { isTypingTarget } from './model'
+import { getChordTables } from '@/hooks/useShortcutPrefs'
 
 const CHORD_MS = 1200
 
@@ -17,9 +18,9 @@ const overlayOpen = () => !!document.querySelector('[role="dialog"], [role="aler
  * Everything except Ctrl/Cmd + K is a bare key, so it is ignored while the person is typing, while another dialog or menu is open,
  * and when a modifier is held (the browser's own shortcuts keep working).
  */
-export function useShortcuts({ toggle, open, help, go, create, paletteOpen }) {
+export function useShortcuts({ toggle, open, help, go, create, quick, paletteOpen }) {
   const handlers = useRef({})
-  handlers.current = { toggle, open, help, go, create, paletteOpen }
+  handlers.current = { toggle, open, help, go, create, quick, paletteOpen }
   useEffect(() => {
     let pending = null // 'g' | 'c', armed by the first key of a chord
     let timer = 0
@@ -35,11 +36,25 @@ export function useShortcuts({ toggle, open, help, go, create, paletteOpen }) {
         h.toggle()
         return
       }
+      // Mod+Shift+N: quick create. Mod+/: the shortcut sheet. Both work from anywhere except while typing.
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !h.paletteOpen && !isTypingTarget(e.target) && !overlayOpen()) {
+        if (e.shiftKey && e.key.toLowerCase() === 'n' && h.quick) {
+          e.preventDefault()
+          disarm()
+          return h.quick()
+        }
+        if (!e.shiftKey && e.key === '/') {
+          e.preventDefault()
+          disarm()
+          return h.help()
+        }
+      }
       if (e.defaultPrevented || e.repeat || e.isComposing || e.metaKey || e.ctrlKey || e.altKey) return disarm()
       if (h.paletteOpen || isTypingTarget(e.target) || overlayOpen()) return disarm()
       const key = e.key
       if (pending) {
-        const table = pending === 'g' ? GO_KEYS : CREATE_KEYS
+        const tables = getChordTables()
+        const table = pending === 'g' ? tables.go : tables.create
         const hit = table[key.toLowerCase()]
         const kind = pending
         disarm()

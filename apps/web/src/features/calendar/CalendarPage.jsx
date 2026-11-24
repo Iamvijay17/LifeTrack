@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useContextMenu, usePageContextMenu } from '@/components/context-menu'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { FirstUseHint } from '@/components/shared/FirstUseHint'
 import { ErrorState } from '@/components/shared/states'
 import { Skeleton } from '@/components/ui/misc'
 import { AnimatePresence, ease, m } from '@/components/motion/primitives'
@@ -483,6 +484,9 @@ export default function CalendarPage() {
   return (
     <>
       <PageHeader title="Calendar" description={desktop ? 'Tasks, events, interviews, reminders and deadlines in one place.' : undefined} />
+      <FirstUseHint id="calendar" title="Drag to reschedule">
+        Drag any item to a new time or day, or right-click it for more actions. Press ? on this page for its own shortcuts.
+      </FirstUseHint>
       <DragProvider
         plan={plan}
         onCommit={onCommit}

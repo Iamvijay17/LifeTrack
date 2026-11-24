@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { CheckCircle2, History, PauseCircle, Plus, Power, Sparkles, Workflow, XCircle } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { FirstUseHint } from '@/components/shared/FirstUseHint'
 import { DataGate, EmptyState } from '@/components/shared/states'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -59,6 +60,10 @@ export default function AutomationPage() {
           </>
         }
       />
+      <FirstUseHint id="automation" title="Automate the routine parts">
+        A workflow runs when its trigger happens, but only while LifeTrack is open. Start from a template, then test it before turning it
+        on.
+      </FirstUseHint>
       <DataGate loading={loading} error={error} onRetry={refetch} cards={4}>
         <div className="space-y-5">
           <section aria-label="Overview" className="grid grid-cols-2 gap-2.5 md:grid-cols-5">

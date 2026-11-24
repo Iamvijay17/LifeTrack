@@ -49,9 +49,7 @@ import { createTask } from '@/services/api'
 import { tableClosed } from '@lifetrack/core/moduleLocks'
 import {
   CAPTURE_KINDS,
-  CREATE_KEYS,
   CREATE_TARGETS,
-  GO_KEYS,
   SEARCH_TABLES,
   captureRow,
   contextActions,
@@ -65,6 +63,7 @@ import {
 } from './model'
 import { useRecents, useUsage } from './useRecents'
 import { useShortcuts } from './useShortcuts'
+import { getChordTables, useShortcutOverrides } from '@/hooks/useShortcutPrefs'
 
 const Ctx = createContext({ open: () => {}, close: () => {}, toggle: () => {}, help: () => {} })
 /** `open()` shows the palette from anywhere (the header button uses it). */
@@ -114,11 +113,11 @@ const ACTIONS = [
   { id: 'a-study', label: 'Start study session', icon: BookOpen, module: 'learning', quick: 'study', keywords: 'learn timer' },
   { id: 'a-app', label: 'Add job application', icon: Briefcase, module: 'jobs', quick: 'application', keywords: 'career apply' },
 ].map((a) => {
-  const key = a.create && Object.keys(CREATE_KEYS).find((k) => CREATE_KEYS[k] === a.create)
+  const key = a.create && Object.keys(getChordTables().create).find((k) => getChordTables().create[k] === a.create)
   return { ...a, keys: key ? `c ${key}` : undefined, ...(a.create ? CREATE_TARGETS[a.create] : {}) }
 })
 
-const goKeyFor = (to) => Object.keys(GO_KEYS).find((k) => GO_KEYS[k] === to)
+const goKeyFor = (to) => Object.keys(getChordTables().go).find((k) => getChordTables().go[k] === to)
 
 /** Runs a quick-add `quick` kind or opens a `to`. Shared by the shortcuts, the palette's actions and the context actions. */
 function useDo() {
@@ -161,7 +160,8 @@ export function CommandCenterProvider({ children }) {
   })
 
   const create = useCallback((kind) => CREATE_TARGETS[kind] && run(CREATE_TARGETS[kind]), [run])
-  useShortcuts({ toggle: api.toggle, open: api.open, help: api.help, go: nav, create, paletteOpen: state.open })
+  const { menu: openQuick } = useQuick()
+  useShortcuts({ toggle: api.toggle, open: api.open, help: api.help, go: nav, create, quick: openQuick, paletteOpen: state.open })
 
   const execute = useCallback(
     (item) => {
@@ -322,38 +322,51 @@ function useSections({ q, dq, data, closed, pathname, recents, usage, clearRecen
   }, [q, dq, data, closed, pathname, recents, usage, clearRecents, today, dark, save])
 }
 
-const SHEET = [
-  {
-    title: 'Command Center',
-    rows: [
-      [shortcutLabel(), 'Open or close'],
-      ['/', 'Open the search'],
-      ['?', 'Show this sheet'],
-      ['↑ ↓', 'Move through results'],
-      ['Tab', 'Jump to the next group (Shift Tab: previous)'],
-      ['↵', 'Run the selected result'],
-      ['Esc', 'Clear, go back, close'],
-    ],
-  },
-  { title: 'Go to  ·  g then …', rows: Object.entries(GO_KEYS).map(([k, to]) => [`g ${k}`, NAV.find((n) => n.to === to)?.label ?? to]) },
-  {
-    title: 'Create  ·  c then …',
-    rows: Object.entries(CREATE_KEYS).map(([k, kind]) => [`c ${k}`, ACTIONS.find((a) => a.create === kind)?.label ?? kind]),
-  },
-  {
-    title: 'Quick capture  ·  type in the search',
-    rows: [
-      ['task: call the bank tomorrow', 'Add a task'],
-      ['note: idea for the book', 'Save a note'],
-      ['remind: pay rent 5pm', 'Set a reminder'],
-    ],
-  },
-]
+const sheet = () => {
+  const { go, create } = getChordTables()
+  return [
+    {
+      title: 'Command Center',
+      rows: [
+        [shortcutLabel(), 'Open or close'],
+        ['/', 'Open the search'],
+        ['?', 'Show this sheet'],
+        ['↑ ↓', 'Move through results'],
+        ['Tab', 'Jump to the next group (Shift Tab: previous)'],
+        ['↵', 'Run the selected result'],
+        ['Esc', 'Clear, go back, close'],
+      ],
+    },
+    {
+      title: 'Anywhere',
+      rows: [
+        [isMac() ? '⌘ ⇧ N' : 'Ctrl Shift N', 'Quick create'],
+        [isMac() ? '⌘ /' : 'Ctrl /', 'Show shortcuts'],
+        [isMac() ? '⌘ Z' : 'Ctrl Z', 'Undo'],
+        [isMac() ? '⌘ ⇧ Z' : 'Ctrl Shift Z', 'Redo'],
+      ],
+    },
+    { title: 'Go to  ·  g then …', rows: Object.entries(go).map(([k, to]) => [`g ${k}`, NAV.find((n) => n.to === to)?.label ?? to]) },
+    {
+      title: 'Create  ·  c then …',
+      rows: Object.entries(create).map(([k, kind]) => [`c ${k}`, ACTIONS.find((a) => a.create === kind)?.label ?? kind]),
+    },
+    {
+      title: 'Quick capture  ·  type in the search',
+      rows: [
+        ['task: call the bank tomorrow', 'Add a task'],
+        ['note: idea for the book', 'Save a note'],
+        ['remind: pay rent 5pm', 'Set a reminder'],
+      ],
+    },
+  ]
+}
 
 function Shortcuts() {
+  useShortcutOverrides() // re-render when a key is remapped
   return (
     <div id="search-results" className="max-h-[min(58dvh,28rem)] space-y-4 overflow-y-auto overscroll-contain p-4">
-      {SHEET.map((s) => (
+      {sheet().map((s) => (
         <section key={s.title} aria-label={s.title}>
           <h3 className="lt-eyebrow pb-1.5 text-[10px]">{s.title}</h3>
           <ul className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
@@ -419,7 +432,7 @@ function Results({ q, handle, onActive, onHelp, execute, recents, usage, clearRe
   }, [settled, flat])
   const searching = q.trim() && (loading || dq !== q)
   const failed = q.trim() && error && !closed.length
-  const matched = sections.some((s) => s.key !== 'capture')
+  const matched = sections.some((s) => s.key !== 'capture' && s.key !== 'search-all')
   let idx = -1
   return (
     <LayoutGroup id="palette">

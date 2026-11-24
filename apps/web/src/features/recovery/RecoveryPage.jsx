@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { CalendarClock, CheckCircle2, Flame, ListChecks, Settings2, Sparkles } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { FirstUseHint } from '@/components/shared/FirstUseHint'
 import { DataGate, EmptyState } from '@/components/shared/states'
 import { Button } from '@/components/ui/button'
 import { AnimatedValue, AnimatePresence, LayoutGroup } from '@/components/motion/primitives'
@@ -175,6 +176,9 @@ export default function RecoveryPage() {
           </>
         }
       />
+      <FirstUseHint id="recovery" title="Nothing moves without you">
+        Smart Recovery only suggests new dates for missed tasks. Preview a change before you apply it, and undo it afterwards.
+      </FirstUseHint>
       <DataGate loading={loading} error={error} onRetry={refetch} cards={3}>
         <section className="lt-hero mb-4 grid grid-cols-3 gap-2 p-2.5 sm:gap-3 sm:p-3 md:p-4" aria-label="Summary">
           <Stat icon={Flame} label="Slipped tasks" value={plan.overdue} tone="bg-danger/15 text-danger" />

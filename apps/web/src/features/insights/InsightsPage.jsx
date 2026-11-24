@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { BarChart3, ChevronLeft, ChevronRight, FileDown, FileSpreadsheet } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { FirstUseHint } from '@/components/shared/FirstUseHint'
 import { DataGate, EmptyState } from '@/components/shared/states'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/form'
@@ -134,6 +135,9 @@ export default function InsightsPage() {
           </>
         }
       />
+      <FirstUseHint id="insights" title="Compare periods">
+        Pick a period to compare it with the one before, and export the report as PDF or CSV.
+      </FirstUseHint>
 
       <div className="mb-2 flex flex-wrap items-center gap-3 print:hidden">
         <Segmented aria-label="Report period" value={period.kind} onChange={period.setKind} options={KINDS} />
