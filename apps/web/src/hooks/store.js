@@ -7,6 +7,7 @@ import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { db } from '@/services/db'
 import { AppError, toAppError } from '@/services/errors'
 import * as sync from '@/sync'
+import { bindDemoStore, isDemo } from '@/services/demo'
 import { DEFAULTS } from '@lifetrack/constants/schema'
 import { getUserId } from '@lifetrack/data'
 
@@ -115,6 +116,9 @@ export function scheduleRefetch(table) {
   )
 }
 
+// Demo mode swaps the data underneath the screen: everything cached is dropped so no row of the other database stays visible.
+bindDemoStore({ reset: () => resetStore() })
+
 export function resetStore() {
   epoch++
   inflight.clear()
@@ -169,6 +173,7 @@ const sameFields = (a, b) => Object.keys(b).every((k) => JSON.stringify(a[k]) ==
  * `payload` is absent for the local DEV adapter, which falls back to a refetch.
  */
 export function applyChange(table, payload) {
+  if (isDemo()) return // live updates describe the real account; the demo shows only its own sample data
   const status = get(table).status
   if (status === 'loading') return void bump(table) // the snapshot being fetched may predate this change: fetch again when it lands
   if (status !== 'ready') return // not loaded: its first load will see the change

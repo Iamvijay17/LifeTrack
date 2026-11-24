@@ -3,8 +3,7 @@
 // emulates the pieces of the database the app relies on (defaults, unique constraints, status-history trigger,
 // cross-tab "realtime"). Production = Supabase.
 import { getUserId } from './session'
-import { DEFAULTS, UNIQUES } from '@lifetrack/constants/schema'
-import { AppError } from './errors'
+import { createLocalAdapter } from './localCore'
 
 const key = () => `lifetrack-dev:db:${getUserId()}`
 const read = () => {
@@ -15,13 +14,6 @@ const read = () => {
   }
 }
 const write = (db) => localStorage.setItem(key(), JSON.stringify(db))
-const uuid = () =>
-  crypto.randomUUID?.() ??
-  'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0
-    return (c === 'x' ? r : (r & 3) | 8).toString(16)
-  })
-const clone = (v) => (v == null ? v : JSON.parse(JSON.stringify(v)))
 
 // Created lazily so importing this module has no side effects (lets bundlers drop it from production builds).
 let bc
@@ -40,274 +32,15 @@ const notify = (table) => {
   queueMicrotask(() => localListeners.forEach((cb) => cb(table))) // this tab (Supabase Realtime also echoes your own changes)
 }
 
-const dup = () => new AppError('That record already exists.', { code: '23505' })
-
-function violatesUnique(table, rows, row, selfId) {
-  for (const u of UNIQUES[table] ?? []) {
-    if (u.when && !u.when(row)) continue
-    if (rows.some((o) => o.id !== selfId && (!u.when || u.when(o)) && u.cols.every((c) => o[c] === row[c]))) return true
-  }
-  return false
-}
-
-// Columns whose database default is now()
-const NOW_COLUMNS = { application_history: ['changed_at'], study_sessions: ['started_at'], focus_sessions: ['started_at'] }
-
-// Strictly increasing timestamps keep ordering deterministic for rows written in the same millisecond.
-let lastTs = 0
-const monotonicNow = () => {
-  lastTs = Math.max(Date.now(), lastTs + 1)
-  return new Date(lastTs).toISOString()
-}
-
-function buildRow(table, input) {
-  const now = monotonicNow()
-  const nowDefaults = Object.fromEntries((NOW_COLUMNS[table] ?? []).map((c) => [c, now]))
-  return {
-    id: uuid(),
-    created_at: now,
-    updated_at: now,
-    ...nowDefaults,
-    ...clone(DEFAULTS[table] ?? {}),
-    ...clone(input),
-    user_id: getUserId(),
-  }
-}
-
-/** Emulates public.log_application_status() */
-function afterWrite(db, table, row, old) {
-  if (table !== 'job_applications') return
-  if (!old || old.status !== row.status) {
-    db.application_history ??= []
-    db.application_history.push(
-      buildRow('application_history', { application_id: row.id, from_status: old?.status ?? null, to_status: row.status }),
-    )
-  }
-}
-
-export const localAdapter = {
-  name: 'local',
-
-  async list(table) {
-    const rows = clone(read()[table] ?? [])
-    return rows.sort((a, b) => (a.created_at + a.id).localeCompare(b.created_at + b.id))
-  },
-
-  async insert(table, inputs) {
-    const db = read()
-    const rows = (db[table] ??= [])
-    const out = inputs.map((i) => {
-      const row = buildRow(table, i)
-      if (violatesUnique(table, rows, row, null)) throw dup()
-      rows.push(row)
-      afterWrite(db, table, row, null)
-      return row
-    })
-    write(db)
-    notify(table)
-    if (table === 'job_applications') notify('application_history')
-    return clone(out)
-  },
-
-  async get(table, id) {
-    return clone((read()[table] ?? []).find((r) => r.id === id) ?? null)
-  },
-
-  async find(table, match) {
-    return clone((read()[table] ?? []).filter((r) => Object.entries(match).every(([k, v]) => r[k] === v)))
-  },
-
-  async update(table, id, patch, { ifUpdatedAt } = {}) {
-    const db = read()
-    const rows = (db[table] ??= [])
-    const i = rows.findIndex((r) => r.id === id)
-    if (i < 0) throw new AppError('That record could not be found.', { code: 'PGRST116' })
-    if (ifUpdatedAt && rows[i].updated_at !== ifUpdatedAt)
-      throw new AppError('This record was changed somewhere else.', { code: 'CONFLICT' })
-    const { user_id, id: _id, created_at, ...clean } = patch
-    const next = { ...rows[i], ...clone(clean), updated_at: monotonicNow() }
-    if (violatesUnique(table, rows, next, id)) throw dup()
-    afterWrite(db, table, next, rows[i])
-    rows[i] = next
-    write(db)
-    notify(table)
-    if (table === 'job_applications') notify('application_history')
-    return clone(next)
-  },
-
-  async upsert(table, inputs, { onConflict = 'id', ignoreDuplicates = false } = {}) {
-    const db = read()
-    const rows = (db[table] ??= [])
-    const cols = onConflict.split(',')
-    const out = []
-    for (const input of inputs) {
-      const candidate = { ...input, user_id: getUserId() }
-      const i = rows.findIndex((r) => cols.every((c) => r[c] === candidate[c]))
-      if (i >= 0) {
-        if (ignoreDuplicates) continue
-        const { id, created_at, ...rest } = candidate
-        const next = { ...rows[i], ...clone(rest), updated_at: monotonicNow() }
-        if (violatesUnique(table, rows, next, rows[i].id)) throw dup()
-        afterWrite(db, table, next, rows[i])
-        rows[i] = next
-        out.push(next)
-      } else {
-        const row = buildRow(table, candidate)
-        if (violatesUnique(table, rows, row, null)) throw dup()
-        rows.push(row)
-        afterWrite(db, table, row, null)
-        out.push(row)
-      }
-    }
-    write(db)
-    notify(table)
-    if (table === 'job_applications') notify('application_history')
-    return clone(out)
-  },
-
-  async remove(table, id, { ifUpdatedAt } = {}) {
-    const cur = ifUpdatedAt ? (read()[table] ?? []).find((r) => r.id === id) : null
-    if (cur && cur.updated_at !== ifUpdatedAt) throw new AppError('This record was changed somewhere else.', { code: 'CONFLICT' })
-    return this.removeMany(table, [id])
-  },
-
-  async removeMany(table, ids) {
-    const db = read()
-    const set = new Set(ids)
-    db[table] = (db[table] ?? []).filter((r) => !set.has(r.id))
-    // emulate ON DELETE CASCADE / SET NULL
-    const cascade = {
-      habits: [
-        ['habit_logs', 'habit_id'],
-        ['habit_pauses', 'habit_id'],
-      ],
-      job_applications: [
-        ['application_history', 'application_id'],
-        ['interview_events', 'application_id'],
-      ],
-      workouts: [['exercise_logs', 'workout_id']],
-      goals: [['milestones', 'goal_id']],
-      calendar_events: [['calendar_event_exceptions', 'event_id']],
-      tasks: [['task_reschedules', 'task_id']],
-      challenges: [['challenge_checkins', 'challenge_id']],
-    }
-    for (const [child, col] of cascade[table] ?? []) db[child] = (db[child] ?? []).filter((r) => !set.has(r[col]))
-    const setNull = {
-      habits: [['challenges', 'habit_id']],
-      automation_workflows: [['automation_executions', 'workflow_id']],
-      goals: [
-        ['study_sessions', 'goal_id'],
-        ['notes', 'goal_id'],
-        ['calendar_events', 'goal_id'],
-      ],
-      tasks: [
-        ['notes', 'task_id'],
-        ['focus_sessions', 'task_id'],
-      ],
-      learning_topics: [
-        ['study_sessions', 'topic_id'],
-        ['goals', 'topic_id'],
-        ['focus_sessions', 'topic_id'],
-        ['calendar_events', 'topic_id'],
-      ],
-      routines: [
-        ['workouts', 'routine_id'],
-        ['calendar_events', 'routine_id'],
-      ],
-      foods: [['food_logs', 'food_id']],
-      recurring_rules: [['transactions', 'recurring_rule_id']],
-      job_applications: [['calendar_events', 'application_id']],
-    }
-    for (const [child, col] of setNull[table] ?? []) db[child] = (db[child] ?? []).map((r) => (set.has(r[col]) ? { ...r, [col]: null } : r))
-    write(db)
-    notify(table)
-  },
-
-  /** Emulates the SQL functions in supabase/migrations/0004_hardening.sql and 0007_savings_atomic.sql */
-  async rpc(name, args) {
-    if (name === 'add_water') {
-      const db = read()
-      const rows = (db.health_logs ??= [])
-      const i = rows.findIndex((r) => r.log_date === args.p_date)
-      let row
-      if (i >= 0) {
-        row = { ...rows[i], water_ml: Math.max(0, Math.min(20000, (rows[i].water_ml ?? 0) + args.p_ml)), updated_at: monotonicNow() }
-        rows[i] = row
-      } else {
-        row = buildRow('health_logs', { log_date: args.p_date, water_ml: Math.max(0, Math.min(20000, args.p_ml)) })
-        rows.push(row)
-      }
-      write(db)
-      notify('health_logs')
-      return clone(row)
-    }
-    if (name === 'log_water' || name === 'delete_water_log') {
-      // Emulates public.log_water / public.delete_water_log (supabase/migrations/0009_nutrition.sql): the entry and health_logs.water_ml change together.
-      const db = read()
-      const logs = (db.water_logs ??= [])
-      let date, delta, entry
-      if (name === 'log_water') {
-        if (!Number.isInteger(args.p_ml) || args.p_ml < 1 || args.p_ml > 5000) throw new AppError('amount must be between 1 and 5000 ml')
-        entry = buildRow('water_logs', { log_date: args.p_date, log_time: args.p_time ?? null, amount_ml: args.p_ml })
-        logs.push(entry)
-        date = args.p_date
-        delta = args.p_ml
-      } else {
-        const i = logs.findIndex((w) => w.id === args.p_id)
-        if (i < 0) throw new AppError('That record could not be found.', { code: 'P0002' })
-        ;[entry] = logs.splice(i, 1)
-        date = entry.log_date
-        delta = -entry.amount_ml
-      }
-      const health = (db.health_logs ??= [])
-      const h = health.findIndex((r) => r.log_date === date)
-      let row
-      if (h >= 0) {
-        row = { ...health[h], water_ml: Math.max(0, Math.min(20000, (health[h].water_ml ?? 0) + delta)), updated_at: monotonicNow() }
-        health[h] = row
-      } else {
-        row = buildRow('health_logs', { log_date: date, water_ml: Math.max(0, Math.min(20000, delta)) })
-        health.push(row)
-      }
-      write(db)
-      notify('water_logs')
-      notify('health_logs')
-      return clone(name === 'log_water' ? { entry, health: row } : row)
-    }
-    if (name === 'replace_exercise_logs') {
-      const db = read()
-      if (!(db.workouts ?? []).some((w) => w.id === args.p_workout))
-        throw new AppError('That record could not be found.', { code: 'PGRST116' })
-      const kept = (db.exercise_logs ?? []).filter((r) => r.workout_id !== args.p_workout)
-      const fresh = args.p_sets.map((s) => buildRow('exercise_logs', { ...s, workout_id: args.p_workout }))
-      db.exercise_logs = [...kept, ...fresh]
-      write(db)
-      notify('exercise_logs')
-      return clone(fresh)
-    }
-    if (name === 'add_savings') {
-      if (!Number.isInteger(args.p_paise) || args.p_paise <= 0) throw new AppError('Enter an amount greater than 0.')
-      const db = read()
-      const rows = (db.savings_goals ??= [])
-      const i = rows.findIndex((g) => g.id === args.p_goal)
-      if (i < 0) throw new AppError('Savings goal not found.')
-      rows[i] = { ...rows[i], saved_paise: rows[i].saved_paise + args.p_paise, updated_at: monotonicNow() }
-      write(db)
-      notify('savings_goals')
-      return clone(rows[i])
-    }
-    throw new AppError(`Unknown function ${name}`)
-  },
-
-  subscribe(onChange, onStatus) {
+export const localAdapter = /* @__PURE__ */ createLocalAdapter({
+  read,
+  write,
+  notify,
+  listen(cb) {
     channel() // start listening for other tabs
-    localListeners.add(onChange)
-    onStatus?.('SUBSCRIBED')
-    return () => localListeners.delete(onChange)
+    localListeners.add(cb)
+    return () => localListeners.delete(cb)
   },
-
   /** Dev helper: wipe everything for the current dev user. */
-  wipe() {
-    localStorage.removeItem(key())
-  },
-}
+  wipe: () => localStorage.removeItem(key()),
+})
