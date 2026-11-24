@@ -169,7 +169,7 @@ function Shell() {
             id="main"
             ref={main}
             tabIndex={-1}
-            className="mx-auto w-full max-w-[76rem] px-4 pb-28 pt-4 outline-none focus-visible:ring-0 md:px-6 md:pb-10 md:pt-5"
+            className="mx-auto w-full max-w-[76rem] px-4 pb-28 pt-4 outline-none focus-visible:ring-0 md:px-6 md:pb-10 md:pt-5 min-[1536px]:max-w-[96rem] min-[1920px]:max-w-[120rem] min-[1920px]:px-10"
           >
             {/* A page leaves quickly and the next one rises in. Nothing here waits on data: each page shows its own skeleton. */}
             <AnimatePresence mode="wait" initial={false}>

@@ -43,7 +43,7 @@ export default function AutomationPage() {
   const recent = useMemo(() => executions.filter((e) => e.status !== 'pending').slice(0, 5), [executions])
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-6xl 2xl:max-w-[90rem]">
       <PageHeader
         title="Automation Studio"
         description="Rules that do the repetitive things for you: when this happens, if that is true, do this."
