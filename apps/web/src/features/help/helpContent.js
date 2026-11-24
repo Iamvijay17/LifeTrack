@@ -246,6 +246,19 @@ export const GUIDES = [
     tips: ['Choose your currency in Settings.', 'The default monthly budget in Settings applies to any month you have not set your own.'],
   },
   {
+    module: 'insights',
+    summary: 'Weekly, monthly, quarterly and yearly reports with trends and comparisons, built only from what you recorded.',
+    steps: [
+      'Choose Week, Month, Quarter, Year or Custom, and use the arrows to step to earlier periods.',
+      'Switch between Overview, Career & Learning, Fitness, Finance and Habits & Routine.',
+      'Export the period as a PDF or a CSV from the buttons at the top.',
+    ],
+    tips: [
+      'A dash means nothing was recorded for that period; a 0 means it was recorded and the value is zero.',
+      'A period still in progress is compared with the same number of days of the one before it.',
+    ],
+  },
+  {
     module: 'analytics',
     summary: 'Trends across everything you track.',
     steps: [

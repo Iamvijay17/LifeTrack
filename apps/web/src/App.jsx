@@ -35,6 +35,7 @@ const Health = page(() => import('@/features/health/HealthPage'))
 const Nutrition = page(() => import('@/features/nutrition/NutritionPage'))
 const Finance = page(() => import('@/features/finance/FinancePage'))
 const Habits = page(() => import('@/features/habits/HabitsPage'))
+const Insights = page(() => import('@/features/insights/InsightsPage'))
 const Analytics = page(() => import('@/features/analytics/AnalyticsPage'))
 const Focus = page(() => import('@/features/focus/FocusPage'))
 const Notes = page(() => import('@/features/notes/NotesPage'))
@@ -145,6 +146,7 @@ export default function App() {
                       }
                     />
                     <Route path="habits" element={<Habits />} />
+                    <Route path="insights" element={<Insights />} />
                     <Route path="analytics" element={<Analytics />} />
                     <Route path="focus" element={<Focus />} />
                     <Route

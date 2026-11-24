@@ -180,6 +180,11 @@ html[data-motion='reduced'] .lt-ambient {
   --mod-2: 139 92 246;
   --mod-text: 67 56 202;
 }
+[data-module='insights'] {
+  --mod: 56 189 248;
+  --mod-2: 139 92 246;
+  --mod-text: 3 105 161;
+}
 [data-module='reports'] {
   --mod: 100 116 139;
   --mod-2: 99 102 241;
@@ -293,6 +298,10 @@ html[data-motion='reduced'] .lt-ambient {
   --mod-text: 196 181 253;
 }
 .dark[data-module='settings'],
+.dark[data-module='insights'],
+.dark [data-module='insights'] {
+  --mod-text: 125 211 252;
+}
 .dark [data-module='settings'] {
   --mod-text: 212 212 216;
 }
