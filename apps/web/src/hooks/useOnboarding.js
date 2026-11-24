@@ -49,7 +49,7 @@ async function pushToAccount() {
 }
 
 function commit(next) {
-  state = next
+  state = { ...next, at: Date.now() }
   if (uid) {
     try {
       localStorage.setItem(KEY(uid), JSON.stringify(state))
@@ -110,6 +110,8 @@ export function useOnboardingSync() {
     lastRemote = json
     const fromAccount = normalizeOnboarding(remote)
     if (hasDecision(fromAccount)) {
+      // This device changed it after the account's copy was written (a save still in flight, or a reload right after a choice): keep ours and send it.
+      if (hasDecision(state) && state.at > fromAccount.at) return commit(state)
       if (JSON.stringify(fromAccount) !== JSON.stringify(state)) {
         state = fromAccount
         try {

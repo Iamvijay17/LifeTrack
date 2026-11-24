@@ -87,6 +87,8 @@ export function normalizeOnboarding(raw) {
     answers: normalizeAnswers(r.answers),
     tours: flags(r.tours, (x) => TOUR_RESULTS.includes(x)),
     offered: flags(r.offered, (x) => x === true),
+    // When this was last changed (ms). Whichever copy, device or account, is newer wins, so a slow save never overwrites a newer choice.
+    at: Number.isFinite(r.at) && r.at > 0 ? r.at : 0,
   }
 }
 
