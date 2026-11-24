@@ -67,6 +67,12 @@ export const createSupabaseAuth = (supabase, redirects = {}, { verifierClient } 
     return { othersSignedOut: !others }
   },
   async updateDisplayName(name) { const { error } = await supabase.auth.updateUser({ data: { display_name: name } }); if (error) throw toAppError(error) },
+  /** Ask to change the sign-in email. Supabase emails a confirmation link (to both addresses when "secure email change" is on); nothing changes until it is followed. */
+  async changeEmail(email) {
+    const { error } = await supabase.auth.updateUser({ email }, { emailRedirectTo: resolve(redirects.signUp) })
+    if (error) throw toAppError(error)
+    return { needsConfirmation: true }
+  },
   async deleteAccount() {
     const { error } = await supabase.rpc('delete_my_account')
     if (error) throw toAppError(error)

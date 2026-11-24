@@ -76,7 +76,8 @@ const verifyPassword = async (u, pw) => {
   noteAttempt(u.email, ok)
   return ok
 }
-const toSession = (u) => (u ? { user: { id: u.id, email: u.email, user_metadata: { display_name: u.name } } } : null)
+const toSession = (u) =>
+  u ? { user: { id: u.id, email: u.email, created_at: u.created_at, user_metadata: { display_name: u.name } } } : null
 const current = () => {
   try {
     const id = JSON.parse(localStorage.getItem(SESSION))?.userId
@@ -105,7 +106,13 @@ const local = {
   async signUp(email, password, displayName) {
     const list = users()
     if (list.some((u) => u.email === email.toLowerCase())) throw new AppError('An account with this email already exists.')
-    const u = { id: crypto.randomUUID(), email: email.toLowerCase(), name: displayName, pw: await hashSecret(password) }
+    const u = {
+      id: crypto.randomUUID(),
+      email: email.toLowerCase(),
+      name: displayName,
+      pw: await hashSecret(password),
+      created_at: new Date().toISOString(),
+    }
     saveUsers([...list, u])
     localStorage.setItem(SESSION, JSON.stringify({ userId: u.id }))
     markLogin(u.id)
@@ -155,6 +162,15 @@ const local = {
     localStorage.setItem(USERS, JSON.stringify(users().map((u) => (u.id === s.user.id ? { ...u, name } : u))))
     emit('USER_UPDATED')
   },
+  async changeEmail(email) {
+    const s = current()
+    if (!s) throw new AppError('Not signed in.')
+    const next = email.trim().toLowerCase()
+    if (users().some((u) => u.email === next && u.id !== s.user.id)) throw new AppError('An account with this email already exists.')
+    saveUsers(users().map((u) => (u.id === s.user.id ? { ...u, email: next } : u)))
+    emit('USER_UPDATED')
+    return { needsConfirmation: false } // the dev backend has no email delivery, so the change is immediate
+  },
   async deleteAccount() {
     const s = current()
     if (!s) return
@@ -169,14 +185,22 @@ const unavailableAuth = {
   getSession: async () => null,
   onChange: () => () => {},
   ...Object.fromEntries(
-    ['signUp', 'signIn', 'signOut', 'sendPasswordReset', 'updatePassword', 'changePassword', 'updateDisplayName', 'deleteAccount'].map(
-      (k) => [
-        k,
-        async () => {
-          throw new AppError('LifeTrack is not connected to a database (missing Supabase configuration).')
-        },
-      ],
-    ),
+    [
+      'signUp',
+      'signIn',
+      'signOut',
+      'sendPasswordReset',
+      'updatePassword',
+      'changePassword',
+      'updateDisplayName',
+      'changeEmail',
+      'deleteAccount',
+    ].map((k) => [
+      k,
+      async () => {
+        throw new AppError('LifeTrack is not connected to a database (missing Supabase configuration).')
+      },
+    ]),
   ),
 }
 
