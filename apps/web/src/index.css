@@ -205,6 +205,16 @@ html[data-motion='reduced'] .lt-ambient {
   --mod-2: 99 102 241;
   --mod-text: 15 118 110;
 }
+[data-module='integrations'] {
+  --mod: 99 102 241;
+  --mod-2: 20 184 166;
+  --mod-text: 67 56 202;
+}
+[data-module='shortcuts'] {
+  --mod: 14 165 233;
+  --mod-2: 139 92 246;
+  --mod-text: 3 105 161;
+}
 [data-module='help'] {
   --mod: 14 165 233;
   --mod-2: 99 102 241;
@@ -319,8 +329,14 @@ html[data-motion='reduced'] .lt-ambient {
   --mod-text: 94 234 212;
 }
 .dark[data-module='help'],
-.dark [data-module='help'] {
+.dark [data-module='help'],
+.dark[data-module='shortcuts'],
+.dark [data-module='shortcuts'] {
   --mod-text: 125 211 252;
+}
+.dark[data-module='integrations'],
+.dark [data-module='integrations'] {
+  --mod-text: 165 180 252;
 }
 
 /* Motion and breakpoint tokens for plain CSS. They mirror components/motion/tokens.js (durations, easing) and Tailwind's screens (sm 640 · md 768 · lg 1024 · xl 1280). */

@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { isDevMode } from '@/services/db'
 import { cn } from '@/lib/utils'
 import { useSyncStatus } from '@/sync'
+import { DemoBanner } from '@/features/demo/Demo'
 import { openSyncCenter } from '@/components/sync/SyncCenter'
 
 export function SaveStatus() {
@@ -96,6 +97,7 @@ export function Banners() {
   const sync = useSyncStatus()
   return (
     <>
+      <DemoBanner />
       {isDevMode && (
         <div role="note" className="border-b border-warning/30 bg-warning/10 px-4 py-1.5 text-center text-xs text-warning">
           DEV MODE — Supabase is not configured. Data is stored only in this browser and is <b>not</b> synced across devices. See

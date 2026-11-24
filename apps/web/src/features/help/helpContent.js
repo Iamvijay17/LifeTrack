@@ -335,7 +335,31 @@ export const GUIDES = [
       'To restore, choose a backup file. It is merged into this account and never deletes what you already have.',
       'Erase all data clears your records but keeps your account and settings.',
     ],
-    tips: ['A JSON backup can be restored into a different account, which is how you move your data.'],
+    tips: [
+      'A JSON backup can be restored into a different account, which is how you move your data.',
+      'Importing a transactions CSV shows a preview first: new rows, rows already saved, and rows with problems.',
+    ],
+  },
+  {
+    module: 'integrations',
+    summary: 'Connect Google Calendar and Google Drive, and see what each connection has done.',
+    steps: [
+      'Open Integrations and choose Connect on the service you want. Google asks you to approve only the permissions listed on the card.',
+      'Calendar: Sync now brings new Google events in and sends new LifeTrack events out. If you changed the same event in both places, you choose which version to keep.',
+      'Drive: Back up now uploads a backup only when you press it. Earlier backups are listed so you can download one.',
+      'Disconnect removes LifeTrack’s access at Google and deletes its stored copy. Your data is not deleted.',
+    ],
+    tips: ['If the page says an integration is not set up, the server still needs its Google credentials (see docs/INTEGRATIONS.md).'],
+  },
+  {
+    module: 'shortcuts',
+    summary: 'Every keyboard shortcut in one place, with the keys for your computer.',
+    steps: [
+      'Press Ctrl or ⌘ with / (or just ?) from any page to see the shortcuts.',
+      'Press g then a letter to go to a page, or c then a letter to create something. Choose Change next to one to use a different letter.',
+      'Shortcuts are ignored while you are typing in a box or a dialog is open.',
+    ],
+    tips: ['Ctrl or ⌘ with Z undoes your last action, and adding Shift redoes it.'],
   },
 ]
 

@@ -104,7 +104,9 @@ test('PWA: installable manifest with maskable icon and shortcuts; private data i
   expect(manifest.shortcuts.length).toBeGreaterThan(0)
   for (const icon of manifest.icons) expect((await request.get('/' + icon.src)).ok()).toBeTruthy()
   const sw = await (await request.get('/sw.js')).text()
-  expect(sw).not.toMatch(/supabase|\/rest\/v1|\/auth\/v1/) // no runtime rule can touch the API
+  // The one rule that names the API is NetworkOnly (never cached, never answered from a cache), added by the offline layer.
+  expect(sw).not.toMatch(/\/rest\/v1|\/auth\/v1/)
+  expect(sw).toMatch(/supabase\\\.\(co\|in\).{0,80}NetworkOnly/)
   expect(sw).toMatch(/exercise-images/) // the only runtime cache is static exercise photos
 })
 

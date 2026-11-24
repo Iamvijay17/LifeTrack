@@ -8,7 +8,7 @@ test.describe('navigation, search, dashboard', () => {
     await register(page)
     const nav = page.getByRole('navigation', { name: 'Main' })
     for (const g of ['Overview', 'Productivity', 'Growth', 'Wellness', 'Money', 'Insights', 'System'])
-      await expect(nav.getByText(g, { exact: true })).toBeVisible()
+      await expect(nav.getByText(g, { exact: true }).first()).toBeVisible() // 'Insights' is both a group and a page
     for (const [path, heading] of [
       ['/focus', 'Focus Mode'],
       ['/notes', 'Notes & Journal'],
@@ -30,9 +30,9 @@ test.describe('navigation, search, dashboard', () => {
     await page.goto('/planner')
     await addTask(page, 'Prepare quarterly review')
     await page.keyboard.press('Control+k')
-    await page.getByLabel('Search everything').fill('quarterly')
+    await page.getByRole('combobox', { name: 'Search everything' }).fill('quarterly')
     await expect(page.getByRole('option', { name: /Prepare quarterly review/ })).toBeVisible()
-    await page.getByLabel('Search everything').fill('goals')
+    await page.getByRole('combobox', { name: 'Search everything' }).fill('goals')
     await page.getByRole('option', { name: /Goals & Milestones/ }).click()
     await expect(page).toHaveURL(/\/goals$/)
   })

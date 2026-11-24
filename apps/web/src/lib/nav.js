@@ -24,6 +24,8 @@ import {
   ShieldCheck,
   Download,
   LifeBuoy,
+  Keyboard,
+  Plug,
 } from 'lucide-react'
 
 export const NAV_GROUPS = [
@@ -73,7 +75,9 @@ export const NAV_GROUPS = [
       { to: '/settings', module: 'settings', label: 'Settings', icon: Settings },
       { to: '/insights', module: 'insights', label: 'Insights', icon: TrendingUp },
       { to: '/security', module: 'security', label: 'Security & Privacy', short: 'Security', icon: ShieldCheck },
+      { to: '/integrations', module: 'integrations', label: 'Integrations', icon: Plug },
       { to: '/export', module: 'export', label: 'Data Export', short: 'Export', icon: Download },
+      { to: '/shortcuts', module: 'shortcuts', label: 'Keyboard Shortcuts', short: 'Keys', icon: Keyboard },
       { to: '/help', module: 'help', label: 'Help & Support', short: 'Help', icon: LifeBuoy },
     ],
   },

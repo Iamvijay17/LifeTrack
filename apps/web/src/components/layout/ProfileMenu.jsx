@@ -1,7 +1,10 @@
-import { useNavigate } from 'react-router-dom'
-import { Download, LifeBuoy, Lock, LogOut, Moon, Settings, ShieldCheck, Sun, User } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { startTour } from '@/features/tour/TourProvider'
+import { tourForRoute } from '@/lib/tours'
+import { Compass, Download, LifeBuoy, Lock, LogOut, Moon, Settings, ShieldCheck, Sun, User } from 'lucide-react'
 import { Menu } from '@/components/ui/menu'
 import { useAuth } from '@/hooks/useAuth'
+import { useAvatar } from '@/hooks/useAvatar'
 import { useSecurity } from '@/features/security/SecurityProvider'
 import { useSettings } from '@/hooks/useSettings'
 import { auth } from '@/services/auth'
@@ -10,15 +13,21 @@ export function ProfileMenu() {
   const { displayName, user } = useAuth()
   const { save } = useSettings()
   const sec = useSecurity()
+  const { avatar } = useAvatar()
   const nav = useNavigate()
+  const tour = tourForRoute(useLocation().pathname)
   const dark = document.documentElement.classList.contains('dark')
   const initial = (displayName || user?.email || '?').trim()[0]?.toUpperCase()
   return (
     <Menu
       label={`Profile menu for ${displayName || user?.email || 'you'}`}
       trigger={
-        <span className="lt-press grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-[#8B5CF6] to-[#6366F1] text-sm font-semibold text-white shadow-card md:h-8 md:w-8 md:text-xs">
-          {initial ?? <User className="h-4 w-4" />}
+        <span className="lt-press grid h-10 w-10 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-[#8B5CF6] to-[#6366F1] text-sm font-semibold text-white shadow-card md:h-8 md:w-8 md:text-xs">
+          {avatar ? (
+            <img src={avatar} alt="" className="h-full w-full rounded-full object-cover" />
+          ) : (
+            (initial ?? <User className="h-4 w-4" />)
+          )}
         </span>
       }
       items={[
@@ -26,6 +35,7 @@ export function ProfileMenu() {
         { label: 'Settings', icon: Settings, onClick: () => nav('/settings') },
         { label: 'Security & Privacy', icon: ShieldCheck, onClick: () => nav('/security') },
         { label: 'Data export', icon: Download, onClick: () => nav('/export') },
+        ...(tour ? [{ label: `Tour: ${tour.label}`, icon: Compass, onClick: () => startTour(tour.key) }] : []),
         { label: 'Help', icon: LifeBuoy, onClick: () => nav('/help') },
         { label: dark ? 'Light theme' : 'Dark theme', icon: dark ? Sun : Moon, onClick: () => save({ theme: dark ? 'light' : 'dark' }) },
         { label: 'Sign out', icon: LogOut, onClick: () => auth.signOut() },

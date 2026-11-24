@@ -16,6 +16,8 @@ import { InstallCard } from './InstallCard'
 import { NavigationCard } from './NavigationCard'
 import { ProfileCard } from './ProfileCard'
 import { ScoreWeightsCard } from './ScoreWeightsCard'
+import { DemoCard } from '@/features/demo/Demo'
+import { SetupCard } from './SetupCard'
 import { SoundCard } from './SoundCard'
 
 /** One labelled group of cards. The label sits in a left rail on wide screens and above the cards on narrow ones. */
@@ -51,6 +53,10 @@ export default function SettingsPage() {
             <InstallCard />
             <CompanionCard />
             <SoundCard />
+          </Group>
+          <Group title="Setup & tours" desc="Finish the guided setup, or replay a tour of any module.">
+            <SetupCard />
+            <DemoCard />
           </Group>
           <Group
             title="Region & daily goals"

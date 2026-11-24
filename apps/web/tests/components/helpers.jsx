@@ -12,6 +12,7 @@ export async function freshBackend() {
   resetStore()
   setUserId(null)
   window.__ltUser = null
+  localStorage.setItem('lifetrack:onboarding:skip', '1') // new test accounts start without the welcome dialog
 }
 
 /** Signs up a dev user (the same local stand-in for Supabase Auth the e2e suite uses) and returns the session. */
