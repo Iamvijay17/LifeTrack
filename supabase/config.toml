@@ -38,3 +38,8 @@ enable_confirmations = false
 # [auth.hook.password_verification_attempt]
 # enabled = true
 # uri = "pg-functions://postgres/public/hook_password_verification_attempt"
+
+# Google integrations: Google redirects the browser here without a sign-in header, so the callback cannot verify a JWT. It trusts only the
+# HMAC-signed, 10-minute `state` made by google-integration (see supabase/functions/google-integration/logic.js).
+[functions.google-oauth-callback]
+verify_jwt = false

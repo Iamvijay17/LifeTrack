@@ -199,6 +199,7 @@ const insertShapes = {
     category_label: str(0, 40).optional(), priority: z.enum(PRIORITY_VALUES).optional(), color: hex.nullable().optional(), all_day: z.boolean().optional(),
     starts_at: ts, ends_at: ts, timezone: str(1, 64).optional(), rrule: rruleSchema.nullable().optional(), alert_minutes: alerts.optional(),
     goal_id: uuid.nullable().optional(), topic_id: uuid.nullable().optional(), application_id: uuid.nullable().optional(), routine_id: uuid.nullable().optional(),
+    external_provider: z.literal('google_calendar').nullable().optional(), external_id: z.string().max(1024).nullable().optional(), external_hash: z.string().max(64).nullable().optional(),
   },
   calendar_event_exceptions: {
     event_id: uuid, occurrence_date: day, status: z.enum(['modified', 'cancelled']).optional(),

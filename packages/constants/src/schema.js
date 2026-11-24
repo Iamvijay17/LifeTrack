@@ -232,6 +232,9 @@ export const DEFAULTS = {
     topic_id: null,
     application_id: null,
     routine_id: null,
+    external_provider: null,
+    external_id: null,
+    external_hash: null,
   },
   calendar_event_exceptions: {
     status: 'modified',
