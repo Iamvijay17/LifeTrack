@@ -4,6 +4,8 @@
 // Where it lives: `user_settings.appearance_prefs` (follows the account) with a copy in this browser (`lifetrack:appearance`) so the
 // first paint is already right. The theme (dark / light / system) keeps its own existing column and key.
 
+import { setDisplayPrefs } from '@lifetrack/utils'
+
 export const ACCENTS = [
   { key: 'violet', label: 'Violet', hex: '#7C3AED' },
   { key: 'blue', label: 'Blue', hex: '#2563EB' },
@@ -21,6 +23,17 @@ export const DENSITIES = [
   { value: 'comfortable', label: 'Comfortable' },
   { value: 'compact', label: 'Compact' },
 ]
+export const DATE_FORMATS = [
+  { value: 'auto', label: 'Default' },
+  { value: 'dmy', label: '31/12/2026' },
+  { value: 'mdy', label: '12/31/2026' },
+  { value: 'ymd', label: '2026-12-31' },
+]
+export const TIME_FORMATS = [
+  { value: 'auto', label: 'Default' },
+  { value: '12h', label: '12-hour' },
+  { value: '24h', label: '24-hour' },
+]
 export const MOTIONS = [
   { value: 'system', label: 'Follow my device' },
   { value: 'reduced', label: 'Reduce motion' },
@@ -32,6 +45,8 @@ export const DEFAULT_APPEARANCE = Object.freeze({
   font_size: 'default',
   density: 'comfortable',
   motion: 'system',
+  date_format: 'auto',
+  time_format: 'auto',
   sidebar: Object.freeze({ collapsed: false, order: Object.freeze([]), pinned: Object.freeze([]) }),
 })
 
@@ -50,6 +65,8 @@ export function normalizeAppearance(raw) {
     font_size: oneOf(FONT_SIZES, r.font_size, 'default'),
     density: oneOf(DENSITIES, r.density, 'comfortable'),
     motion: oneOf(MOTIONS, r.motion, 'system'),
+    date_format: oneOf(DATE_FORMATS, r.date_format, 'auto'),
+    time_format: oneOf(TIME_FORMATS, r.time_format, 'auto'),
     sidebar: { collapsed: sb.collapsed === true, order: paths(sb.order), pinned: paths(sb.pinned).slice(0, 4) },
   }
 }
@@ -175,6 +192,7 @@ export function applyAppearance(prefs, dark) {
   root.style.fontSize = pct === 100 ? '' : `${pct}%`
   root.dataset.density = p.density
   root.dataset.motion = p.motion
+  setDisplayPrefs({ date: p.date_format, time: p.time_format })
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', dark ? '#09090B' : '#FAFAFA')
   try {
     localStorage.setItem(STORE, JSON.stringify(p))

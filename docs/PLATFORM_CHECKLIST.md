@@ -20,7 +20,7 @@ Updated as work lands; nothing is marked Done without a test or a check noted ne
 | 2.1 Dashboard widgets (add/remove/rearrange/resize/restore) | **Done** | Existing dashboard builder (`docs/DASHBOARD_BUILDER.md`) |
 | 2.2 Themes (dark/light/system, accents, contrast checks) | **Done** | Existing `lib/appearance.js` (WCAG contrast maths) |
 | 2.3 Layout presets | **Done** | Dashboard templates/workspaces in the builder |
-| 2.4 Preferences (timezone, currency, week start, motion, density) | **Partial** | Date/time format and language readiness are not configurable |
+| 2.4 Preferences | **Mostly done** | Timezone, currency, week start, motion, density existed. **Added:** date format (dd/mm, mm/dd, ISO) and 12/24-hour time, saved in the appearance preferences and applied in the shared formatters (`fmtDay`, `fmtClock`, `fmtDateTime`). Times typed into pickers and some raw `HH:mm` readouts stay 24-hour. **Language readiness is not built**: it needs the app's strings moved into a catalogue first |
 | 2.5 Configurable navigation | **Done** | Pin/reorder (Settings → Navigation). Hiding items is intentionally not offered |
 
 ## 3. Account
