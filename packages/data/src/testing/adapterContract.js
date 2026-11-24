@@ -103,6 +103,29 @@ export function adapterContract(t, label, setup) {
     it('update of a missing row fails with "not found"', async () => {
       await failsWith(expect, adapter.update('tasks', uuid(), { title: 'x' }), 'PGRST116')
     })
+    it('get returns one row or null; find matches by column values (used by offline sync)', async () => {
+      const [row] = await adapter.insert('tasks', [task('a')])
+      expect((await adapter.get('tasks', row.id)).title).toBe('a')
+      expect(await adapter.get('tasks', uuid())).toBeNull()
+      expect((await adapter.find('tasks', { title: 'a' })).map((r) => r.id)).toEqual([row.id])
+      expect(await adapter.find('tasks', { title: 'nope' })).toEqual([])
+    })
+    it('a guarded update (ifUpdatedAt) writes only if the row is unchanged, otherwise fails with CONFLICT and changes nothing', async () => {
+      const [row] = await adapter.insert('tasks', [task('v1')])
+      const second = await adapter.update('tasks', row.id, { title: 'v2' }, { ifUpdatedAt: row.updated_at })
+      expect(second.title).toBe('v2')
+      await failsWith(expect, adapter.update('tasks', row.id, { title: 'stale' }, { ifUpdatedAt: row.updated_at }), 'CONFLICT')
+      expect((await adapter.get('tasks', row.id)).title).toBe('v2')
+    })
+    it('a guarded remove deletes an unchanged row, treats a missing row as done, and refuses a changed one with CONFLICT', async () => {
+      const [row] = await adapter.insert('tasks', [task('x')])
+      const changed = await adapter.update('tasks', row.id, { title: 'y' })
+      await failsWith(expect, adapter.remove('tasks', row.id, { ifUpdatedAt: row.updated_at }), 'CONFLICT')
+      expect(await adapter.get('tasks', row.id)).not.toBeNull()
+      await adapter.remove('tasks', row.id, { ifUpdatedAt: changed.updated_at })
+      expect(await adapter.get('tasks', row.id)).toBeNull()
+      await adapter.remove('tasks', row.id, { ifUpdatedAt: changed.updated_at })
+    })
     it('remove and removeMany delete only your own rows', async () => {
       const rows = await adapter.insert('tasks', [task('a'), task('b'), task('c')])
       as(B); await adapter.remove('tasks', rows[0].id); await adapter.removeMany('tasks', [rows[1].id])

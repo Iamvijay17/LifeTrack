@@ -8,7 +8,8 @@ import { ChartGradients } from '@/components/shared/chartParts'
 import { AnimatePresence, ease, m } from '@/components/motion/primitives'
 import { Sidebar } from './Sidebar'
 import { MobileNav } from './MobileNav'
-import { Banners, SaveStatus, LiveDot } from './StatusIndicators'
+import { Banners, SaveStatus, LiveDot, SyncPill } from './StatusIndicators'
+import { SyncCenter } from '@/components/sync/SyncCenter'
 import { Logo } from './Logo'
 import { GlobalSearch } from './GlobalSearch'
 import { NotificationBell } from './NotificationBell'
@@ -71,6 +72,7 @@ function Header() {
       </div>
       <div className="flex items-center gap-2 sm:gap-3">
         <SaveStatus />
+        <SyncPill />
         <LiveDot />
         <QuickAddMenu />
         <NotificationBell />
@@ -189,6 +191,7 @@ function Shell() {
           </main>
         </div>
         <MobileNav />
+        <SyncCenter />
         <QuickFab />
       </CommandCenterProvider>
     </QuickActionsProvider>

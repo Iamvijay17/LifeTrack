@@ -8,8 +8,9 @@ import { getUserId } from '../session'
 export const MAX_ROWS = 1000
 const err = (code, message) => ({ code, message })
 const clone = (v) => (v == null ? v : structuredClone(v))
-const CASCADE = { habits: [['habit_logs', 'habit_id'], ['habit_pauses', 'habit_id']], job_applications: [['application_history', 'application_id'], ['interview_events', 'application_id']], workouts: [['exercise_logs', 'workout_id']], goals: [['milestones', 'goal_id']], calendar_events: [['calendar_event_exceptions', 'event_id']], tasks: [['task_reschedules', 'task_id']] }
+const CASCADE = { habits: [['habit_logs', 'habit_id'], ['habit_pauses', 'habit_id']], job_applications: [['application_history', 'application_id'], ['interview_events', 'application_id']], workouts: [['exercise_logs', 'workout_id']], goals: [['milestones', 'goal_id']], calendar_events: [['calendar_event_exceptions', 'event_id']], tasks: [['task_reschedules', 'task_id']], challenges: [['challenge_checkins', 'challenge_id']] }
 const SET_NULL = {
+  habits: [['challenges', 'habit_id']],
   automation_workflows: [['automation_executions', 'workflow_id']],
   recurring_rules: [['transactions', 'recurring_rule_id']],
   goals: [['calendar_events', 'goal_id']],
@@ -68,6 +69,7 @@ export function createMemorySupabase({ currentUser = getUserId } = {}) {
     order(col, { ascending = true } = {}) { this.sort.push({ col, ascending }); return this }
     range(from, to) { this.from = from; this.to = to; return this }
     single() { this.one = true; return this }
+    maybeSingle() { this.one = 'maybe'; return this }
     then(resolve, reject) { return Promise.resolve().then(() => this.run()).then(resolve, reject) }
 
     run() {
@@ -134,6 +136,7 @@ export function createMemorySupabase({ currentUser = getUserId } = {}) {
       return this.finish(out.map(clone))
     }
     finish(data) {
+      if (this.one === 'maybe') return data.length <= 1 ? { data: data[0] ?? null, error: null } : { data: null, error: err('PGRST116', 'JSON object requested, multiple (or no) rows returned') }
       if (this.one) return data.length === 1 ? { data: data[0], error: null } : { data: null, error: err('PGRST116', 'JSON object requested, multiple (or no) rows returned') }
       return { data, error: null }
     }

@@ -31,13 +31,22 @@ export default defineConfig(({ command, mode }) => ({
         ],
         // Long-press the installed icon for these. Plain links: no data is stored with them.
         shortcuts: [
-          { name: "Today's planner", short_name: 'Planner', url: '/planner', icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }] },
+          {
+            name: "Today's planner",
+            short_name: 'Planner',
+            url: '/planner',
+            icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }],
+          },
           { name: 'Habits', url: '/habits', icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }] },
           { name: 'Calendar', url: '/calendar', icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }] },
         ],
       },
-      // Online-first: precache ONLY the app shell. API traffic is never cached.
+      // The app shell (every page's code, styles, fonts, icons) is precached, so any page that was opened before loads with no connection, and the
+      // app's data comes from the encrypted copy on the device (src/sync). Requests to the database/auth API are NEVER cached by the service worker:
+      // sign-in tokens and personal data are not stored where a service worker can hand them back.
       workbox: {
+        importScripts: ['sw-sync.js'],
+        cleanupOutdatedCaches: true,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
@@ -46,6 +55,10 @@ export default defineConfig(({ command, mode }) => ({
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         // Exercise demonstration photos are static and large in number: cache each on first view (not precached), newest 600, 30 days.
         runtimeCaching: [
+          {
+            urlPattern: ({ url }) => /\.supabase\.(co|in)$/.test(url.hostname),
+            handler: 'NetworkOnly',
+          },
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/exercises/') && url.pathname.endsWith('.jpg'),
             handler: 'CacheFirst',

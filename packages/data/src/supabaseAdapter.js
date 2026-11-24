@@ -20,6 +20,7 @@ const confirmDeleted = async (supabase, table, asked, deleted) => {
   const left = check(await supabase.from(table).select('id').in('id', asked.filter((id) => !done.has(id))))
   if (left.length) throw NOT_DELETED()
 }
+const CONFLICT = () => new AppError('This record was changed somewhere else.', { code: 'CONFLICT' })
 const guard = async (fn) => {
   try {
     return await fn()
@@ -59,10 +60,26 @@ export const createSupabaseAdapter = (supabase) => ({
       return check(await supabase.from(table).insert(list).select())
     }),
 
-  update: (table, id, patch) =>
+  /** One row by id, or null. Used by the offline sync engine to look at the server's current version. */
+  get: (table, id) => guard(async () => check(await supabase.from(table).select('*').eq('id', id).maybeSingle()) ?? null),
+
+  /** Rows matching column = value for every key of `match` (RLS already limits them to this user). */
+  find: (table, match) =>
+    guard(async () => {
+      let q = supabase.from(table).select('*')
+      for (const [k, v] of Object.entries(match)) q = q.eq(k, v)
+      return check(await q)
+    }),
+
+  // `ifUpdatedAt` makes the write conditional on the row not having changed since the caller last saw it (optimistic concurrency):
+  // if it has, nothing is written and a CONFLICT error says so. The timestamp is passed back exactly as the server sent it.
+  update: (table, id, patch, { ifUpdatedAt } = {}) =>
     guard(async () => {
       const { user_id, id: _id, ...clean } = patch
-      return check(await supabase.from(table).update(clean).eq('id', id).select().single())
+      if (!ifUpdatedAt) return check(await supabase.from(table).update(clean).eq('id', id).select().single())
+      const rows = check(await supabase.from(table).update(clean).eq('id', id).eq('updated_at', ifUpdatedAt).select())
+      if (!rows.length) throw CONFLICT()
+      return rows[0]
     }),
 
   upsert: (table, rows, { onConflict = 'id', ignoreDuplicates = false } = {}) =>
@@ -71,9 +88,14 @@ export const createSupabaseAdapter = (supabase) => ({
       return check(await supabase.from(table).upsert(list, { onConflict, ignoreDuplicates }).select())
     }),
 
-  remove: (table, id) =>
+  remove: (table, id, { ifUpdatedAt } = {}) =>
     guard(async () => {
-      await confirmDeleted(supabase, table, [id], check(await supabase.from(table).delete().eq('id', id).select('id')))
+      if (!ifUpdatedAt) return void (await confirmDeleted(supabase, table, [id], check(await supabase.from(table).delete().eq('id', id).select('id'))))
+      const gone = check(await supabase.from(table).delete().eq('id', id).eq('updated_at', ifUpdatedAt).select('id'))
+      if (gone.length) return
+      // Nothing deleted: the row is already gone (fine), or it changed (or is locked): the caller looks at the row to tell which.
+      const left = check(await supabase.from(table).select('id').eq('id', id))
+      if (left.length) throw CONFLICT()
     }),
 
   // The ids travel in the URL (`id=in.(…)`), so a long list is sent in slices: a few hundred uuids would pass the gateway's URL limit.

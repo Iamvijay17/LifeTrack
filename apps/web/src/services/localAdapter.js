@@ -109,11 +109,21 @@ export const localAdapter = {
     return clone(out)
   },
 
-  async update(table, id, patch) {
+  async get(table, id) {
+    return clone((read()[table] ?? []).find((r) => r.id === id) ?? null)
+  },
+
+  async find(table, match) {
+    return clone((read()[table] ?? []).filter((r) => Object.entries(match).every(([k, v]) => r[k] === v)))
+  },
+
+  async update(table, id, patch, { ifUpdatedAt } = {}) {
     const db = read()
     const rows = (db[table] ??= [])
     const i = rows.findIndex((r) => r.id === id)
     if (i < 0) throw new AppError('That record could not be found.', { code: 'PGRST116' })
+    if (ifUpdatedAt && rows[i].updated_at !== ifUpdatedAt)
+      throw new AppError('This record was changed somewhere else.', { code: 'CONFLICT' })
     const { user_id, id: _id, created_at, ...clean } = patch
     const next = { ...rows[i], ...clone(clean), updated_at: monotonicNow() }
     if (violatesUnique(table, rows, next, id)) throw dup()
@@ -155,7 +165,9 @@ export const localAdapter = {
     return clone(out)
   },
 
-  async remove(table, id) {
+  async remove(table, id, { ifUpdatedAt } = {}) {
+    const cur = ifUpdatedAt ? (read()[table] ?? []).find((r) => r.id === id) : null
+    if (cur && cur.updated_at !== ifUpdatedAt) throw new AppError('This record was changed somewhere else.', { code: 'CONFLICT' })
     return this.removeMany(table, [id])
   },
 
@@ -177,9 +189,11 @@ export const localAdapter = {
       goals: [['milestones', 'goal_id']],
       calendar_events: [['calendar_event_exceptions', 'event_id']],
       tasks: [['task_reschedules', 'task_id']],
+      challenges: [['challenge_checkins', 'challenge_id']],
     }
     for (const [child, col] of cascade[table] ?? []) db[child] = (db[child] ?? []).filter((r) => !set.has(r[col]))
     const setNull = {
+      habits: [['challenges', 'habit_id']],
       automation_workflows: [['automation_executions', 'workflow_id']],
       goals: [
         ['study_sessions', 'goal_id'],
