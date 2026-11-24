@@ -83,6 +83,7 @@ export const DEFAULTS = {
     focus_prefs: { short_break: 5, long_break: 15, long_every: 4 },
     calendar_prefs: {},
     appearance_prefs: {},
+    onboarding_state: {},
     automation_prefs: {},
   },
   learning_topics: { notes: s, revision_dates: [], archived: false },
