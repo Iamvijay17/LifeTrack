@@ -215,6 +215,11 @@ html[data-motion='reduced'] .lt-ambient {
   --mod-2: 6 182 212;
   --mod-text: 4 120 87;
 }
+[data-module='challenges'] {
+  --mod: 245 158 11;
+  --mod-2: 244 63 94;
+  --mod-text: 180 83 9;
+}
 [data-module='lifemap'] {
   --mod: 20 184 166;
   --mod-2: 99 102 241;
@@ -251,6 +256,10 @@ html[data-motion='reduced'] .lt-ambient {
 }
 .dark[data-module='jobs'],
 .dark [data-module='jobs'] {
+  --mod-text: 252 211 77;
+}
+.dark[data-module='challenges'],
+.dark [data-module='challenges'] {
   --mod-text: 252 211 77;
 }
 .dark[data-module='lifemap'],

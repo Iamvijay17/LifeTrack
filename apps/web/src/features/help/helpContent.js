@@ -111,6 +111,22 @@ export const GUIDES = [
     ],
   },
   {
+    module: 'challenges',
+    summary:
+      'Time-boxed commitments with a start, an end and a result: 30 days of reading, four gym days a week, 200,000 steps this month.',
+    steps: [
+      'Pick New challenge, or start from a template. Choose daily (do it every day), weekly (so many days a week) or a total target, then the dates.',
+      'Check in from the card each day. A day can have one check-in; add a note or up to five links as evidence, or top up the amount for the day.',
+      'Open a challenge to see its progress calendar, milestones and every check-in. Pause it when life gets in the way: paused days are never counted against you.',
+      'When it ends (or you reach a total target) it moves to History with what you achieved. Save any challenge as a template to run it again.',
+    ],
+    tips: [
+      'Days follow the timezone in Settings, so a check-in after midnight there counts for the new day.',
+      'Link a habit and its done days count as check-ins, so you never log the same thing twice.',
+      'Challenges show on the Calendar as one marker per day, ticked once the day is covered.',
+    ],
+  },
+  {
     module: 'lifemap',
     summary:
       'See how your daily habits and tasks lead to your goals. Everything on the map is already in LifeTrack; you only draw the connections.',

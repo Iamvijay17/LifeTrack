@@ -62,6 +62,7 @@ const NATURAL = [
   'habit_logs',
   'calendar_event_exceptions',
   'life_map_positions',
+  'challenge_checkins',
   // Rows the apps make once per event (a reminder firing, a nudge for a day, a reschedule, an automation run): the same key may
   // already exist in the account under another id, e.g. today's "tasks due" nudge raised again before the restore.
   'notifications',

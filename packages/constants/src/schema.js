@@ -9,6 +9,9 @@ export const TABLES = [
   'habits',
   'habit_logs',
   'habit_pauses',
+  'challenge_templates',
+  'challenges',
+  'challenge_checkins',
   'study_sessions',
   'job_applications',
   'application_history',
@@ -56,6 +59,7 @@ export const CONFLICT_KEYS = {
   exercises: 'user_id,name',
   nutrition_settings: 'user_id',
   calendar_event_exceptions: 'event_id,occurrence_date',
+  challenge_checkins: 'challenge_id,checkin_date',
 }
 
 const s = ''
@@ -114,6 +118,9 @@ export const DEFAULTS = {
   habits: { description: s, color: '#8B5CF6', frequency: 'daily', days_of_week: [], rest_days: [], weekly_target: 3, archived_at: null },
   habit_logs: { status: 'done', note: s, recovered_at: null },
   habit_pauses: { end_date: null, reason: s },
+  challenge_templates: { description: s, kind: 'daily', target: 1, unit: s, duration_days: 30, category: 'Personal', color: '#8B5CF6', milestones: [] },
+  challenges: { description: s, kind: 'daily', target: 1, unit: s, status: 'active', category: 'Personal', color: '#8B5CF6', habit_id: null, template_key: null, milestones: [], pauses: [], notes: s, completed_at: null, cancelled_at: null, final_pct: null },
+  challenge_checkins: { amount: 1, note: s, evidence: [] },
   life_map_nodes: { notes: s, category: 'Personal', color: null, status: 'active' },
   life_map_links: { label: s },
   life_map_positions: {},
@@ -250,6 +257,7 @@ export const UNIQUES = {
   tasks: [{ cols: ['user_id', 'series_id', 'due_date'], when: (r) => r.series_id != null }],
   habit_logs: [{ cols: ['habit_id', 'log_date'] }],
   habit_pauses: [{ cols: ['habit_id'], when: (r) => r.end_date == null }],
+  challenge_checkins: [{ cols: ['challenge_id', 'checkin_date'] }],
   life_map_links: [{ cols: ['user_id', 'from_key', 'to_key'] }],
   life_map_positions: [{ cols: ['user_id', 'node_key'] }],
   study_sessions: [{ cols: ['user_id'], when: (r) => r.status === 'running' }],
