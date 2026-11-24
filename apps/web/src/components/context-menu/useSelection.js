@@ -72,7 +72,18 @@ export function useSelection(ids = []) {
   )
 
   return useMemo(
-    () => ({ selected, size: selected.size, has: (id) => selected.has(id), toggle, add, clear, selectAll, targets, itemProps }),
-    [selected, toggle, add, clear, selectAll, targets, itemProps],
+    () => ({
+      selected,
+      size: selected.size,
+      total: ids.length,
+      has: (id) => selected.has(id),
+      toggle,
+      add,
+      clear,
+      selectAll,
+      targets,
+      itemProps,
+    }),
+    [selected, toggle, add, clear, selectAll, targets, itemProps, key], // eslint-disable-line react-hooks/exhaustive-deps
   )
 }

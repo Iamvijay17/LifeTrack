@@ -9,11 +9,24 @@ const SERVER_FIELDS = ['id', 'created_at', 'updated_at', 'user_id']
 /** The fields of `row` named in `patch`, as they are now: what an undo writes back. */
 export const previous = (row, patch) => Object.fromEntries(Object.keys(patch).map((k) => [k, row[k] === undefined ? null : row[k]]))
 
-/** Updates a row and hands back the toast that can undo exactly that change. */
+const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+/** True while every row still holds the values `patch` wrote: nobody has changed them since, so an Undo cannot overwrite newer data. */
+const untouched = (table, ids, patch) => () =>
+  ids.every((id) => {
+    const cur = store.peek(table).find((r) => r.id === id)
+    return !!cur && Object.keys(patch).every((k) => same(cur[k], patch[k]))
+  })
+
+/** Updates a row and hands back the toast that can undo exactly that change (and the redo and stale-data guard the history uses). */
 export async function changeField(table, row, patch, message) {
   const before = previous(row, patch)
   await store.update(table, row.id, patch)
-  return { message, undo: () => store.update(table, row.id, before) }
+  return {
+    message,
+    undo: () => store.update(table, row.id, before),
+    redo: () => store.update(table, row.id, patch),
+    check: untouched(table, [row.id], patch),
+  }
 }
 
 /** Inserts a copy of `row` (without its identity and bookkeeping columns) with `overrides` on top; undo deletes the copy. */
@@ -56,5 +69,13 @@ export async function changeFields(table, rows, patch, message) {
     undo: async () => {
       for (const [id, prev] of before) await store.update(table, id, prev)
     },
+    redo: async () => {
+      for (const r of rows) await store.update(table, r.id, patch)
+    },
+    check: untouched(
+      table,
+      rows.map((r) => r.id),
+      patch,
+    ),
   }
 }
