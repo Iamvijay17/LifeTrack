@@ -151,7 +151,7 @@ function CalendarControls({ row }) {
         <RefreshCw className="h-4 w-4" aria-hidden /> Sync now
       </Button>
       <p className="text-xs text-muted-foreground">
-        Looks at events from 30 days ago to 6 months ahead. Repeating events are not synced yet.
+        Looks at events from 30 days ago to 6 months ahead. Repeating Google events arrive as one event per date; repeating LifeTrack events go to Google as a repeating event.
       </p>
       {result?.conflicts.length > 0 && (
         <div

@@ -10,11 +10,11 @@ buttons are disabled; it never shows a connection it does not have.
 | --- | --- | --- |
 | Permission asked | `calendar.events`, `calendar.calendarlist.readonly` (+ `openid email` to show the account) | `drive.file` only: files LifeTrack itself creates (+ `openid email`) |
 | Actions | Pick a calendar; **Sync now** imports new Google events, sends new LifeTrack events, copies one-sided edits | **Back up now** (always asks first), list backups, download one |
-| Safety | Never deletes. A change made on both sides is a **conflict**: neither is overwritten until you pick one. Events are linked by id and tagged, so none is created twice. Repeating events are skipped | Uploads only when you press the button, into a "LifeTrack Backups" folder. Download works only for files in that folder |
+| Safety | Never deletes. A change made on both sides is a **conflict**: neither is overwritten until you pick one. Events are linked by id and tagged, so none is created twice. A repeating Google event arrives as one LifeTrack event per occurrence in the window; a repeating LifeTrack event is sent to Google once as a real repeating event | Uploads only when you press the button, into a "LifeTrack Backups" folder. Download works only for files in that folder |
 | Revoked access | Detected on the next call: token deleted, status "Access revoked", activity entry, **Connect again** offered | same |
 | Disconnect | Asks Google to revoke, deletes the stored token and the connection. Your data on either side stays | same |
 
-Not covered: repeating-event sync, automatic/scheduled sync or backups (everything is on demand), restoring a Drive backup in one click (you download it,
+Not covered: edits to a single occurrence of a LifeTrack series (and its cancelled dates) are not sent, changes to a series on Google are not pulled back, automatic/scheduled sync or backups (everything is on demand), restoring a Drive backup in one click (you download it,
 then use Data Export → Restore), more than one Google account per provider.
 
 ## One-time setup

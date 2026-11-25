@@ -8,10 +8,10 @@
 //   * Calendar sync never deletes and never overwrites a change made on both sides (see _shared/calendarSync.js).
 //   * Errors returned to the app are short plain messages: no tokens, no Google response bodies, no stack traces.
 import { PROVIDERS, RevokedError, SCOPES, accessTokenFor, authUrl, calendar, drive, exchangeCode, revokeAtGoogle, signState, verifyState } from '../_shared/google.js'
-import { fingerprint, fromGoogle, planCalendarSync, toGoogle } from '../_shared/calendarSync.js'
+import { fingerprint, fromGoogle, hashOf, planCalendarSync, toGoogle } from '../_shared/calendarSync.js'
 
 const MAX_BODY = 25 * 1024 * 1024
-const MAX_WRITES = 500
+const MAX_WRITES = 1500
 const DAY = 86400000
 const reply = (status, body, headers = {}) => ({ status, body, headers })
 const fail = (status, error, message, extra = {}) => reply(status, { ok: false, error, message, ...extra })
@@ -80,23 +80,26 @@ export async function handleRequest(request, deps) {
         const to = new Date(now() + 180 * DAY).toISOString()
         const access = await token()
         const [local, remote] = await Promise.all([store.listCalendarEvents(me.userId, from, to), calendar.listEvents(fetch, access, calendarId, { from, to })])
-        const plan = planCalendarSync({ local, remote, timeZone: tz, resolutions })
+        const plan = planCalendarSync({ local, remote, timeZone: tz, resolutions, from })
         const writes = plan.importLocal.length + plan.exportRemote.length + plan.updateLocal.length + plan.updateRemote.length + plan.link.length
         if (writes > MAX_WRITES) return done(fail(413, 'too_many_changes', `That would change ${writes} events at once. Narrow the calendar and try again.`))
         const counts = { imported: 0, exported: 0, updated: 0, linked: 0 }
         const link = (id, remoteId, hash) => store.updateCalendarEvent(me.userId, id, { external_provider: 'google_calendar', external_id: remoteId, external_hash: hash })
-        for (const x of plan.importLocal) {
-          await store.insertCalendarEvent(me.userId, { ...x.remote, category: 'personal', timezone: tz, external_provider: 'google_calendar', external_id: x.remoteId, external_hash: x.hash })
-          counts.imported++
+        const rows = plan.importLocal.map((x) => ({ ...x.remote, category: 'personal', timezone: tz, external_provider: 'google_calendar', external_id: x.remoteId, external_hash: x.hash }))
+        for (let i = 0; i < rows.length; i += 100) {
+          const chunk = rows.slice(i, i + 100)
+          if (store.insertCalendarEvents) await store.insertCalendarEvents(me.userId, chunk)
+          else for (const row of chunk) await store.insertCalendarEvent(me.userId, row)
+          counts.imported += chunk.length
         }
         for (const l of plan.exportRemote) {
           const g = await calendar.insert(fetch, access, calendarId, toGoogle(l, tz))
-          await link(l.id, g.id, fingerprint(l))
+          await link(l.id, g.id, hashOf(l))
           counts.exported++
         }
         for (const u of plan.updateRemote) {
           await calendar.patch(fetch, access, calendarId, u.remoteId, toGoogle(u.local, tz))
-          await link(u.local.id, u.remoteId, fingerprint(u.local))
+          await link(u.local.id, u.remoteId, hashOf(u.local))
           counts.updated++
         }
         for (const u of plan.updateLocal) {
@@ -108,7 +111,7 @@ export async function handleRequest(request, deps) {
         const bits = [`${counts.imported} imported`, `${counts.exported} sent to Google`, `${counts.updated} updated`]
         if (plan.conflicts.length) bits.push(`${plan.conflicts.length} need your decision`)
         await store.addEvent(me.userId, provider, plan.conflicts.length ? 'conflict' : 'synced', bits.join(', '))
-        return done(reply(200, { ok: true, counts, conflicts: plan.conflicts, remoteGone: plan.remoteGone, skippedRecurring: plan.skippedRecurring }))
+        return done(reply(200, { ok: true, counts, conflicts: plan.conflicts, remoteGone: plan.remoteGone, skippedRecurring: plan.skippedRecurring, seriesCovered: plan.seriesCovered }))
       }
       case 'drive-backup': {
         if (provider !== 'google_drive') return done(fail(400, 'bad_provider', 'Not a Drive integration.'))
