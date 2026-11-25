@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useModuleLocks } from '@/features/security/useModuleLocks'
 import { auth } from '@/services/auth'
 import { Logo } from './Logo'
+import { AppVersion } from './AppVersion'
 
 function Item({ item, collapsed }) {
   const { to, label, icon: Icon, end, module } = item
@@ -132,6 +133,7 @@ export function Sidebar({ collapsed, onToggle }) {
           </button>
         </Tooltip>
       </div>
+      <AppVersion collapsed={collapsed} />
     </aside>
   )
 }

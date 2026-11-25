@@ -9,6 +9,7 @@ import { Dialog } from '@/components/ui/dialog'
 import { LayoutGroup, m, spring } from '@/components/motion/primitives'
 import { tick } from '@/lib/celebrate'
 import { cn } from '@/lib/utils'
+import { AppVersion } from './AppVersion'
 import { useModuleLocks } from '@/features/security/useModuleLocks'
 
 /** A pill that slides between tabs, behind the icon, like the native Material and iOS tab bars. */
@@ -104,6 +105,7 @@ export function MobileNav() {
               </section>
             )
           })}
+          <AppVersion className="border-t border-border pt-3" />
         </div>
       </Dialog>
     </>
