@@ -50,7 +50,7 @@ Deno.test('fires a due reminder end to end: REST queries, notification insert, r
   const res = await realFetch(`http://localhost:${port}/`, { method: 'POST', headers: { Authorization: 'Bearer cron-secret-123' } })
   const stats = await res.json()
   assertEquals(res.status, 200)
-  assertEquals(stats, { checked: 1, fired: 1, skippedByPrefs: 0, duplicates: 0, quietHeld: 0, pushed: 1, pushErrors: 0, tokensRemoved: 0 })
+  assertEquals(stats, { checked: 1, fired: 1, skippedByPrefs: 0, duplicates: 0, quietHeld: 0, pushed: 1, pushErrors: 0, tokensRemoved: 0, failed: 0 })
 
   const insert = calls.find((c) => c.method === 'POST' && c.url.includes('/rest/v1/notifications'))!
   assertEquals(insert.body, { user_id: 'u1', kind: 'task', title: 'Pay rent', body: '', priority: 'normal', link: '/planner', due_at: '2026-11-02T03:30:00.000Z', dedupe_key: 'reminder:r1:2026-11-02' })
