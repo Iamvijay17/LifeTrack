@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { BarChart3, ChevronLeft, ChevronRight, FileDown, FileSpreadsheet } from 'lucide-react'
+import { BarChart3, ChevronLeft, ChevronRight, FileDown, FileSpreadsheet, Loader2, Printer, Sheet } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { FirstUseHint } from '@/components/shared/FirstUseHint'
 import { DataGate, EmptyState } from '@/components/shared/states'
@@ -17,9 +17,13 @@ import { tableClosed } from '@lifetrack/core/moduleLocks'
 import { fmtDay } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
 import { download } from '@/services/csv'
-import { downloadPdf } from '@/services/pdf'
+import { downloadBytes } from '@/services/xlsx'
+import { logAudit } from '@/services/auditLog'
+import { usePdfExport } from '@/features/reports/pdf/usePdfExport'
 import { insightsFilename, insightsToCsv, insightsToPdf } from './exports'
 import { KIND_NAME, periodLabel } from './format'
+import { SavedReports } from './SavedReports'
+import { insightsFilenameXlsx, insightsToXlsx } from './xlsxExport'
 import { FinanceTab, FitnessTab, HabitsTab, LearningTab } from './Modules'
 import { Overview } from './Overview'
 import { usePeriod } from './usePeriod'
@@ -42,7 +46,7 @@ const TABLES = [
   'tasks',
 ]
 const NONE = []
-const KINDS = ['week', 'month', 'quarter', 'year', 'custom'].map((value) => ({
+const KINDS = ['day', 'week', 'month', 'quarter', 'year', 'custom'].map((value) => ({
   value,
   label: value === 'custom' ? 'Custom' : value[0].toUpperCase() + value.slice(1),
 }))
@@ -97,16 +101,28 @@ export default function InsightsPage() {
 
   const exportCsv = () => {
     download(insightsFilename(report, 'csv'), insightsToCsv(report, { currency: settings.currency }))
+    void logAudit('export', 'data', 'Insights report exported (CSV)', { kind: report.kind })
     toast.success('CSV report downloaded')
   }
-  const exportPdf = () => {
+  const exportXlsx = () => {
     try {
-      downloadPdf(insightsFilename(report, 'pdf'), insightsToPdf(report, { money }))
-      toast.success('PDF report downloaded')
+      downloadBytes(insightsFilenameXlsx(report), insightsToXlsx(report, { currency: settings.currency, generated: today }))
+      void logAudit('export', 'data', 'Insights report exported (Excel)', { kind: report.kind })
+      toast.success('Excel report downloaded')
     } catch (e) {
-      toast.error(`Could not build the PDF: ${e.message}`)
+      toast.error(`Could not build the Excel file: ${e.message}`)
     }
   }
+  const pdf = usePdfExport()
+  const exportPdf = () =>
+    pdf.start(async (onProgress) => ({
+      bytes: await insightsToPdf(
+        report,
+        { money, currency: settings.currency, timezone: settings.timezone },
+        { onProgress: (f) => onProgress(f, 'Building the report') },
+      ),
+      filename: insightsFilename(report, 'pdf'),
+    }))
 
   const { current, partial, future } = report.ranges
   const n = report.notes
@@ -124,19 +140,28 @@ export default function InsightsPage() {
         description="Trends, consistency and period-over-period comparisons from your own records."
         actions={
           <>
-            <Button variant="outline" onClick={exportPdf} disabled={!report.hasAnyData || future}>
-              <FileDown className="h-4 w-4" />
-              PDF
+            <Button variant="outline" onClick={exportPdf} disabled={!report.hasAnyData || future || pdf.busy}>
+              {pdf.busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+              {pdf.busy ? `Building PDF ${Math.round(pdf.progress * 100)}%` : 'PDF'}
             </Button>
             <Button variant="outline" onClick={exportCsv} disabled={!report.hasAnyData || future}>
               <FileSpreadsheet className="h-4 w-4" />
               CSV
             </Button>
+            <Button variant="outline" onClick={exportXlsx} disabled={!report.hasAnyData || future}>
+              <Sheet className="h-4 w-4" />
+              Excel
+            </Button>
+            <Button variant="outline" onClick={() => window.print()} disabled={!report.hasAnyData || future}>
+              <Printer className="h-4 w-4" />
+              Print
+            </Button>
           </>
         }
       />
       <FirstUseHint id="insights" title="Compare periods">
-        Pick a period to compare it with the one before, and export the report as PDF or CSV.
+        Pick a day, week, month, quarter, year or your own range to compare it with the one before. Save the setup, print it, or export it
+        as PDF, Excel or CSV.
       </FirstUseHint>
 
       <div className="mb-2 flex flex-wrap items-center gap-3 print:hidden">
@@ -180,6 +205,19 @@ export default function InsightsPage() {
             )}
           </div>
         )}
+      </div>
+      <div className="mb-3">
+        <SavedReports
+          kind={period.kind}
+          custom={period.custom}
+          tab={tab}
+          onApply={(c) => {
+            if (!c) return
+            period.setKind(c.kind)
+            if (c.kind === 'custom') period.setCustom({ from: c.from, to: c.to })
+            setParams(c.tab === 'overview' ? {} : { tab: c.tab }, { replace: true })
+          }}
+        />
       </div>
       <p className="mb-4 text-xs text-muted-foreground" data-testid="insights-range-note">
         {KIND_NAME[period.kind]} report · {fmtDay(period.range.from, 'd MMM yyyy')} – {fmtDay(period.range.to, 'd MMM yyyy')}

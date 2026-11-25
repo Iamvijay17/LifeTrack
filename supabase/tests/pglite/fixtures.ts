@@ -57,6 +57,14 @@ export const FIXTURES: Record<string, Fixture> = {
   nutrition_settings: { insert: (r, o) => one(r, `insert into nutrition_settings(user_id, calorie_goal) values ($1,2000)`, [o]) },
   recurring_rules: { insert: (r, o) => one(r, `insert into recurring_rules(user_id, type, amount_paise, anchor_day, next_date) values ($1,'expense',100,2,'2026-11-02')`, [o]) },
   transactions: { insert: (r, o, f) => one(r, `insert into transactions(user_id, type, amount_paise, txn_date, recurring_rule_id, recurring_date) values ($1,'expense',100,'2026-11-02',$2,$3)`, [o, f.recurring_rule_id ?? null, f.recurring_rule_id ? '2026-11-02' : null]) },
+  // 0027: audit history, API keys and webhooks. No client write grants at all: written by triggers and SECURITY DEFINER functions (see pglite/platform.test.ts).
+  audit_events: { kind: 'rpc' },
+  api_keys: { kind: 'rpc' },
+  api_request_log: { kind: 'rpc' },
+  webhook_endpoints: { kind: 'rpc' },
+  webhook_secrets: { kind: 'rpc' },
+  webhook_deliveries: { kind: 'rpc' },
+  webhook_attempts: { kind: 'rpc' },
   budgets: { insert: (r, o) => one(r, `insert into budgets(user_id, month, amount_paise) values ($1,'2026-11-01',100)`, [o]) },
   journal_entries: { insert: (r, o) => one(r, `insert into journal_entries(user_id, entry_date, content) values ($1,'2026-11-02','x')`, [o]) },
   milestones: { parents: { goal_id: 'goals' }, insert: (r, o, f) => one(r, `insert into milestones(user_id, goal_id, title) values ($1,$2,'Design')`, [o, f.goal_id]) },
@@ -91,4 +99,13 @@ export const OPTIONAL_LINKS: { child: string; column: string; parent: string }[]
   { child: 'calendar_events', column: 'topic_id', parent: 'learning_topics' },
   { child: 'calendar_events', column: 'application_id', parent: 'job_applications' },
   { child: 'calendar_events', column: 'routine_id', parent: 'routines' },
+]
+
+/** Foreign keys of tables that clients cannot write at all (only SECURITY DEFINER functions do, taking the owner from the parent row), so there is
+ *  nothing for a client to attach to someone else's parent. Listed so a NEW foreign key between user-owned tables still has to be accounted for. */
+export const SERVER_WRITTEN_LINKS: { child: string; column: string; parent: string }[] = [
+  { child: 'api_request_log', column: 'key_id', parent: 'api_keys' },
+  { child: 'webhook_secrets', column: 'endpoint_id', parent: 'webhook_endpoints' },
+  { child: 'webhook_deliveries', column: 'endpoint_id', parent: 'webhook_endpoints' },
+  { child: 'webhook_attempts', column: 'delivery_id', parent: 'webhook_deliveries' },
 ]

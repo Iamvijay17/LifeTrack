@@ -2,6 +2,7 @@ import { Download } from 'lucide-react'
 import { SettingsSection } from '@/components/shared/SettingsSection'
 import { Button } from '@/components/ui/button'
 import { useAction } from '@/hooks/useAction'
+import { logAudit } from '@/services/auditLog'
 import { download, tableToCsv, EXPORTABLE } from '@/services/csv'
 
 /** One spreadsheet-ready CSV per module, read straight from the database. */
@@ -10,6 +11,7 @@ export function CsvCard() {
     const csv = await tableToCsv(table)
     if (!csv) throw new Error('Nothing to export yet.')
     download(`lifetrack-${table}.csv`, csv)
+    void logAudit('export', 'data', `Exported ${table} to CSV`, { table })
   })
   return (
     <SettingsSection

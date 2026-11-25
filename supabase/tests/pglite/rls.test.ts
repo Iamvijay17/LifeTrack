@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { FIXTURES, OPTIONAL_LINKS } from './fixtures'
+import { FIXTURES, OPTIONAL_LINKS, SERVER_WRITTEN_LINKS } from './fixtures'
 import { createDb, type Q } from './helpers'
 
 let ctx: Awaited<ReturnType<typeof createDb>>
@@ -85,7 +85,7 @@ describe('ownership of foreign keys', () => {
       select c.conrelid::regclass::text as child, a.attname as col, c.confrelid::regclass::text as parent
       from pg_constraint c join pg_attribute a on a.attrelid = c.conrelid and a.attnum = any(c.conkey)
       where c.contype = 'f' and c.connamespace = 'public'::regnamespace and c.confrelid::regclass::text not in ('users','auth.users')`)
-    const known = new Set(all.map((l) => `${l.child}.${l.column}→${l.parent}`))
+    const known = new Set([...all, ...SERVER_WRITTEN_LINKS].map((l) => `${l.child}.${l.column}→${l.parent}`))
     const missing = rows.map((r) => `${r.child}.${r.col}→${r.parent}`).filter((k) => !known.has(k))
     expect(missing, 'a foreign key between user-owned tables has no ownership test: add it to fixtures.ts').toEqual([])
   })

@@ -348,6 +348,18 @@ describe('PDF engine', { timeout: 90000 }, () => {
   })
 
   it('rejects an unknown block instead of silently dropping content', async () => {
+    // NaN/Infinity in the data must never reach the page: viewers reject such a file outright.
+    const bad = await renderPdf(
+      {
+        title: 'x',
+        blocks: [
+          { type: 'chart', title: 'T', labels: ['a', 'b', 'c'], series: [{ name: 's', values: [1, NaN, Infinity] }] },
+          { type: 'bars', items: [{ label: 'a', value: NaN, text: '—' }] },
+        ],
+      },
+      { fontBytes },
+    )
+    expect(new TextDecoder('latin1').decode(bad)).not.toMatch(/NaN|Infinity/)
     await expect(renderPdf({ title: 'x', blocks: [{ type: 'nope' }] }, { fontBytes })).rejects.toThrow('Unknown report block')
   })
 

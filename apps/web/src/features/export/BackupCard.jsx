@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/misc'
 import { useAction } from '@/hooks/useAction'
 import { useToday } from '@/hooks/useToday'
 import { AppError } from '@/services/errors'
+import { logAudit } from '@/services/auditLog'
 import { analyzeBackup, buildExport, importBackup, MAX_BACKUP_BYTES, parseBackup, summarizeBackup } from '@/services/backup'
 import { download } from '@/services/csv'
 
@@ -28,6 +29,7 @@ export function BackupCard() {
     async () => {
       const data = await buildExport()
       download(`lifetrack-backup-${today}.json`, JSON.stringify(data, null, 2), 'application/json')
+      void logAudit('export', 'backup', 'Full backup downloaded', { tables: Object.keys(data.tables ?? {}).length })
     },
     { success: 'Backup downloaded' },
   )
@@ -42,6 +44,9 @@ export function BackupCard() {
       setProgress({ done: 0, total: 1 })
       try {
         await importBackup(pending, (done, total) => setProgress({ done, total }))
+        void logAudit('import', 'backup', 'Backup restored', {
+          file_rows: Object.values(pending.tables ?? {}).reduce((n, r) => n + (r?.length ?? 0), 0),
+        })
       } finally {
         setProgress(null)
       }

@@ -3,6 +3,7 @@ import { PanelLeftClose, PanelLeftOpen, LogOut, Lock } from 'lucide-react'
 import { m, spring } from '@/components/motion/primitives'
 import { Tooltip } from '@/components/ui/tooltip'
 import { arrangeNav } from '@/lib/nav'
+import { useIsAdmin } from '@/hooks/useIsAdmin'
 import { useAppearance } from '@/hooks/useAppearance'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -66,7 +67,8 @@ function Item({ item, collapsed }) {
 export function Sidebar({ collapsed, onToggle }) {
   const { displayName, user } = useAuth()
   const { sidebar } = useAppearance()
-  const { pinned, groups } = arrangeNav(sidebar)
+  const admin = useIsAdmin()
+  const { pinned, groups } = arrangeNav(sidebar, { admin })
   const shown = pinned.length ? [{ title: 'Pinned', items: pinned }, ...groups] : groups
   const initial = (displayName || user?.email || '?').trim()[0]?.toUpperCase()
   return (

@@ -6,6 +6,7 @@
 //    session waits for sign-in; anything the server will never accept stops and asks the person.
 import { BACKOFF, backoffDelay, classifyError, planRemove, planUpdate, resolvePatch } from '@lifetrack/core/offlineSync'
 import { toAppError } from '@/services/errors'
+import { reportError } from '@/lib/errorReporting'
 import * as outbox from './outbox'
 
 const strip = ({ user_id: _u, ...r }) => r
@@ -73,6 +74,7 @@ export function createEngine({ db, applied, now = Date.now, rand = Math.random }
       }
       // Never accepted, or out of attempts: keep the change, tell the person, let them retry or discard.
       outbox.patch(op.id, { status: 'failed', attempts, lastError: e.message })
+      reportError('sync', new Error(`Sync of ${op.table} ${op.kind} failed: ${e.message}`))
       return 'next'
     }
   }

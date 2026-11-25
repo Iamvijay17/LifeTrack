@@ -1,5 +1,6 @@
 import { toCsv } from '@/services/csv'
 import { renderPdf } from '@/services/pdf'
+import { stampInTz } from '@/features/reports/pdf/buildReportPdf'
 import { fmtDay } from '@/lib/dates'
 import { formatChange, formatValue, KIND_NAME, periodLabel } from './format'
 
@@ -99,14 +100,22 @@ export function insightsToCsv(report, { currency = 'INR' } = {}) {
   return parts.join('\r\n')
 }
 
-/** The report as PDF bytes. `money` formats minor units in the user's currency. */
-export function insightsToPdf(report, { money }) {
+/** The PDF spec for the report (see services/pdf/engine.js). `money` formats minor units in the user's currency. */
+export function insightsPdfSpec(report, { money, currency = 'INR', timezone = 'Asia/Kolkata', now = new Date() }) {
   const c = report.current
   const { previous, partial, current } = report.ranges
   const blocks = []
+  const headline = ['studyMinutes', 'workouts', 'expense', 'habitRate', 'taskRate']
+    .map((k) => report.comparison.find((r) => r.key === k))
+    .filter((r) => r && r.cur != null)
+    .map((r) => ({
+      label: r.label,
+      value: formatValue(r.kind, r.cur, money),
+      sub: r.prev == null ? 'No earlier period' : `${formatChange(r, money)} vs previous`,
+    }))
+  if (headline.length) blocks.push({ type: 'heading', text: 'At a glance' }, { type: 'kpis', items: headline })
   blocks.push({
-    type: 'text',
-    muted: true,
+    type: 'note',
     text: current.days
       ? `Counted through ${fmtDay(current.upto, 'd MMM yyyy')} (${current.days} day${current.days === 1 ? '' : 's'}). ${
           previous.days
@@ -116,8 +125,7 @@ export function insightsToPdf(report, { money }) {
       : 'This period has not started yet, so nothing is counted.',
   })
   blocks.push({
-    type: 'text',
-    muted: true,
+    type: 'note',
     text: 'A dash means no data was recorded for that period; 0 means it was recorded and the value is zero.',
   })
 
@@ -173,21 +181,24 @@ export function insightsToPdf(report, { money }) {
         type: 'columns',
         title: 'Study hours',
         items: c.series.rows.map((r) => ({ label: r.label, value: r.studyHours })),
-        format: (v) => `${v} h`,
+        unit: 'hours',
+        format: (v) => `${v}`,
       })
     if (c.series.rows.some((r) => r.expense != null))
       blocks.push({
         type: 'columns',
         title: 'Expenses',
-        items: c.series.rows.map((r) => ({ label: r.label, value: r.expense })),
-        format: (v) => money(v),
+        unit: currency,
+        items: c.series.rows.map((r) => ({ label: r.label, value: r.expense == null ? null : r.expense / 100 })),
+        format: (v) => (v >= 1000 ? `${Math.round(v / 100) / 10}k` : String(Math.round(v))),
       })
     if (c.series.rows.some((r) => r.habitRate != null))
       blocks.push({
         type: 'columns',
-        title: 'Habit completion %',
+        title: 'Habit completion',
+        unit: '%',
         items: c.series.rows.map((r) => ({ label: r.label, value: r.habitRate })),
-        format: (v) => `${v}%`,
+        format: (v) => `${v}`,
       })
   }
   blocks.push({ type: 'heading', text: 'Month over month' })
@@ -197,19 +208,36 @@ export function insightsToPdf(report, { money }) {
     columns: [{ header: 'Month', width: 2 }, ...cols.map((d) => ({ header: d.label, width: 2, align: 'right' }))],
     rows: report.history.map((h) => [h.label + (h.partial ? ' *' : ''), ...cols.map((d) => formatValue(d.kind, h.values[d.key], money))]),
   })
-  blocks.push({ type: 'text', muted: true, text: '* month still in progress.' })
+  blocks.push({ type: 'note', text: '* month still in progress.' })
   const n = report.notes
   if (n.duplicates || n.orphans || n.future || n.unfinished)
     blocks.push({
-      type: 'text',
-      muted: true,
+      type: 'note',
       text: `Data notes: ${[n.duplicates && `${n.duplicates} duplicate record(s) merged`, n.orphans && `${n.orphans} record(s) of deleted items ignored`, n.future && `${n.future} future-dated record(s) ignored`, n.unfinished && `${n.unfinished} unfinished or discarded study session(s) not counted`].filter(Boolean).join('; ')}.`,
     })
 
-  return renderPdf({
-    title: `LifeTrack ${KIND_NAME[report.kind]} Insights`,
-    subtitle: periodLabel(report.kind, current, fmtDay),
-    footer: `LifeTrack Insights - generated ${new Date().toISOString().slice(0, 10)}`,
+  const title = `LifeTrack ${KIND_NAME[report.kind]} Insights`
+  const period = periodLabel(report.kind, current, fmtDay)
+  return {
+    title,
+    subtitle: 'Trends, consistency and period-over-period comparisons from your own records',
+    meta: [
+      { label: 'Period', value: period },
+      { label: 'Counted through', value: current.days ? fmtDay(current.upto, 'd MMM yyyy') : 'Not started' },
+      {
+        label: 'Compared with',
+        value: previous.days ? `${fmtDay(previous.from, 'd MMM')} – ${fmtDay(previous.upto, 'd MMM yyyy')}` : 'No earlier period',
+      },
+      { label: 'Currency', value: currency },
+    ],
+    generated: `Generated ${stampInTz(now, timezone)}`,
+    footer: `LifeTrack Insights · ${period}`,
+    runningHead: `${title} · ${period}`,
+    keywords: ['LifeTrack', 'insights', report.kind],
     blocks,
-  })
+  }
 }
+
+/** The report as PDF bytes. */
+export const insightsToPdf = (report, opts, render = { onProgress: undefined, fontBytes: undefined }) =>
+  renderPdf(insightsPdfSpec(report, opts), render)

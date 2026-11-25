@@ -10,7 +10,7 @@ import { funnel } from './jobs'
 import { categoryBreakdown } from './finance'
 import { completion, streaks, withPauses } from './streaks'
 
-export const PERIOD_KINDS = ['week', 'month', 'quarter', 'year', 'custom']
+export const PERIOD_KINDS = ['day', 'week', 'month', 'quarter', 'year', 'custom']
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const round = (n, dp = 1) => Math.round(n * 10 ** dp) / 10 ** dp
 const sum = (xs) => xs.reduce((a, b) => a + b, 0)
@@ -21,6 +21,7 @@ const minDate = (xs) => xs.reduce((m, x) => (x && (m == null || x < m) ? x : m),
 // ------------------------------------------------------------------ periods
 /** The calendar period of `kind` that contains `anchor`. */
 export function periodFor(kind, anchor, weekStartsOn = 1) {
+  if (kind === 'day') return { from: anchor, to: anchor }
   if (kind === 'week') {
     const from = startOfWeek(anchor, weekStartsOn)
     return { from, to: addDays(from, 6) }
@@ -37,6 +38,7 @@ export function periodFor(kind, anchor, weekStartsOn = 1) {
 
 /** Move an anchor date by `n` periods (negative = earlier). */
 export function shiftAnchor(kind, anchor, n) {
+  if (kind === 'day') return addDays(anchor, n)
   if (kind === 'week') return addDays(anchor, 7 * n)
   if (kind === 'month') return addMonths(anchor, n)
   if (kind === 'quarter') return addMonths(anchor, 3 * n)

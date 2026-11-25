@@ -23,6 +23,7 @@ export function formatChange(row, money) {
 }
 
 export const periodLabel = (kind, range, fmtDay) => {
+  if (kind === 'day') return fmtDay(range.from, 'EEE d MMM yyyy')
   if (kind === 'week') return `${fmtDay(range.from, 'd MMM')} – ${fmtDay(range.to, 'd MMM yyyy')}`
   if (kind === 'month') return fmtDay(range.from, 'MMMM yyyy')
   if (kind === 'quarter') return `Q${Math.floor((Number(range.from.slice(5, 7)) - 1) / 3) + 1} ${range.from.slice(0, 4)}`
@@ -30,4 +31,4 @@ export const periodLabel = (kind, range, fmtDay) => {
   return `${fmtDay(range.from, 'd MMM yyyy')} – ${fmtDay(range.to, 'd MMM yyyy')}`
 }
 
-export const KIND_NAME = { week: 'Weekly', month: 'Monthly', quarter: 'Quarterly', year: 'Yearly', custom: 'Custom' }
+export const KIND_NAME = { day: 'Daily', week: 'Weekly', month: 'Monthly', quarter: 'Quarterly', year: 'Yearly', custom: 'Custom' }

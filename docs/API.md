@@ -12,6 +12,8 @@ LifeTrack has **no hand-written REST server**. The "API" is what Supabase expose
 | Static HTTP assets | 2 kinds (exercise catalog, exercise photos) | `apps/web/public/exercises/` |
 | Client-side domain operations (not HTTP) | 31 | `packages/data/src/api.js` (`createApi`) |
 
+**Update (migration 0027):** LifeTrack now also has a public, key-authenticated REST API (`api` Edge Function), outbound webhooks (`webhook-dispatch`) and the audit/health RPCs. They are documented in [WEBHOOKS_API.md](WEBHOOKS_API.md), [AUDIT_HISTORY.md](AUDIT_HISTORY.md) and [SYSTEM_HEALTH.md](SYSTEM_HEALTH.md), and the endpoint list is generated into the in-app Developers → Documentation page and `GET /v1/openapi.json`. The counts in the table above describe the original surface.
+
 Planned APIs: none are specified in the repository (see [ROADMAP.md](ROADMAP.md)).
 
 ## 1. Common rules

@@ -43,3 +43,10 @@ enable_confirmations = false
 # HMAC-signed, 10-minute `state` made by google-integration (see supabase/functions/google-integration/logic.js).
 [functions.google-oauth-callback]
 verify_jwt = false
+
+# Edge Functions that authenticate their callers themselves (a LifeTrack API key, or the scheduler's secret) instead of by a Supabase user token.
+[functions.api]
+verify_jwt = false
+
+[functions.webhook-dispatch]
+verify_jwt = false

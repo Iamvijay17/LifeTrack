@@ -210,6 +210,21 @@ html[data-motion='reduced'] .lt-ambient {
   --mod-2: 20 184 166;
   --mod-text: 67 56 202;
 }
+[data-module='developers'] {
+  --mod: 139 92 246;
+  --mod-2: 14 165 233;
+  --mod-text: 109 40 217;
+}
+[data-module='audit'] {
+  --mod: 99 102 241;
+  --mod-2: 139 92 246;
+  --mod-text: 67 56 202;
+}
+[data-module='system'] {
+  --mod: 16 185 129;
+  --mod-2: 14 165 233;
+  --mod-text: 4 120 87;
+}
 [data-module='shortcuts'] {
   --mod: 14 165 233;
   --mod-2: 139 92 246;
@@ -308,6 +323,10 @@ html[data-motion='reduced'] .lt-ambient {
 .dark [data-module='analytics'] {
   --mod-text: 165 180 252;
 }
+.dark[data-module='insights'],
+.dark [data-module='insights'] {
+  --mod-text: 125 211 252;
+}
 .dark[data-module='reports'],
 .dark [data-module='reports'] {
   --mod-text: 203 213 225;
@@ -317,10 +336,6 @@ html[data-motion='reduced'] .lt-ambient {
   --mod-text: 196 181 253;
 }
 .dark[data-module='settings'],
-.dark[data-module='insights'],
-.dark [data-module='insights'] {
-  --mod-text: 125 211 252;
-}
 .dark [data-module='settings'] {
   --mod-text: 212 212 216;
 }

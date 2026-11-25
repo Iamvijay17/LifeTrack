@@ -318,6 +318,20 @@ function useSections({ q, dq, data, closed, pathname, recents, usage, clearRecen
     sections.push(...found.map((g) => ({ ...g, items: g.items.map((i) => ({ ...i, icon: i.icon ?? KIND_ICON[i.kind] })) })))
     if (commands.length) sections.push({ key: 'commands', title: 'Actions', items: commands })
     if (!cap?.kind && captureItems.length) sections.push({ key: 'capture', title: 'Quick capture', items: captureItems })
+    // The full search page: every module, filters, sorting and paging, for when a handful of matches is not enough.
+    sections.push({
+      key: 'search-all',
+      title: 'Search',
+      items: [
+        {
+          id: 'search-all',
+          label: `Search everything for “${q.trim()}”`,
+          icon: Search,
+          to: `/search?q=${encodeURIComponent(q.trim())}`,
+          keys: 'Advanced',
+        },
+      ],
+    })
     return sections
   }, [q, dq, data, closed, pathname, recents, usage, clearRecents, today, dark, save])
 }

@@ -19,6 +19,7 @@ import { SecurityProvider } from '@/features/security/SecurityProvider'
 
 const page = (loader) => lazy(loader)
 const Overview = page(() => import('@/features/overview/OverviewPage'))
+const GlobalSearchPage = page(() => import('@/features/search/SearchPage'))
 const Planner = page(() => import('@/features/planner/PlannerPage'))
 const Calendar = page(() => import('@/features/calendar/CalendarPage'))
 const Recovery = page(() => import('@/features/recovery/RecoveryPage'))
@@ -47,6 +48,9 @@ const ExportPage = page(() => import('@/features/export/ExportPage'))
 const Help = page(() => import('@/features/help/HelpPage'))
 const Settings = page(() => import('@/features/settings/SettingsPage'))
 const Integrations = page(() => import('@/features/integrations/IntegrationsPage'))
+const Developers = page(() => import('@/features/developers/DevelopersPage'))
+const Audit = page(() => import('@/features/audit/AuditPage'))
+const SystemHealth = page(() => import('@/features/system/SystemHealthPage'))
 const Shortcuts = page(() => import('@/features/shortcuts/ShortcutsPage'))
 const Security = page(() => import('@/features/security/SecurityPage'))
 
@@ -99,6 +103,7 @@ export default function App() {
                     }
                   >
                     <Route index element={<Overview />} />
+                    <Route path="search" element={<GlobalSearchPage />} />
                     <Route path="planner" element={<Planner />} />
                     <Route path="calendar" element={<Calendar />} />
                     <Route path="recovery" element={<Recovery />} />
@@ -166,6 +171,9 @@ export default function App() {
                     <Route path="notifications" element={<Notifications />} />
                     <Route path="export" element={<ExportPage />} />
                     <Route path="integrations" element={<Integrations />} />
+                    <Route path="developers" element={<Developers />} />
+                    <Route path="audit" element={<Audit />} />
+                    <Route path="system" element={<SystemHealth />} />
                     <Route path="settings" element={<Settings />} />
                     <Route path="security" element={<Security />} />
                     <Route path="shortcuts" element={<Shortcuts />} />
