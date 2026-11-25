@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createDb, type Q } from './helpers'
+// @ts-expect-error plain JS module shared with the apps
 import { buildPage, keysetFilter, normalizePageRequest } from '../../../packages/core/src/pagination.js'
 
 // The keyset condition the data adapter sends to PostgREST (an `or=(...)` string) is turned back into SQL here and run on real Postgres against rows with ties and

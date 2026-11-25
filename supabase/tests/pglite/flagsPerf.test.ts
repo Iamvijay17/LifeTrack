@@ -101,6 +101,7 @@ describe('feature flags', () => {
     expect((await evalAs(asU1, 'staging')).flags['exp.new_card']).toBe(false)
   })
   it('rollout is deterministic, monotonic and matches the JavaScript engine', async () => {
+    // @ts-expect-error plain JS module shared with the apps
     const { bucketOf } = await import('../../../packages/core/src/flags.js')
     await asAdmin((q) => q(`select admin_flag_env_set('exp.new_card', 'production', '{"enabled": true, "rollout_percent": 0}')`))
     const sqlBucket = (await ctx.q(`select _flag_bucket('exp.new_card', $1) b`, [U1])).rows[0].b
@@ -227,6 +228,7 @@ describe('experiments', () => {
     expect(await ctx.fails(asAdmin((q) => q(`select admin_experiment_save('checkout_test', 'exp.checkout', 'Renamed', '', 100, $1::jsonb)`, [variants])))).toMatch(/Only a draft/)
   })
   it('assigns consistently, matches the JavaScript engine, records one exposure and one conversion', async () => {
+    // @ts-expect-error plain JS module shared with the apps
     const { assignVariant } = await import('../../../packages/core/src/flags.js')
     await asAdmin((q) => q(`select admin_flag_env_set('exp.checkout', 'production', '{"enabled": true}')`))
     const exp = { key: 'checkout_test', traffic_percent: 100, variants: JSON.parse(variants) }

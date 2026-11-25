@@ -18,6 +18,8 @@ const SERVER_ONLY = new Set([
   'integrations', 'integration_events', 'integration_tokens',
   'audit_events', 'api_keys', 'api_request_log', 'app_errors', 'job_runs', 'platform_admins', 'rate_windows', 'request_metrics',
   'webhook_endpoints', 'webhook_secrets', 'webhook_deliveries', 'webhook_attempts',
+  // 0028 (performance, feature flags, experiments): admin-only, reached through functions.
+  'query_stats', 'db_perf_snapshots', 'feature_flags', 'feature_flag_envs', 'platform_controls', 'feature_flag_history', 'experiments', 'experiment_events',
 ])
 let cols: Record<string, { name: string; nullable: boolean; hasDefault: boolean }[]> = {}
 
