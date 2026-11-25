@@ -149,7 +149,7 @@ export const calendar = {
     const items = []
     let pageToken = ''
     do {
-      const q = new URLSearchParams({ timeMin: from, timeMax: to, singleEvents: 'false', showDeleted: 'false', maxResults: '250' })
+      const q = new URLSearchParams({ timeMin: from, timeMax: to, singleEvents: 'true', showDeleted: 'false', maxResults: '250' })
       if (pageToken) q.set('pageToken', pageToken)
       const out = await json(await api(fetch, token, `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${q}`))
       items.push(...(out.items ?? []))

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { handleCallback, handleRequest } from '../../../supabase/functions/google-integration/logic.js'
 import { authUrl, signState, verifyState } from '../../../supabase/functions/_shared/google.js'
-import { fingerprint, fromGoogle, planCalendarSync, toGoogle, zonedMidnight } from '../../../supabase/functions/_shared/calendarSync.js'
+import { fingerprint, fromGoogle, hashOf, planCalendarSync, toGoogle, toRRule, zonedMidnight } from '../../../supabase/functions/_shared/calendarSync.js'
 
 const ENV = { SUPABASE_URL: 'https://proj.supabase.co', GOOGLE_CLIENT_ID: 'cid', GOOGLE_CLIENT_SECRET: 'csecret', OAUTH_STATE_SECRET: 'state-secret-state-secret', APP_ORIGIN: 'https://app.example.com' }
 const TZ = 'Asia/Kolkata'
@@ -250,10 +250,33 @@ describe('planCalendarSync', () => {
     expect(p.remoteGone).toEqual([{ localId: 'L0', title: 'Dentist' }])
     expect(p.exportRemote).toHaveLength(0)
   })
-  it('skips recurring events on both sides', () => {
-    const p = planCalendarSync({ local: [local({ rrule: { freq: 'weekly' } })], remote: [remote({ recurrence: ['RRULE:FREQ=WEEKLY'] })], timeZone: TZ })
-    expect(p.skippedRecurring).toBe(1)
-    expect(p.exportRemote).toHaveLength(0)
+  it('sends a repeating LifeTrack event once, as a real repeating event, and ignores its occurrences coming back', () => {
+    const series = local({ id: 'S1', rrule: { freq: 'weekly', byWeekday: [1, 2, 3], until: '2026-12-31' } })
+    const first = planCalendarSync({ local: [series], remote: [], timeZone: TZ })
+    expect(first.exportRemote).toEqual([series])
+    expect(toGoogle(series, TZ).recurrence).toEqual(['RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE;UNTIL=20261231T235959Z'])
+    const linked = { ...series, external_id: 'M1', external_hash: hashOf(series) }
+    const again = planCalendarSync({ local: [linked], remote: [remote({ id: 'M1_20261126', recurringEventId: 'M1' }), remote({ id: 'M1_20261127', recurringEventId: 'M1' })], timeZone: TZ })
+    expect(again.importLocal).toHaveLength(0)
+    expect(again.seriesCovered).toBe(2)
+    expect(again.unchanged).toBe(1)
+    expect(again.remoteGone).toHaveLength(0)
+  })
+  it('sends a changed series rule to Google, and imports each occurrence of a Google repeating event', () => {
+    const series = { ...local({ id: 'S1', rrule: { freq: 'daily' }, external_id: 'M1' }), external_hash: 'stale' }
+    expect(planCalendarSync({ local: [series], remote: [], timeZone: TZ }).updateRemote).toEqual([{ local: series, remoteId: 'M1' }])
+    const p = planCalendarSync({ local: [], remote: [remote({ id: 'X_1', recurringEventId: 'X' }), remote({ id: 'X_2', recurringEventId: 'X', start: { dateTime: '2026-11-26T10:00:00+05:30' }, end: { dateTime: '2026-11-26T11:00:00+05:30' } })], timeZone: TZ })
+    expect(p.importLocal.map((x) => x.remoteId)).toEqual(['X_1', 'X_2'])
+  })
+  it('turns repeat rules into Google rules', () => {
+    expect(toRRule({ freq: 'daily', interval: 2, count: 5 }, '2026-11-25')).toEqual(['RRULE:FREQ=DAILY;INTERVAL=2;COUNT=5'])
+    expect(toRRule({ freq: 'monthly', monthlyBy: 'weekday' }, '2026-11-25')).toEqual(['RRULE:FREQ=MONTHLY;BYDAY=4WE'])
+    expect(toRRule({ freq: 'yearly' }, '2026-11-25')).toEqual(['RRULE:FREQ=YEARLY'])
+    expect(toRRule({ freq: 'nope' }, '2026-11-25')).toBeUndefined()
+  })
+  it('does not send a series that ended before the window', () => {
+    const old = local({ rrule: { freq: 'daily', until: '2026-01-01' } })
+    expect(planCalendarSync({ local: [old], remote: [], timeZone: TZ, from: '2026-10-25T00:00:00Z' }).exportRemote).toHaveLength(0)
   })
   it('handles all-day events across the time zone', () => {
     const iso = zonedMidnight('2026-11-25', TZ)
@@ -296,7 +319,7 @@ describe('calendar-sync end to end', () => {
   })
   it('refuses a sync that would rewrite hundreds of events at once', async () => {
     await connect('google_calendar')
-    for (let i = 0; i < 600; i++) addLocal({ title: `E${i}`, starts_at: new Date(NOW + 3600000 * (i + 1)).toISOString(), ends_at: new Date(NOW + 3600000 * (i + 2)).toISOString() })
+    for (let i = 0; i < 1600; i++) addLocal({ title: `E${i}`, starts_at: new Date(NOW + 3600000 * (i + 1)).toISOString(), ends_at: new Date(NOW + 3600000 * (i + 2)).toISOString() })
     expect((await call({ action: 'calendar-sync', provider: 'google_calendar' })).status).toBe(413)
     expect(google.events).toHaveLength(0)
   })

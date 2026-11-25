@@ -8,7 +8,9 @@
 //  * Each linked event carries `external_hash`: the fingerprint both sides had when they last agreed. A side that differs from it has changed.
 //    Only one side changed → copy that change over. BOTH changed (and differently) → a conflict: nothing is overwritten until the person chooses.
 //  * Nothing is ever deleted. An event gone from Google is reported (`remoteGone`) and kept in LifeTrack.
-//  * Recurring events are not synced (reported as skipped), so a series is never flattened into copies.
+//  * A repeating LifeTrack event is sent to Google ONCE, as a real repeating event (an RRULE), and the occurrences Google then lists for it are
+//    recognised and ignored, so they never come back as copies. A repeating Google event arrives as one LifeTrack event per occurrence in the window.
+//    Limits: later edits to a series flow LifeTrack → Google only; one-off changes to a single occurrence in LifeTrack are not sent.
 
 /** A short stable fingerprint of the fields that sync (FNV-1a over the canonical text). */
 export function fingerprint(e) {
@@ -68,7 +70,39 @@ export function toGoogle(l, timeZone) {
     body.start = { dateTime: l.starts_at, timeZone }
     body.end = { dateTime: l.ends_at, timeZone }
   }
+  if (l.rrule) {
+    const recurrence = toRRule(l.rrule, dayInZone(l.starts_at, timeZone), !!l.all_day)
+    if (recurrence) body.recurrence = recurrence
+  }
   return body
+}
+
+/** Like fingerprint, but a repeating event also depends on its rule. */
+export const seriesFingerprint = (e) => fingerprint({ ...e, title: `${e.title ?? ''}\u0000${JSON.stringify(e.rrule ?? null)}` })
+/** The hash both sides are compared by for this event. */
+export const hashOf = (e) => (e.rrule ? seriesFingerprint(e) : fingerprint(e))
+
+const DAY_CODES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA']
+/** A LifeTrack repeat rule as Google's `recurrence` lines, or undefined when it cannot be expressed. `ymd` is the first occurrence's date. */
+export function toRRule(rule, ymd, allDay = false) {
+  const freq = { daily: 'DAILY', weekly: 'WEEKLY', monthly: 'MONTHLY', yearly: 'YEARLY' }[rule?.freq]
+  if (!freq) return undefined
+  const parts = [`FREQ=${freq}`]
+  const interval = Math.max(1, Math.min(99, Number(rule.interval) || 1))
+  if (interval > 1) parts.push(`INTERVAL=${interval}`)
+  if (freq === 'WEEKLY') {
+    const days = [...new Set((rule.byWeekday ?? []).map(Number).filter((d) => d >= 0 && d <= 6))].sort((a, b) => a - b)
+    if (days.length) parts.push(`BYDAY=${days.map((d) => DAY_CODES[d]).join(',')}`)
+    if (interval > 1) parts.push('WKST=MO')
+  }
+  if (freq === 'MONTHLY' && rule.monthlyBy === 'weekday') {
+    const [y, m, d] = ymd.split('-').map(Number)
+    const nth = Math.ceil(d / 7)
+    parts.push(`BYDAY=${nth >= 5 ? -1 : nth}${DAY_CODES[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]}`)
+  }
+  if (rule.count) parts.push(`COUNT=${Math.max(1, Number(rule.count))}`)
+  else if (rule.until) parts.push(`UNTIL=${rule.until.replace(/-/g, '')}${allDay ? '' : 'T235959Z'}`)
+  return [`RRULE:${parts.join(';')}`]
 }
 
 const keyOf = (e) => `${(e.title ?? '').trim().toLowerCase()}|${new Date(e.starts_at).getTime()}|${new Date(e.ends_at).getTime()}`
@@ -79,9 +113,12 @@ const keyOf = (e) => `${(e.title ?? '').trim().toLowerCase()}|${new Date(e.start
  * @param timeZone     the person's time zone
  * @param resolutions  { [localId]: 'local' | 'remote' } choices made for earlier conflicts
  */
-export function planCalendarSync({ local, remote, timeZone, resolutions = {} }) {
-  const plan = { importLocal: [], exportRemote: [], updateLocal: [], updateRemote: [], link: [], conflicts: [], remoteGone: [], unchanged: 0, skippedRecurring: 0 }
+export function planCalendarSync({ local, remote, timeZone, resolutions = {}, from = null }) {
+  const plan = { importLocal: [], exportRemote: [], updateLocal: [], updateRemote: [], link: [], conflicts: [], remoteGone: [], unchanged: 0, skippedRecurring: 0, seriesCovered: 0 }
   const syncable = (l) => !l.rrule
+  const series = local.filter((l) => l.rrule)
+  const seriesByExternal = new Map(series.filter((l) => l.external_id).map((l) => [l.external_id, l]))
+  const seriesById = new Map(series.map((l) => [l.id, l]))
   const byExternal = new Map(local.filter((l) => l.external_id).map((l) => [l.external_id, l]))
   const byId = new Map(local.map((l) => [l.id, l]))
   const seenLocal = new Set()
@@ -89,8 +126,15 @@ export function planCalendarSync({ local, remote, timeZone, resolutions = {} }) 
   for (const l of local) if (!l.external_id && syncable(l)) unlinked.set(keyOf(l), [...(unlinked.get(keyOf(l)) ?? []), l])
 
   for (const g of remote) {
-    if (g.recurrence || g.recurringEventId) {
-      plan.skippedRecurring++
+    if (g.recurringEventId) {
+      // An occurrence of a series LifeTrack sent to Google is already covered by that series here: not a new event.
+      const owner = seriesByExternal.get(g.recurringEventId) ?? seriesById.get(g.extendedProperties?.private?.lifetrackId)
+      if (owner) {
+        plan.seriesCovered++
+        continue
+      }
+    } else if (g.recurrence) {
+      plan.skippedRecurring++ // a series master (Google does not list these when occurrences are expanded)
       continue
     }
     const r = fromGoogle(g, timeZone)
@@ -126,6 +170,16 @@ export function planCalendarSync({ local, remote, timeZone, resolutions = {} }) 
     else plan.updateLocal.push({ localId: l.id, remoteId: g.id, fields: r, hash: rh })
   }
 
+  const endedBefore = from ? dayInZone(from, timeZone) : null
+  for (const l of series) {
+    if (!l.external_id) {
+      const until = l.rrule.until
+      if (endedBefore && until && until < endedBefore) continue // finished before the window: nothing to send
+      if (toRRule(l.rrule, dayInZone(l.starts_at, timeZone)) === undefined) plan.skippedRecurring++
+      else plan.exportRemote.push(l)
+    } else if (seriesFingerprint(l) !== l.external_hash) plan.updateRemote.push({ local: l, remoteId: l.external_id })
+    else plan.unchanged++
+  }
   for (const l of local) {
     if (seenLocal.has(l.id) || !syncable(l)) continue
     if (l.external_id) plan.remoteGone.push({ localId: l.id, title: l.title }) // linked, but not on Google any more: keep it, tell the person
