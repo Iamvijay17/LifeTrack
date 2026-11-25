@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { addDays, todayStr, zonedToMs } from '@/lib/dates'
@@ -11,6 +11,7 @@ vi.setConfig({ testTimeout: 60_000 })
 
 const TZ = 'Asia/Kolkata'
 let TODAY
+afterEach(() => vi.useRealTimers())
 beforeEach(async () => {
   await freshBackend()
   await signedInUser()
@@ -134,6 +135,8 @@ describe('Smart Recovery page', () => {
   })
 
   it('never suggests a time that clashes with a repeating event, and blocks a manual choice that does', async () => {
+    // Pin only the clock's date to 09:00 today, so 16:30 is never "already passed" whenever the suite runs.
+    vi.useFakeTimers({ toFake: ['Date'], now: zonedToMs(TODAY, '09:00', TZ) })
     const user = userEvent.setup()
     // a daily 14:00-15:00 series, started a week ago, so every day of the window has it
     await db.insert('calendar_events', [

@@ -65,3 +65,7 @@ Nothing returned exposes connection strings, keys, or stack traces to ordinary u
 * Request volume and latency cover the **LifeTrack API gateway**. Traffic through Supabase's own REST/Auth endpoints is visible in the Supabase dashboard, not here.
 * Uptime is derived from the share of non-5xx responses; there is no external probe. Point an uptime monitor at `/api/health/ready`.
 * Without the scheduler (below), the Background jobs card shows "No data yet".
+
+## Database performance (added with migration 0028)
+
+System Health has two sections: **Overview** (above) and **Database performance**, both administrators only (`admin_db_overview`, `admin_db_query_report` check `platform_admins` inside the function). Details, thresholds and measurements: `docs/DATABASE_PERFORMANCE.md`.

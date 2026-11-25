@@ -4,6 +4,9 @@
 import { supabase } from '@/lib/supabase'
 import { toAppError } from './errors'
 import { isDemo } from './demo'
+import { invalidateFlags } from './flags'
+import { clampPageSize } from '@lifetrack/core/pagination'
+import { listPageSupabase } from '@lifetrack/data'
 
 export class PlatformUnavailable extends Error {
   constructor(reason) {
@@ -37,6 +40,7 @@ const likeEscape = (s) => s.replace(/[\\%_,()]/g, ' ')
  * The database applies row-level security (and module locks) to every row it returns.
  */
 export async function listAuditEvents({ filters = {}, page = 0, pageSize = 25 } = {}) {
+  pageSize = clampPageSize(pageSize) // one cap for every list (@lifetrack/core/pagination)
   let q = sb().from('audit_events').select(COLS, { count: 'exact' })
   if (filters.actions?.length) q = q.in('action', filters.actions)
   if (filters.entities?.length) q = q.in('entity', filters.entities)
@@ -53,13 +57,33 @@ export async function listAuditEvents({ filters = {}, page = 0, pageSize = 25 } 
   if (error) throw toAppError(error)
   return { rows: data, total: count ?? data.length }
 }
-/** Up to `limit` events for the export (newest first), under the same filters. */
-export async function exportAuditEvents(filters, limit = 5000) {
+/**
+ * Up to `limit` events for the export (newest first), under the same filters. Walks the history by cursor (keyset), not by page number: the cost of each
+ * request stays the same however far back it goes, and a row written meanwhile can not shift the pages. Free-text and record searches use the page route.
+ */
+export async function exportAuditEvents(filters = {}, limit = 5000) {
   const out = []
-  for (let page = 0; out.length < limit; page++) {
-    const { rows } = await listAuditEvents({ filters, page, pageSize: 500 })
-    out.push(...rows)
-    if (rows.length < 500) break
+  if (filters.search || filters.recordId) {
+    for (let page = 0; out.length < limit; page++) {
+      const { rows } = await listAuditEvents({ filters, page, pageSize: 100 })
+      out.push(...rows)
+      if (rows.length < 100) break
+    }
+    return out.slice(0, limit)
+  }
+  const req = {
+    pageSize: 100,
+    count: false,
+    filters: { action: filters.actions, entity: filters.entities, source: filters.source },
+    from: filters.from,
+    to: filters.to,
+  }
+  let cursor = null
+  while (out.length < limit) {
+    const page = await listPageSupabase(sb(), 'audit_events', { ...req, cursor })
+    out.push(...page.items)
+    if (!page.nextCursor) break
+    cursor = page.nextCursor
   }
   return out.slice(0, limit)
 }
@@ -167,3 +191,60 @@ export const systemOverview = () => rpc('admin_system_overview')
 export const systemMetrics = (hours = 24) => rpc('admin_system_metrics', { p_hours: hours })
 export const systemErrors = ({ category, page = 0, pageSize = 20 } = {}) =>
   rpc('admin_system_errors', { p_limit: pageSize, p_offset: page * pageSize, p_category: category ?? null })
+
+// ------------------------------------------------------------------------------------------------------------------ database performance (administrators)
+export const dbOverview = (hours = 24) => rpc('admin_db_overview', { p_hours: hours })
+export const dbQueryReport = (hours = 24) => rpc('admin_db_query_report', { p_hours: hours })
+
+// ------------------------------------------------------------------------------------------------------------------ feature flags (administrators)
+// Every change is checked and recorded by the database; after a write the flags this browser holds are dropped and fetched again.
+const changed = async (promise) => {
+  const out = await promise
+  invalidateFlags()
+  return out
+}
+export const adminFlags = () => rpc('admin_flags')
+export const createFlag = ({ key, name, description, kind, module, defaultValue }) =>
+  changed(
+    rpc('admin_flag_create', {
+      p_key: key,
+      p_name: name,
+      p_description: description ?? '',
+      p_kind: kind ?? 'release',
+      p_module: module || null,
+      p_default: Boolean(defaultValue),
+    }),
+  )
+export const updateFlag = (key, { name, description, module }) =>
+  changed(rpc('admin_flag_update', { p_key: key, p_name: name, p_description: description ?? '', p_module: module || null }))
+export const setFlagEnv = (key, env, patch, reason = '') =>
+  changed(rpc('admin_flag_env_set', { p_key: key, p_env: env, p_patch: patch, p_reason: reason }))
+export const archiveFlag = (key, archived, reason = '') =>
+  changed(rpc('admin_flag_archive', { p_key: key, p_archived: archived, p_reason: reason }))
+export const flagHistory = ({ key, page = 0, pageSize = 20 } = {}) =>
+  rpc('admin_flag_history', { p_key: key ?? null, p_limit: pageSize, p_offset: page * pageSize })
+export const rollbackFlag = (historyId, reason = '') => changed(rpc('admin_flag_rollback', { p_history_id: historyId, p_reason: reason }))
+export const setControls = (patch, reason) => changed(rpc('admin_controls_set', { p_patch: patch, p_reason: reason }))
+export const adminExperiments = () => rpc('admin_experiments')
+export const saveExperiment = ({ key, flagKey, name, hypothesis, traffic, variants, primaryEvent }) =>
+  rpc('admin_experiment_save', {
+    p_key: key,
+    p_flag_key: flagKey,
+    p_name: name,
+    p_hypothesis: hypothesis ?? '',
+    p_traffic: traffic,
+    p_variants: variants,
+    p_primary_event: primaryEvent || 'conversion',
+  })
+export const setExperimentStatus = (key, status, reason = '') =>
+  changed(rpc('admin_experiment_set_status', { p_key: key, p_status: status, p_reason: reason }))
+export const experimentResults = (key) => rpc('admin_experiment_results', { p_key: key })
+
+// The overview is expensive for the database (catalog scans, a few timed queries) and fine to be half a minute old: one load serves everyone who asks at once.
+import { createCache, FRESHNESS } from '@lifetrack/core/cache'
+const adminCache = createCache({ ttlMs: FRESHNESS.admin.ttlMs, maxEntries: 10 })
+export const dbOverviewCached = (hours = 24, { force = false } = {}) =>
+  adminCache.get(adminCache.key('dbperf', 'admin', 'overview', hours), () => dbOverview(hours), { ...FRESHNESS.admin, force })
+export const dbQueryReportCached = (hours = 24, { force = false } = {}) =>
+  adminCache.get(adminCache.key('dbperf', 'admin', 'queries', hours), () => dbQueryReport(hours), { ...FRESHNESS.admin, force })
+export const dbCacheStats = () => adminCache.stats()

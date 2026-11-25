@@ -66,9 +66,39 @@ export const parseDay = (s: string): Date => {
   const [y, m, d] = s.split('-').map(Number)
   return new Date(y, m - 1, d)
 }
-export const fmtDay = (s: string | null | undefined, pattern = 'EEE, d MMM'): string => (s ? format(parseDay(s), pattern) : '')
-export const fmtDateTime = (iso: string, tz: string = DEFAULT_TZ): string =>
-  new Intl.DateTimeFormat('en-IN', { timeZone: tz, day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(iso))
+// ---- display preferences (how dates and clock times are SHOWN; stored values never change)
+export type DateStyle = 'auto' | 'dmy' | 'mdy' | 'ymd'
+export type TimeStyle = 'auto' | '12h' | '24h'
+let displayPrefs: { date: DateStyle; time: TimeStyle } = { date: 'auto', time: 'auto' }
+/** The app sets these from the person's preferences. 'auto' keeps each screen's own wording ("Tue, 24 Nov"). */
+export const setDisplayPrefs = (p: { date?: DateStyle; time?: TimeStyle }): void => {
+  displayPrefs = { date: p.date ?? displayPrefs.date, time: p.time ?? displayPrefs.time }
+}
+export const getDisplayPrefs = () => displayPrefs
+
+/**
+ * Rewrites the day-and-month part of a date-fns pattern into the chosen numeric style ("d MMM yyyy" → "dd/MM/yyyy"). Weekday, month-only and
+ * year-only parts are left alone, and so is a pattern with no day-and-month part.
+ */
+export function localizeDatePattern(pattern: string, style: DateStyle): string {
+  if (style === 'auto') return pattern
+  const numeric = (withYear: boolean) =>
+    style === 'dmy' ? (withYear ? 'dd/MM/yyyy' : 'dd/MM') : style === 'mdy' ? (withYear ? 'MM/dd/yyyy' : 'MM/dd') : withYear ? 'yyyy-MM-dd' : 'MM-dd'
+  return pattern
+    .replace(/\bd{1,2} MMMM? yyyy\b/, numeric(true))
+    .replace(/\bMMMM? d{1,2},? yyyy\b/, numeric(true))
+    .replace(/\bd{1,2} MMMM?\b/, numeric(false))
+    .replace(/\bMMMM? d{1,2}\b/, numeric(false))
+}
+
+export const fmtDay = (s: string | null | undefined, pattern = 'EEE, d MMM'): string =>
+  s ? format(parseDay(s), localizeDatePattern(pattern, displayPrefs.date)) : ''
+export const fmtDateTime = (iso: string, tz: string = DEFAULT_TZ): string => {
+  const hour12 = displayPrefs.time === 'auto' ? undefined : displayPrefs.time === '12h'
+  const locale = { auto: 'en-IN', dmy: 'en-GB', mdy: 'en-US', ymd: 'sv-SE' }[displayPrefs.date]
+  const day = displayPrefs.date === 'auto' ? ({ day: 'numeric', month: 'short' } as const) : ({ day: '2-digit', month: '2-digit' } as const)
+  return new Intl.DateTimeFormat(locale, { timeZone: tz, ...day, hour: 'numeric', minute: '2-digit', hour12 }).format(new Date(iso))
+}
 
 // ---- time-of-day helpers
 export const timeToMinutes = (t: string | null | undefined): number | null => {
@@ -178,10 +208,11 @@ export function localDayMinutes(input: Date | string | number, tz: string = DEFA
 export const minutesToTime = (mins: number): string => `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`
 
 /** A clock time for display: "9:30 AM" (12-hour) or "09:30" (24-hour). `mins` is minutes since midnight. */
-export function fmtClock(mins: number, hour12 = false): string {
+export function fmtClock(mins: number, hour12?: boolean): string {
+  const use12 = hour12 ?? displayPrefs.time === '12h'
   const m = ((Math.round(mins) % 1440) + 1440) % 1440
   const h = Math.floor(m / 60)
   const mm = String(m % 60).padStart(2, '0')
-  if (!hour12) return `${String(h).padStart(2, '0')}:${mm}`
+  if (!use12) return `${String(h).padStart(2, '0')}:${mm}`
   return `${h % 12 === 0 ? 12 : h % 12}:${mm} ${h < 12 ? 'AM' : 'PM'}`
 }

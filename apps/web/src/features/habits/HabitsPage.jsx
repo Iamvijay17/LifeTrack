@@ -42,7 +42,9 @@ export default function HabitsPage() {
   useEffect(() => {
     if (params.get('new') !== '1') return
     setDialog({ open: true, habit: null })
-    setParams({}, { replace: true })
+    const next = new URLSearchParams(params)
+    next.delete('new') // keep the rest (e.g. view=consistency)
+    setParams(next, { replace: true })
   }, [params, setParams])
   const menu = useContextMenu()
   const sel = useSelection(useMemo(() => visible.map((s) => s.habit.id), [visible]))

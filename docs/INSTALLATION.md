@@ -49,7 +49,7 @@ Only **public** values are ever configured. Never put a service-role key anywher
 ## 4. Database setup
 
 1. Create a Supabase project (choose the region nearest you).
-2. SQL Editor → paste and run **`supabase/setup-all.sql`** (all migrations `0001`–`0010`, idempotent). Or with the CLI: `supabase link --project-ref <ref> && supabase db push`.
+2. SQL Editor → paste and run **`supabase/setup-all.sql`** (every migration in `supabase/migrations`, `0001`–`0027` today, idempotent). Or with the CLI: `supabase link --project-ref <ref> && supabase db push`.
 3. Project Settings → API → copy the URL and the anon/publishable key into the `.env.local` files above.
 4. Authentication → URL Configuration: Site URL = your web URL; Redirect URLs: `<web-url>/reset-password`, `http://localhost:5173/reset-password`, `lifetrack://**`, `exp+lifetrack://**` (dev client).
 5. Authentication → Providers → Email: keep confirmation **on** for real use (turn off only for a personal project). Consider disabling sign-ups once your account exists.

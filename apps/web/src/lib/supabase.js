@@ -1,5 +1,6 @@
 import { createSupabaseClient } from '@lifetrack/data'
 import { isSupabaseBackend } from './backend'
+import { queryRecorder, timedFetch } from './queryStats'
 
 /**
  * Labels every DATABASE request (PostgREST, `/rest/v1/`) with where it came from and a fresh id, so the audit log can say "web app, request 4f2a…" and an
@@ -24,9 +25,12 @@ export const supabase = isSupabaseBackend
       url: import.meta.env.VITE_SUPABASE_URL,
       anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
       auth: { detectSessionInUrl: true, flowType: 'pkce' },
-      global: { fetch: requestContextFetch('web') },
+      global: { fetch: timedFetch(requestContextFetch('web')) },
     })
   : null
+
+// Timings of this browser's own database requests go to the administrators' performance view (a sample of sessions, batched, nothing identifying).
+if (supabase) queryRecorder.start((rows) => supabase.rpc('report_query_stats', { p_rows: rows }))
 
 /**
  * A throwaway client for checking a password without touching the live session (see changePassword in @lifetrack/data). It keeps nothing: no stored

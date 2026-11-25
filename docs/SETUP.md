@@ -19,7 +19,7 @@ cp .env.example .env.local
    - `supabase/migrations/0006_push_tokens.sql`
    - `supabase/migrations/0007_savings_atomic.sql`
    - `supabase/migrations/0008_recurring_rules.sql`
-   - then `0009` to `0014` (nutrition, food database, calendar, **security**, notification center, **device keys**); see [DATABASE.md §7](DATABASE.md)
+   - then every later file, `0009` onward, in numeric order (nutrition, food database, calendar, **security**, notification center, **device keys**, and so on up to the newest); see [DATABASE.md §7](DATABASE.md)
 
    (or paste `supabase/setup-all.sql`, which contains all of them)
 

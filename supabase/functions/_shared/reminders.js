@@ -30,8 +30,17 @@ export const KIND_LINK = {
   system: '/notifications',
 }
 
-/** Next date for a repeating reminder strictly after `date` (monthly and yearly clamp to the last day of shorter months, so 29 Feb becomes 28 Feb). */
-export function nextRemindDate(date, repeat) {
+/** The day of the month a monthly or yearly reminder aims for: the one stored when it was set, else the day of its current date. */
+export const anchorDayOf = (r) => Number(r.anchor_day) || Number(String(r.remind_date).slice(8, 10))
+
+/** Fields that tie a reminder's series to the day its date was chosen. Add them whenever a person picks or moves the date. */
+export const withAnchorDay = (row) => ({ ...row, anchor_day: Number(String(row.remind_date).slice(8, 10)) })
+
+/**
+ * Next date for a repeating reminder strictly after `date`. Monthly and yearly clamp to the last day of a shorter month, but aim for `anchorDay`
+ * (default: the day of `date`), so 31 Jan becomes 28 Feb and then 31 Mar rather than 28 Mar, and 29 Feb comes back in the next leap year.
+ */
+export function nextRemindDate(date, repeat, anchorDay) {
   if (repeat === 'daily') return addDays(date, 1)
   if (repeat === 'weekdays') {
     let next = addDays(date, 1)
@@ -41,7 +50,7 @@ export function nextRemindDate(date, repeat) {
   if (repeat === 'weekly') return addDays(date, 7)
   if (repeat === 'monthly' || repeat === 'yearly') {
     const first = addMonths(date.slice(0, 7) + '-01', repeat === 'yearly' ? 12 : 1)
-    const day = Math.min(Number(date.slice(8)), Number(monthEnd(first).slice(8)))
+    const day = Math.min(anchorDay || Number(date.slice(8)), Number(monthEnd(first).slice(8)))
     return first.slice(0, 8) + String(day).padStart(2, '0')
   }
   return null
@@ -59,8 +68,9 @@ export function dueReminders(reminders, today, nowTime) {
 export function afterFire(r, today) {
   if (r.repeat === 'none') return { last_fired_on: today, active: false }
   let next = r.remind_date
+  const anchor = anchorDayOf(r)
   do {
-    next = nextRemindDate(next, r.repeat)
+    next = nextRemindDate(next, r.repeat, anchor)
   } while (next <= today)
   return { last_fired_on: today, remind_date: next }
 }

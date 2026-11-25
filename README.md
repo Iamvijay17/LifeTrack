@@ -35,7 +35,7 @@ cp apps/web/.env.example apps/web/.env.local   # PUBLIC Supabase URL + anon key 
 pnpm dev                          # http://localhost:5173 (without the variables: in-browser DEV mode, not secure)
 ```
 
-Database: run `supabase/setup-all.sql` (migrations 0001–0010) in a Supabase project's SQL editor. Mobile: `cd apps/mobile && cp .env.example .env.local && pnpm start` (development build required). Complete guide: [docs/INSTALLATION.md](docs/INSTALLATION.md).
+Database: run `supabase/setup-all.sql` (every migration in `supabase/migrations`, 0001–0027 today) in a Supabase project's SQL editor. Mobile: `cd apps/mobile && cp .env.example .env.local && pnpm start` (development build required). Complete guide: [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
 | Command | What |
 |---|---|
