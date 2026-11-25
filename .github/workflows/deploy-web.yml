@@ -32,7 +32,7 @@ jobs:
       - name: Legal documents are finished (production only)
         if: ${{ inputs.environment == 'production' }}
         run: node scripts/check-legal-ready.mjs
-      - uses: pnpm/action-setup@v5
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
