@@ -30,7 +30,7 @@ describe('health', () => {
   it('formats', () => {
     expect(signedKg(-1)).toBe('-1.0 kg')
     expect(signedKg(0.5)).toBe('+0.5 kg')
-    expect(historyLine(L('x', { sleep_minutes: 90, water_ml: 250, energy_level: 3 }))).toBe('😴 1h 30m  ·  💧 250 ml  ·  ⚡ 3/5')
+    expect(historyLine(L('x', { sleep_minutes: 90, water_ml: 250, energy_level: 3 }))).toBe('Sleep 1h 30m  ·  Water 250 ml  ·  Energy 3/5')
     expect([0, 1, 5000, 5001, NaN].map(isValidCustomWater)).toEqual([false, true, true, false, false])
   })
 })

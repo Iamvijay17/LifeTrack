@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Briefcase, CalendarPlus, Plus } from 'lucide-react'
+import { SelectionBar, useContextMenu, usePageContextMenu, useSelection } from '@/components/context-menu'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate, EmptyState } from '@/components/shared/states'
 import { Button } from '@/components/ui/button'
@@ -16,6 +18,7 @@ import {
   upcomingInterviews,
 } from '@/domain/jobs'
 import { startOfWeek } from '@/lib/dates'
+import { applicationBulkItems, applicationItems, jobsColumnItems, jobsPageItems } from './contextMenu'
 import { ApplicationDialog } from './ApplicationDialog'
 import { ApplicationDetail } from './ApplicationDetail'
 import { Board } from './Board'
@@ -39,10 +42,19 @@ export default function JobsPage() {
   const [appDlg, setAppDlg] = useState({ open: false, app: null, status: 'interested' })
   const [intDlg, setIntDlg] = useState({ open: false, event: null, appId: null })
   const [openId, setOpenId] = useState(null)
+  const [params, setParams] = useSearchParams()
+  // Deep link from global search and the dashboard: /jobs?app=<id>
+  useEffect(() => {
+    const id = params.get('app')
+    if (!id || loading) return
+    setOpenId(id)
+    setParams({}, { replace: true })
+  }, [params, loading, setParams])
 
   const apps = data.job_applications
   const detail = apps.find((a) => a.id === openId) ?? null
-  const filtered = useMemo(() => filterApplications(apps, filters), [apps, filters])
+  // The status filter is only offered in the table: the board's columns already are the statuses, so it would only empty them silently.
+  const filtered = useMemo(() => filterApplications(apps, view === 'table' ? filters : { ...filters, status: '' }), [apps, filters, view])
   const sources = useMemo(() => applicationSources(apps), [apps])
   const stats = useMemo(
     () => funnel(apps, data.application_history, data.interview_events, ...ALL_TIME),
@@ -56,6 +68,28 @@ export default function JobsPage() {
   const scheduleInterview = (appId) => setIntDlg({ open: true, event: null, appId })
   const editInterview = (event) => setIntDlg({ open: true, event, appId: event.application_id })
   const open = (a) => setOpenId(a.id)
+  const menu = useContextMenu()
+  const sel = useSelection(useMemo(() => filtered.map((a) => a.id), [filtered]))
+  const bulk = (ids) => applicationBulkItems(ids.map((id) => apps.find((a) => a.id === id)).filter(Boolean), { today })
+  usePageContextMenu(() => jobsPageItems({ addApplication, scheduleInterview, hasApps: apps.length > 0 }))
+  const appProps = (a) => ({
+    ...sel.itemProps(a.id),
+    ...menu.bind(
+      () => {
+        const ids = sel.targets(a.id)
+        if (ids.length > 1) return bulk(ids)
+        return applicationItems(a, {
+          today,
+          onOpen: open,
+          onEdit: (app) => setAppDlg({ open: true, app, status: app.status }),
+          onScheduleInterview: scheduleInterview,
+          select: sel.add,
+        })
+      },
+      { label: `Actions for ${a.company}` },
+    ),
+  })
+  const columnProps = (status) => menu.bind(() => jobsColumnItems(status, addApplication), { label: 'Column actions' })
 
   return (
     <>
@@ -75,9 +109,9 @@ export default function JobsPage() {
           </>
         }
       />
-      <DataGate loading={loading} error={error} onRetry={refetch}>
+      <DataGate loading={loading} error={error} onRetry={refetch} skeleton="table">
         <div className="space-y-5">
-          <JobsStats appliedThisWeek={appliedThisWeek} active={activePipelineCount(apps)} total={apps.length} funnel={stats} />
+          <JobsStats appliedThisWeek={appliedThisWeek} active={activePipelineCount(apps)} total={apps.length} funnel={stats} apps={apps} />
           <Reminders followups={followups} upcoming={upcoming} tz={tz} onOpen={open} />
           <JobsToolbar view={view} onViewChange={setView} filters={filters} onFiltersChange={setFilters} sources={sources} />
 
@@ -89,10 +123,10 @@ export default function JobsPage() {
               action={<Button onClick={() => addApplication()}>Add your first application</Button>}
             />
           ) : view === 'board' ? (
-            <Board apps={filtered} today={today} onOpen={open} onAdd={addApplication} />
+            <Board apps={filtered} today={today} onOpen={open} onAdd={addApplication} appProps={appProps} columnProps={columnProps} />
           ) : view === 'table' ? (
             filtered.length ? (
-              <JobsTable apps={filtered} today={today} onOpen={open} />
+              <JobsTable apps={filtered} today={today} onOpen={open} appProps={appProps} />
             ) : (
               <EmptyState title="No matches" description="Try clearing the search or filters." />
             )
@@ -112,6 +146,7 @@ export default function JobsPage() {
         </div>
       </DataGate>
 
+      <SelectionBar selection={sel} noun="application" build={() => bulk([...sel.selected])} />
       <ApplicationDialog
         open={appDlg.open}
         app={appDlg.app}

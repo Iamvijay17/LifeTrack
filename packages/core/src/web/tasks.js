@@ -1,5 +1,5 @@
 // Pure task logic (no React, no Supabase) — shared by the Planner and the dashboard.
-const RANK = { high: 0, medium: 1, low: 2 }
+const RANK = { urgent: 0, high: 1, medium: 2, low: 3 }
 
 export const byPriority = (a, b) => RANK[a.priority] - RANK[b.priority] || a.created_at.localeCompare(b.created_at)
 export const isOpen = (t) => t.status === 'pending' || t.status === 'in_progress'

@@ -7,6 +7,8 @@ import { DateNav } from '@/components/shared/DateNav'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { ConfirmProvider, useConfirm } from '@/components/shared/Confirm'
 import { Heatmap } from '@/components/shared/Heatmap'
+import { Select } from '@/components/ui/form'
+import { pickOption } from '../pickers'
 
 describe('DataGate / states', () => {
   it('shows a skeleton while loading, an alert with retry on error, otherwise the content', async () => {
@@ -108,6 +110,88 @@ describe('FormDialog', () => {
   })
 })
 
+describe('FormDialog: "Discard your changes?" also covers pickers', () => {
+  const dialog = ({ dirty, onOpenChange = () => {} } = {}) =>
+    render(
+      <ConfirmProvider>
+        <FormDialog open onOpenChange={onOpenChange} title="New thing" onSubmit={(e) => e.preventDefault()} dirty={dirty}>
+          <Select aria-label="Kind" defaultValue="a">
+            <option value="a">Apple</option>
+            <option value="b">Banana</option>
+          </Select>
+        </FormDialog>
+      </ConfirmProvider>,
+    )
+  it('closes at once on Escape when nothing was changed', async () => {
+    const onOpenChange = vi.fn()
+    dialog({ onOpenChange })
+    await userEvent.keyboard('{Escape}')
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+  it('a value picked in a Select counts as a change, like typing', async () => {
+    const user = userEvent.setup()
+    const onOpenChange = vi.fn()
+    dialog({ onOpenChange })
+    await pickOption(user, screen.getByLabelText('Kind'), 'b')
+    await user.keyboard('{Escape}')
+    expect(await screen.findByText('Discard your changes?')).toBeInTheDocument()
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+  it('`dirty` (react-hook-form isDirty) counts too, for controls that send no input event', async () => {
+    const onOpenChange = vi.fn()
+    dialog({ dirty: true, onOpenChange })
+    await userEvent.keyboard('{Escape}')
+    expect(await screen.findByText('Discard your changes?')).toBeInTheDocument()
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+})
+
+describe('Select label for values that are not options', () => {
+  it("shows a neutral dash, never another option's label; an empty value with no empty option shows the first option", () => {
+    render(
+      <>
+        <Select aria-label="Category" value="Food" onChange={() => {}}>
+          <option value="">All categories</option>
+          <option>Rent</option>
+        </Select>
+        <Select aria-label="Method" value="" onChange={() => {}}>
+          <option>UPI</option>
+          <option>Cash</option>
+        </Select>
+        <Select aria-label="Type" value="income" onChange={() => {}}>
+          <option value="">All types</option>
+          <option value="income">Income</option>
+        </Select>
+      </>,
+    )
+    expect(screen.getByLabelText('Category')).toHaveTextContent('—')
+    expect(screen.getByLabelText('Category')).not.toHaveTextContent('All categories')
+    expect(screen.getByLabelText('Method')).toHaveTextContent('UPI')
+    expect(screen.getByLabelText('Type')).toHaveTextContent('Income')
+  })
+  it('null or undefined ("none") count as empty: the empty option, else the first option, never the dash', () => {
+    render(
+      <>
+        <Select aria-label="Goal" value={null} onChange={() => {}}>
+          <option value="a">Read more</option>
+          <option value="">None</option>
+        </Select>
+        <Select aria-label="Priority" value={null} onChange={() => {}}>
+          <option value="low">Low</option>
+          <option value="high">High</option>
+        </Select>
+        <Select aria-label="Topic" defaultValue={undefined}>
+          <option value="">—none—</option>
+          <option value="t1">React</option>
+        </Select>
+      </>,
+    )
+    expect(screen.getByLabelText('Goal')).toHaveTextContent('None')
+    expect(screen.getByLabelText('Priority')).toHaveTextContent('Low')
+    expect(screen.getByLabelText('Topic')).toHaveTextContent('—none—')
+  })
+})
+
 describe('useConfirm', () => {
   function Probe({ onResult }) {
     const confirm = useConfirm()
@@ -134,12 +218,12 @@ describe('useConfirm', () => {
 })
 
 describe('Heatmap', () => {
-  it('draws weeks×7 cells, disables future days and reports the selected day', async () => {
+  it('draws a labelled button for each past day (future days are not buttons) and reports the selected day', async () => {
     const onSelect = vi.fn()
     render(<Heatmap levels={new Map([['2026-11-02', 4]])} today="2026-11-04" weeks={2} onSelect={onSelect} />)
     const cells = screen.getAllByRole('button')
-    expect(cells).toHaveLength(14)
-    expect(cells.filter((c) => c.disabled)).toHaveLength(4) // Thu–Sun after Wed 4 Nov
+    expect(cells).toHaveLength(10) // Thu–Sun after Wed 4 Nov have no button
+    expect(cells.every((c) => c.getAttribute('aria-label'))).toBe(true)
     await userEvent.click(screen.getByTitle(/2 Nov 2026/))
     expect(onSelect).toHaveBeenCalledWith('2026-11-02')
   })

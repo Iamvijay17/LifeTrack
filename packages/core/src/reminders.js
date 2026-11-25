@@ -1,4 +1,4 @@
-import { addDays, addMonths, monthEnd } from '@lifetrack/utils'
+import { addDays, addMonths, monthEnd, weekday, zonedToMs } from '@lifetrack/utils'
 
 export const REMINDER_KINDS = [
   { value: 'task', label: 'Task' },
@@ -11,8 +11,10 @@ export const REMINDER_KINDS = [
 export const REPEATS = [
   { value: 'none', label: 'Does not repeat' },
   { value: 'daily', label: 'Daily' },
+  { value: 'weekdays', label: 'Weekdays (Mon to Fri)' },
   { value: 'weekly', label: 'Weekly' },
   { value: 'monthly', label: 'Monthly' },
+  { value: 'yearly', label: 'Yearly' },
 ]
 export const KIND_LINK = {
   task: '/planner',
@@ -21,15 +23,33 @@ export const KIND_LINK = {
   habit: '/habits',
   bill: '/finance',
   custom: '/notifications',
+  job: '/jobs',
+  goal: '/goals',
+  event: '/calendar',
+  system: '/notifications',
 }
 
-/** Next date for a repeating reminder strictly after `date` (monthly clamps to the last day of shorter months). */
-export function nextRemindDate(date, repeat) {
+/** The day of the month a monthly or yearly reminder aims for: the one stored when it was set, else the day of its current date. */
+export const anchorDayOf = (r) => Number(r.anchor_day) || Number(String(r.remind_date).slice(8, 10))
+
+/** Fields that tie a reminder's series to the day its date was chosen. Add them whenever a person picks or moves the date. */
+export const withAnchorDay = (row) => ({ ...row, anchor_day: Number(String(row.remind_date).slice(8, 10)) })
+
+/**
+ * Next date for a repeating reminder strictly after `date`. Monthly and yearly clamp to the last day of a shorter month, but aim for `anchorDay`
+ * (default: the day of `date`), so 31 Jan becomes 28 Feb and then 31 Mar rather than 28 Mar, and 29 Feb comes back in the next leap year.
+ */
+export function nextRemindDate(date, repeat, anchorDay) {
   if (repeat === 'daily') return addDays(date, 1)
+  if (repeat === 'weekdays') {
+    let next = addDays(date, 1)
+    while (weekday(next) === 0 || weekday(next) === 6) next = addDays(next, 1) // Saturday and Sunday are skipped
+    return next
+  }
   if (repeat === 'weekly') return addDays(date, 7)
-  if (repeat === 'monthly') {
-    const first = addMonths(date.slice(0, 7) + '-01', 1)
-    const day = Math.min(Number(date.slice(8)), Number(monthEnd(first).slice(8)))
+  if (repeat === 'monthly' || repeat === 'yearly') {
+    const first = addMonths(date.slice(0, 7) + '-01', repeat === 'yearly' ? 12 : 1)
+    const day = Math.min(anchorDay || Number(date.slice(8)), Number(monthEnd(first).slice(8)))
     return first.slice(0, 8) + String(day).padStart(2, '0')
   }
   return null
@@ -47,13 +67,33 @@ export function dueReminders(reminders, today, nowTime) {
 export function afterFire(r, today) {
   if (r.repeat === 'none') return { last_fired_on: today, active: false }
   let next = r.remind_date
+  const anchor = anchorDayOf(r)
   do {
-    next = nextRemindDate(next, r.repeat)
+    next = nextRemindDate(next, r.repeat, anchor)
   } while (next <= today)
   return { last_fired_on: today, remind_date: next }
 }
 
+/**
+ * The notification a reminder turns into when it fires. With a timezone it also records when the reminder was meant to go off (`due_at`), so one that
+ * fires late, because every device was off, can be shown as missed. The dedupe key is one per reminder per day: devices racing to fire it make one.
+ */
+export const reminderNotification = (r, today, tz) => ({
+  kind: r.kind,
+  title: r.title,
+  body: r.body ?? '',
+  priority: r.priority ?? 'normal',
+  link: KIND_LINK[r.kind] ?? '',
+  due_at: tz ? new Date(reminderDueMs(r, tz)).toISOString() : null,
+  dedupe_key: `reminder:${r.id}:${today}`,
+})
+
 export const unreadCount = (notifications) => notifications.filter((n) => !n.read_at).length
+
+/** The instant a reminder is meant to go off, in the user's timezone (a reminder is a wall-clock time, so it moves with the zone). */
+export const reminderDueMs = (reminder, tz) => zonedToMs(reminder.remind_date, reminder.remind_time.slice(0, 5), tz)
+/** An active reminder whose time has passed (whether or not a device has turned it into a notification yet). `nowTime` is 'HH:MM'. */
+export const isReminderOverdue = (r, today, nowTime) => r.active && (r.remind_date < today || (r.remind_date === today && r.remind_time.slice(0, 5) <= nowTime))
 
 // ---- presentation + runner helpers shared by web and mobile
 /**

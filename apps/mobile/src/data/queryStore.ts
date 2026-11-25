@@ -21,8 +21,10 @@ const TRIGGER_TARGETS: Record<string, string[]> = { job_applications: ['applicat
 
 export function createQueryStore(db: DbAdapter, qc: QueryClient) {
   const rows = (t: string) => qc.getQueryData<Row[]>(tableKey(t)) ?? []
+  // A table that was never fetched is left alone: seeding it with just the written rows made it look loaded (load() then skipped the fetch
+  // and screens showed only those rows). Its first fetch brings everything, the new rows included.
   const merge = (t: string, incoming: Row[]) =>
-    qc.setQueryData<Row[]>(tableKey(t), (cur = []) => {
+    qc.getQueryData(tableKey(t)) === undefined ? undefined : qc.setQueryData<Row[]>(tableKey(t), (cur = []) => {
       const next = [...cur]
       for (const r of incoming) {
         const i = next.findIndex((x) => x.id === r.id)
@@ -32,6 +34,7 @@ export function createQueryStore(db: DbAdapter, qc: QueryClient) {
       return next
     })
   const drop = (t: string, ids: string[]) => {
+    if (qc.getQueryData(tableKey(t)) === undefined) return
     const s = new Set(ids)
     qc.setQueryData<Row[]>(tableKey(t), (cur = []) => cur.filter((r) => !s.has(r.id)))
   }

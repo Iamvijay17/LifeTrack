@@ -1,15 +1,35 @@
 import { getUserId } from './session'
-import { toAppError } from './errors'
+import { AppError, toAppError } from './errors'
 import { ALL_TABLES } from '@lifetrack/constants/schema'
+import { listPageSupabase } from './pagedQuery'
 
 // Stable paging order per table (application_history has changed_at, not created_at).
 const ORDER_COLUMN = { application_history: 'changed_at' }
 const PAGE = 1000 // PostgREST returns at most 1000 rows per request: page through everything.
+const DELETE_SLICE = 100 // ids per delete request (~4 KB of URL)
 
 const check = ({ data, error }) => {
   if (error) throw toAppError(error)
   return data
 }
+// A row that Row Level Security lets you see but not delete (a module locked by another device or the server's auto-lock) makes a delete
+// report 0 rows instead of an error. Anything the delete did not return is looked up again: still there means it was refused.
+const NOT_DELETED = () => new AppError('This could not be deleted. It may be locked: unlock it and try again.', { code: '42501' })
+const confirmDeleted = async (supabase, table, asked, deleted) => {
+  if (deleted.length >= asked.length) return
+  const done = new Set(deleted.map((r) => r.id))
+  const left = check(
+    await supabase
+      .from(table)
+      .select('id')
+      .in(
+        'id',
+        asked.filter((id) => !done.has(id)),
+      ),
+  )
+  if (left.length) throw NOT_DELETED()
+}
+const CONFLICT = () => new AppError('This record was changed somewhere else.', { code: 'CONFLICT' })
 const guard = async (fn) => {
   try {
     return await fn()
@@ -37,8 +57,13 @@ export const createSupabaseAdapter = (supabase) => ({
         rows.push(...data)
         if (data.length < PAGE) break
       }
-      return rows
+      // Offset paging while another device inserts can return a row on two pages: keep each id once so nothing is counted twice.
+      const seen = new Set()
+      return rows.filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)))
     }),
+
+  /** One bounded page of a large list (offset or cursor, sort, filters, search, count). See @lifetrack/core/pagination for the request shape. */
+  listPage: (table, params) => guard(() => listPageSupabase(supabase, table, params)),
 
   insert: (table, rows) =>
     guard(async () => {
@@ -47,10 +72,26 @@ export const createSupabaseAdapter = (supabase) => ({
       return check(await supabase.from(table).insert(list).select())
     }),
 
-  update: (table, id, patch) =>
+  /** One row by id, or null. Used by the offline sync engine to look at the server's current version. */
+  get: (table, id) => guard(async () => check(await supabase.from(table).select('*').eq('id', id).maybeSingle()) ?? null),
+
+  /** Rows matching column = value for every key of `match` (RLS already limits them to this user). */
+  find: (table, match) =>
+    guard(async () => {
+      let q = supabase.from(table).select('*')
+      for (const [k, v] of Object.entries(match)) q = q.eq(k, v)
+      return check(await q)
+    }),
+
+  // `ifUpdatedAt` makes the write conditional on the row not having changed since the caller last saw it (optimistic concurrency):
+  // if it has, nothing is written and a CONFLICT error says so. The timestamp is passed back exactly as the server sent it.
+  update: (table, id, patch, { ifUpdatedAt } = {}) =>
     guard(async () => {
       const { user_id, id: _id, ...clean } = patch
-      return check(await supabase.from(table).update(clean).eq('id', id).select().single())
+      if (!ifUpdatedAt) return check(await supabase.from(table).update(clean).eq('id', id).select().single())
+      const rows = check(await supabase.from(table).update(clean).eq('id', id).eq('updated_at', ifUpdatedAt).select())
+      if (!rows.length) throw CONFLICT()
+      return rows[0]
     }),
 
   upsert: (table, rows, { onConflict = 'id', ignoreDuplicates = false } = {}) =>
@@ -59,14 +100,24 @@ export const createSupabaseAdapter = (supabase) => ({
       return check(await supabase.from(table).upsert(list, { onConflict, ignoreDuplicates }).select())
     }),
 
-  remove: (table, id) =>
+  remove: (table, id, { ifUpdatedAt } = {}) =>
     guard(async () => {
-      check(await supabase.from(table).delete().eq('id', id).select('id'))
+      if (!ifUpdatedAt)
+        return void (await confirmDeleted(supabase, table, [id], check(await supabase.from(table).delete().eq('id', id).select('id'))))
+      const gone = check(await supabase.from(table).delete().eq('id', id).eq('updated_at', ifUpdatedAt).select('id'))
+      if (gone.length) return
+      // Nothing deleted: the row is already gone (fine), or it changed (or is locked): the caller looks at the row to tell which.
+      const left = check(await supabase.from(table).select('id').eq('id', id))
+      if (left.length) throw CONFLICT()
     }),
 
+  // The ids travel in the URL (`id=in.(…)`), so a long list is sent in slices: a few hundred uuids would pass the gateway's URL limit.
   removeMany: (table, ids) =>
     guard(async () => {
-      if (ids.length) check(await supabase.from(table).delete().in('id', ids).select('id'))
+      for (let i = 0; i < ids.length; i += DELETE_SLICE) {
+        const slice = ids.slice(i, i + DELETE_SLICE)
+        await confirmDeleted(supabase, table, slice, check(await supabase.from(table).delete().in('id', slice).select('id')))
+      }
     }),
 
   /** Calls a database function (security invoker, so RLS still applies). */

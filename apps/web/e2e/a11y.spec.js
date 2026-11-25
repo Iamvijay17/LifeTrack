@@ -28,6 +28,7 @@ test('auth pages have no serious accessibility violations', async ({ page }) => 
 })
 
 test('main pages have no serious accessibility violations', async ({ page }) => {
+  test.slow() // one full axe scan per page, sixteen pages
   await register(page)
   for (const path of [
     '/',
@@ -36,6 +37,7 @@ test('main pages have no serious accessibility violations', async ({ page }) => 
     '/jobs',
     '/fitness',
     '/health',
+    '/nutrition',
     '/finance',
     '/habits',
     '/analytics',
@@ -57,11 +59,11 @@ test('main pages have no serious accessibility violations', async ({ page }) => 
 
 test('global search and a form dialog are accessible', async ({ page }) => {
   await register(page)
-  await page.getByRole('button', { name: 'Search', exact: true }).click()
+  await page.getByRole('button', { name: 'Search…', exact: true }).click()
   const box = page.getByRole('combobox', { name: 'Search everything' })
   await box.fill('plan')
   await expect(box).toHaveAttribute('aria-expanded', 'true')
-  await expect(box).toHaveAttribute('aria-activedescendant', /search-opt-0/)
+  await expect(box).toHaveAttribute('aria-activedescendant', /cmd-opt-0/) // the Command Center palette's first result
   const v = await scan(page)
   expect(v, summary(v)).toEqual([])
 })

@@ -12,23 +12,60 @@ const int = () => z.number().int()
 const paise = () => z.number().int().nonnegative()
 const json = <T extends z.ZodTypeAny>(t: T) => t
 const text = () => z.string()
+const nodeKey = z.string().regex(/^(goal|habit|task|milestone|project|area):[0-9a-fA-F-]{8,40}$/, 'Expected kind:id')
+const hex = z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Expected #RRGGBB')
+/** Minutes before the start of an item at which to alert (at most five, up to four weeks ahead). */
+/** Up to ten {pct, title} steps along a challenge. */
+const challengeMilestones = z.array(z.object({ pct: int().min(1).max(100), title: str(1, 80) })).max(10)
+const alerts = z.array(z.number().int().min(0).max(40320)).max(5)
 
-export const TASK_CATEGORIES = ['Learning', 'Job Search', 'Gym', 'Health', 'Personal', 'Finance'] as const
+export const TASK_CATEGORIES = ['Learning', 'Job Search', 'Gym', 'Health', 'Personal', 'Finance', 'Routine', 'Custom'] as const
+export const PRIORITY_VALUES = ['low', 'medium', 'high', 'urgent'] as const
+export const TASK_RECURRENCES = ['none', 'daily', 'weekdays', 'weekly', 'monthly', 'yearly'] as const
+export const CALENDAR_CATEGORIES = ['learning', 'jobs', 'fitness', 'health', 'finance', 'routine', 'personal', 'custom'] as const
 export const JOB_STATUSES = ['interested', 'preparing', 'applied', 'assessment', 'interview', 'selected', 'offer', 'rejected', 'withdrawn'] as const
 export const PAYMENT_METHODS = ['Cash', 'UPI', 'Credit card', 'Debit card', 'Bank transfer', 'Other'] as const
 export const REMINDER_KINDS = ['task', 'study', 'workout', 'habit', 'bill', 'custom'] as const
+export const REMINDER_REPEATS = ['none', 'daily', 'weekdays', 'weekly', 'monthly', 'yearly'] as const
+export const NOTIFICATION_PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const
+export const RECURRING_FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly'] as const
+export const MEAL_TYPES = ['breakfast', 'lunch', 'snack', 'dinner'] as const
+export const CHALLENGE_KINDS = ['daily', 'weekly', 'total'] as const
+export const CHALLENGE_STATUSES = ['active', 'paused', 'completed', 'cancelled'] as const
+
+const nutrient = (max: number) => z.number().min(0).max(max)
+/** Another serving size of a food, as a multiple of its base serving (foods.servings). */
+const foodServing = z.object({ label: z.string().min(1).max(60), factor: z.number().positive().max(100) })
+/** A preparation style with its own nutrition per base serving (foods.variants). */
+const foodVariant = z.object({ label: z.string().min(1).max(60), kcal: nutrient(5000), protein_g: nutrient(500), carbs_g: nutrient(1000), fat_g: nutrient(500), fiber_g: nutrient(200) })
+
+/**
+ * A recurrence rule (calendar_events.rrule), expanded by packages/core/src/calendarRecurrence.js.
+ * `byWeekday` (0 = Sunday) applies to weekly rules; `monthlyBy: 'weekday'` repeats on the same nth weekday of the month as the first occurrence.
+ * `until` is inclusive; `count` is the total number of occurrences including the first. At most one of them is meaningful: `until` wins.
+ */
+export const rruleSchema = z.object({
+  freq: z.enum(RECURRING_FREQUENCIES),
+  interval: int().min(1).max(99).optional(),
+  byWeekday: z.array(int().min(0).max(6)).min(1).max(7).optional(),
+  monthlyBy: z.enum(['date', 'weekday']).optional(),
+  until: day.nullable().optional(),
+  count: int().min(1).max(999).nullable().optional(),
+})
+export type RRule = z.infer<typeof rruleSchema>
 
 /** Writable columns per table. Optional = has a DB default or is nullable. */
 const insertShapes = {
-  profiles: { display_name: str(0, 80).optional() },
+  profiles: { display_name: str(0, 80).optional(), avatar: z.string().max(60000).nullable().optional() },
   user_settings: {
     timezone: text().optional(), currency: text().optional(), theme: z.enum(['dark', 'light', 'system']).optional(),
     daily_study_target_minutes: int().min(0).max(1440).optional(), monthly_budget_paise: paise().optional(),
     water_goal_ml: int().min(0).max(20000).optional(), steps_goal: int().min(0).max(200000).optional(),
     week_starts_on: z.union([z.literal(0), z.literal(1)]).optional(),
+    calendar_prefs: json(z.record(z.string(), z.any())).optional(), appearance_prefs: json(z.record(z.string(), z.any())).optional(), report_prefs: json(z.record(z.string(), z.any())).optional(), onboarding_state: json(z.record(z.string(), z.any())).optional(),
     habit_prefs: json(z.record(z.string(), z.any())).optional(), workout_plan: json(z.record(z.string(), z.any())).optional(), defaults_seeded: z.boolean().optional(),
     score_weights: json(z.record(z.string(), z.number())).optional(), dashboard_widgets: json(z.record(z.string(), z.any())).optional(),
-    notification_prefs: json(z.record(z.string(), z.boolean())).optional(), focus_prefs: json(z.record(z.string(), z.number())).optional(),
+    notification_prefs: json(z.record(z.string(), z.boolean())).optional(), notification_settings: json(z.record(z.string(), z.any())).optional(), automation_prefs: json(z.record(z.string(), z.any())).optional(), focus_prefs: json(z.record(z.string(), z.number())).optional(),
   },
   learning_topics: { group_name: str(1, 60), name: str(1, 80), notes: text().optional(), revision_dates: z.array(day).optional(), archived: z.boolean().optional() },
   goals: {
@@ -38,16 +75,35 @@ const insertShapes = {
     manual_progress: int().min(0).max(100).optional(), completed_at: ts.nullable().optional(),
   },
   tasks: {
-    title: str(1, 200), notes: text().optional(), category: z.enum(TASK_CATEGORIES).optional(), priority: z.enum(['low', 'medium', 'high']).optional(),
+    title: str(1, 200), notes: text().optional(), category: z.enum(TASK_CATEGORIES).optional(), priority: z.enum(PRIORITY_VALUES).optional(),
     status: z.enum(['pending', 'in_progress', 'done', 'skipped', 'cancelled']).optional(), due_date: day.nullable().optional(),
     started_at: ts.nullable().optional(), completed_at: ts.nullable().optional(),
-    recurrence: z.enum(['none', 'daily', 'weekdays', 'weekly', 'monthly']).optional(), recurrence_until: day.nullable().optional(), series_id: uuid.nullable().optional(),
+    recurrence: z.enum(TASK_RECURRENCES).optional(), recurrence_until: day.nullable().optional(), series_id: uuid.nullable().optional(),
+    start_time: time.nullable().optional(), end_time: time.nullable().optional(), color: hex.nullable().optional(), location: str(0, 200).optional(), alert_minutes: alerts.optional(),
   },
   habits: {
     name: str(1, 80), description: text().optional(), color: text().optional(), frequency: z.enum(['daily', 'weekly', 'custom']).optional(),
-    days_of_week: z.array(int().min(0).max(6)).optional(), weekly_target: int().min(1).max(7).optional(), start_date: day.optional(), archived_at: ts.nullable().optional(),
+    days_of_week: z.array(int().min(0).max(6)).optional(), rest_days: z.array(int().min(0).max(6)).optional(), weekly_target: int().min(1).max(7).optional(), start_date: day.optional(), archived_at: ts.nullable().optional(),
   },
-  habit_logs: { habit_id: uuid, log_date: day, status: z.enum(['done', 'skipped', 'rest']).optional(), note: text().optional() },
+  habit_logs: { habit_id: uuid, log_date: day, status: z.enum(['done', 'skipped', 'rest']).optional(), note: text().optional(), recovered_at: ts.nullable().optional() },
+  life_map_nodes: { kind: z.enum(['project', 'area']), title: str(1, 120), notes: str(0, 1000).optional(), category: z.enum(['Learning', 'Career', 'Fitness', 'Health', 'Finance', 'Personal']).optional(), color: hex.nullable().optional(), status: z.enum(['active', 'done']).optional() },
+  life_map_links: { from_key: nodeKey, to_key: nodeKey, label: str(0, 60).optional() },
+  life_map_positions: { node_key: nodeKey, x: z.number().min(-100000).max(100000), y: z.number().min(-100000).max(100000) },
+  habit_pauses: { habit_id: uuid, start_date: day, end_date: day.nullable().optional(), reason: str(0, 200).optional() },
+  challenge_templates: {
+    name: str(1, 80), description: str(0, 500).optional(), kind: z.enum(CHALLENGE_KINDS).optional(), target: int().min(1).max(10_000_000).optional(), unit: str(0, 30).optional(),
+    duration_days: int().min(1).max(731).optional(), category: str(1, 40).optional(), color: hex.optional(), milestones: challengeMilestones.optional(),
+  },
+  challenges: {
+    title: str(1, 120), description: str(0, 1000).optional(), kind: z.enum(CHALLENGE_KINDS).optional(), target: int().min(1).max(10_000_000).optional(), unit: str(0, 30).optional(),
+    start_date: day, end_date: day, status: z.enum(CHALLENGE_STATUSES).optional(), category: str(1, 40).optional(), color: hex.optional(), habit_id: uuid.nullable().optional(),
+    template_key: str(1, 60).nullable().optional(), milestones: challengeMilestones.optional(), pauses: z.array(z.object({ from: day, to: day.nullable() })).max(200).optional(),
+    notes: str(0, 2000).optional(), completed_at: ts.nullable().optional(), cancelled_at: ts.nullable().optional(), final_pct: int().min(0).max(100).nullable().optional(),
+  },
+  challenge_checkins: {
+    challenge_id: uuid, checkin_date: day, amount: int().min(1).max(10_000_000).optional(), note: str(0, 500).optional(),
+    evidence: z.array(z.object({ label: str(0, 80), url: z.string().max(500).regex(/^https?:\/\/[^\s]{1,480}$/, 'Use an http(s) link') })).max(5).optional(),
+  },
   study_sessions: {
     goal_id: uuid.nullable().optional(), topic_id: uuid.nullable().optional(), session_date: day, started_at: ts.optional(), ended_at: ts.nullable().optional(),
     duration_seconds: int().nonnegative().nullable().optional(), status: z.enum(['running', 'completed', 'discarded']).optional(),
@@ -87,9 +143,33 @@ const insertShapes = {
     water_ml: int().min(0).max(20000).optional(), steps: int().min(0).max(200000).optional(), energy_level: int().min(1).max(5).nullable().optional(),
     weight_kg: z.number().min(20).max(500).nullable().optional(), notes: text().optional(),
   },
+  foods: {
+    name: str(1, 80), category: str(1, 40).optional(), base_key: str(1, 60).nullable().optional(), serving_label: str(1, 60).optional(),
+    serving_g: z.number().positive().nullable().optional(), kcal: z.number().min(0).max(5000).optional(), protein_g: z.number().min(0).max(500).optional(),
+    carbs_g: z.number().min(0).max(1000).optional(), fat_g: z.number().min(0).max(500).optional(), fiber_g: z.number().min(0).max(200).optional(),
+    servings: z.array(foodServing).max(12).optional(), variants: z.array(foodVariant).max(12).optional(),
+    aliases: z.array(str(1, 60)).max(12).optional(), source: str(0, 80).optional(), notes: str(0, 300).optional(),
+  },
+  food_logs: {
+    log_date: day, log_time: time.nullable().optional(), meal_type: z.enum(MEAL_TYPES), name: str(1, 120), category: str(1, 40).optional(),
+    food_id: uuid.nullable().optional(), base_key: str(1, 60).nullable().optional(), variant: str(0, 60).optional(),
+    quantity: z.number().positive().max(1000).optional(), serving_label: str(1, 60).optional(),
+    kcal: z.number().min(0).max(20000).optional(), protein_g: z.number().min(0).max(2000).optional(), carbs_g: z.number().min(0).max(4000).optional(),
+    fat_g: z.number().min(0).max(2000).optional(), fiber_g: z.number().min(0).max(1000).optional(), notes: str(0, 300).optional(),
+  },
+  water_logs: { log_date: day, log_time: time.nullable().optional(), amount_ml: int().min(1).max(5000) },
+  nutrition_settings: {
+    calorie_goal: int().min(500).max(10000).nullable().optional(), protein_goal_g: int().min(1).max(1000).nullable().optional(),
+    carbs_goal_g: int().min(1).max(2000).nullable().optional(), fat_goal_g: int().min(1).max(1000).nullable().optional(),
+    fiber_goal_g: int().min(1).max(500).nullable().optional(), favorite_foods: z.array(z.string().min(1).max(80)).max(200).optional(),
+  },
   transactions: {
     type: z.enum(['income', 'expense', 'savings']), amount_paise: z.number().int().positive(), category: text().optional(), txn_date: day,
-    note: text().optional(), payment_method: z.enum(PAYMENT_METHODS).optional(),
+    note: text().optional(), payment_method: z.enum(PAYMENT_METHODS).optional(), recurring_rule_id: uuid.nullable().optional(), recurring_date: day.nullable().optional(),
+  },
+  recurring_rules: {
+    type: z.enum(['income', 'expense', 'savings']), amount_paise: z.number().int().positive(), category: str(1, 40).optional(), payment_method: z.enum(PAYMENT_METHODS).optional(),
+    note: str(0, 300).optional(), frequency: z.enum(RECURRING_FREQUENCIES).optional(), anchor_day: int().min(1).max(31), next_date: day, end_date: day.nullable().optional(), active: z.boolean().optional(),
   },
   budgets: { month: day.refine((d) => d.endsWith('-01'), 'Must be the first day of a month'), category: text().optional(), amount_paise: paise() },
   journal_entries: { entry_date: day, mood: int().min(1).max(5).nullable().optional(), content: text().optional(), wins: text().optional() },
@@ -105,12 +185,45 @@ const insertShapes = {
   savings_goals: { name: str(1, 80), target_paise: z.number().int().positive(), saved_paise: paise().optional(), target_date: day.nullable().optional() },
   reminders: {
     kind: z.enum(REMINDER_KINDS).optional(), title: str(1, 160), remind_date: day, remind_time: time.optional(),
-    repeat: z.enum(['none', 'daily', 'weekly', 'monthly']).optional(), active: z.boolean().optional(), last_fired_on: day.nullable().optional(),
+    repeat: z.enum(REMINDER_REPEATS).optional(), active: z.boolean().optional(), last_fired_on: day.nullable().optional(), anchor_day: z.number().int().min(1).max(31).nullable().optional(),
+    priority: z.enum(NOTIFICATION_PRIORITIES).optional(), body: str(0, 500).optional(),
   },
   device_push_tokens: { token: z.string().regex(/^(Expo|Exponent)PushToken\[[^\]]+\]$/), platform: z.enum(['ios', 'android']), device_name: str(0, 80).optional(), last_seen_at: ts.optional() },
   notifications: {
-    kind: z.enum([...REMINDER_KINDS, 'system']).optional(), title: str(1, 200), body: text().optional(), link: text().optional(),
-    dedupe_key: text().nullable().optional(), read_at: ts.nullable().optional(),
+    kind: z.enum([...REMINDER_KINDS, 'system', 'event', 'job', 'goal']).optional(), title: str(1, 200), body: text().optional(), link: text().optional(),
+    dedupe_key: text().nullable().optional(), read_at: ts.nullable().optional(), priority: z.enum(NOTIFICATION_PRIORITIES).optional(),
+    due_at: ts.nullable().optional(), snoozed_until: ts.nullable().optional(), dismissed_at: ts.nullable().optional(),
+  },
+  calendar_events: {
+    title: str(1, 200), description: str(0, 4000).optional(), location: str(0, 200).optional(), category: z.enum(CALENDAR_CATEGORIES).optional(),
+    category_label: str(0, 40).optional(), priority: z.enum(PRIORITY_VALUES).optional(), color: hex.nullable().optional(), all_day: z.boolean().optional(),
+    starts_at: ts, ends_at: ts, timezone: str(1, 64).optional(), rrule: rruleSchema.nullable().optional(), alert_minutes: alerts.optional(),
+    goal_id: uuid.nullable().optional(), topic_id: uuid.nullable().optional(), application_id: uuid.nullable().optional(), routine_id: uuid.nullable().optional(),
+    external_provider: z.literal('google_calendar').nullable().optional(), external_id: z.string().max(1024).nullable().optional(), external_hash: z.string().max(64).nullable().optional(),
+  },
+  calendar_event_exceptions: {
+    event_id: uuid, occurrence_date: day, status: z.enum(['modified', 'cancelled']).optional(),
+    title: str(1, 200).nullable().optional(), description: str(0, 4000).nullable().optional(), location: str(0, 200).nullable().optional(),
+    category: z.enum(CALENDAR_CATEGORIES).nullable().optional(), priority: z.enum(PRIORITY_VALUES).nullable().optional(), color: hex.nullable().optional(),
+    all_day: z.boolean().nullable().optional(), starts_at: ts.nullable().optional(), ends_at: ts.nullable().optional(), alert_minutes: alerts.nullable().optional(),
+  },
+  task_reschedules: {
+    task_id: uuid, title: str(0, 200).optional(), action: z.enum(['rescheduled', 'dismissed']), source: z.enum(['recovery', 'rebalance', 'manual']).optional(),
+    from_date: day, from_start: time.nullable().optional(), from_end: time.nullable().optional(),
+    to_date: day.nullable().optional(), to_start: time.nullable().optional(), to_end: time.nullable().optional(),
+    reason: str(0, 500).optional(), batch_id: uuid.nullable().optional(), dedupe_key: str(1, 200).nullable().optional(),
+    hide_until: day.nullable().optional(), undone_at: ts.nullable().optional(),
+  },
+  automation_workflows: {
+    name: str(1, 120), description: str(0, 500).optional(), enabled: z.boolean().optional(), trigger_kind: str(0, 40).optional(),
+    graph: json(z.object({ nodes: z.array(z.any()).max(30), edges: z.array(z.any()).max(90) })).optional(), template_key: str(0, 60).nullable().optional(),
+    max_runs_per_day: int().min(1).max(200).optional(), activated_at: ts.nullable().optional(),
+  },
+  automation_executions: {
+    workflow_id: uuid.nullable().optional(), workflow_name: str(0, 120).optional(), trigger_kind: str(0, 40).optional(), trigger_info: json(z.record(z.string(), z.any())).optional(),
+    status: z.enum(['pending', 'running', 'completed', 'failed', 'skipped']).optional(), attempt: int().min(1).max(10).optional(), steps: json(z.array(z.any())).optional(),
+    reason: str(0, 500).optional(), error: str(0, 1000).optional(), retryable: z.boolean().optional(), dedupe_key: str(1, 300).nullable().optional(),
+    started_at: ts.nullable().optional(), finished_at: ts.nullable().optional(),
   },
 } satisfies Record<string, z.ZodRawShape>
 

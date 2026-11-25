@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest'
+import { pickTime } from './pickers'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -15,7 +16,7 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 import { DailyLogForm } from '@/features/health/DailyLogForm'
 import { WaterDialog } from '@/features/health/WaterDialog'
 import { HealthStats } from '@/features/health/HealthStats'
-import { HealthHistory, describeLog } from '@/features/health/HealthHistory'
+import { HealthHistory, logFacts } from '@/features/health/HealthHistory'
 
 const DAY = '2026-11-02'
 const H = (o) => ({
@@ -125,29 +126,34 @@ describe('health domain', () => {
       false,
       false,
     ])
+    // water and steps are integer columns: a decimal is refused here instead of by the database (22P02)
+    const steps = numberInRange(0, 200000, 'Steps', { int: true })
+    expect(steps.safeParse('8000').success).toBe(true)
+    expect(steps.safeParse('').success).toBe(true)
+    expect(steps.safeParse('8000.5').error.issues[0].message).toBe('Steps: use a whole number')
   })
 })
 
 describe('DailyLogForm', () => {
   const form = (p = {}) => render(<DailyLogForm day={DAY} today={DAY} log={undefined} onDayChange={() => {}} {...p} />)
-  const submit = () => document.querySelector('form button[type=submit]')
+  const submit = () => document.querySelector('button[type=submit]')
 
   it('shows the live sleep duration for an overnight sleep', async () => {
     const user = userEvent.setup()
     form()
-    fireEvent.change(screen.getByLabelText('Bedtime'), { target: { value: '23:30' } })
-    fireEvent.change(screen.getByLabelText('Wake-up'), { target: { value: '06:30' } })
+    await pickTime(user, screen.getByLabelText('Bedtime'), '23:30')
+    await pickTime(user, screen.getByLabelText('Wake-up'), '06:30')
     expect(await screen.findByTestId('sleep-duration')).toHaveTextContent('7h')
     expect(user).toBeTruthy()
   })
   it('requires both times together and rejects identical ones', async () => {
     const user = userEvent.setup()
     form()
-    fireEvent.change(screen.getByLabelText('Bedtime'), { target: { value: '23:00' } })
+    await pickTime(user, screen.getByLabelText('Bedtime'), '23:00')
     await user.click(submit())
     expect(await screen.findByText('Enter both bedtime and wake-up time')).toBeInTheDocument()
     expect(mocks.saveHealth).not.toHaveBeenCalled()
-    fireEvent.change(screen.getByLabelText('Wake-up'), { target: { value: '23:00' } })
+    await pickTime(user, screen.getByLabelText('Wake-up'), '23:00')
     await user.click(submit())
     expect(await screen.findByText('Bedtime and wake-up time can’t be identical')).toBeInTheDocument()
   })
@@ -164,7 +170,7 @@ describe('DailyLogForm', () => {
     const user = userEvent.setup()
     form()
     await user.type(screen.getByLabelText('Water (ml)'), '500')
-    await user.click(screen.getByRole('button', { name: 'Energy 4' }))
+    await user.click(screen.getByRole('button', { name: 'Energy 4 of 5' }))
     await user.click(submit())
     await waitFor(() =>
       expect(mocks.saveHealth).toHaveBeenCalledWith(
@@ -243,8 +249,7 @@ describe('WaterDialog', () => {
     await waitFor(() => expect(mocks.addWater).toHaveBeenCalledWith(DAY, 330))
     await waitFor(() => expect(screen.getByLabelText('Custom amount in ml')).toHaveValue(null))
   })
-  it('shows progress against the goal and offers Undo only when there is water to undo', async () => {
-    const user = userEvent.setup()
+  it('shows progress against the goal and offers Undo only for a drink added here', () => {
     const { unmount } = open()
     expect(screen.queryByRole('button', { name: /Undo last/ })).toBeNull()
     expect(screen.getByText(/0 ml of 3000 ml today/)).toBeInTheDocument()
@@ -252,8 +257,19 @@ describe('WaterDialog', () => {
     mocks.rows = [H({ water_ml: 1500 })]
     open()
     expect(screen.getByText(/1500 ml of 3000 ml today/)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Undo last 250 ml' }))
-    await waitFor(() => expect(mocks.addWater).toHaveBeenCalledWith(DAY, -250))
+    expect(screen.queryByRole('button', { name: /Undo last/ })).toBeNull() // nothing added here yet: no amount to take back
+  })
+  it('Undo takes back exactly the last amount added, and says so', async () => {
+    const { toast } = await import('sonner')
+    const user = userEvent.setup()
+    mocks.rows = [H({ water_ml: 1500 })]
+    open()
+    await user.click(screen.getByRole('button', { name: '500' }))
+    await waitFor(() => expect(toast.success).toHaveBeenLastCalledWith('Water logged'))
+    await user.click(await screen.findByRole('button', { name: 'Undo last 500 ml' }))
+    await waitFor(() => expect(mocks.addWater).toHaveBeenLastCalledWith(DAY, -500))
+    await waitFor(() => expect(toast.success).toHaveBeenLastCalledWith('Last drink removed'))
+    expect(screen.queryByRole('button', { name: /Undo last/ })).toBeNull() // one undo per drink
   })
 })
 
@@ -269,7 +285,7 @@ describe('HealthStats and HealthHistory', () => {
       />,
     )
     expect(screen.getByText('7h 30m')).toBeInTheDocument()
-    expect(screen.getByText('5 nights logged')).toBeInTheDocument()
+    expect(screen.getByText(/5 nights logged/)).toBeInTheDocument()
     expect(screen.getByText('1000 ml')).toBeInTheDocument()
     expect(screen.getByText('goal 3000 ml')).toBeInTheDocument()
     expect(screen.getByText('-1.5 kg since first log')).toBeInTheDocument()
@@ -294,14 +310,19 @@ describe('HealthStats and HealthHistory', () => {
   it('history lists only the metrics that were logged and opens the chosen day', async () => {
     const user = userEvent.setup()
     const onSelect = vi.fn()
-    expect(describeLog(H({ sleep_minutes: null, water_ml: 0, steps: 0, energy_level: null, weight_kg: null }))).toBe('')
-    expect(describeLog(H())).toBe('😴 7h  ·  💧 1000 ml  ·  👟 4,000  ·  ⚡ 3/5  ·  80.5 kg')
+    expect(logFacts(H({ sleep_minutes: null, water_ml: 0, steps: 0, energy_level: null, weight_kg: null }))).toEqual([])
+    expect(logFacts(H()).map((f) => f.text)).toEqual(['7h', '1000 ml', '4,000', '3/5', '80.5 kg'])
     render(<HealthHistory logs={[H()]} onSelect={onSelect} />)
     await user.click(screen.getByRole('button', { name: /Mon, 2 Nov/ }))
     expect(onSelect).toHaveBeenCalledWith(DAY)
   })
-  it('history has an empty state', () => {
-    render(<HealthHistory logs={[]} onSelect={() => {}} />)
-    expect(screen.getByText('Your daily logs will appear here.')).toBeInTheDocument()
+  it('history has an empty state with a next step that opens today', async () => {
+    const user = userEvent.setup()
+    const onSelect = vi.fn()
+    render(<HealthHistory logs={[]} onSelect={onSelect} />)
+    expect(screen.getByText('No daily logs yet')).toBeInTheDocument()
+    expect(screen.getByText(/For example: 7h 30m sleep/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Log today' }))
+    expect(onSelect).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/))
   })
 })

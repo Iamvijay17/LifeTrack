@@ -19,7 +19,7 @@ test.describe('finance', () => {
     const dlg = page.getByRole('dialog')
     await dlg.getByRole('tab', { name: 'Income' }).click()
     // Regression: the dropdown used to display "Other" while "Salary" was what got saved.
-    await expect(dlg.getByLabel('Category')).toHaveValue('Salary')
+    await expect(dlg.getByLabel('Category')).toHaveText('Salary')
     await dlg.getByLabel(/Amount/).fill('50000')
     await dlg.getByRole('button', { name: 'Save' }).click()
     const row = page.getByRole('listitem').filter({ hasText: 'Salary' })

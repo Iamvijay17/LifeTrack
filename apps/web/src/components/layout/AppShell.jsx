@@ -1,46 +1,122 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
+import { useLocation, useOutlet } from 'react-router-dom'
+import { toast } from 'sonner'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { PageLoader } from '@/components/loaders/PageLoader'
 import { messageForPath } from '@/components/loaders/messages'
-import { Outlet, useLocation } from 'react-router-dom'
+import { ChartGradients } from '@/components/shared/chartParts'
+import { AnimatePresence, ease, m } from '@/components/motion/primitives'
 import { Sidebar } from './Sidebar'
 import { MobileNav } from './MobileNav'
-import { Banners, SaveStatus, LiveDot } from './StatusIndicators'
+import { Banners, SaveStatus, LiveDot, SyncPill } from './StatusIndicators'
+import { SyncCenter } from '@/components/sync/SyncCenter'
 import { Logo } from './Logo'
 import { GlobalSearch } from './GlobalSearch'
 import { NotificationBell } from './NotificationBell'
 import { ProfileMenu } from './ProfileMenu'
 import { useReminderRunner } from '@/features/notifications/useReminderRunner'
+import { useNotificationDelivery } from '@/features/notifications/useNotificationDelivery'
+import { useSmartNotifications } from '@/features/notifications/useSmartNotifications'
+import { useRecurringRunner } from '@/features/finance/useRecurringRunner'
+import { useCalendarAlerts } from '@/features/calendar/useCalendarAlerts'
+import { useAutomationRunner } from '@/features/automation/useAutomation'
+import { useCompanionShortcut } from '@/features/companion/useCompanionShortcut'
+import { ContextMenuProvider, useContextMenu } from '@/components/context-menu'
 import { QuickAddMenu, QuickFab, QuickActionsProvider } from '@/features/quick/QuickActions'
+import { CommandCenterProvider } from '@/features/command/CommandCenter'
 import { useSettings } from '@/hooks/useSettings'
 import { useThemeSync } from '@/hooks/useTheme'
+import { useUndoShortcuts } from '@/hooks/useUndoShortcuts'
+import { DemoChip } from '@/features/demo/Demo'
+import { exitDemo } from '@/services/demo'
+import { useOnboardingSync } from '@/hooks/useOnboarding'
+import { OnboardingFlow } from '@/features/onboarding/OnboardingFlow'
+import { TourProvider } from '@/features/tour/TourProvider'
+import { setAppearance, useAppearance, useAppearanceSync } from '@/hooks/useAppearance'
 import { seedDefaults } from '@/services/api'
-import { toast } from 'sonner'
+import { moduleForPath, navItemForPath } from '@/lib/modules'
+import { pageTitle } from '@/lib/nav'
 import { cn } from '@/lib/utils'
 
-const read = () => {
-  try {
-    return localStorage.getItem('lifetrack:sidebar') === '1'
-  } catch {
-    return false
-  }
+/** The sticky top bar. On its own so that crossing the scroll threshold repaints only this, and its hairline appears only once content is under it. */
+function Header() {
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const check = () => setScrolled(window.scrollY > 4) // React skips the render when the answer hasn't changed
+    check()
+    window.addEventListener('scroll', check, { passive: true })
+    return () => window.removeEventListener('scroll', check)
+  }, [])
+  const { pathname } = useLocation()
+  const here = navItemForPath(pathname)
+  const Icon = here?.icon
+  return (
+    <header
+      data-native-menu=""
+      className={cn(
+        'sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b px-4 transition-colors duration-200 md:px-6',
+        scrolled ? 'lt-glass border-border' : 'border-transparent',
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="md:hidden">
+          <Logo />
+        </div>
+        {here && (
+          <m.span
+            key={here.to}
+            initial={{ opacity: 0, x: -6 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.2, ease: ease.out }}
+            className="hidden items-center gap-1.5 whitespace-nowrap text-[13px] font-medium text-muted-foreground xl:flex"
+          >
+            <Icon className="h-3.5 w-3.5 text-mod-text" aria-hidden />
+            {here.label}
+          </m.span>
+        )}
+        <GlobalSearch />
+      </div>
+      <div className="flex items-center gap-2 sm:gap-3">
+        <DemoChip />
+        <SaveStatus />
+        <SyncPill />
+        <LiveDot />
+        <QuickAddMenu />
+        <NotificationBell />
+        <ProfileMenu />
+      </div>
+    </header>
+  )
 }
 
-export function AppShell() {
-  const [collapsed, setCollapsed] = useState(read)
-  const toggle = () =>
-    setCollapsed((c) => {
-      try {
-        localStorage.setItem('lifetrack:sidebar', c ? '0' : '1')
-      } catch {
-        /* preference only */
-      }
-      return !c
-    })
+/**
+ * The background jobs that run while the app is open. They read the data tables (tasks, reminders, notifications…), so they live in their own
+ * component: a change to one of those tables re-renders this, not the sidebar, header and navigation around every page.
+ */
+function Runners() {
+  useReminderRunner()
+  useSmartNotifications()
+  useNotificationDelivery()
+  useRecurringRunner()
+  useCalendarAlerts()
+  useAutomationRunner()
+  useCompanionShortcut()
+  return null
+}
+
+function Shell() {
+  const menu = useContextMenu()
+  const { sidebar } = useAppearance()
+  const collapsed = sidebar.collapsed
+  const toggle = () => setAppearance({ sidebar: { collapsed: !collapsed } })
   const { pathname } = useLocation()
+  const outlet = useOutlet()
   const main = useRef(null)
   useThemeSync()
-  useReminderRunner()
+  useAppearanceSync()
+  useOnboardingSync()
+  useEffect(() => () => void exitDemo(), []) // signing out (or leaving the app) always ends a demo
+  useUndoShortcuts()
 
   // First sign-in on any device: create default topics / exercise library once (idempotent via unique keys).
   const { row, loading } = useSettings()
@@ -57,42 +133,89 @@ export function AppShell() {
   useEffect(() => {
     main.current?.focus({ preventScroll: true })
     window.scrollTo(0, 0)
+    document.title = pageTitle(pathname)
   }, [pathname])
+
+  // The whole app takes on the module's colour: the ambient light, charts, progress and active states.
+  const module = moduleForPath(pathname)
+  useEffect(() => {
+    const root = document.documentElement
+    root.dataset.module = module
+    return () => {
+      delete root.dataset.module
+    }
+  }, [module])
 
   return (
     <QuickActionsProvider>
-      <a
-        href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-primary focus:px-3 focus:py-1.5 focus:text-white"
-      >
-        Skip to content
-      </a>
-      <Sidebar collapsed={collapsed} onToggle={toggle} />
-      <div className={cn('min-h-dvh transition-[padding] duration-200', collapsed ? 'md:pl-16' : 'md:pl-60')}>
-        <Banners />
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-background/85 px-4 backdrop-blur md:px-6">
-          <div className="md:hidden">
-            <Logo />
+      <CommandCenterProvider>
+        <TourProvider>
+          <a
+            href="#main"
+            className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-primary-solid focus:px-3 focus:py-1.5 focus:text-white"
+          >
+            Skip to content
+          </a>
+          <Runners />
+          <ChartGradients />
+          <AnimatePresence initial={false}>
+            <m.div
+              key={module}
+              aria-hidden
+              data-module={module}
+              className="lt-ambient"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8 }}
+            />
+          </AnimatePresence>
+          <Sidebar collapsed={collapsed} onToggle={toggle} />
+          {/* Right-clicking the page's empty space opens the menu the page registered (usePageContextMenu); the header keeps the browser's own. */}
+          <div
+            className={cn('min-h-dvh transition-[padding] duration-200 ease-out', collapsed ? 'md:pl-[68px]' : 'md:pl-60')}
+            {...menu.pageProps({ label: 'Page actions' })}
+          >
+            <Banners />
+            <Header />
+            <main
+              id="main"
+              ref={main}
+              tabIndex={-1}
+              className="mx-auto w-full max-w-[76rem] px-4 pb-28 pt-4 outline-none focus-visible:ring-0 md:px-6 md:pb-10 md:pt-5 min-[1536px]:max-w-[96rem] min-[1920px]:max-w-[120rem] min-[1920px]:px-10"
+            >
+              {/* A page leaves quickly and the next one rises in. Nothing here waits on data: each page shows its own skeleton. */}
+              <AnimatePresence mode="wait" initial={false}>
+                <m.div
+                  key={pathname}
+                  data-reveal
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, transition: { duration: 0.09, ease: ease.in } }}
+                  transition={{ duration: 0.26, ease: ease.out }}
+                >
+                  <ErrorBoundary variant="section" resetKey={pathname}>
+                    <Suspense fallback={<PageLoader message={messageForPath(pathname)} />}>{outlet}</Suspense>
+                  </ErrorBoundary>
+                </m.div>
+              </AnimatePresence>
+            </main>
           </div>
-          <GlobalSearch />
-          <div className="flex items-center gap-2 sm:gap-3">
-            <SaveStatus />
-            <LiveDot />
-            <QuickAddMenu />
-            <NotificationBell />
-            <ProfileMenu />
-          </div>
-        </header>
-        <main id="main" ref={main} tabIndex={-1} className="mx-auto w-full max-w-6xl px-4 pb-28 pt-5 outline-none md:px-6 md:pb-10">
-          <ErrorBoundary variant="section" resetKey={pathname}>
-            <Suspense fallback={<PageLoader message={messageForPath(pathname)} />}>
-              <Outlet />
-            </Suspense>
-          </ErrorBoundary>
-        </main>
-      </div>
-      <MobileNav />
-      <QuickFab />
+          <MobileNav />
+          <SyncCenter />
+          <QuickFab />
+          <OnboardingFlow />
+        </TourProvider>
+      </CommandCenterProvider>
     </QuickActionsProvider>
+  )
+}
+
+/** The signed-in shell. The context-menu provider lives here (not above the router) because it needs the module locks of the signed-in session. */
+export function AppShell() {
+  return (
+    <ContextMenuProvider>
+      <Shell />
+    </ContextMenuProvider>
   )
 }

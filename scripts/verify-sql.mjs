@@ -1,9 +1,10 @@
 // Applies the migrations to an in-memory Postgres (PGlite) with a minimal Supabase auth stub,
 // then proves RLS isolation, history triggers and key constraints. Run: npm run test:sql
 import { PGlite } from '@electric-sql/pglite'
+import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto'
 import { readFileSync, readdirSync } from 'node:fs'
 
-const db = new PGlite()
+const db = new PGlite({ extensions: { pgcrypto } })
 let failed = 0
 const check = (name, ok, extra = '') => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? '' : '  ' + extra}`)
@@ -11,14 +12,17 @@ const check = (name, ok, extra = '') => {
 }
 
 await db.exec(`
+  create schema extensions;
   create schema auth;
   create table auth.users (id uuid primary key default gen_random_uuid(), email text, raw_user_meta_data jsonb default '{}');
+  create table auth.sessions (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), updated_at timestamptz, user_agent text, ip inet, not_after timestamptz);
   create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
-  create role anon nologin; create role authenticated nologin;
-  grant usage on schema public, auth to anon, authenticated;
-  grant execute on function auth.uid() to anon, authenticated;
+  create function auth.jwt() returns jsonb language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
+  create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
+  grant usage on schema public, auth, extensions to anon, authenticated, service_role;
+  grant execute on function auth.uid(), auth.jwt() to anon, authenticated, service_role;
   create publication supabase_realtime;
-  alter default privileges in schema public grant all on tables to anon, authenticated;
+  alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
 `)
 for (const f of readdirSync('supabase/migrations').sort()) {
   await db.exec(readFileSync(`supabase/migrations/${f}`, 'utf8'))

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "LifeTrack Companion",
+  "version": "0.1.0",
+  "identifier": "app.lifetrack.companion",
+  "build": { "frontendDist": "../dist" },
+  "app": {
+    "windows": [
+      {
+        "label": "companion",
+        "title": "LifeTrack Companion",
+        "url": "https://YOUR-LIFETRACK-DEPLOYMENT.example/companion",
+        "width": 380,
+        "height": 640,
+        "minWidth": 320,
+        "minHeight": 140,
+        "alwaysOnTop": true,
+        "resizable": true,
+        "visible": true
+      }
+    ],
+    "security": { "csp": null }
+  },
+  "bundle": { "active": true, "targets": "all", "icon": ["icons/icon.png"] }
+}

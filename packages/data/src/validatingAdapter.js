@@ -19,7 +19,7 @@ export function withSchemaValidation(adapter, { insertSchemas, updateSchemas }) 
   return {
     ...adapter,
     insert: (t, rows) => { rows.forEach((r) => check(insertSchemas, t, r, 'insert')); return adapter.insert(t, rows) },
-    update: (t, id, patch) => { check(updateSchemas, t, patch, 'update'); return adapter.update(t, id, patch) },
+    update: (t, id, patch, o) => { check(updateSchemas, t, patch, 'update'); return adapter.update(t, id, patch, o) },
     upsert: (t, rows, opts) => { rows.forEach((r) => check(updateSchemas, t, r, 'upsert')); return adapter.upsert(t, rows, opts) },
   }
 }

@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { View } from 'react-native'
-import { REMINDER_KINDS, REPEATS, clientNowTime } from '@lifetrack/core/reminders'
+import { REMINDER_KINDS, REPEATS, clientNowTime, withAnchorDay } from '@lifetrack/core/reminders'
 import { blankReminder, reminderFormSchema, reminderToForm, reminderToPayload } from '@lifetrack/schemas'
 import { timeStrInTz, todayStr } from '@lifetrack/utils'
 import { api, store } from '../../data/client'
@@ -18,12 +18,12 @@ export function ReminderForm({ visible, reminder, today, onClose }: { visible: b
   const [save, pending] = useAction(async () => {
     const v = validate()
     if (!v) return
-    const row = reminderToPayload(v) // saving re-arms the reminder
+    const row = withAnchorDay(reminderToPayload(v)) // saving re-arms the reminder
     if (reminder) await store.update('reminders', reminder.id, row); else await store.insert('reminders', row)
     onClose()
     // A reminder that is already due notifies immediately, as on web (an explicit action, so no grace period).
     const tz = settings.timezone
-    await api.fireDueReminders(todayStr(tz), timeStrInTz(new Date(), tz), settings.notification_prefs).catch(() => {})
+    await api.fireDueReminders(todayStr(tz), timeStrInTz(new Date(), tz), settings.notification_prefs, { tz }).catch(() => {})
   })
   return (
     <Sheet visible={visible} title={reminder ? 'Edit reminder' : 'New reminder'} onClose={onClose} footer={<Button title={reminder ? 'Save changes' : 'Set reminder'} onPress={save} loading={pending} />}>

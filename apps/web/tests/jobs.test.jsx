@@ -1,4 +1,6 @@
 import '@testing-library/jest-dom/vitest'
+import { pickOption, pickDate, pickTime } from './pickers'
+import { useState } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent, within, renderHook, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -21,8 +23,19 @@ import {
 } from '@/domain/jobs'
 import { formatLpa } from '@/lib/money'
 
-const mocks = vi.hoisted(() => ({ insert: vi.fn(), update: vi.fn(), remove: vi.fn(), setStatus: vi.fn(), confirm: vi.fn() }))
-vi.mock('@/hooks/store', () => ({ insert: mocks.insert, update: mocks.update, remove: mocks.remove }))
+const mocks = vi.hoisted(() => ({ insert: vi.fn(), update: vi.fn(), remove: vi.fn(), setStatus: vi.fn(), confirm: vi.fn(), tables: {} }))
+vi.mock('@/hooks/store', () => ({
+  insert: mocks.insert,
+  update: mocks.update,
+  remove: mocks.remove,
+  useTable: (t) => ({ rows: mocks.tables[t] ?? [], loading: false, error: null }),
+  useTables: (...names) => ({
+    data: Object.fromEntries(names.map((t) => [t, mocks.tables[t] ?? []])),
+    loading: false,
+    error: null,
+    refetch: () => {},
+  }),
+}))
 vi.mock('@/services/api', () => ({ setApplicationStatus: mocks.setStatus }))
 vi.mock('@/components/shared/Confirm', () => ({ useConfirm: () => mocks.confirm }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
@@ -34,6 +47,8 @@ import { StatusHistory } from '@/features/jobs/StatusHistory'
 import { Board } from '@/features/jobs/Board'
 import { JobsToolbar } from '@/features/jobs/JobsToolbar'
 import { ApplicationDetail } from '@/features/jobs/ApplicationDetail'
+import JobsPage from '@/features/jobs/JobsPage'
+import { MemoryRouter } from 'react-router-dom'
 
 const TODAY = '2026-11-02'
 const A = (o) => ({
@@ -54,7 +69,8 @@ const A = (o) => ({
 })
 
 beforeEach(() => {
-  Object.values(mocks).forEach((m) => m.mockReset())
+  Object.values(mocks).forEach((m) => m.mockReset?.())
+  mocks.tables = {}
   mocks.insert.mockResolvedValue({})
   mocks.update.mockResolvedValue({})
   mocks.remove.mockResolvedValue(undefined)
@@ -124,6 +140,12 @@ describe('jobs domain', () => {
     ]
     expect(upcomingInterviews(ev, apps, NOW).map((e) => e.id)).toEqual(['in'])
     expect(upcomingInterviews(ev, apps, NOW)[0].app.id).toBe('a1')
+  })
+  it('lists upcoming interviews soonest first, whatever order they were stored in', () => {
+    const apps = [A({ id: 'a1' })]
+    const ev = [E('fri', '2026-11-06T10:00:00Z'), E('tue', '2026-11-03T09:00:00Z'), E('wed', '2026-11-04T08:00:00Z')]
+    expect(upcomingInterviews(ev, apps, NOW).map((e) => e.id)).toEqual(['tue', 'wed', 'fri'])
+    expect(ev.map((e) => e.id)).toEqual(['fri', 'tue', 'wed']) // the input is not reordered
   })
   it('lists the next interviews soonest first, capped', () => {
     const ev = [
@@ -207,10 +229,36 @@ describe('ApplicationDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Enter a number like 12 or 18.5')).toBeInTheDocument()
   })
+  it('changing the status to Applied here fills in today as the applied date, like moving the card', async () => {
+    const user = userEvent.setup()
+    open({ app: A({ id: 'j9', status: 'interested', applied_date: null }) })
+    await pickOption(user, screen.getByLabelText('Status'), 'applied')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() =>
+      expect(mocks.update).toHaveBeenCalledWith(
+        'job_applications',
+        'j9',
+        expect.objectContaining({ status: 'applied', applied_date: TODAY }),
+      ),
+    )
+  })
+  it('a date already there is kept, and an unchanged status never fills one in', async () => {
+    const user = userEvent.setup()
+    open({ app: A({ id: 'j8', status: 'applied', applied_date: null }) })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() =>
+      expect(mocks.update).toHaveBeenCalledWith('job_applications', 'j8', expect.objectContaining({ applied_date: null })),
+    )
+  })
+  it('the Source label is wired to its input (the suggestions list sits outside the field)', () => {
+    open()
+    expect(screen.getByLabelText('Source').tagName).toBe('INPUT')
+    expect(screen.getByLabelText('Source')).toHaveAttribute('list', 'job-sources')
+  })
   it('opened from the Applied column it pre-fills today as the applied date', () => {
     open({ defaultStatus: 'applied' })
-    expect(screen.getByLabelText('Status')).toHaveValue('applied')
-    expect(screen.getByLabelText('Applied on')).toHaveValue(TODAY)
+    expect(screen.getByLabelText('Status')).toHavePickerValue('applied')
+    expect(screen.getByLabelText('Applied on')).toHavePickerValue(TODAY)
   })
   it('editing pre-fills (including the LPA) and updates the same record', async () => {
     const user = userEvent.setup()
@@ -235,8 +283,8 @@ describe('InterviewDialog', () => {
     const user = userEvent.setup()
     open({ applicationId: 'a1' })
     expect(screen.getByLabelText('Time (Asia/Kolkata)')).toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-11-10' } })
-    fireEvent.change(screen.getByLabelText(/^Time/), { target: { value: '15:00' } })
+    await pickDate(user, screen.getByLabelText('Date'), '2026-11-10')
+    await pickTime(user, screen.getByLabelText(/^Time/), '15:00')
     await user.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(mocks.insert).toHaveBeenCalledTimes(1))
     const row = mocks.insert.mock.calls[0][1]
@@ -257,9 +305,9 @@ describe('InterviewDialog', () => {
         notes: '',
       },
     })
-    expect(screen.getByLabelText('Date')).toHaveValue('2026-11-11')
-    expect(screen.getByLabelText(/^Time/)).toHaveValue('01:30')
-    expect(screen.getByLabelText('Application')).toHaveValue('a2')
+    expect(screen.getByLabelText('Date')).toHavePickerValue('2026-11-11')
+    expect(screen.getByLabelText(/^Time/)).toHavePickerValue('01:30')
+    expect(screen.getByLabelText('Application')).toHavePickerValue('a2')
   })
   it('defaults to the first application when none is preselected, and requires one', async () => {
     const user = userEvent.setup()
@@ -270,14 +318,42 @@ describe('InterviewDialog', () => {
   })
 })
 
+describe('Job Switch page', () => {
+  it("the status filter (offered only in the table) does not empty the board's columns", async () => {
+    const user = userEvent.setup()
+    mocks.tables.job_applications = [A({ company: 'Acme', status: 'applied' }), A({ company: 'Globex', status: 'interview' })]
+    render(
+      <MemoryRouter>
+        <JobsPage />
+      </MemoryRouter>,
+    )
+    await user.click(await screen.findByRole('tab', { name: 'Table' }))
+    await pickOption(user, screen.getByLabelText('Filter by status'), 'applied')
+    expect(screen.queryByText('Globex')).toBeNull()
+    await user.click(screen.getByRole('tab', { name: 'Board' }))
+    expect(screen.queryByLabelText('Filter by status')).toBeNull()
+    expect(screen.getAllByText('Acme').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Globex').length).toBeGreaterThan(0)
+  })
+})
+
 describe('prep checklist', () => {
+  /** The application as the store holds it: a save writes the list into it at once (the store is optimistic), then resolves `done`. */
+  const liveApp = (initial, done = () => Promise.resolve({})) => {
+    let setApp
+    mocks.update.mockImplementation((_t, _id, patch) => {
+      setApp((a) => ({ ...a, ...patch }))
+      return done()
+    })
+    return function Host() {
+      const [app, set] = useState(initial)
+      setApp = set
+      return <PrepChecklist checklist={usePrepChecklist(app)} />
+    }
+  }
   it('adds, toggles and removes items, saving the whole list each time', async () => {
     const user = userEvent.setup()
-    const app = A({ id: 'j1', prep_checklist: [{ id: 'i1', text: 'Research', done: false }] })
-    const Host = () => {
-      const c = usePrepChecklist(app)
-      return <PrepChecklist checklist={c} />
-    }
+    const Host = liveApp(A({ id: 'j1', prep_checklist: [{ id: 'i1', text: 'Research', done: false }] }))
     render(<Host />)
     await user.click(screen.getByRole('checkbox'))
     await waitFor(() =>
@@ -289,7 +365,30 @@ describe('prep checklist', () => {
     await user.click(screen.getByRole('button', { name: 'Add' }))
     await waitFor(() => expect(mocks.update.mock.calls.at(-1)[2].prep_checklist.map((i) => i.text)).toEqual(['Research', 'Mock interview']))
     await user.click(screen.getByRole('button', { name: 'Remove Research' }))
-    await waitFor(() => expect(mocks.update.mock.calls.at(-1)[2].prep_checklist).toEqual([]))
+    await waitFor(() => expect(mocks.update.mock.calls.at(-1)[2].prep_checklist.map((i) => i.text)).toEqual(['Mock interview']))
+  })
+  it('a second tap while the first is still saving is saved after it, not dropped', async () => {
+    const user = userEvent.setup()
+    let release
+    const first = new Promise((r) => (release = r))
+    const Host = liveApp(
+      A({
+        id: 'j1',
+        prep_checklist: [
+          { id: 'i1', text: 'Research', done: false },
+          { id: 'i2', text: 'Mock interview', done: false },
+        ],
+      }),
+      () => (mocks.update.mock.calls.length === 1 ? first : Promise.resolve({})),
+    )
+    render(<Host />)
+    const [a, b] = screen.getAllByRole('checkbox')
+    await user.click(a)
+    await user.click(b) // the first save has not finished yet
+    expect(mocks.update).toHaveBeenCalledTimes(1)
+    await act(async () => release({}))
+    await waitFor(() => expect(mocks.update).toHaveBeenCalledTimes(2))
+    expect(mocks.update.mock.calls[1][2].prep_checklist.map((i) => i.done)).toEqual([true, true])
   })
   it('does not save a blank item', async () => {
     const user = userEvent.setup()
@@ -393,7 +492,7 @@ describe('JobsToolbar', () => {
     const user = userEvent.setup()
     const onFiltersChange = vi.fn()
     render(<JobsToolbar view="table" {...props} filters={{ q: '', status: '', source: 'LinkedIn' }} onFiltersChange={onFiltersChange} />)
-    await user.selectOptions(screen.getByLabelText('Filter by status'), 'interview')
+    await pickOption(user, screen.getByLabelText('Filter by status'), 'interview')
     expect(onFiltersChange).toHaveBeenCalledWith({ q: '', status: 'interview', source: 'LinkedIn' })
   })
 })
@@ -449,7 +548,7 @@ describe('ApplicationDetail', () => {
   it('changing the status goes through the status operation (which records history)', async () => {
     const user = userEvent.setup()
     detail()
-    await user.selectOptions(screen.getByLabelText('Status'), 'interview')
+    await pickOption(user, screen.getByLabelText('Status'), 'interview')
     await waitFor(() => expect(mocks.setStatus).toHaveBeenCalledWith(expect.objectContaining({ id: 'j1' }), 'interview', TODAY))
   })
 })

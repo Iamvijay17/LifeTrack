@@ -6,7 +6,7 @@ import { AuthLayout } from './AuthLayout'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/form'
 import { auth } from '@/services/auth'
-import { Err, Note, NewPasswordFields, email, newPasswordPair, password, passwordsMatch, useSubmit } from './authForm'
+import { Err, Note, NewPasswordFields, email, newPasswordPair, password, passwordStrong, passwordsMatch, useSubmit } from './authForm'
 import { useAuth } from '@/hooks/useAuth'
 
 export function LoginPage() {
@@ -20,7 +20,8 @@ export function LoginPage() {
   } = useForm({ resolver: zodResolver(z.object({ email, password: z.string().min(1, 'Enter your password') })) })
   const { error, submit } = useSubmit(async (v) => {
     await auth.signIn(v.email, v.password)
-    nav(loc.state?.from ?? '/', { replace: true })
+    const from = loc.state?.from
+    nav(typeof from === 'string' && from.startsWith('/') && !from.startsWith('//') ? from : '/', { replace: true }) // in-app paths only
   })
   if (session) return <Navigate to="/" replace />
   return (
@@ -30,7 +31,7 @@ export function LoginPage() {
       footer={
         <>
           New here?{' '}
-          <Link className="text-secondary underline underline-offset-2" to="/register">
+          <Link className="text-mod-text underline underline-offset-2" to="/register">
             Create an account
           </Link>
         </>
@@ -61,10 +62,11 @@ export function RegisterPage() {
   const { session } = useAuth()
   const nav = useNavigate()
   const schema = passwordsMatch(
-    z.object({ name: z.string().trim().min(1, 'Enter your name').max(80), email, password, confirm: z.string() }),
+    passwordStrong(z.object({ name: z.string().trim().min(1, 'Enter your name').max(80), email, password, confirm: z.string() })),
   )
   const {
     register,
+    watch,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(schema) })
@@ -81,7 +83,7 @@ export function RegisterPage() {
       footer={
         <>
           Already registered?{' '}
-          <Link className="text-secondary underline underline-offset-2" to="/login">
+          <Link className="text-mod-text underline underline-offset-2" to="/login">
             Sign in
           </Link>
         </>
@@ -96,7 +98,12 @@ export function RegisterPage() {
         <Field label="Email" error={errors.email?.message}>
           <Input type="email" autoComplete="email" inputMode="email" {...register('email')} />
         </Field>
-        <NewPasswordFields register={register} errors={errors} hint="At least 8 characters" />
+        <NewPasswordFields
+          register={register}
+          errors={errors}
+          watch={watch}
+          hint="At least 8 characters. A few unrelated words works well."
+        />
         <Button type="submit" className="w-full" loading={isSubmitting}>
           Create account
         </Button>
@@ -120,7 +127,7 @@ export function ForgotPasswordPage() {
       title="Reset password"
       subtitle="We'll email you a link to choose a new password."
       footer={
-        <Link className="text-secondary underline underline-offset-2" to="/login">
+        <Link className="text-mod-text underline underline-offset-2" to="/login">
           Back to sign in
         </Link>
       }
@@ -144,6 +151,7 @@ export function ResetPasswordPage() {
   const nav = useNavigate()
   const {
     register,
+    watch,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(newPasswordPair) })
@@ -152,23 +160,27 @@ export function ResetPasswordPage() {
     clearRecovery()
     nav('/', { replace: true })
   })
+  // This page sets a password WITHOUT the current one, so it is only for someone who arrived from the emailed reset link. A plain signed-in visit
+  // (it sits outside the app lock) would otherwise let anyone at a locked device change the password, sign in again and get past the PIN.
+  // Signed-in people change their password under Security, which asks for the current one.
+  if (!loading && session && !recovery) return <Navigate to="/security" replace />
   if (!loading && !session)
     return (
       <AuthLayout
         title="Link expired"
         subtitle="This reset link is invalid or has expired."
         footer={
-          <Link className="text-secondary underline underline-offset-2" to="/forgot-password">
+          <Link className="text-mod-text underline underline-offset-2" to="/forgot-password">
             Request a new link
           </Link>
         }
       />
     )
   return (
-    <AuthLayout title="Choose a new password" subtitle={recovery ? undefined : 'You are signed in. Set a new password below.'}>
+    <AuthLayout title="Choose a new password">
       <form onSubmit={handleSubmit(submit)} noValidate className="space-y-4">
         <Err>{error}</Err>
-        <NewPasswordFields register={register} errors={errors} passwordLabel="New password" />
+        <NewPasswordFields register={register} errors={errors} watch={watch} passwordLabel="New password" email={session?.user?.email} />
         <Button type="submit" className="w-full" loading={isSubmitting}>
           Update password
         </Button>

@@ -21,9 +21,32 @@ site_url = "http://localhost:4173"
 additional_redirect_urls = ["http://localhost:4173", "lifetrack://auth-callback"]
 jwt_expiry = 3600
 enable_signup = true
+# Same rule as the apps (packages/core/src/security.js): GoTrue's own default is 6, so a direct API call could set a shorter password.
+# Set the same minimum in the hosted project (Authentication > Providers > Email > Minimum password length).
+minimum_password_length = 8
 
 [auth.email]
 enabled = true
 double_confirm_changes = true
+# A session older than 24 hours must re-authenticate to change the password (docs/APP_SECURITY.md). Turn it on in the hosted project too.
+secure_password_change = true
 # Off for tests so sign-up returns a session immediately. Keep confirmation ON in the hosted project.
 enable_confirmations = false
+
+# Optional: per-account password lockout (5 wrong passwords block sign-in for 1 min, doubling to 15 min). Off here so the API tests can sign in freely;
+# on a hosted project turn it on in the dashboard (Authentication > Hooks). See docs/APP_SECURITY.md section 3.
+# [auth.hook.password_verification_attempt]
+# enabled = true
+# uri = "pg-functions://postgres/public/hook_password_verification_attempt"
+
+# Google integrations: Google redirects the browser here without a sign-in header, so the callback cannot verify a JWT. It trusts only the
+# HMAC-signed, 10-minute `state` made by google-integration (see supabase/functions/google-integration/logic.js).
+[functions.google-oauth-callback]
+verify_jwt = false
+
+# Edge Functions that authenticate their callers themselves (a LifeTrack API key, or the scheduler's secret) instead of by a Supabase user token.
+[functions.api]
+verify_jwt = false
+
+[functions.webhook-dispatch]
+verify_jwt = false

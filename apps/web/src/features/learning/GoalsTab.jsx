@@ -8,25 +8,25 @@ import { useConfirmedDelete } from '@/hooks/useConfirmedDelete'
 import { goalProgress } from '@/domain/learning'
 import { fmtDay, fmtDuration } from '@/lib/dates'
 
-export function GoalsTab({ goals, sessions, today, onCreate, onEdit }) {
+export function GoalsTab({ goals, sessions, today, onCreate, onEdit, cardProps }) {
   const removeGoal = useConfirmedDelete('goals', 'Goal deleted')
   if (goals.length === 0) {
     return (
       <EmptyState
         icon={Target}
-        title="No goals yet"
-        description="Set a target in hours, then log sessions against it to see real progress."
+        title="No learning goals yet"
+        description="Set a target in hours, then log sessions against it to see real progress. Career and other goals live in Goals & Milestones."
         action={<Button onClick={onCreate}>Create a goal</Button>}
       />
     )
   }
   return (
-    <div className="grid gap-3 md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
       {goals.map((g) => {
         const p = goalProgress(g, sessions)
         const overdue = g.due_date && g.due_date < today && g.status === 'active'
         return (
-          <Card key={g.id}>
+          <Card key={g.id} {...cardProps?.(g, p)}>
             <CardContent className="space-y-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">

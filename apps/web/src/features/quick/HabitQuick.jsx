@@ -11,12 +11,14 @@ import { cn } from '@/lib/utils'
 export function HabitQuick({ onClose }) {
   const today = useToday()
   const { settings } = useSettings()
-  const { stats } = useHabits(today, settings.week_starts_on)
+  const { stats, loading } = useHabits(today, settings.week_starts_on)
   const [toggle, pending] = useAction((id, done) => setHabitStatus(id, today, done ? null : 'done'))
   const list = stats.filter((s) => !s.habit.archived_at && (s.due || s.today))
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()} title="Complete habits" description="Tap to check in for today.">
-      {list.length === 0 ? (
+      {loading ? (
+        <p className="py-4 text-center text-sm text-muted-foreground">Loading habits…</p>
+      ) : list.length === 0 ? (
         <p className="py-4 text-center text-sm text-muted-foreground">No habits due today. 🎉</p>
       ) : (
         <ul className="space-y-2">

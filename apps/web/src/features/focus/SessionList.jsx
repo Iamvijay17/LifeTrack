@@ -20,13 +20,14 @@ export function SessionList({ sessions, tasks, topics, tz, onDelete }) {
             description="Start a 25-minute block — short, distraction-free work adds up."
           />
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-border/70">
             {newestFirst(sessions).map((s) => {
               const { what, note } = sessionTitle(s, tasks, topics)
               return (
                 <li key={s.id} className="flex items-center gap-3 py-2.5">
                   <span
                     className={cn('h-2 w-2 rounded-full', s.completed ? 'bg-success' : 'bg-warning')}
+                    role="img"
                     aria-label={s.completed ? 'completed' : 'stopped early'}
                   />
                   <div className="min-w-0 flex-1">

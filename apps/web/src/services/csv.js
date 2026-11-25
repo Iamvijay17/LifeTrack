@@ -18,14 +18,16 @@ export function download(filename, text, type = 'text/csv;charset=utf-8') {
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
-export const TX_COLUMNS = [
+/** Transaction columns; the amount header names the account's currency (amounts are always stored as minor units). */
+export const txColumns = (currency = 'INR') => [
   { header: 'Date', value: (r) => r.txn_date },
   { header: 'Type', value: (r) => r.type },
   { header: 'Category', value: (r) => r.category },
   { header: 'Payment method', value: (r) => r.payment_method },
-  { header: 'Amount (INR)', value: (r) => (r.amount_paise / 100).toFixed(2) },
+  { header: `Amount (${currency})`, value: (r) => (r.amount_paise / 100).toFixed(2) },
   { header: 'Note', value: (r) => r.note },
 ]
+export const TX_COLUMNS = txColumns('INR')
 export const JOB_COLUMNS = [
   { header: 'Company', value: (r) => r.company },
   { header: 'Title', value: (r) => r.job_title },
@@ -46,6 +48,10 @@ export const EXPORTABLE = [
   ['tasks', 'Tasks'],
   ['habits', 'Habits'],
   ['habit_logs', 'Habit check-ins'],
+  ['habit_pauses', 'Habit pauses'],
+  ['life_map_nodes', 'Life Map items'],
+  ['life_map_links', 'Life Map links'],
+  ['life_map_positions', 'Life Map layout'],
   ['study_sessions', 'Study sessions'],
   ['focus_sessions', 'Focus sessions'],
   ['job_applications', 'Job applications'],
@@ -56,12 +62,29 @@ export const EXPORTABLE = [
   ['health_logs', 'Sleep & health'],
   ['transactions', 'Transactions'],
   ['budgets', 'Budgets'],
+  ['recurring_rules', 'Recurring rules'],
   ['savings_goals', 'Savings goals'],
   ['notes', 'Notes'],
   ['journal_entries', 'Journal'],
   ['goals', 'Goals'],
   ['milestones', 'Milestones'],
   ['reminders', 'Reminders'],
+  ['notifications', 'Notifications'],
+  ['learning_topics', 'Learning topics'],
+  ['exercises', 'My exercises'],
+  ['routines', 'Routines'],
+  ['foods', 'Foods'],
+  ['food_logs', 'Food log'],
+  ['water_logs', 'Water entries'],
+  ['nutrition_settings', 'Nutrition targets'],
+  ['calendar_events', 'Calendar events'],
+  ['calendar_event_exceptions', 'Calendar event changes'],
+  ['task_reschedules', 'Rescheduling history'],
+  ['challenges', 'Challenges'],
+  ['challenge_checkins', 'Challenge check-ins'],
+  ['challenge_templates', 'Challenge templates'],
+  ['automation_workflows', 'Automation workflows'],
+  ['automation_executions', 'Automation run history'],
 ]
 const cell = (v) => (v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : v)
 /** CSV of an entire table read straight from the database (owner id omitted). Returns '' when the table is empty. */

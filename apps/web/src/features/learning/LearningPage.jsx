@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
-import { BookOpen, Clock, Code2, Plus, Target } from 'lucide-react'
+import { BookOpen, CalendarClock, Code2, Plus, Target } from 'lucide-react'
+import { useContextMenu, usePageContextMenu } from '@/components/context-menu'
+import { usePrompt } from '@/components/shared/Prompt'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate } from '@/components/shared/states'
 import { StatCard } from '@/components/shared/StatCard'
@@ -8,8 +10,23 @@ import { Segmented } from '@/components/ui/misc'
 import { useTables } from '@/hooks/store'
 import { useSettings } from '@/hooks/useSettings'
 import { useToday } from '@/hooks/useToday'
-import { counted, countedMinutes, historyOf, problemsSolved, topicGroups, topicTotals, weekSeries } from '@/domain/learning'
+import { goalItems } from '@/features/goals/contextMenu'
+import { learningPageItems, sessionItems } from './contextMenu'
+import {
+  counted,
+  targetValue,
+  countedMinutes,
+  historyOf,
+  problemsSolved,
+  revisionStatus,
+  topicGroups,
+  topicTotals,
+  weekSeries,
+} from '@/domain/learning'
+import { isStudyGoal } from '@lifetrack/core/learning'
 import { addDays, eachDay, fmtDay, fmtDuration, startOfWeek } from '@/lib/dates'
+import { AnimatedValue, ProgressRing } from '@/components/motion/primitives'
+import { SparkBars } from '@/components/shared/chartParts'
 import { OverviewTab } from './OverviewTab'
 import { GoalsTab } from './GoalsTab'
 import { TopicsTab } from './TopicsTab'
@@ -35,6 +52,7 @@ export default function LearningPage() {
   const [sessDlg, setSessDlg] = useState({ ...closed, session: null })
   const [topicDlg, setTopicDlg] = useState({ ...closed, topic: null })
 
+  const studyGoals = useMemo(() => data.goals.filter(isStudyGoal), [data.goals])
   const topics = useMemo(() => data.learning_topics.filter((t) => !t.archived), [data.learning_topics])
   const sessions = data.study_sessions
   const running = sessions.find((s) => s.status === 'running')
@@ -52,6 +70,32 @@ export default function LearningPage() {
   const target = settings.daily_study_target_minutes
 
   const newGoal = () => setGoalDlg({ open: true, goal: null })
+  const menu = useContextMenu()
+  const ask = usePrompt()
+  usePageContextMenu(() =>
+    learningPageItems({
+      tab,
+      newGoal,
+      logSession: () => setSessDlg({ open: true, session: null, target: '' }),
+      newTopic: () => setTopicDlg({ open: true, topic: null }),
+    }),
+  )
+  const goalProps = (g, p) =>
+    menu.bind(
+      () =>
+        goalItems(g, {
+          ask,
+          onEdit: (goal) => setGoalDlg({ open: true, goal }),
+          onAddSession: (goal) => setSessDlg({ open: true, session: null, target: targetValue({ goal_id: goal.id }) }),
+          progressText: `${fmtDuration(p.done)} ${p.target ? `of ${fmtDuration(p.target)} · ${p.percent}%` : '· no target set'}`,
+          deleteNote: 'Study sessions stay in your history.',
+        }),
+      { label: `Actions for ${g.title}` },
+    )
+  const sessionProps = (s) =>
+    menu.bind(() => sessionItems(s, { goals: data.goals, topics, onEdit: (session) => setSessDlg({ open: true, session }) }), {
+      label: 'Session actions',
+    })
   return (
     <>
       <PageHeader
@@ -73,14 +117,24 @@ export default function LearningPage() {
       <DataGate loading={loading} error={error} onRetry={refetch}>
         <div className="space-y-5">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard
-              icon={Clock}
-              label="Today"
-              value={fmtDuration(todayMinutes)}
-              sub={target ? `target ${fmtDuration(target)}` : 'no daily target set'}
-              progress={target ? Math.min(100, (todayMinutes / target) * 100) : null}
-              tone="success"
-            />
+            <section className="lt-hero col-span-2 flex items-center gap-4 p-4 md:gap-5 md:p-5 lg:row-span-2">
+              <ProgressRing
+                value={target ? Math.min(100, (todayMinutes / target) * 100) : null}
+                size={116}
+                stroke={11}
+                label="Study time against today's target"
+              >
+                <BookOpen className="h-6 w-6 text-mod-text" aria-hidden />
+              </ProgressRing>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-muted-foreground">Today</p>
+                <p className="lt-stat-value mt-1 text-[2rem] leading-none">
+                  <AnimatedValue value={fmtDuration(todayMinutes)} />
+                </p>
+                <p className="mt-1.5 text-xs text-muted-foreground">{target ? `target ${fmtDuration(target)}` : 'no daily target set'}</p>
+                <SparkBars values={week.map((w) => w.hours)} highlight={week.findIndex((w) => w.d === today)} className="mt-3 h-8" />
+              </div>
+            </section>
             <StatCard
               icon={BookOpen}
               label="This week"
@@ -91,22 +145,29 @@ export default function LearningPage() {
             <StatCard
               icon={Target}
               label="Active goals"
-              value={data.goals.filter((g) => g.status === 'active').length}
-              sub={`${data.goals.filter((g) => g.status === 'completed').length} completed`}
+              value={studyGoals.filter((g) => g.status === 'active').length}
+              sub={`${studyGoals.filter((g) => g.status === 'completed').length} completed`}
+            />
+            <StatCard
+              icon={CalendarClock}
+              label="Due for revision"
+              value={topics.filter((t) => revisionStatus(t, today).due).length}
+              sub={`of ${topics.length} topics`}
             />
           </div>
           <Segmented value={tab} onChange={setTab} options={TABS} />
 
           {tab === 'overview' && (
-            <OverviewTab running={running} goals={data.goals} topics={topics} today={today} week={week} weekMinutes={weekMinutes} />
+            <OverviewTab running={running} goals={studyGoals} topics={topics} today={today} week={week} weekMinutes={weekMinutes} />
           )}
           {tab === 'goals' && (
             <GoalsTab
-              goals={data.goals}
+              goals={studyGoals}
               sessions={sessions}
               today={today}
               onCreate={newGoal}
               onEdit={(goal) => setGoalDlg({ open: true, goal })}
+              cardProps={goalProps}
             />
           )}
           {tab === 'topics' && (
@@ -118,7 +179,14 @@ export default function LearningPage() {
             />
           )}
           {tab === 'sessions' && (
-            <SessionsTab history={history} goals={data.goals} topics={topics} onEdit={(session) => setSessDlg({ open: true, session })} />
+            <SessionsTab
+              history={history}
+              goals={data.goals}
+              topics={topics}
+              onCreate={() => setSessDlg({ open: true, session: null })}
+              onEdit={(session) => setSessDlg({ open: true, session })}
+              rowProps={sessionProps}
+            />
           )}
         </div>
       </DataGate>
@@ -131,7 +199,8 @@ export default function LearningPage() {
       <SessionDialog
         open={sessDlg.open}
         session={sessDlg.session}
-        goals={data.goals}
+        defaultTarget={sessDlg.target ?? ''}
+        goals={studyGoals}
         topics={topics}
         today={today}
         onOpenChange={(o) => setSessDlg((d) => ({ ...d, open: o }))}

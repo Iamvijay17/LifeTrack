@@ -8,7 +8,7 @@ cp .env.example .env.local   # fill in the PUBLIC Supabase URL + anon key (never
 pnpm install                 # from the repo root
 pnpm --filter @lifetrack/mobile start
 ```
-Native modules (SecureStore, dev client) need a **development build**, not Expo Go.
+Native modules (SecureStore, dev client) need a **development build**, not Expo Go. The app lock's fingerprint / face unlock adds two more (`expo-local-authentication`, `expo-crypto`): rebuild the dev client after pulling it. The lock itself needs migration `0012_security.sql`; the fingerprint part also needs `0014_device_keys.sql` and `supabase functions deploy device-key` (see `docs/APP_SECURITY.md`).
 
 See `docs/NATIVE.md` for push notifications, deep links, icons and the one-time backend setup.
 

@@ -1,4 +1,6 @@
+import { useId } from 'react'
 import { z } from 'zod'
+import { SlidersHorizontal } from 'lucide-react'
 import { SettingsSection } from '@/components/shared/SettingsSection'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Select } from '@/components/ui/form'
@@ -7,6 +9,7 @@ import { useRecordForm } from '@/hooks/useRecordForm'
 import { useSettings } from '@/hooks/useSettings'
 import { TIMEZONES, todayStr } from '@/lib/dates'
 import { CURRENCIES, parseMoney, paiseToInput } from '@/lib/money'
+import { MAX_SLEEP_GOAL_MINUTES, MIN_SLEEP_GOAL_MINUTES, sleepGoalOf } from '@lifetrack/core/sleep'
 
 const validTimezone = (tz) => {
   try {
@@ -24,6 +27,10 @@ const schema = z.object({
   monthly_budget: z.string().refine((v) => v.trim() === '' || parseMoney(v) !== null, 'Enter an amount like 30000'),
   water_goal_ml: z.coerce.number().int().min(0).max(20000),
   steps_goal: z.coerce.number().int().min(0).max(200000),
+  sleep_goal_hours: z.coerce
+    .number({ error: 'Enter hours' })
+    .min(MIN_SLEEP_GOAL_MINUTES / 60, 'At least 4 hours')
+    .max(MAX_SLEEP_GOAL_MINUTES / 60, 'At most 12 hours'),
 })
 
 export const settingsToForm = (s) => ({
@@ -34,7 +41,21 @@ export const settingsToForm = (s) => ({
   monthly_budget: s.monthly_budget_paise ? paiseToInput(s.monthly_budget_paise) : '',
   water_goal_ml: s.water_goal_ml,
   steps_goal: s.steps_goal,
+  sleep_goal_hours: sleepGoalOf(s) / 60,
 })
+
+/** A labelled run of related fields inside one form. */
+function FieldGroup({ title, children }) {
+  const id = useId()
+  return (
+    <div role="group" aria-labelledby={id} className="space-y-3">
+      <h4 id={id} className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </h4>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{children}</div>
+    </div>
+  )
+}
 
 /** Timezone, currency, week start and daily targets. Edits are never overwritten by changes saved elsewhere in Settings. */
 export function PreferencesCard() {
@@ -48,8 +69,12 @@ export function PreferencesCard() {
 
   const [submit, pending] = useAction(
     async (v) => {
-      const { monthly_budget, ...rest } = v
-      await save({ ...rest, monthly_budget_paise: monthly_budget.trim() ? parseMoney(monthly_budget) : 0 })
+      const { monthly_budget, sleep_goal_hours, ...rest } = v
+      await save({
+        ...rest,
+        monthly_budget_paise: monthly_budget.trim() ? parseMoney(monthly_budget) : 0,
+        habit_prefs: { ...settings.habit_prefs, sleep_goal_minutes: Math.round(sleep_goal_hours * 60) },
+      })
       reset(v)
     },
     { success: 'Preferences saved' },
@@ -57,9 +82,14 @@ export function PreferencesCard() {
   const timezones = TIMEZONES.includes(settings.timezone) ? TIMEZONES : [settings.timezone, ...TIMEZONES]
 
   return (
-    <SettingsSection title="Preferences" desc="All dates and daily totals use this timezone on every device.">
-      <form onSubmit={handleSubmit(submit)} noValidate className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2">
+    <SettingsSection
+      headingAs="h3"
+      icon={SlidersHorizontal}
+      title="Preferences"
+      desc="All dates and daily totals use this timezone on every device."
+    >
+      <form onSubmit={handleSubmit(submit)} noValidate className="space-y-5">
+        <FieldGroup title="Region & calendar">
           <Field label="Timezone" error={errors.timezone?.message} hint={`Today there: ${todayStr(settings.timezone)}`}>
             <Select {...register('timezone')}>
               {timezones.map((t) => (
@@ -82,6 +112,8 @@ export function PreferencesCard() {
               <option value="0">Sunday</option>
             </Select>
           </Field>
+        </FieldGroup>
+        <FieldGroup title="Daily goals & budget">
           <Field
             label="Daily study target (minutes)"
             error={errors.daily_study_target_minutes?.message}
@@ -89,8 +121,8 @@ export function PreferencesCard() {
           >
             <Input type="number" inputMode="numeric" {...register('daily_study_target_minutes')} />
           </Field>
-          <Field label="Default monthly expense budget" error={errors.monthly_budget?.message}>
-            <Input inputMode="decimal" placeholder="e.g. 30000" {...register('monthly_budget')} />
+          <Field label="Sleep goal (hours)" error={errors.sleep_goal_hours?.message} hint="Used for your daily score and health charts.">
+            <Input type="number" inputMode="decimal" step="0.5" {...register('sleep_goal_hours')} />
           </Field>
           <Field label="Water goal (ml)" error={errors.water_goal_ml?.message}>
             <Input type="number" inputMode="numeric" {...register('water_goal_ml')} />
@@ -98,7 +130,10 @@ export function PreferencesCard() {
           <Field label="Daily steps goal" error={errors.steps_goal?.message}>
             <Input type="number" inputMode="numeric" {...register('steps_goal')} />
           </Field>
-        </div>
+          <Field label="Default monthly expense budget" error={errors.monthly_budget?.message}>
+            <Input inputMode="decimal" placeholder="e.g. 30000" {...register('monthly_budget')} />
+          </Field>
+        </FieldGroup>
         <Button type="submit" loading={pending} disabled={!isDirty}>
           Save preferences
         </Button>

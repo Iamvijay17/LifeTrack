@@ -19,11 +19,11 @@ export default function LegalPage({ doc }) {
           <Markdown source={DOCS[doc]} />
         </article>
         <p className="mt-10 text-sm text-muted-foreground">
-          <Link className="text-secondary hover:underline" to="/privacy">
+          <Link className="text-mod-text hover:underline" to="/privacy">
             Privacy policy
           </Link>{' '}
           ·{' '}
-          <Link className="text-secondary hover:underline" to="/terms">
+          <Link className="text-mod-text hover:underline" to="/terms">
             Terms of service
           </Link>
         </p>

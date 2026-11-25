@@ -1,21 +1,41 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { X } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox, Input } from '@/components/ui/form'
 import { addChecklistItem, newChecklist, removeChecklistItem, toggleChecklistItem } from '@/domain/jobs'
-import { useAction } from '@/hooks/useAction'
 import * as store from '@/hooks/store'
+import { actionSucceeded } from '@/lib/interaction/feedback'
+import { toAppError } from '@/services/errors'
 
-/** Saves the whole checklist back to the application after each change (small list, so no per-item rows). */
+/**
+ * Saves the whole checklist back to the application after each change (small list, so no per-item rows).
+ * Every tap counts: a change made while the previous one is still saving is applied to the newest list and saved after it, in order,
+ * instead of being dropped.
+ */
 export function usePrepChecklist(app) {
-  const [save] = useAction((list) => store.update('job_applications', app.id, { prep_checklist: list }))
   const list = app.prep_checklist ?? []
+  const latest = useRef(list)
+  const pending = useRef(0)
+  const queue = useRef(Promise.resolve())
+  if (pending.current === 0) latest.current = list // while saves are queued, the newest list is the one built here
+  const change = (edit) => {
+    const next = edit(latest.current)
+    latest.current = next
+    pending.current += 1
+    queue.current = queue.current
+      .then(() => store.update('job_applications', app.id, { prep_checklist: next }))
+      .then(actionSucceeded)
+      .catch((e) => toast.error(toAppError(e).message))
+      .finally(() => (pending.current -= 1))
+    return queue.current
+  }
   return {
     list,
-    applyTemplate: () => save(newChecklist()),
-    toggle: (id, done) => save(toggleChecklistItem(list, id, done)),
-    remove: (id) => save(removeChecklistItem(list, id)),
-    add: (text) => save(addChecklistItem(list, text)),
+    applyTemplate: () => change(() => newChecklist()),
+    toggle: (id, done) => change((l) => toggleChecklistItem(l, id, done)),
+    remove: (id) => change((l) => removeChecklistItem(l, id)),
+    add: (text) => change((l) => addChecklistItem(l, text)),
   }
 }
 

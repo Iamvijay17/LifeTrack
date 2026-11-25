@@ -1,27 +1,34 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { MoreHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Popup, usePopup } from './popup'
 
-/** Small accessible-enough popup menu: Escape / outside-click to close. items: [{label, icon, onClick, danger, hidden}] */
+/** Accessible popup menu: arrow keys, Home/End, Escape returns focus to the trigger. items: [{label, icon, onClick, danger, hidden}] */
 export function Menu({ items, label = 'Actions', trigger, align = 'right', className }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef(null)
+  const button = useRef(null)
+  const [open, setOpen, anchorRef, popupRef] = usePopup({ onEscape: () => button.current?.focus() })
+  const visible = items.filter((i) => !i.hidden)
+
   useEffect(() => {
-    if (!open) return
-    const off = (e) => {
-      if (!ref.current?.contains(e.target)) setOpen(false)
+    if (open) popupRef.current?.querySelector('[role=menuitem]')?.focus({ preventScroll: true })
+  }, [open, popupRef])
+
+  const onKeyDown = (e) => {
+    const all = [...popupRef.current.querySelectorAll('[role=menuitem]')]
+    const at = all.indexOf(document.activeElement)
+    const go = { ArrowDown: at + 1, ArrowUp: at - 1, Home: 0, End: all.length - 1 }[e.key]
+    if (go !== undefined) {
+      e.preventDefault()
+      all[(go + all.length) % all.length]?.focus()
+    } else if (e.key === 'Tab') {
+      setOpen(false)
     }
-    const esc = (e) => e.key === 'Escape' && setOpen(false)
-    document.addEventListener('mousedown', off)
-    document.addEventListener('keydown', esc)
-    return () => {
-      document.removeEventListener('mousedown', off)
-      document.removeEventListener('keydown', esc)
-    }
-  }, [open])
+  }
+
   return (
-    <div ref={ref} className={cn('relative inline-block', className)}>
+    <div ref={anchorRef} className={cn('relative inline-block', className)}>
       <button
+        ref={button}
         type="button"
         aria-label={label}
         aria-haspopup="menu"
@@ -30,41 +37,44 @@ export function Menu({ items, label = 'Actions', trigger, align = 'right', class
           e.stopPropagation()
           setOpen((o) => !o)
         }}
-        className={trigger ? '' : 'rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground'}
+        className={
+          trigger
+            ? 'block rounded-md'
+            : 'lt-press grid h-10 w-10 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:h-7 md:w-7'
+        }
       >
         {trigger ?? <MoreHorizontal className="h-4 w-4" />}
       </button>
-      {open && (
-        <div
-          role="menu"
-          className={cn(
-            'absolute z-40 mt-1 min-w-40 rounded-md border border-border bg-card p-1 shadow-xl animate-fade-in',
-            align === 'right' ? 'right-0' : 'left-0',
-          )}
-        >
-          {items
-            .filter((i) => !i.hidden)
-            .map((i) => (
-              <button
-                key={i.label}
-                role="menuitem"
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setOpen(false)
-                  i.onClick()
-                }}
-                className={cn(
-                  'flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-[13px] hover:bg-muted',
-                  i.danger && 'text-danger',
-                )}
-              >
-                {i.icon && <i.icon className="h-3.5 w-3.5" />}
-                {i.label}
-              </button>
-            ))}
-        </div>
-      )}
+      <Popup
+        open={open}
+        anchorRef={anchorRef}
+        popupRef={popupRef}
+        align={align}
+        role="menu"
+        aria-label={label}
+        onKeyDown={onKeyDown}
+        className="min-w-40"
+      >
+        {visible.map((i) => (
+          <button
+            key={i.label}
+            role="menuitem"
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              setOpen(false)
+              i.onClick()
+            }}
+            className={cn(
+              'flex w-full items-center gap-2 whitespace-nowrap rounded-sm px-2.5 py-2.5 text-left text-[13px] transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-0 focus-visible:ring-offset-0 md:py-1.5',
+              i.danger && 'text-danger',
+            )}
+          >
+            {i.icon && <i.icon className="h-3.5 w-3.5" aria-hidden />}
+            {i.label}
+          </button>
+        ))}
+      </Popup>
     </div>
   )
 }

@@ -11,7 +11,8 @@ export const DAILY_COLUMNS = [
   { header: 'Workout', value: (r) => (r.workout ? 'yes' : '') },
   { header: 'Habits done', value: (r) => r.habitsDone },
   { header: 'Sleep (h)', value: (r) => r.sleepHours ?? '' },
-  { header: 'Spent (paise)', value: (r) => r.spentPaise },
+  // Stored in hundredths of the account's currency (paise, cents…), whatever that currency is.
+  { header: 'Spent (minor units)', value: (r) => r.spentPaise },
 ]
 
 /** A report as one CSV file: the summary metrics, a blank line, then the day-by-day table. */

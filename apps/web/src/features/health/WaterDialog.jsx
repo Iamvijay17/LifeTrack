@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Droplets } from 'lucide-react'
 import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -9,12 +9,25 @@ import { useAction } from '@/hooks/useAction'
 import { useTable } from '@/hooks/store'
 import { useSettings } from '@/hooks/useSettings'
 
+/** Adds water to the day's total. "Undo" takes back exactly the last amount added here (the total keeps no list of drinks to undo from). */
 export function WaterDialog({ open, onOpenChange, date }) {
   const { rows } = useTable('health_logs')
   const { settings } = useSettings()
   const [custom, setCustom] = useState('')
+  const [last, setLast] = useState(null) // ml added last in this dialog, for Undo
+  useEffect(() => setLast(null), [open, date])
   const current = rows.find((h) => h.log_date === date)?.water_ml ?? 0
-  const [add, pending] = useAction((ml) => addWater(date, ml), { success: (_o) => 'Water logged' })
+  const [log, logging] = useAction((ml) => addWater(date, ml), { success: (_o) => 'Water logged' })
+  const [takeBack, undoing] = useAction((ml) => addWater(date, -ml), { success: (_o) => 'Last drink removed' })
+  const pending = logging || undoing
+  const add = async (ml) => {
+    const ok = await log(ml)
+    if (ok) setLast(ml)
+    return ok
+  }
+  const undo = async () => {
+    if (await takeBack(last)) setLast(null)
+  }
   const goal = settings.water_goal_ml
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title="Log water" description={`${current} ml${goal ? ` of ${goal} ml` : ''} today`}>
@@ -52,9 +65,9 @@ export function WaterDialog({ open, onOpenChange, date }) {
             Add
           </Button>
         </form>
-        {current > 0 && (
-          <Button variant="ghost" size="sm" className="text-muted-foreground" disabled={pending} onClick={() => add(-250)}>
-            Undo last 250 ml
+        {last != null && current > 0 && (
+          <Button variant="ghost" size="sm" className="text-muted-foreground" disabled={pending} onClick={undo}>
+            Undo last {last} ml
           </Button>
         )}
       </div>

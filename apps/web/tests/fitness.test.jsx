@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest'
+import { pickOption } from './pickers'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, within, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -243,19 +244,16 @@ describe('fitness domain', () => {
     notes: '',
   }
   it('splits body metrics: tape → measurements, weight → health log, nothing → empty (notes alone do not count)', () => {
+    // only the filled-in fields: the row is upserted per day, so a blank must not erase what was measured earlier that day
     expect(splitMeasurements({ ...blankMetrics, waist_cm: '82.5', notes: 'AM' })).toEqual({
-      tape: {
-        measured_on: TODAY,
-        chest_cm: null,
-        waist_cm: 82.5,
-        hips_cm: null,
-        arm_cm: null,
-        thigh_cm: null,
-        body_fat_pct: null,
-        notes: 'AM',
-      },
+      tape: { measured_on: TODAY, waist_cm: 82.5, notes: 'AM' },
       weight: null,
       empty: false,
+    })
+    expect(splitMeasurements({ ...blankMetrics, chest_cm: '100', hips_cm: '0' }).tape).toEqual({
+      measured_on: TODAY,
+      chest_cm: 100,
+      hips_cm: 0,
     })
     expect(splitMeasurements({ ...blankMetrics, weight_kg: '80' })).toMatchObject({ tape: null, weight: 80, empty: false })
     expect(splitMeasurements({ ...blankMetrics, notes: 'just a note' })).toMatchObject({ tape: null, weight: null, empty: true })
@@ -277,9 +275,7 @@ describe('WorkoutDialog', () => {
     expect(screen.getByLabelText('Name')).toHaveValue('Push day')
     expect(screen.getByLabelText('Exercise 1')).toHaveValue('Bench Press')
     expect(screen.getByLabelText('Set 3 reps')).toHaveValue(8)
-    await user.click(
-      screen.getByRole('button', { name: 'Log workout', exact: true, hidden: false }).closest('form').querySelector('button[type=submit]'),
-    )
+    await user.click(document.querySelector('button[type=submit]'))
     await waitFor(() => expect(mocks.saveWorkout).toHaveBeenCalledTimes(1))
     const [row, logs, existing] = mocks.saveWorkout.mock.calls[0]
     expect(row).toMatchObject({ workout_date: TODAY, routine_id: 'r1', name: 'Push day', status: 'completed', duration_minutes: null })
@@ -299,7 +295,7 @@ describe('WorkoutDialog', () => {
     render(<WorkoutDialog {...base} routineId="r1" />)
     await user.clear(screen.getByLabelText('Name'))
     fireEvent.change(screen.getAllByLabelText('Set 1 reps')[0], { target: { value: '-3' } })
-    await user.click(document.querySelector('form button[type=submit]'))
+    await user.click(document.querySelector('button[type=submit]'))
     expect(await screen.findByText('Name the workout')).toBeInTheDocument()
     expect(screen.getByText(/Check reps and weight/)).toBeInTheDocument()
     expect(mocks.saveWorkout).not.toHaveBeenCalled()
@@ -308,7 +304,7 @@ describe('WorkoutDialog', () => {
     const user = userEvent.setup()
     render(<WorkoutDialog {...base} />)
     expect(screen.queryByLabelText('Exercise 1')).toBeNull()
-    await user.selectOptions(screen.getByLabelText('Routine (optional)'), 'r1')
+    await pickOption(user, screen.getByLabelText('Routine (optional)'), 'r1')
     expect(screen.getByLabelText('Exercise 1')).toHaveValue('Bench Press')
     expect(screen.getByLabelText('Name')).toHaveValue('Push day')
   })
@@ -335,9 +331,20 @@ describe('WorkoutDialog', () => {
   it('cardio workouts hide the exercise list and show cardio fields', async () => {
     const user = userEvent.setup()
     render(<WorkoutDialog {...base} routineId="r1" />)
-    await user.selectOptions(screen.getByLabelText('Type'), 'cardio')
+    await pickOption(user, screen.getByLabelText('Type'), 'cardio')
     expect(screen.queryByLabelText('Exercise 1')).toBeNull()
     expect(screen.getByLabelText('Distance (km)')).toBeInTheDocument()
+  })
+  it('a cardio workout saves no sets, and a hidden empty exercise row does not block it', async () => {
+    const user = userEvent.setup()
+    render(<WorkoutDialog {...base} routineId="r1" />)
+    await user.click(screen.getByRole('button', { name: 'Add exercise' })) // an empty row: invalid while visible
+    await pickOption(user, screen.getByLabelText('Type'), 'cardio')
+    await user.type(screen.getByLabelText('Cardio minutes'), '30')
+    await user.click(document.querySelector('button[type=submit]'))
+    await waitFor(() => expect(mocks.saveWorkout).toHaveBeenCalledTimes(1))
+    expect(mocks.saveWorkout.mock.calls[0][0]).toMatchObject({ kind: 'cardio', cardio_minutes: 30 })
+    expect(mocks.saveWorkout.mock.calls[0][1]).toEqual([])
   })
   it('a new set copies the previous one', async () => {
     const user = userEvent.setup()
@@ -347,6 +354,26 @@ describe('WorkoutDialog', () => {
     expect(screen.getByLabelText('Set 4 reps')).toHaveValue(8)
     expect(screen.getByLabelText('Set 4 weight')).toHaveValue(60)
   })
+  it('a new set copies the previous one as typed, not as it started', async () => {
+    const user = userEvent.setup()
+    render(<WorkoutDialog {...base} routineId="r1" />)
+    const card = within(screen.getByLabelText('Exercise 1').closest('div.space-y-2'))
+    await user.clear(card.getByLabelText('Set 3 reps'))
+    await user.type(card.getByLabelText('Set 3 reps'), '6')
+    await user.clear(card.getByLabelText('Set 3 weight'))
+    await user.type(card.getByLabelText('Set 3 weight'), '65')
+    await user.click(card.getByRole('button', { name: 'Set' }))
+    expect(card.getByLabelText('Set 4 reps')).toHaveValue(6)
+    expect(card.getByLabelText('Set 4 weight')).toHaveValue(65)
+  })
+  it('reps and minutes must be whole numbers (integer columns)', async () => {
+    const user = userEvent.setup()
+    render(<WorkoutDialog {...base} routineId="r1" />)
+    await user.type(screen.getByLabelText('Duration (min)'), '45.5')
+    await user.click(document.querySelector('button[type=submit]'))
+    expect(await screen.findByText('Duration: use a whole number')).toBeInTheDocument()
+    expect(mocks.saveWorkout).not.toHaveBeenCalled()
+  })
 })
 
 describe('RoutineDialog', () => {
@@ -354,13 +381,13 @@ describe('RoutineDialog', () => {
     const user = userEvent.setup()
     render(<RoutineDialog open onOpenChange={() => {}} library={[]} />)
     expect(screen.getByRole('button', { name: 'Remove exercise' })).toBeDisabled()
-    await user.click(document.querySelector('form button[type=submit]'))
+    await user.click(document.querySelector('button[type=submit]'))
     expect(await screen.findByText('Name the routine')).toBeInTheDocument()
     expect(screen.getByText('Exercise name')).toBeInTheDocument()
     await user.type(screen.getByLabelText('Name'), 'Pull')
     await user.type(screen.getByLabelText('Exercise 1 name'), 'Row')
     fireEvent.change(screen.getByLabelText('Sets'), { target: { value: '99' } })
-    await user.click(document.querySelector('form button[type=submit]'))
+    await user.click(document.querySelector('button[type=submit]'))
     expect(await screen.findByText('Sets is too large')).toBeInTheDocument()
     expect(mocks.insert).not.toHaveBeenCalled()
   })
@@ -369,7 +396,7 @@ describe('RoutineDialog', () => {
     const { unmount } = render(<RoutineDialog open onOpenChange={() => {}} library={[]} />)
     await user.type(screen.getByLabelText('Name'), 'Pull')
     await user.type(screen.getByLabelText('Exercise 1 name'), 'Row')
-    await user.click(document.querySelector('form button[type=submit]'))
+    await user.click(document.querySelector('button[type=submit]'))
     await waitFor(() =>
       expect(mocks.insert).toHaveBeenCalledWith(
         'routines',
@@ -379,7 +406,7 @@ describe('RoutineDialog', () => {
     unmount()
     render(<RoutineDialog open onOpenChange={() => {}} library={[]} routine={{ ...routine, notes: '' }} />)
     expect(screen.getByLabelText('Exercise 2 name')).toHaveValue('Dip')
-    await user.click(document.querySelector('form button[type=submit]'))
+    await user.click(document.querySelector('button[type=submit]'))
     await waitFor(() => expect(mocks.update).toHaveBeenCalledWith('routines', 'r1', expect.objectContaining({ name: 'Push day' })))
   })
 })
@@ -389,7 +416,7 @@ describe('MeasurementDialog', () => {
   it('refuses an empty entry with a clear message and saves nothing', async () => {
     const user = userEvent.setup()
     open()
-    await user.click(document.querySelector('form button[type=submit]'))
+    await user.click(document.querySelector('button[type=submit]'))
     await waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith('Enter at least one measurement.'))
     expect(mocks.upsert).not.toHaveBeenCalled()
     expect(mocks.saveHealth).not.toHaveBeenCalled()
@@ -398,18 +425,18 @@ describe('MeasurementDialog', () => {
     const user = userEvent.setup()
     const { unmount } = open()
     await user.type(screen.getByLabelText('Weight (kg)'), '80.4')
-    await user.click(document.querySelector('form button[type=submit]'))
+    await user.click(document.querySelector('button[type=submit]'))
     await waitFor(() => expect(mocks.saveHealth).toHaveBeenCalledWith(TODAY, { weight_kg: 80.4 }))
     expect(mocks.upsert).not.toHaveBeenCalled()
     unmount()
     mocks.saveHealth.mockClear()
     open()
     await user.type(screen.getByLabelText('Waist (cm)'), '82')
-    await user.click(document.querySelector('form button[type=submit]'))
+    await user.click(document.querySelector('button[type=submit]'))
     await waitFor(() =>
       expect(mocks.upsert).toHaveBeenCalledWith(
         'body_measurements',
-        expect.objectContaining({ measured_on: TODAY, waist_cm: 82, chest_cm: null }),
+        { measured_on: TODAY, waist_cm: 82 },
         { onConflict: 'user_id,measured_on' },
       ),
     )
@@ -419,7 +446,7 @@ describe('MeasurementDialog', () => {
     const user = userEvent.setup()
     open()
     await user.type(screen.getByLabelText('Weight (kg)'), '5')
-    await user.click(document.querySelector('form button[type=submit]'))
+    await user.click(document.querySelector('button[type=submit]'))
     await waitFor(() => expect(mocks.saveHealth).not.toHaveBeenCalled())
   })
 })
@@ -431,7 +458,7 @@ describe('ExerciseDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Name the exercise')).toBeInTheDocument()
     await user.type(screen.getByLabelText('Name'), 'Face Pull')
-    await user.selectOptions(screen.getByLabelText('Muscle group'), 'Shoulders')
+    await pickOption(user, screen.getByLabelText('Muscle group'), 'Shoulders')
     await user.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() =>
       expect(mocks.insert).toHaveBeenCalledWith('exercises', { name: 'Face Pull', muscle_group: 'Shoulders', equipment: '' }),
@@ -480,7 +507,7 @@ describe('HistoryTab', () => {
   ])
   it('summarises a workout and expands to its sets', async () => {
     const user = userEvent.setup()
-    render(<HistoryTab history={workouts} logsByWorkout={logs} onEdit={() => {}} />)
+    render(<HistoryTab today={TODAY} weekStartsOn={1} history={workouts} logsByWorkout={logs} onEdit={() => {}} />)
     expect(screen.getByText(/50 min · 2 sets · 1,000 kg/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Legs/ }))
     expect(screen.getByText('5×100kg, 5×100kg')).toBeInTheDocument()
@@ -489,7 +516,7 @@ describe('HistoryTab', () => {
     const user = userEvent.setup()
     const onEdit = vi.fn()
     mocks.confirm.mockResolvedValue(true)
-    render(<HistoryTab history={workouts} logsByWorkout={logs} onEdit={onEdit} />)
+    render(<HistoryTab today={TODAY} weekStartsOn={1} history={workouts} logsByWorkout={logs} onEdit={onEdit} />)
     const items = screen.getAllByRole('button', { name: 'Workout actions' })
     await user.click(items[1])
     expect(screen.queryByRole('menuitem', { name: 'Edit' })).toBeNull()
@@ -503,7 +530,7 @@ describe('HistoryTab', () => {
     expect(mocks.confirm.mock.calls[0][0].description).toMatch(/Legs .*sets are deleted too/)
   })
   it('shows an empty state', () => {
-    render(<HistoryTab history={[]} logsByWorkout={new Map()} onEdit={() => {}} />)
+    render(<HistoryTab today={TODAY} weekStartsOn={1} history={[]} logsByWorkout={new Map()} onEdit={() => {}} />)
     expect(screen.getByText('No workouts logged')).toBeInTheDocument()
   })
 })
@@ -524,13 +551,13 @@ describe('WeeklyPlan and RoutinesTab', () => {
         onPlan={onPlan}
       />,
     )
-    expect(screen.getByLabelText('Plan for Monday')).toHaveValue('r1')
+    expect(screen.getByLabelText('Plan for Monday')).toHavePickerValue('r1')
     expect(screen.getByText('Done')).toBeInTheDocument()
     expect(screen.getByText('Rest')).toBeInTheDocument()
     expect(screen.getByText('TODAY')).toBeInTheDocument()
-    await user.selectOptions(screen.getByLabelText('Plan for Tuesday'), 'rest')
+    await pickOption(user, screen.getByLabelText('Plan for Tuesday'), 'rest')
     expect(onPlan).toHaveBeenCalledWith('2', 'rest')
-    await user.selectOptions(screen.getByLabelText('Plan for Monday'), '')
+    await pickOption(user, screen.getByLabelText('Plan for Monday'), '')
     expect(onPlan).toHaveBeenCalledWith('1', '')
   })
   it('tells you to create a routine first when there are none', () => {

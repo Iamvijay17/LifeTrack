@@ -30,11 +30,11 @@ function makeStore(adapter) {
     removeMany: async (t, ids) => { await adapter.removeMany(t, ids); drop(t, ids) },
   }
 }
-let client, store, api
+let client, store, api, adapter
 beforeEach(() => {
   client = createMemorySupabase(); setUserId(A)
   // Every write is also validated against the shared schemas, so these tests fail if an operation sends a column the table does not have.
-  const adapter = withSchemaValidation(createSupabaseAdapter(client), { insertSchemas, updateSchemas })
+  adapter = withSchemaValidation(createSupabaseAdapter(client), { insertSchemas, updateSchemas })
   store = makeStore(adapter); api = createApi(store)
 })
 const db = (t) => client.dump(t)
@@ -72,6 +72,37 @@ describe('tasks', () => {
     const w = await api.createTask({ title: 'weekdays', recurrence: 'weekdays', due_date: '2026-11-06' }) // Friday
     await api.setTaskStatus(w, 'done', '2026-11-06')
     expect(db('tasks').filter((x) => x.title === 'weekdays').map((x) => x.due_date).sort()).toEqual(['2026-11-06', '2026-11-09']) // Monday
+  })
+  it('a monthly series on the 31st comes back to the 31st after a short month', async () => {
+    const jan = await api.createTask({ title: 'rent', recurrence: 'monthly', due_date: '2027-01-31' })
+    await api.setTaskStatus(jan, 'done', '2027-01-31')
+    const feb = store.peek('tasks').find((x) => x.due_date === '2027-02-28')
+    expect(feb.series_id).toBe(jan.series_id)
+    await api.setTaskStatus(feb, 'done', '2027-02-28')
+    expect(db('tasks').map((x) => x.due_date).sort()).toEqual(['2027-01-31', '2027-02-28', '2027-03-31'])
+  })
+  it('the anchor day comes from the earliest occurrence of the SAME series only, and a task without a series or a date still works', async () => {
+    const feb = await api.createTask({ title: 'rent', recurrence: 'monthly', due_date: '2027-02-28' }) // cut short by February
+    store.patch('tasks', [
+      { id: 'old', title: 'rent', series_id: feb.series_id, due_date: '2027-01-31', status: 'done' }, // the series started on the 31st
+      { id: 'other', title: 'gym', series_id: 'another-series', due_date: '2026-12-05', status: 'done' }, // another series, earlier: ignored
+      { id: 'undated', title: 'rent', series_id: feb.series_id, due_date: null, status: 'done' }, // no date: ignored
+    ])
+    await api.setTaskStatus(feb, 'done', '2027-02-28')
+    expect(db('tasks').filter((x) => x.title === 'rent').map((x) => x.due_date).sort()).toEqual(['2027-02-28', '2027-03-31']) // back on the 31st
+    const legacy = (await store.insert('tasks', [{ title: 'legacy', recurrence: 'monthly', due_date: '2027-01-31', series_id: null }]))[0]
+    await api.setTaskStatus(legacy, 'done', '2027-01-31')
+    expect(db('tasks').filter((x) => x.title === 'legacy').map((x) => x.due_date).sort()).toEqual(['2027-01-31', '2027-02-28'])
+    const undated = (await store.insert('tasks', [{ title: 'someday', recurrence: 'monthly', series_id: null }]))[0]
+    await api.setTaskStatus(undated, 'done', TODAY)
+    expect(db('tasks').filter((x) => x.title === 'someday')).toHaveLength(1) // nothing to repeat from
+  })
+  it('saveRow creates a row without an entity and updates the given one', async () => {
+    const created = await api.saveRow('notes', null, { title: 'Draft', body: 'one' })
+    expect(db('notes')).toHaveLength(1)
+    await api.saveRow('notes', created, { body: 'two' })
+    expect(db('notes')).toHaveLength(1)
+    expect(db('notes')[0]).toMatchObject({ id: created.id, title: 'Draft', body: 'two' })
   })
   it('a non-recurring or already-done task does not spawn anything', async () => {
     const t = await api.createTask({ title: 'once', due_date: TODAY })
@@ -152,6 +183,70 @@ describe('study timer across devices', () => {
   })
 })
 
+describe('nutrition', () => {
+  it('logWater writes an entry AND raises the day total in health_logs; removeWaterLog takes exactly that amount back', async () => {
+    await store.load('health_logs'); await store.load('water_logs')
+    const a = await api.logWater(TODAY, 250, '09:00')
+    const b = await api.logWater(TODAY, 500)
+    expect(db('water_logs').map((w) => w.amount_ml)).toEqual([250, 500])
+    expect(db('health_logs')[0].water_ml).toBe(750)
+    expect(store.peek('health_logs')[0].water_ml).toBe(750) // the cache shows the new total without a reload
+    const after = await api.removeWaterLog(b)
+    expect(after.water_ml).toBe(250)
+    expect(db('water_logs')).toHaveLength(1)
+    expect(store.peek('water_logs').map((w) => w.id)).toEqual([a.id])
+    expect(store.peek('health_logs')[0].water_ml).toBe(250)
+  })
+  it('refuses amounts the database would refuse, before calling it', async () => {
+    for (const ml of [0, -250, 5001, 2.5, NaN]) await expect(api.logWater(TODAY, ml)).rejects.toThrow(/between 1 and 5000/)
+    expect(db('water_logs')).toHaveLength(0)
+  })
+  it('water that was typed into Sleep & Health stays when an entry is removed', async () => {
+    await api.saveHealth(TODAY, { water_ml: 1000 })
+    const e = await api.logWater(TODAY, 250)
+    expect(db('health_logs')[0].water_ml).toBe(1250)
+    await api.removeWaterLog(e)
+    expect(db('health_logs')[0].water_ml).toBe(1000)
+  })
+  it('targets: one row per user, empty goals are stored as null, and the water goal goes to user_settings', async () => {
+    await store.insert('user_settings', { water_goal_ml: 3000 }).catch(() => {})
+    await api.saveNutritionGoals({ calorie_goal: 1800, protein_goal_g: null }, 2500)
+    await api.saveNutritionGoals({ calorie_goal: 2000, protein_goal_g: 80 }, 2500)
+    expect(db('nutrition_settings')).toHaveLength(1)
+    expect(db('nutrition_settings')[0]).toMatchObject({ calorie_goal: 2000, protein_goal_g: 80, carbs_goal_g: null })
+    expect(db('user_settings').find((r) => r.user_id === A).water_goal_ml).toBe(2500)
+  })
+  it('favourites are saved on the same row as the targets, without erasing them', async () => {
+    await api.saveNutritionGoals({ calorie_goal: 1800 })
+    await api.saveFavoriteFoods(['starter:idli', 'custom:abc'])
+    expect(db('nutrition_settings')).toHaveLength(1)
+    expect(db('nutrition_settings')[0]).toMatchObject({ calorie_goal: 1800, favorite_foods: ['starter:idli', 'custom:abc'] })
+  })
+  it('editing a starter food saves ONE copy per user, however many times (or from how many devices) it is saved', async () => {
+    await store.load('foods')
+    const base = { name: 'Idli', kcal: 60, category: 'Tiffin' }
+    const first = await api.saveFoodCopy('idli', base)
+    const again = await api.saveFoodCopy('idli', { ...base, kcal: 65 })
+    expect(again.id).toBe(first.id)
+    expect(db('foods')).toHaveLength(1)
+    expect(db('foods')[0]).toMatchObject({ base_key: 'idli', kcal: 65 })
+    // another device that has not seen the copy yet: its insert collides on (user, base_key) and falls back to updating the existing one
+    await adapter.remove('foods', first.id); await store.refetch('foods')
+    const stale = makeStore(adapter); const staleApi = createApi(stale); await stale.load('foods') // this device sees no copy yet
+    await api.saveFoodCopy('idli', { ...base, kcal: 70 }) // meanwhile the first device writes one
+    const raced = await staleApi.saveFoodCopy('idli', { ...base, kcal: 75 })
+    expect(db('foods')).toHaveLength(1)
+    expect(raced.kcal).toBe(75)
+  })
+  it('a logged entry keeps its nutrition when the food it came from is deleted', async () => {
+    const [food] = await store.insert('foods', [{ name: 'Mom sambar', kcal: 70 }])
+    const [entry] = await store.insert('food_logs', [{ log_date: TODAY, meal_type: 'lunch', name: 'Mom sambar', food_id: food.id, kcal: 140, quantity: 2 }])
+    await api.deleteFood(food)
+    expect(db('foods')).toHaveLength(0)
+    expect(db('food_logs')[0]).toMatchObject({ id: entry.id, kcal: 140 })
+  })
+})
+
 describe('health, water, jobs, goals, focus', () => {
   it('saveHealth is one row per day; addWater accumulates and never goes below zero', async () => {
     await store.load('health_logs')
@@ -192,6 +287,132 @@ describe('health, water, jobs, goals, focus', () => {
     expect(db('focus_sessions')[0].label).toHaveLength(120)
     await api.recordFocus({ ...base, actualSeconds: 10 }) // a completed block is kept even if short
     expect(db('focus_sessions')).toHaveLength(2)
+  })
+})
+
+describe('recurring transactions', () => {
+  const RULE = { type: 'expense', amount_paise: 2500000, category: 'Bills', payment_method: 'UPI', note: 'Rent', frequency: 'monthly', anchor_day: 1, next_date: '2026-11-01' }
+  /** A second device: same database, its own cache. */
+  const device = () => { const s = makeStore(adapter); return { store: s, api: createApi(s) } }
+  const posted = () => db('transactions').map((t) => t.txn_date).sort()
+
+  it('posts each occurrence once, dated on the day it fell due, and advances the rule', async () => {
+    await store.insert('recurring_rules', { ...RULE, next_date: '2026-09-01' })
+    expect(await api.postDueRecurring(TODAY)).toBe(3)
+    expect(posted()).toEqual(['2026-09-01', '2026-10-01', '2026-11-01'])
+    expect(db('transactions')[0]).toMatchObject({ type: 'expense', amount_paise: 2500000, category: 'Bills', payment_method: 'UPI', note: 'Rent', recurring_rule_id: db('recurring_rules')[0].id, recurring_date: '2026-09-01' })
+    expect(db('recurring_rules')[0]).toMatchObject({ next_date: '2026-12-01', active: true })
+    expect(await api.postDueRecurring(TODAY)).toBe(0)
+    expect(db('transactions')).toHaveLength(3)
+  })
+  it('two devices open at the same moment post it once', async () => {
+    await store.insert('recurring_rules', RULE)
+    const a = device(), b = device()
+    const counts = await Promise.all([a.api.postDueRecurring(TODAY), b.api.postDueRecurring(TODAY)])
+    expect(counts.reduce((x, y) => x + y, 0)).toBe(1)
+    expect(posted()).toEqual(['2026-11-01'])
+    expect(db('recurring_rules')[0].next_date).toBe('2026-12-01')
+  })
+  it('a device with an old copy of the rule cannot post it twice', async () => {
+    await store.insert('recurring_rules', RULE)
+    const stale = device()
+    await stale.store.load('recurring_rules')
+    await api.postDueRecurring(TODAY)
+    expect(stale.store.peek('recurring_rules')[0].next_date).toBe('2026-11-01') // still believes it is due
+    expect(await stale.api.postDueRecurring(TODAY)).toBe(0)
+    expect(posted()).toEqual(['2026-11-01'])
+  })
+  it('the unique index alone stops a double post, even if the re-read returned old data', async () => {
+    const [r] = await store.insert('recurring_rules', [RULE])
+    const racing = device()
+    await racing.store.load('recurring_rules')
+    racing.store.refetch = async () => {} // both devices read before either wrote: the re-read can't save this one
+    await api.postDueRecurring(TODAY)
+    expect(await racing.api.postDueRecurring(TODAY)).toBe(0)
+    expect(posted()).toEqual(['2026-11-01'])
+    expect(db('recurring_rules').find((x) => x.id === r.id).next_date).toBe('2026-12-01')
+  })
+  it('a run that died after posting but before advancing repeats safely', async () => {
+    const [r] = await store.insert('recurring_rules', [{ ...RULE, next_date: '2026-10-01' }])
+    await store.insert('transactions', { type: 'expense', amount_paise: 2500000, txn_date: '2026-10-01', recurring_rule_id: r.id, recurring_date: '2026-10-01' })
+    expect(await api.postDueRecurring(TODAY)).toBe(1) // only November; October already exists
+    expect(posted()).toEqual(['2026-10-01', '2026-11-01'])
+    expect(db('recurring_rules')[0].next_date).toBe('2026-12-01')
+  })
+  it('a failed write leaves the rule due, so the next run finishes the job', async () => {
+    await store.insert('recurring_rules', { ...RULE, next_date: '2026-10-01' })
+    const insert = store.insert
+    let calls = 0
+    store.insert = async (...a) => { if (++calls === 2) throw Object.assign(new Error('offline'), { isNetwork: true }); return insert(...a) }
+    await expect(api.postDueRecurring(TODAY)).rejects.toThrow('offline')
+    store.insert = insert
+    expect(db('recurring_rules')[0].next_date).toBe('2026-10-01')
+    expect(await api.postDueRecurring(TODAY)).toBe(1)
+    expect(posted()).toEqual(['2026-10-01', '2026-11-01'])
+  })
+  it('deleting a posted transaction does not bring it back', async () => {
+    await store.insert('recurring_rules', RULE)
+    await api.postDueRecurring(TODAY)
+    await store.remove('transactions', db('transactions')[0].id)
+    expect(await api.postDueRecurring(TODAY)).toBe(0)
+    expect(db('transactions')).toEqual([])
+  })
+  it('a device waking from sleep re-reads its rules, so it cannot bring back a transaction deleted meanwhile', async () => {
+    await store.insert('recurring_rules', RULE)
+    const asleep = device()
+    await asleep.store.load('recurring_rules')
+    await api.postDueRecurring(TODAY)
+    await store.remove('transactions', db('transactions')[0].id)
+    expect(await asleep.api.postDueRecurring(TODAY)).toBe(0)
+    expect(db('transactions')).toEqual([])
+  })
+  it('moving a posted transaction to another day does not free its occurrence', async () => {
+    const [r] = await store.insert('recurring_rules', [RULE])
+    await api.postDueRecurring(TODAY)
+    await store.update('transactions', db('transactions')[0].id, { txn_date: '2026-11-02' })
+    await store.update('recurring_rules', r.id, { next_date: '2026-11-01' }) // e.g. a stale edit form writes the old date back
+    expect(await api.postDueRecurring(TODAY)).toBe(0)
+    expect(posted()).toEqual(['2026-11-02'])
+    expect(db('recurring_rules')[0].next_date).toBe('2026-12-01')
+  })
+  it('a rule another device just deleted is skipped; the other rules still post', async () => {
+    await store.insert('recurring_rules', [RULE, { ...RULE, note: 'Netflix' }])
+    const insert = store.insert
+    store.insert = async (t, row) => { if (row.note === 'Rent') throw Object.assign(new Error('gone'), { code: '23503' }); return insert(t, row) }
+    expect(await api.postDueRecurring(TODAY)).toBe(1)
+    store.insert = insert
+    expect(db('transactions').map((t) => t.note)).toEqual(['Netflix'])
+  })
+  it('paused rules wait; resuming skips what fell due during the pause', async () => {
+    const [r] = await store.insert('recurring_rules', [{ ...RULE, next_date: '2026-10-01' }])
+    const paused = await api.toggleRecurringRule(r, TODAY)
+    expect(paused.active).toBe(false)
+    expect(await api.postDueRecurring(TODAY)).toBe(0)
+    expect(await api.toggleRecurringRule(paused, TODAY)).toMatchObject({ active: true, next_date: '2026-12-01' })
+    expect(await api.postDueRecurring(TODAY)).toBe(0)
+    expect(db('transactions')).toEqual([])
+  })
+  it('a rule stops at its end date and switches off', async () => {
+    await store.insert('recurring_rules', { ...RULE, next_date: '2026-09-01', end_date: '2026-10-15' })
+    expect(await api.postDueRecurring(TODAY)).toBe(2)
+    expect(db('recurring_rules')[0]).toMatchObject({ next_date: '2026-11-01', active: false })
+  })
+  it('deleting a rule keeps the transactions it posted, and stops new ones', async () => {
+    const [r] = await store.insert('recurring_rules', [RULE])
+    await api.postDueRecurring(TODAY)
+    await store.remove('recurring_rules', r.id)
+    expect(db('transactions')).toHaveLength(1)
+    expect(db('transactions')[0]).toMatchObject({ recurring_rule_id: null, recurring_date: '2026-11-01' })
+    expect(await api.postDueRecurring('2026-12-01')).toBe(0)
+  })
+  it('editing a posted transaction or duplicating it never touches the link', async () => {
+    await store.insert('recurring_rules', RULE)
+    await api.postDueRecurring(TODAY)
+    const [t] = db('transactions')
+    await store.update('transactions', t.id, { amount_paise: 2600000 })
+    expect(db('transactions')[0]).toMatchObject({ amount_paise: 2600000, recurring_date: '2026-11-01' })
+    await store.insert('transactions', { type: t.type, amount_paise: t.amount_paise, txn_date: t.txn_date }) // what Duplicate sends
+    expect(db('transactions')).toHaveLength(2)
   })
 })
 

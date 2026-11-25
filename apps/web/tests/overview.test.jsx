@@ -6,9 +6,10 @@ import { MemoryRouter } from 'react-router-dom'
 import { PrioritiesCard } from '@/features/overview/PrioritiesCard'
 import { TodayStats } from '@/features/overview/TodayStats'
 import { SpendingCard } from '@/features/overview/SpendingCard'
+import { NutritionCard } from '@/features/overview/NutritionCard'
+import { dayStatus } from '@/domain/nutrition'
 import { GoalsCard } from '@/features/overview/GoalsCard'
 import { ActivityCard } from '@/features/overview/ActivityCard'
-import { CustomizeDialog } from '@/features/overview/CustomizeDialog'
 
 const wrap = (ui) => render(<MemoryRouter>{ui}</MemoryRouter>)
 const money = (p) => `₹${p / 100}`
@@ -67,7 +68,7 @@ describe('TodayStats', () => {
     wrap(<TodayStats h={{ ...h, habitsDone: 0, habitsDue: 0, studyRunning: true }} settings={{}} money={money} />)
     expect(screen.getByText('not logged')).toBeInTheDocument()
     expect(screen.getByText('none due today')).toBeInTheDocument()
-    expect(screen.getByText('⏱ timer running')).toBeInTheDocument()
+    expect(screen.getByText('timer running')).toBeInTheDocument()
     expect(screen.getByText('0 ml')).toBeInTheDocument()
   })
 })
@@ -93,6 +94,27 @@ describe('SpendingCard', () => {
   })
 })
 
+describe('NutritionCard', () => {
+  const log = (kcal) => ({ log_date: '2026-11-10', meal_type: 'lunch', kcal, protein_g: 20, carbs_g: 50, fat_g: 10, fiber_g: 0 })
+  const show = (logs, settings) => wrap(<NutritionCard status={dayStatus(logs, settings, '2026-11-10')} />)
+  it('shows calories eaten, the target and what is left, linking to Nutrition', () => {
+    show([log(600)], { calorie_goal: 2000 })
+    expect(screen.getByTestId('food-kcal')).toHaveTextContent('600 kcal')
+    expect(screen.getByText(/30% of target · 1400 kcal left/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Nutrition' })).toHaveAttribute('href', '/nutrition')
+  })
+  it('shows how far over the target', () => {
+    show([log(2300)], { calorie_goal: 2000 })
+    expect(screen.getByText(/300 kcal over/)).toBeInTheDocument()
+  })
+  it('without a target it says so rather than showing 0%, and an empty day offers Log food', () => {
+    show([], null)
+    expect(screen.getByText(/Nothing logged yet/)).toBeInTheDocument()
+    expect(screen.queryByText(/% of target/)).toBeNull()
+    expect(screen.getByRole('link', { name: 'Log food' })).toBeInTheDocument()
+  })
+})
+
 describe('GoalsCard', () => {
   it('lists goals with their percent', () => {
     wrap(<GoalsCard rows={[{ goal: { id: 'a', title: 'Learn Go' }, progress: { percent: 40 } }]} />)
@@ -108,24 +130,12 @@ describe('GoalsCard', () => {
 describe('ActivityCard', () => {
   it('renders every activity kind without crashing', () => {
     const at = new Date().toISOString()
-    const items = ['task', 'study', 'workout', 'money', 'job', 'habit'].map((kind) => ({ kind, at, text: `item-${kind}` }))
+    const items = ['task', 'study', 'workout', 'money', 'job', 'habit', 'sleep'].map((kind) => ({ kind, at, text: `item-${kind}` }))
     render(<ActivityCard items={items} />)
     for (const i of items) expect(screen.getByText(i.text)).toBeInTheDocument()
   })
   it('empty state', () => {
     render(<ActivityCard items={[]} />)
     expect(screen.getByText('Your activity will show up here.')).toBeInTheDocument()
-  })
-})
-
-describe('CustomizeDialog', () => {
-  it('reflects prefs (default on) and reports toggles', async () => {
-    const onToggle = vi.fn()
-    render(<CustomizeDialog open onOpenChange={() => {}} prefs={{ score: false }} onToggle={onToggle} />)
-    const score = screen.getByRole('switch', { name: 'Daily score' })
-    expect(score).toHaveAttribute('aria-checked', 'false')
-    expect(screen.getByRole('switch', { name: "Today's progress" })).toHaveAttribute('aria-checked', 'true')
-    await userEvent.click(score)
-    expect(onToggle).toHaveBeenCalledWith('score', true)
   })
 })

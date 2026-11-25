@@ -10,24 +10,30 @@ import { AuthProvider, useAuth } from '../src/providers/AuthProvider'
 import { queryClient } from '../src/data/client'
 import { isConfigured } from '../src/lib/supabase'
 import { pathFromUrl, rememberPending, takePending } from '../src/lib/deepLinks'
+import { LockScreen, SecurityUnavailable } from '../src/features/security/LockScreen'
+import { ActivityCapture, SecurityProvider, useSecurity } from '../src/features/security/SecurityProvider'
 import { Screen, Txt } from '../src/ui'
 
 SplashScreen.preventAutoHideAsync().catch(() => {})
 
 function Gate() {
   const { session, loading } = useAuth()
+  const sec = useSecurity()
   const { colors, scheme } = useTheme()
   const router = useRouter()
   const url = Linking.useLinkingURL()
-  useEffect(() => { if (!loading) SplashScreen.hideAsync().catch(() => {}) }, [loading])
-  // A link opened while signed out (e.g. tapping a notification) is remembered, then followed once sign-in completes.
+  // Signed in, but the server has not yet said whether this session is locked: show nothing (the native splash stays up). A flash of the app would be a leak.
+  const waiting = !!session && (sec.status === 'idle' || sec.status === 'loading')
+  const locked = !!session && sec.locked
+  useEffect(() => { if (!loading && !waiting) SplashScreen.hideAsync().catch(() => {}) }, [loading, waiting])
+  // A link opened while signed out (e.g. tapping a notification) is remembered, then followed once sign-in completes (and the app is unlocked).
   useEffect(() => { if (!loading && !session) rememberPending(pathFromUrl(url)) }, [loading, session, url])
   useEffect(() => {
-    if (!loading && session) {
+    if (!loading && session && !waiting && !locked) {
       const target = takePending()
       if (target) setTimeout(() => router.push(target as never), 0) // after the protected stack has mounted
     }
-  }, [loading, session, router])
+  }, [loading, session, waiting, locked, router])
   if (!isConfigured) {
     return (
       <Screen>
@@ -36,17 +42,23 @@ function Gate() {
       </Screen>
     )
   }
-  if (loading) return null // native splash stays visible while the stored session is read
+  if (loading || waiting) return null // native splash stays visible while the stored session is read and the lock state is fetched
+  // The app lock. While the server says this session is locked, or cannot be asked, the app (every screen, the realtime channel, the reminder runner) is NOT
+  // mounted at all: the lock screen replaces the whole navigator. Unlocking mounts it afresh, back at the home tab.
+  if (session && sec.status === 'error') return <SecurityUnavailable message={sec.error} onRetry={sec.retry} />
+  if (locked) return <LockScreen />
   return (
     <>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
-        <Stack.Protected guard={!!session}><Stack.Screen name="(app)" /></Stack.Protected>
-        <Stack.Protected guard={!session}><Stack.Screen name="(auth)" /></Stack.Protected>
-        {/* Deep-link targets must be reachable both signed in and out. */}
-        <Stack.Screen name="auth-callback" />
-        <Stack.Screen name="reset-password" />
-      </Stack>
+      <ActivityCapture>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+          <Stack.Protected guard={!!session}><Stack.Screen name="(app)" /></Stack.Protected>
+          <Stack.Protected guard={!session}><Stack.Screen name="(auth)" /></Stack.Protected>
+          {/* Deep-link targets must be reachable both signed in and out. */}
+          <Stack.Screen name="auth-callback" />
+          <Stack.Screen name="reset-password" />
+        </Stack>
+      </ActivityCapture>
     </>
   )
 }
@@ -56,7 +68,7 @@ export default function Root() {
     <SafeAreaProvider>
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
-          <AuthProvider><Gate /></AuthProvider>
+          <AuthProvider><SecurityProvider><Gate /></SecurityProvider></AuthProvider>
         </QueryClientProvider>
       </ThemeProvider>
     </SafeAreaProvider>

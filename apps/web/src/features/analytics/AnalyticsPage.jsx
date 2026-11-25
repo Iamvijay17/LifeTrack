@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate } from '@/components/shared/states'
 import { DateRangePicker } from '@/components/shared/DateRangePicker'
-import { useTables } from '@/hooks/store'
+import { useTable, useTables } from '@/hooks/store'
 import { useDateRange } from '@/hooks/useDateRange'
 import { useSettings } from '@/hooks/useSettings'
 import { useToday } from '@/hooks/useToday'
@@ -34,26 +34,31 @@ export default function AnalyticsPage() {
   const today = useToday()
   const { settings } = useSettings()
   const { data, loading, error, refetch } = useTables(...TABLES)
+  // Pauses are optional (migration 0018): if the table is missing, habits are counted as if never paused instead of failing the page.
+  const { rows: habitPauses } = useTable('habit_pauses')
   const range = useDateRange(today, settings.week_starts_on, 'month')
   const { from, to } = range
   const money = (paise, opts) => formatMoney(paise, settings.currency, opts)
 
   const a = useMemo(
     () =>
-      buildAnalytics(data, { from, to, today, weekStartsOn: settings.week_starts_on, plan: settings.workout_plan, tz: settings.timezone }),
-    [data, from, to, today, settings.week_starts_on, settings.workout_plan, settings.timezone],
+      buildAnalytics(
+        { ...data, habit_pauses: habitPauses },
+        { from, to, today, weekStartsOn: settings.week_starts_on, plan: settings.workout_plan, tz: settings.timezone },
+      ),
+    [data, habitPauses, from, to, today, settings.week_starts_on, settings.workout_plan, settings.timezone],
   )
 
   return (
     <>
-      <PageHeader title="Analytics" description="Everything here is computed from your real records. Empty ranges stay empty." />
+      <PageHeader title="Analytics" description="Trends across everything you track." />
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <DateRangePicker range={range} className="contents" />
         <span className="text-xs text-muted-foreground">
           {fmtDay(from, 'd MMM yyyy')} – {fmtDay(to, 'd MMM yyyy')}
         </span>
       </div>
-      <DataGate loading={loading} error={error} onRetry={refetch}>
+      <DataGate loading={loading} error={error} onRetry={refetch} skeleton="chart">
         <div className="space-y-8">
           <LearningSection learning={a.learning} />
           <JobsSection jobs={a.jobs} />

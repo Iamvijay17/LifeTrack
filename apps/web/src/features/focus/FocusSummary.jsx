@@ -1,6 +1,6 @@
 import { Bar, BarChart } from 'recharts'
 import { Timer } from 'lucide-react'
-import { Chart, C, grid, tooltip, xAxis, yAxis } from '@/components/shared/charts'
+import { Chart, grid, tooltip, xAxis, yAxis, seriesSummary, G } from '@/components/shared/charts'
 import { StatCard } from '@/components/shared/StatCard'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { fmtDay, fmtDuration } from '@/lib/dates'
@@ -28,13 +28,18 @@ export function FocusSummary({ todayMinutes, completedToday, week, weekMinutes, 
           <CardTitle>Weekly focus (minutes)</CardTitle>
         </CardHeader>
         <CardContent>
-          <Chart height={150} empty={weekMinutes === 0} emptyText="Finish a focus block to see your week.">
+          <Chart
+            summary={seriesSummary('Focus minutes this week', week, 'minutes', ' min')}
+            height={150}
+            empty={weekMinutes === 0}
+            emptyText="Finish a focus block to see your week."
+          >
             <BarChart data={week}>
               {grid()}
               {xAxis({ dataKey: 'label' })}
               {yAxis()}
               {tooltip({ formatter: (v) => [`${v} min`, 'Focus'] })}
-              <Bar dataKey="minutes" fill={C.primary} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="minutes" fill={G.mod} radius={[6, 6, 2, 2]} />
             </BarChart>
           </Chart>
         </CardContent>

@@ -15,6 +15,8 @@ import { Badge, Chip, DataGate, EmptyState, Segmented, StatTile, pullToRefresh }
 import { Button, Card, Field, Txt } from '../../../src/ui'
 
 type View_ = 'pipeline' | 'interviews' | 'insights'
+const STAGE_COLOR: Record<string, string> = { interested: '#94A3B8', preparing: '#38BDF8', applied: '#6366F1', assessment: '#F59E0B', interview: '#A855F7', selected: '#22C55E', offer: '#10B981', rejected: '#F43F5E', withdrawn: '#71717A' }
+
 export default function Jobs() {
   const { colors } = useTheme()
   const today = useToday()
@@ -55,6 +57,14 @@ export default function Jobs() {
             <StatTile label="Interview rate" value={o.funnel.conversion == null ? '—' : `${Math.round(o.funnel.conversion * 100)}%`} sub={`${o.funnel.interviews} of ${o.funnel.applied} applied`} />
             <StatTile label="Offers" value={o.funnel.offers} sub={`${o.funnel.rejections} rejections`} />
           </View>
+          {apps.length ? (
+            <View accessible accessibilityRole="image" accessibilityLabel={`Pipeline: ${JOB_STATUSES.map((st: string) => [st, apps.filter((a: any) => a.status === st).length] as const).filter(([, n]) => n).map(([st, n]) => `${(STATUS_LABEL as any)[st]} ${n}`).join(', ')}`} style={{ flexDirection: 'row', height: 10, gap: 3, borderRadius: 5, overflow: 'hidden' }}>
+              {JOB_STATUSES.map((st: string) => {
+                const n = apps.filter((a: any) => a.status === st).length
+                return n ? <View key={st} style={{ flex: n, backgroundColor: STAGE_COLOR[st] }} /> : null
+              })}
+            </View>
+          ) : null}
           {o.followups.length || o.upcoming.length ? (
             <Card>
               <Txt variant="heading">Reminders</Txt>

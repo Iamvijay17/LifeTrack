@@ -3,6 +3,8 @@ import { describe, it, expect } from 'vitest'
 import { parseBlocks } from '@/lib/markdown'
 import { searchAll } from '@/components/layout/GlobalSearch'
 import { parseTags } from '@/domain/notes'
+import { plural, pluralWord } from '@/lib/format'
+import { count } from '@/components/context-menu/helpers'
 
 const D = '2026-11-02' // a Monday
 
@@ -31,5 +33,14 @@ describe('search & tags', () => {
   })
   it('normalises tags', () => {
     expect(parseTags('#React, react , Interview,,')).toEqual(['react', 'interview'])
+  })
+})
+
+describe('plural', () => {
+  it('handles nouns ending in a consonant + y ("entries", not "entrys") and leaves the rest alone', () => {
+    expect([plural(1, 'entry'), plural(2, 'entry'), plural(0, 'category')]).toEqual(['1 entry', '2 entries', '0 categories'])
+    expect([plural(3, 'day'), plural(2, 'key'), plural(2, 'task'), plural(1, 'task')]).toEqual(['3 days', '2 keys', '2 tasks', '1 task'])
+    expect(pluralWord('check-in')).toBe('check-ins')
+    expect(count(2, 'entry')).toBe('2 entries') // the context menus' bulk wording
   })
 })

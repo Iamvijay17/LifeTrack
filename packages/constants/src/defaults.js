@@ -3,7 +3,7 @@ export const DEFAULT_TOPICS = {
   Backend: ['Node.js', 'Express', 'Java', 'Spring Boot', 'SQL'],
   DSA: ['Arrays', 'Strings', 'Linked Lists', 'Trees', 'Graphs', 'Dynamic Programming'],
   AI: ['LLMs', 'RAG', 'AI integrations', 'AI application development'],
-  Projects: ['Portfolio', 'Vireon-AI', 'Other personal projects'],
+  Projects: ['Portfolio', 'Side project', 'Open source'],
 }
 export const TOPIC_GROUPS = Object.keys(DEFAULT_TOPICS)
 
@@ -37,8 +37,9 @@ export const DEFAULT_EXERCISES = [
 ]
 export const MUSCLE_GROUPS = ['Chest', 'Back', 'Legs', 'Shoulders', 'Biceps', 'Triceps', 'Core', 'Cardio', 'Full body']
 
-export const TASK_CATEGORIES = ['Learning', 'Job Search', 'Gym', 'Health', 'Personal', 'Finance']
+export const TASK_CATEGORIES = ['Learning', 'Job Search', 'Gym', 'Health', 'Personal', 'Finance', 'Routine', 'Custom']
 export const PRIORITIES = [
+  { value: 'urgent', label: 'Urgent' },
   { value: 'high', label: 'High' },
   { value: 'medium', label: 'Medium' },
   { value: 'low', label: 'Low' },

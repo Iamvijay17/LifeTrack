@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate } from '@/components/shared/states'
@@ -24,7 +25,9 @@ import {
   MIN_MINUTES,
 } from '@/domain/focus'
 import { fmtDay } from '@/lib/dates'
-import { beep } from './beep'
+import { pageTitle } from '@/lib/nav'
+import { celebrate } from '@/lib/celebrate'
+import { sound } from '@/lib/interaction/SoundManager'
 import { FocusSummary } from './FocusSummary'
 import { SessionList } from './SessionList'
 import { TimerCard } from './TimerCard'
@@ -45,7 +48,7 @@ export default function FocusPage() {
   const [record] = useAction(recordFocus)
   const timer = useFocusTimer({
     onFinish: async (t, completed) => {
-      beep()
+      sound.play(t.mode === 'focus' ? 'focusDone' : 'notify')
       if (t.mode === 'focus') {
         const saved = await record({
           plannedMinutes: t.plannedMinutes,
@@ -56,7 +59,10 @@ export default function FocusPage() {
           label: t.label,
           date: today,
         })
-        if (saved) toast.success('Focus session complete', { description: `${t.plannedMinutes} minutes recorded.` })
+        if (saved) {
+          toast.success('Focus session complete', { description: `${t.plannedMinutes} minutes recorded.` })
+          celebrate({ count: 60 })
+        }
         setSetup((s) => ({ ...s, mode: nextBreak(doneToday + 1, prefs.long_every) }))
       } else {
         toast('Break over — ready for the next focus block?')
@@ -66,9 +72,11 @@ export default function FocusPage() {
   })
 
   useEffect(() => {
-    document.title = timer.timer ? `${fmtClock(timer.left)} · ${MODE_LABEL[timer.timer.mode]} — LifeTrack` : 'LifeTrack'
+    document.title = timer.timer ? `${fmtClock(timer.left)} · ${MODE_LABEL[timer.timer.mode]} — LifeTrack` : pageTitle('/focus')
     return () => {
-      document.title = 'LifeTrack'
+      // Leaving the page: the next page may already have set its own title (a lazy page mounts after this cleanup), so put
+      // back the title of wherever the browser is now rather than a bare 'LifeTrack'.
+      document.title = pageTitle(window.location.pathname)
     }
   }, [timer.timer, timer.left])
 
@@ -76,24 +84,38 @@ export default function FocusPage() {
     if (!validMinutes) return toast.error(`Choose a duration between ${MIN_MINUTES} and ${MAX_MINUTES} minutes.`)
     timer.start({ mode: setup.mode, plannedMinutes: minutes, ...parseFocusTarget(setup.target), label: setup.label })
   }
-  const [stopEarly] = useAction(
-    async () => {
-      const t = timer.timer
-      const spent = timer.stop()
-      if (t.mode !== 'focus') return
-      const saved = await recordFocus({
-        plannedMinutes: t.plannedMinutes,
-        actualSeconds: spent,
-        completed: false,
-        taskId: t.taskId,
-        topicId: t.topicId,
-        label: t.label,
-        date: today,
-      })
-      if (!saved) toast('Stopped — under a minute, so nothing was recorded.')
-    },
-    { success: 'Stopped and saved' },
-  )
+  // The Command Center's "Start a focus session" arrives as ?start=1: begin a block with the current setup, unless one is already running.
+  const [params, setParams] = useSearchParams()
+  const autoStarted = useRef(false)
+  useEffect(() => {
+    if (params.get('start') !== '1') {
+      autoStarted.current = false // the request was consumed, so the palette's next "Start a focus session" starts again
+      return
+    }
+    if (loading) return
+    if (!autoStarted.current) {
+      autoStarted.current = true
+      if (!timer.timer) start()
+    }
+    setParams({}, { replace: true }) // always clear it, or a second ?start=1 would be the same URL and never arrive
+  })
+  const [stopEarly] = useAction(async () => {
+    const t = timer.timer
+    const spent = timer.stop()
+    if (t.mode !== 'focus') return
+    const saved = await recordFocus({
+      plannedMinutes: t.plannedMinutes,
+      actualSeconds: spent,
+      completed: false,
+      taskId: t.taskId,
+      topicId: t.topicId,
+      label: t.label,
+      date: today,
+    })
+    // Only a session that was actually recorded is "saved".
+    if (saved) toast.success('Stopped and saved')
+    else toast('Stopped — under a minute, so nothing was recorded.')
+  })
   const skipBreak = () => {
     timer.stop()
     setSetup((s) => ({ ...s, mode: 'focus' }))
@@ -113,7 +135,7 @@ export default function FocusPage() {
     <>
       <PageHeader title="Focus Mode" description="Pomodoro timer — every finished block is saved to your account." />
       <DataGate loading={loading} error={error} onRetry={refetch}>
-        <div className="grid gap-4 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
           <TimerCard
             timer={timer}
             setup={setup}

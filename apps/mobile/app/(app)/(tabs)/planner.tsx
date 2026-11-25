@@ -13,6 +13,7 @@ import { TaskForm } from '../../../src/features/planner/TaskForm'
 import { ActionSheet } from '../../../src/ui/Sheet'
 import { confirm } from '../../../src/ui/confirm'
 import { Badge, DataGate, DateNav, EmptyState, pullToRefresh } from '../../../src/ui/controls'
+import { CheckCircle } from '../../../src/ui/motion'
 import { Button, Txt } from '../../../src/ui'
 
 const PRIORITY_TONE = { high: 'danger', medium: 'warning', low: 'neutral' } as const
@@ -24,13 +25,16 @@ function TaskRow({ task, today, showDue, onMenu }: { task: any; today: string; s
   const mark = done ? '✓' : inactive ? '✕' : task.status === 'in_progress' ? '◐' : ''
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, opacity: pending ? 0.6 : 1 }}>
-      <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: done, busy: pending }} accessibilityLabel={done ? `Mark ${task.title} as not done` : `Complete ${task.title}`}
-        disabled={pending} onPress={() => { if (!done) haptics.success(); setStatus(done ? 'pending' : 'done') }} hitSlop={8}
-        style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
-        <View style={{ width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: done ? colors.success : colors.mutedForeground, backgroundColor: done ? colors.success : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: done ? colors.primaryForeground : colors.mutedForeground, fontSize: 14, fontWeight: '700' }}>{mark}</Text>
-        </View>
-      </Pressable>
+      {inactive || task.status === 'in_progress' ? (
+        <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: false, busy: pending }} accessibilityLabel={`Complete ${task.title}`} disabled={pending} onPress={() => { haptics.success(); setStatus('done') }} hitSlop={8}
+          style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: colors.mutedForeground, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: colors.mutedForeground, fontSize: 14, fontWeight: '700' }}>{mark}</Text>
+          </View>
+        </Pressable>
+      ) : (
+        <CheckCircle done={done} disabled={pending} onPress={() => setStatus(done ? 'pending' : 'done')} label={done ? `Mark ${task.title} as not done` : `Complete ${task.title}`} />
+      )}
       <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${task.title}`} onPress={() => onMenu(task)} style={{ flex: 1, gap: 4 }}>
         <Text numberOfLines={2} style={{ color: done || inactive ? colors.mutedForeground : colors.foreground, textDecorationLine: done || inactive ? 'line-through' : 'none', fontSize: 16 }}>{task.title}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>

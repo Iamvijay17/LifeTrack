@@ -48,9 +48,12 @@ export function dashboardGoals(goals, milestones, sessions, limit = 4) {
 
 /**
  * The latest things you did, newest first. `kind` tells the UI which icon to use:
- * task | study | workout | money | job | habit.
+ * task | study | workout | money | job | habit | sleep.
  */
-export function recentActivity({ tasks, sessions, workouts, transactions, history, applications, habitLogs, habits, currency }, limit = 8) {
+export function recentActivity(
+  { tasks, sessions, workouts, transactions, history, applications, habitLogs, habits, healthLogs = [], currency },
+  limit = 8,
+) {
   const items = []
   for (const t of tasks)
     if (t.status === 'done' && t.completed_at) items.push({ at: t.completed_at, kind: 'task', text: `Completed “${t.title}”` })
@@ -82,5 +85,8 @@ export function recentActivity({ tasks, sessions, workouts, transactions, histor
       const habit = habits.find((x) => x.id === l.habit_id)
       if (habit) items.push({ at: l.updated_at ?? l.created_at, kind: 'habit', text: `Checked in: ${habit.name}` })
     }
+  // Only nights that were actually recorded: a day with just water or steps is not a sleep entry.
+  for (const h of healthLogs)
+    if (h.sleep_minutes != null && h.created_at) items.push({ at: h.created_at, kind: 'sleep', text: `Logged sleep · ${fmtDuration(h.sleep_minutes)}` })
   return items.sort((x, y) => y.at.localeCompare(x.at)).slice(0, limit)
 }

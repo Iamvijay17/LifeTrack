@@ -7,10 +7,10 @@ import { todayStatus } from '@/domain/fitness'
 export function TodayCard({ todays, planToday, onLog, onMarkOff, onUndo }) {
   const marked = todays.filter((x) => x.status !== 'completed')
   return (
-    <Card>
+    <Card className="lt-hero">
       <CardContent className="space-y-3">
-        <p className="text-xs font-medium text-muted-foreground">Today</p>
-        <p className="text-lg font-semibold">{todayStatus(todays, planToday)}</p>
+        <p className="lt-eyebrow">Today</p>
+        <p className="text-xl font-bold tracking-tight">{todayStatus(todays, planToday)}</p>
         {!todays.length && (
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={onLog}>

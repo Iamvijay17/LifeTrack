@@ -57,3 +57,13 @@ describe('detail helpers', () => {
     expect(['selected', 'rejected', 'interview', 'assessment', 'interested'].map(statusTone)).toEqual(['success', 'danger', 'primary', 'warning', 'neutral'])
   })
 })
+
+describe('upcomingInterviews (web)', () => {
+  it('lists the next week of interviews soonest first, whatever order they are stored in', async () => {
+    const { upcomingInterviews } = await import('../src/web/jobs.js')
+    const now = Date.parse('2026-11-02T10:00:00Z')
+    const E = (id, at) => ({ id, application_id: 'a1', scheduled_at: at, status: 'scheduled' })
+    const out = upcomingInterviews([E('fri', '2026-11-06T10:00:00Z'), E('tue', '2026-11-03T09:00:00Z'), E('wed', '2026-11-04T08:00:00Z')], [{ id: 'a1' }], now)
+    expect(out.map((e) => e.id)).toEqual(['tue', 'wed', 'fri'])
+  })
+})

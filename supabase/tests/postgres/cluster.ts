@@ -3,6 +3,7 @@ import { mkdtempSync, chownSync, readdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import pg from 'pg'
+import { AUTH_STUB } from '../authStub'
 
 const BIN = readdirSync('/usr/lib/postgresql').sort().map((v) => `/usr/lib/postgresql/${v}/bin`).pop()
 const MIGRATIONS = new URL('../../migrations/', import.meta.url)
@@ -20,15 +21,7 @@ export async function startCluster() {
   asPostgres(`${BIN}/pg_ctl`, ['-D', data, '-o', `-k ${sock} -c listen_addresses= -c fsync=off`, '-w', '-l', join(dir, 'log'), 'start'])
   const connect = async (user = 'postgres') => { const c = new pg.Client({ host: sock, user, database: 'postgres' }); await c.connect(); return c }
   const admin = await connect()
-  await admin.query(`
-    create schema auth;
-    create table auth.users (id uuid primary key default gen_random_uuid(), email text, raw_user_meta_data jsonb default '{}');
-    create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
-    create role anon nologin; create role authenticated nologin;
-    grant usage on schema public, auth to anon, authenticated;
-    grant execute on function auth.uid() to anon, authenticated;
-    create publication supabase_realtime;
-    alter default privileges in schema public grant all on tables to anon, authenticated;`)
+  await admin.query(AUTH_STUB)
   for (const f of readdirSync(MIGRATIONS).filter((x) => x.endsWith('.sql')).sort()) await admin.query(readFileSync(new URL(f, MIGRATIONS), 'utf8'))
   const newUser = async (email: string) => (await admin.query('insert into auth.users(email) values ($1) returning id', [email])).rows[0].id as string
   /** A separate connection (= a separate request, as PostgREST would use) acting as `userId` in the authenticated role. */

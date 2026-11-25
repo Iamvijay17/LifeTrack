@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Alert, ScrollView, Text, Vibration, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import Svg, { Circle } from 'react-native-svg'
+import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg'
 import { fmtDay, fmtDuration, timeStrInTz } from '@lifetrack/utils'
 import { completedCount, dailyFocus, fmtClock, focusMinutes, nextBreak, PRESETS, weekRange } from '@lifetrack/core/focus'
 import { FOCUS_MODE_LABEL, focusMinutesFor, focusSessionName, isValidFocusMinutes, parseFocusTarget } from '@lifetrack/core/focusTimer'
@@ -17,18 +17,21 @@ import { BarChart } from '../../../src/ui/charts'
 import { ModuleHeader } from '../../../src/ui/ModuleHeader'
 import { confirm } from '../../../src/ui/confirm'
 import { DataGate, EmptyState, Segmented, SelectField, StatTile, pullToRefresh, Chip } from '../../../src/ui/controls'
+import { useAccent } from '../../../src/ui/accent'
 import { Button, Card, Field, Txt } from '../../../src/ui'
 
 type Mode = FocusState['mode']
 
 function Dial({ left, total, mode }: { left: number; total: number; mode: Mode }) {
   const { colors } = useTheme()
+  const accent = useAccent()
   const r = 88, c = 2 * Math.PI * r, pct = total ? Math.max(0, Math.min(1, left / total)) : 1
   return (
     <View accessible accessibilityRole="timer" accessibilityLabel={`${fmtClock(left)} remaining`} style={{ alignItems: 'center', justifyContent: 'center' }}>
       <Svg width={220} height={220} viewBox="0 0 200 200" style={{ transform: [{ rotate: '-90deg' }] }}>
         <Circle cx={100} cy={100} r={r} fill="none" stroke={colors.muted} strokeWidth={8} />
-        <Circle cx={100} cy={100} r={r} fill="none" stroke={mode === 'focus' ? colors.primary : colors.success} strokeWidth={8} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct)} />
+        <Defs><LinearGradient id="dial" x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor={mode === 'focus' ? accent.from : '#34D399'} /><Stop offset="1" stopColor={mode === 'focus' ? accent.to : '#14B8A6'} /></LinearGradient></Defs>
+        <Circle cx={100} cy={100} r={r} fill="none" stroke="url(#dial)" strokeWidth={9} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct)} />
       </Svg>
       <Text style={{ position: 'absolute', color: colors.foreground, fontSize: 44, fontWeight: '600', fontVariant: ['tabular-nums'] }}>{fmtClock(left)}</Text>
     </View>

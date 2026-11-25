@@ -1,6 +1,7 @@
 import { Component } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { reportError } from '@/lib/errorReporting'
 
 /**
  * Catches render-time exceptions so one broken component can't white-screen the app.
@@ -16,6 +17,7 @@ export class ErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     console.error('LifeTrack render error:', error, info?.componentStack)
+    reportError('frontend', error)
   }
 
   componentDidUpdate(prev) {

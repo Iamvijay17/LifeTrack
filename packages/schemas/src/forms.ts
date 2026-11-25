@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { dateStrInTz, isValidDay, lpaToPaise, paiseToInput, paiseToLpa, parseMoney, parseTags, sleepMinutes, timeStrInTz, zonedToIso } from '@lifetrack/utils'
-import { TASK_CATEGORIES } from './tables'
+import { MEAL_TYPES, NOTIFICATION_PRIORITIES, PRIORITY_VALUES, RECURRING_FREQUENCIES, REMINDER_REPEATS, TASK_CATEGORIES, TASK_RECURRENCES } from './tables'
 
 // Form-level validation + payload mapping shared by web and mobile. Forms hold strings ('' = empty);
 // *ToPayload converts them to the exact shape the database accepts (validated in tests against insertSchemas).
@@ -12,9 +12,9 @@ export const taskFormSchema = z.object({
   title: z.string().trim().min(1, 'Give the task a title').max(200, 'Keep it under 200 characters'),
   notes: z.string().max(2000),
   category: z.enum(TASK_CATEGORIES),
-  priority: z.enum(['low', 'medium', 'high']),
+  priority: z.enum(PRIORITY_VALUES),
   due_date: day,
-  recurrence: z.enum(['none', 'daily', 'weekdays', 'weekly', 'monthly']),
+  recurrence: z.enum(TASK_RECURRENCES),
   recurrence_until: day,
 }).superRefine((v, ctx) => {
   if (v.recurrence !== 'none' && !v.due_date) ctx.addIssue({ code: 'custom', path: ['due_date'], message: 'Repeating tasks need a due date' })
@@ -122,10 +122,12 @@ export const milestoneFormSchema = z.object({
 
 // ------------------------------------------------------------------- health
 const hhmm = z.string().refine((v) => v === '' || /^\d{2}:\d{2}$/.test(v), 'Use HH:MM')
-const numRange = (min: number, max: number, label: string) =>
+/** A number typed as text in [min, max] ('' allowed); `int` also asks for a whole number, for integer columns (the database refuses 12.5). */
+const numRange = (min: number, max: number, label: string, { int = false } = {}) =>
   z.string().refine((v) => v === '' || (Number.isFinite(Number(v)) && Number(v) >= min && Number(v) <= max), `${label}: ${min}–${max}`)
+    .refine((v) => !int || v === '' || Number.isInteger(Number(v)), `${label}: use a whole number`)
 export const healthFormSchema = z.object({
-  bedtime: hhmm, wake_time: hhmm, water_ml: numRange(0, 20000, 'Water'), steps: numRange(0, 200000, 'Steps'),
+  bedtime: hhmm, wake_time: hhmm, water_ml: numRange(0, 20000, 'Water', { int: true }), steps: numRange(0, 200000, 'Steps', { int: true }),
   energy_level: z.string(), weight_kg: numRange(20, 500, 'Weight'), notes: z.string().max(1000),
 }).superRefine((v, ctx) => {
   if (!!v.bedtime !== !!v.wake_time) ctx.addIssue({ code: 'custom', path: [v.bedtime ? 'wake_time' : 'bedtime'], message: 'Enter both bedtime and wake-up time' })
@@ -183,6 +185,27 @@ export const transactionToForm = (t: { type: TransactionForm['type']; amount_pai
 export const transactionToPayload = (v: TransactionForm) =>
   ({ type: v.type, amount_paise: parseMoney(v.amount) as number, category: v.category, txn_date: v.txn_date, payment_method: v.payment_method, note: v.note })
 
+export const recurringRuleFormSchema = z.object({
+  type: z.enum(TX_TYPES),
+  amount: z.string().trim().refine((v) => { const p = parseMoney(v); return p !== null && p > 0 }, 'Enter an amount greater than 0 (max 2 decimals)'),
+  category: z.string().min(1, 'Choose a category'),
+  payment_method: z.enum(TX_PAYMENT_METHODS),
+  note: z.string().max(300),
+  frequency: z.enum(RECURRING_FREQUENCIES),
+  next_date: z.string().refine(isValidDay, 'Pick a date'),
+  end_date: z.string().refine((v) => v === '' || isValidDay(v), 'Enter a valid date'),
+}).refine((v) => v.end_date === '' || v.end_date >= v.next_date, { path: ['end_date'], message: 'The end date must not be before the next date' })
+export type RecurringRuleForm = z.infer<typeof recurringRuleFormSchema>
+export const blankRecurringRule = (firstCategory: string, today: string): RecurringRuleForm => ({ type: 'expense', amount: '', category: firstCategory, payment_method: 'UPI', note: '', frequency: 'monthly', next_date: today, end_date: '' })
+type RecurringRuleRow = { type: RecurringRuleForm['type']; amount_paise: number; category: string; payment_method: string; note: string; frequency: RecurringRuleForm['frequency']; anchor_day: number; next_date: string; end_date?: string | null }
+export const recurringRuleToForm = (r: RecurringRuleRow): RecurringRuleForm =>
+  ({ type: r.type, amount: paiseToInput(r.amount_paise), category: r.category, payment_method: r.payment_method as RecurringRuleForm['payment_method'], note: r.note, frequency: r.frequency, next_date: r.next_date, end_date: r.end_date ?? '' })
+/** `existing` keeps the intended day while the schedule is untouched: a rule on the 31st sitting on Nov 30 must not become a rule on the 30th because its note was edited. */
+export const recurringRuleToPayload = (v: RecurringRuleForm, existing?: RecurringRuleRow | null) => ({
+  type: v.type, amount_paise: parseMoney(v.amount) as number, category: v.category, payment_method: v.payment_method, note: v.note, frequency: v.frequency, next_date: v.next_date, end_date: v.end_date || null,
+  anchor_day: existing && existing.next_date === v.next_date && existing.frequency === v.frequency ? existing.anchor_day : Number(v.next_date.slice(8)),
+})
+
 const money = (label: string, min = 1) => z.string().trim().refine((v) => { const p = parseMoney(v); return p !== null && p >= min }, `Enter a valid ${label}`)
 export const savingsGoalFormSchema = z.object({
   name: z.string().trim().min(1, 'Name the goal').max(80, 'Keep it under 80 characters'),
@@ -194,8 +217,15 @@ export type SavingsGoalForm = z.infer<typeof savingsGoalFormSchema>
 export const blankSavingsGoal = (): SavingsGoalForm => ({ name: '', target: '', saved: '', target_date: '' })
 export const savingsGoalToForm = (g: { name: string; target_paise: number; saved_paise: number; target_date?: string | null }): SavingsGoalForm =>
   ({ name: g.name, target: paiseToInput(g.target_paise), saved: paiseToInput(g.saved_paise), target_date: g.target_date ?? '' })
-export const savingsGoalToPayload = (v: SavingsGoalForm) =>
-  ({ name: v.name.trim(), target_paise: parseMoney(v.target) as number, saved_paise: v.saved ? (parseMoney(v.saved) as number) : 0, target_date: v.target_date || null })
+/**
+ * `initial` = the form values an edit started from. When "saved" was not changed it is left out, so editing the name or target never writes back
+ * an old total over money another device added in the meantime (add_savings is atomic on the server; an absolute value would undo it).
+ */
+export const savingsGoalToPayload = (v: SavingsGoalForm, initial?: SavingsGoalForm | null) => {
+  const saved_paise = v.saved ? (parseMoney(v.saved) as number) : 0
+  const unchanged = initial != null && saved_paise === (initial.saved ? parseMoney(initial.saved) : 0)
+  return { name: v.name.trim(), target_paise: parseMoney(v.target) as number, ...(unchanged ? {} : { saved_paise }), target_date: v.target_date || null }
+}
 
 /** Parse a typed money amount for the budget / add-funds inputs; returns paise or throws a friendly Error. */
 export function parseAmountOrThrow(input: string, message: string, { allowZero = false } = {}): number {
@@ -256,6 +286,9 @@ export const interviewToPayload = (v: InterviewForm, tz: string) => {
 // ------------------------------------------------------------------ fitness
 const nonNeg = (max: number, label: string) => z.coerce.number({ error: `${label}: enter a number` }).min(0, `${label} can’t be negative`).max(max, `${label} is too large`)
 const optNum = (max: number, label: string) => z.union([z.literal(''), nonNeg(max, label)])
+/** Counts stored in integer columns (reps, sets, minutes) must be whole: the database refuses 12.5. (A refine: in optWhole's union `.int()` would only say "Invalid input".) */
+const whole = (max: number, label: string) => nonNeg(max, label).refine(Number.isInteger, `${label}: use a whole number`)
+const optWhole = (max: number, label: string) => z.union([z.literal(''), whole(max, label)])
 
 export const exerciseFormSchema = z.object({ name: z.string().trim().min(1, 'Name the exercise').max(80), muscle_group: z.string(), equipment: z.string().max(60) })
 export const blankExercise = () => ({ name: '', muscle_group: 'Chest', equipment: '' })
@@ -263,7 +296,7 @@ export const blankExercise = () => ({ name: '', muscle_group: 'Chest', equipment
 export const routineFormSchema = z.object({
   name: z.string().trim().min(1, 'Name the routine').max(80),
   notes: z.string().max(1000),
-  exercises: z.array(z.object({ name: z.string().trim().min(1, 'Exercise name'), sets: nonNeg(20, 'Sets'), reps: nonNeg(1000, 'Reps'), weight_kg: nonNeg(1000, 'Weight') })).min(1, 'Add at least one exercise'),
+  exercises: z.array(z.object({ name: z.string().trim().min(1, 'Exercise name'), sets: whole(20, 'Sets'), reps: whole(1000, 'Reps'), weight_kg: nonNeg(1000, 'Weight') })).min(1, 'Add at least one exercise'),
 })
 export type RoutineForm = z.input<typeof routineFormSchema>
 export const blankRoutine = (): RoutineForm => ({ name: '', notes: '', exercises: [{ name: '', sets: 3, reps: 10, weight_kg: 0 }] })
@@ -273,11 +306,11 @@ export const workoutFormSchema = z.object({
   routine_id: z.string(),
   name: z.string().trim().min(1, 'Name the workout').max(80),
   kind: z.enum(['strength', 'cardio', 'mixed', 'other']),
-  duration_minutes: optNum(1440, 'Duration'),
-  cardio_minutes: optNum(1440, 'Cardio minutes'),
+  duration_minutes: optWhole(1440, 'Duration'),
+  cardio_minutes: optWhole(1440, 'Cardio minutes'),
   cardio_distance_km: optNum(1000, 'Distance'),
   notes: z.string().max(2000),
-  exercises: z.array(z.object({ name: z.string().trim().min(1, 'Exercise name'), sets: z.array(z.object({ reps: nonNeg(1000, 'Reps'), weight: nonNeg(1000, 'Weight') })) })),
+  exercises: z.array(z.object({ name: z.string().trim().min(1, 'Exercise name'), sets: z.array(z.object({ reps: whole(1000, 'Reps'), weight: nonNeg(1000, 'Weight') })) })),
 })
 export type WorkoutForm = z.input<typeof workoutFormSchema>
 export const blankWorkout = (date: string): WorkoutForm => ({ workout_date: date, routine_id: '', name: 'Workout', kind: 'strength', duration_minutes: '', cardio_minutes: '', cardio_distance_km: '', notes: '', exercises: [] })
@@ -295,14 +328,16 @@ export const measurementFormSchema = (() => {
 })()
 export type MeasurementForm = z.input<typeof measurementFormSchema>
 export const blankMeasurement = (today: string): MeasurementForm => ({ measured_on: today, weight_kg: '', chest_cm: '', waist_cm: '', hips_cm: '', arm_cm: '', thigh_cm: '', body_fat_pct: '', notes: '' })
-/** Splits one form into the body_measurements row (or null if no tape measurements) and the weight to log in health_logs (or null). Throws if empty. */
+/**
+ * Splits one form into the body_measurements row (or null if no tape measurements) and the weight to log in health_logs (or null). Throws if empty.
+ * The row is upserted on (user, day), so it holds only the filled-in fields: a later entry the same day adds to the earlier one instead of blanking it.
+ */
 export function measurementFormToPayloads(v: z.output<typeof measurementFormSchema>) {
-  const n = (x: number | '') => (x === '' ? null : Number(x))
   const { weight_kg, measured_on, notes, ...rest } = v
-  const tape = Object.fromEntries(Object.entries(rest).map(([k, x]) => [k, n(x as number | '')]))
-  const hasTape = Object.values(tape).some((x) => x != null)
+  const tape = Object.fromEntries(Object.entries(rest).filter(([, x]) => x !== '').map(([k, x]) => [k, Number(x)]))
+  const hasTape = Object.keys(tape).length > 0
   if (!hasTape && weight_kg === '') throw new Error('Enter at least one measurement.')
-  return { body: hasTape ? { measured_on, notes, ...tape } : null, weight: weight_kg === '' ? null : Number(weight_kg), date: measured_on }
+  return { body: hasTape ? { measured_on, ...(notes ? { notes } : {}), ...tape } : null, weight: weight_kg === '' ? null : Number(weight_kg), date: measured_on }
 }
 
 // ----------------------------------------------------------------- settings
@@ -338,17 +373,158 @@ export const DELETE_CONFIRM_WORD = 'DELETE'
 
 // ---------------------------------------------------------------- reminders
 export const REMINDER_KIND_VALUES = ['task', 'study', 'workout', 'habit', 'bill', 'custom'] as const
-export const REMINDER_REPEAT_VALUES = ['none', 'daily', 'weekly', 'monthly'] as const
+export const REMINDER_REPEAT_VALUES = REMINDER_REPEATS
+export const REMINDER_PRIORITY_VALUES = NOTIFICATION_PRIORITIES
 export const reminderFormSchema = z.object({
   kind: z.enum(REMINDER_KIND_VALUES),
   title: z.string().trim().min(1, 'What should we remind you about?').max(160, 'Keep it under 160 characters'),
   remind_date: z.string().refine(isValidDay, 'Pick a date'),
   remind_time: z.string().regex(/^\d{2}:\d{2}$/, 'Pick a time'),
   repeat: z.enum(REMINDER_REPEAT_VALUES),
+  priority: z.enum(REMINDER_PRIORITY_VALUES),
+  body: z.string().trim().max(500, 'Keep the note under 500 characters'),
 })
 export type ReminderForm = z.infer<typeof reminderFormSchema>
-export const blankReminder = (today: string): ReminderForm => ({ kind: 'custom', title: '', remind_date: today, remind_time: '09:00', repeat: 'none' })
-export const reminderToForm = (r: { kind: ReminderForm['kind']; title: string; remind_date: string; remind_time: string; repeat: ReminderForm['repeat'] }): ReminderForm =>
-  ({ kind: r.kind, title: r.title, remind_date: r.remind_date, remind_time: r.remind_time.slice(0, 5), repeat: r.repeat })
+export const blankReminder = (today: string): ReminderForm => ({ kind: 'custom', title: '', remind_date: today, remind_time: '09:00', repeat: 'none', priority: 'normal', body: '' })
+export const reminderToForm = (r: { kind: ReminderForm['kind']; title: string; remind_date: string; remind_time: string; repeat: ReminderForm['repeat']; priority?: ReminderForm['priority']; body?: string }): ReminderForm =>
+  ({ kind: r.kind, title: r.title, remind_date: r.remind_date, remind_time: r.remind_time.slice(0, 5), repeat: r.repeat, priority: r.priority ?? 'normal', body: r.body ?? '' })
 /** Saving (new or edited) re-arms the reminder: active again and not yet fired. */
-export const reminderToPayload = (v: ReminderForm) => ({ ...v, title: v.title.trim(), active: true, last_fired_on: null })
+export const reminderToPayload = (v: ReminderForm) => ({ ...v, title: v.title.trim(), body: v.body.trim(), active: true, last_fired_on: null })
+
+// ---------------------------------------------------------------- nutrition
+// Forms hold strings. A food entry is edited as PER-SERVING nutrition times a quantity; the stored row holds the totals (quantity applied),
+// so changing a food later never rewrites what was eaten. The rounding matches core/nutrition.js scaleNutrition (tests keep them equal).
+const NUTRIENT_KEYS = ['kcal', 'protein_g', 'carbs_g', 'fat_g', 'fiber_g'] as const
+type NutrientKey = (typeof NUTRIENT_KEYS)[number]
+const round1 = (v: number) => Math.round(v * 10 + Math.sign(v) * 1e-9) / 10
+const nutrientField = (label: string, max: number) =>
+  z.string().trim().refine((v) => v === '' || (/^\d+(\.\d{1,2})?$/.test(v) && Number(v) <= max), `${label}: 0–${max}`)
+/** The most a whole entry may hold (food_logs checks), with the words for the error. */
+const TOTAL_MAX: Record<NutrientKey, [number, string]> = { kcal: [20000, 'kcal'], protein_g: [2000, 'g of protein'], carbs_g: [4000, 'g of carbs'], fat_g: [2000, 'g of fat'], fiber_g: [1000, 'g of fibre'] }
+const positiveQuantity = z.string().trim().refine((v) => /^\d+(\.\d{1,2})?$/.test(v) && Number(v) > 0 && Number(v) <= 1000, 'Quantity: more than 0, up to 1000')
+
+export const foodLogFormSchema = z.object({
+  name: z.string().trim().min(1, 'Name the food').max(120, 'Keep it under 120 characters'),
+  category: z.string().trim().min(1, 'Choose a category').max(40),
+  meal_type: z.enum(MEAL_TYPES),
+  log_date: z.string().refine(isValidDay, 'Pick a date'),
+  log_time: hhmm,
+  quantity: positiveQuantity,
+  serving_label: z.string().trim().min(1, 'Describe one serving, e.g. 1 katori').max(60),
+  kcal: nutrientField('Calories', 5000), protein_g: nutrientField('Protein', 500), carbs_g: nutrientField('Carbs', 1000),
+  fat_g: nutrientField('Fat', 500), fiber_g: nutrientField('Fibre', 200),
+  notes: z.string().max(300, 'Keep notes under 300 characters'),
+  food_id: z.string(), base_key: z.string(), variant: z.string().max(60),
+}).superRefine((v, ctx) => {
+  if (v.kcal === '') ctx.addIssue({ code: 'custom', path: ['kcal'], message: 'Enter the calories (0 if none)' })
+  if (!/^\d+(\.\d{1,2})?$/.test(v.quantity)) return
+  // The stored row holds totals (per serving × quantity), and the database caps each total (food_logs checks in 0009_nutrition.sql).
+  const totals = foodLogFormTotals(v)
+  const over = NUTRIENT_KEYS.find((k) => totals[k] > TOTAL_MAX[k][0])
+  if (over) ctx.addIssue({ code: 'custom', path: ['quantity'], message: `That is more than ${TOTAL_MAX[over][0].toLocaleString('en-US')} ${TOTAL_MAX[over][1]} in total` })
+})
+export type FoodLogForm = z.infer<typeof foodLogFormSchema>
+
+type FoodDraft = { name: string; category: string; meal_type: FoodLogForm['meal_type']; log_date: string; log_time?: string; quantity: number; serving_label: string; per: Record<NutrientKey, number>; notes?: string; food_id?: string | null; base_key?: string | null; variant?: string }
+const txt = (n: number) => String(Math.round(n * 100) / 100)
+/** A draft (from a picked food, a duplicated entry or a stored entry) as the entry form's text values. */
+export const foodLogDraftToForm = (d: FoodDraft): FoodLogForm => ({
+  name: d.name, category: d.category || 'Other', meal_type: d.meal_type, log_date: d.log_date, log_time: d.log_time ?? '',
+  quantity: txt(d.quantity), serving_label: d.serving_label, kcal: txt(d.per.kcal), protein_g: txt(d.per.protein_g), carbs_g: txt(d.per.carbs_g),
+  fat_g: txt(d.per.fat_g), fiber_g: txt(d.per.fiber_g), notes: d.notes ?? '', food_id: d.food_id ?? '', base_key: d.base_key ?? '', variant: d.variant ?? '',
+})
+/** Totals for the whole quantity (what is stored and shown), from the form's per-serving values. */
+export const foodLogFormTotals = (v: Pick<FoodLogForm, 'quantity' | NutrientKey>): Record<NutrientKey, number> => {
+  const q = Number(v.quantity) || 0
+  return Object.fromEntries(NUTRIENT_KEYS.map((k) => [k, round1((Number(v[k]) || 0) * q)])) as Record<NutrientKey, number>
+}
+export const foodLogFormToPayload = (v: FoodLogForm) => ({
+  log_date: v.log_date, log_time: v.log_time || null, meal_type: v.meal_type, name: v.name.trim(), category: v.category.trim(),
+  food_id: v.food_id || null, base_key: v.base_key || null, variant: v.variant, quantity: Math.round(Number(v.quantity) * 100) / 100,
+  serving_label: v.serving_label.trim(), ...foodLogFormTotals(v), notes: v.notes,
+})
+
+/** "2 idlis = 2" per line -> [{ label, factor }]. Returns an error message for the first line that is not in that form. */
+export function parseServings(text: string): { servings: { label: string; factor: number }[]; error: string | null } {
+  const servings: { label: string; factor: number }[] = []
+  for (const raw of text.split('\n')) {
+    const line = raw.trim()
+    if (!line) continue
+    const at = line.lastIndexOf('=')
+    const label = at < 0 ? '' : line.slice(0, at).trim()
+    const factor = at < 0 ? NaN : Number(line.slice(at + 1).trim())
+    if (!label || label.length > 60 || !(factor > 0 && factor <= 100)) return { servings, error: `"${line.slice(0, 40)}": write it like 2 idlis = 2 (the number is how many base servings)` }
+    servings.push({ label, factor })
+  }
+  return { servings, error: servings.length > 12 ? 'At most 12 serving sizes' : null }
+}
+export const servingsToText = (servings: { label: string; factor: number }[] | null | undefined) => (servings ?? []).map((s) => `${s.label} = ${s.factor}`).join('\n')
+
+/** Other names typed as text (commas or new lines), each at most 60 characters, at most 12. */
+export function parseAliases(text: string): { aliases: string[]; error: string | null } {
+  const seen = new Set<string>()
+  const aliases: string[] = []
+  for (const raw of String(text ?? '').split(/[,\n]/)) {
+    const t = raw.trim()
+    if (!t || seen.has(t.toLowerCase())) continue
+    seen.add(t.toLowerCase())
+    aliases.push(t)
+  }
+  if (aliases.some((a) => a.length > 60)) return { aliases, error: 'Each other name can be up to 60 characters' }
+  if (aliases.length > 12) return { aliases, error: 'At most 12 other names' }
+  return { aliases, error: null }
+}
+
+export const customFoodFormSchema = z.object({
+  name: z.string().trim().min(1, 'Name the food').max(80, 'Keep it under 80 characters'),
+  category: z.string().trim().min(1, 'Choose a category').max(40),
+  serving_label: z.string().trim().min(1, 'Describe one serving, e.g. 1 katori (150 g)').max(60),
+  serving_g: z.string().trim().refine((v) => v === '' || (Number(v) > 0 && Number(v) <= 100000), 'Weight: more than 0 g'),
+  kcal: nutrientField('Calories', 5000), protein_g: nutrientField('Protein', 500), carbs_g: nutrientField('Carbs', 1000),
+  fat_g: nutrientField('Fat', 500), fiber_g: nutrientField('Fibre', 200),
+  servings: z.string().max(1000),
+  aliases: z.string().max(800, 'Too many other names'),
+  source: z.string().trim().max(80, 'Keep it under 80 characters'),
+  notes: z.string().max(300),
+}).superRefine((v, ctx) => {
+  if (v.kcal === '') ctx.addIssue({ code: 'custom', path: ['kcal'], message: 'Enter the calories (0 if none)' })
+  const names = parseAliases(v.aliases)
+  if (names.error) ctx.addIssue({ code: 'custom', path: ['aliases'], message: names.error })
+  const { error } = parseServings(v.servings)
+  if (error) ctx.addIssue({ code: 'custom', path: ['servings'], message: error })
+})
+export type CustomFoodForm = z.infer<typeof customFoodFormSchema>
+export const blankCustomFood = (): CustomFoodForm => ({ name: '', category: 'Other', serving_label: '1 serving', serving_g: '', kcal: '', protein_g: '', carbs_g: '', fat_g: '', fiber_g: '', servings: '', aliases: '', source: '', notes: '' })
+type FoodRow = { name: string; category?: string | null; serving_label?: string | null; serving_g?: number | string | null; kcal?: number | string | null; protein_g?: number | string | null; carbs_g?: number | string | null; fat_g?: number | string | null; fiber_g?: number | string | null; servings?: { label: string; factor: number }[] | null; aliases?: string[] | null; source?: string | null; notes?: string | null }
+export const customFoodToForm = (f: FoodRow): CustomFoodForm => ({
+  name: f.name, category: f.category || 'Other', serving_label: f.serving_label || '1 serving', serving_g: f.serving_g != null ? String(Number(f.serving_g)) : '',
+  kcal: String(Number(f.kcal ?? 0)), protein_g: String(Number(f.protein_g ?? 0)), carbs_g: String(Number(f.carbs_g ?? 0)), fat_g: String(Number(f.fat_g ?? 0)),
+  fiber_g: String(Number(f.fiber_g ?? 0)), servings: servingsToText(f.servings), aliases: (f.aliases ?? []).join(', '), source: f.source ?? '', notes: f.notes ?? '',
+})
+export const customFoodToPayload = (v: CustomFoodForm) => ({
+  name: v.name.trim(), category: v.category.trim(), serving_label: v.serving_label.trim(), serving_g: v.serving_g === '' ? null : Number(v.serving_g),
+  kcal: Number(v.kcal || 0), protein_g: Number(v.protein_g || 0), carbs_g: Number(v.carbs_g || 0), fat_g: Number(v.fat_g || 0), fiber_g: Number(v.fiber_g || 0),
+  servings: parseServings(v.servings).servings, aliases: parseAliases(v.aliases).aliases, source: v.source.trim(), notes: v.notes,
+})
+
+const goalField = (label: string, min: number, max: number) =>
+  z.string().trim().refine((v) => v === '' || (/^\d+$/.test(v) && Number(v) >= min && Number(v) <= max), `${label}: ${min}–${max}, or leave empty for no goal`)
+export const nutritionGoalsFormSchema = z.object({
+  calorie_goal: goalField('Calories', 500, 10000), protein_goal_g: goalField('Protein', 1, 1000), carbs_goal_g: goalField('Carbs', 1, 2000),
+  fat_goal_g: goalField('Fat', 1, 1000), fiber_goal_g: goalField('Fibre', 1, 500), water_goal_ml: goalField('Water', 250, 20000),
+})
+export type NutritionGoalsForm = z.infer<typeof nutritionGoalsFormSchema>
+export const nutritionGoalsToForm = (g?: { calorie_goal?: number | null; protein_goal_g?: number | null; carbs_goal_g?: number | null; fat_goal_g?: number | null; fiber_goal_g?: number | null } | null, waterGoalMl?: number | null): NutritionGoalsForm => ({
+  calorie_goal: g?.calorie_goal != null ? String(g.calorie_goal) : '', protein_goal_g: g?.protein_goal_g != null ? String(g.protein_goal_g) : '', carbs_goal_g: g?.carbs_goal_g != null ? String(g.carbs_goal_g) : '',
+  fat_goal_g: g?.fat_goal_g != null ? String(g.fat_goal_g) : '', fiber_goal_g: g?.fiber_goal_g != null ? String(g.fiber_goal_g) : '', water_goal_ml: waterGoalMl ? String(waterGoalMl) : '',
+})
+/** `settings` goes to nutrition_settings (empty = null = no goal); `waterGoalMl` goes to user_settings.water_goal_ml, shared with Sleep & Health. */
+export const nutritionGoalsToPayload = (v: NutritionGoalsForm) => {
+  const n = (s: string) => (s === '' ? null : Number(s))
+  return {
+    settings: { calorie_goal: n(v.calorie_goal), protein_goal_g: n(v.protein_goal_g), carbs_goal_g: n(v.carbs_goal_g), fat_goal_g: n(v.fat_goal_g), fiber_goal_g: n(v.fiber_goal_g) },
+    waterGoalMl: n(v.water_goal_ml),
+  }
+}
+
+export const waterAmountSchema = z.string().trim().refine((v) => /^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 5000, 'Enter 1–5000 ml')

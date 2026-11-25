@@ -44,24 +44,77 @@ export const summarizeBackup = (b) =>
     .filter(([, rows]) => rows.length)
     .map(([t, rows]) => ({ table: t, count: rows.length }))
 
+/**
+ * What a restore would do, counted before anything is written: per table, how many records are new and how many already exist in this account
+ * (same id, or the same natural key such as a habit's date) and would be updated. Reads only.
+ */
+export async function analyzeBackup(backup) {
+  const out = []
+  for (const table of [...TABLES, 'user_settings']) {
+    const rows = backup.tables[table]
+    if (!rows?.length) continue
+    const current = await db.list(table)
+    const ids = new Set(current.map((r) => r.id))
+    const keys = NATURAL.includes(table) ? new Set(current.map((r) => naturalKey(table, r)).filter((k) => k != null)) : new Set()
+    const existing = rows.filter((r) => ids.has(r.id) || (keys.size > 0 && keys.has(naturalKey(table, r)))).length
+    out.push({ table, total: rows.length, existing, fresh: rows.length - existing })
+  }
+  return out
+}
+
 const CHUNK = 200
 const strip = ({ user_id, ...row }) => row
 
 // Tables with a natural unique key (e.g. one health log per date, one topic per name). When the target account already
 // has a row with that key (like the default topics created on first sign-in) we merge INTO the existing row (backup values
 // win) instead of failing, and remap any foreign keys that pointed at the backup's id.
-const NATURAL = ['learning_topics', 'exercises', 'health_logs', 'journal_entries', 'body_measurements', 'budgets']
+const NATURAL = [
+  'learning_topics',
+  'exercises',
+  'health_logs',
+  'journal_entries',
+  'body_measurements',
+  'budgets',
+  'foods',
+  'nutrition_settings',
+  'habit_logs',
+  'calendar_event_exceptions',
+  'life_map_positions',
+  'challenge_checkins',
+  // Rows the apps make once per event (a reminder firing, a nudge for a day, a reschedule, an automation run): the same key may
+  // already exist in the account under another id, e.g. today's "tasks due" nudge raised again before the restore.
+  'notifications',
+  'task_reschedules',
+  'automation_executions',
+]
+// Every foreign key that can point at a NATURAL table whose ids get remapped (see 0001, 0003, 0009 and 0011).
 const FK_REMAP = {
   goals: { topic_id: 'learning_topics' },
   study_sessions: { topic_id: 'learning_topics' },
+  focus_sessions: { topic_id: 'learning_topics' },
+  calendar_events: { topic_id: 'learning_topics' },
   exercise_logs: { exercise_id: 'exercises' },
+  food_logs: { food_id: 'foods' },
 }
-const naturalKey = (table, row) =>
-  CONFLICT_KEYS[table]
+const DEDUPE_KEYED = {
+  notifications: ['dedupe_key'],
+  task_reschedules: ['dedupe_key'],
+  automation_executions: ['workflow_id', 'dedupe_key'],
+}
+// foods: only the user's copy of a starter food (base_key) is unique; custom foods are free to repeat. nutrition_settings: one row per user.
+// Dedupe-keyed rows are unique only while they carry a key (and, for reschedules, only while not undone): others never merge (null).
+export const naturalKey = (table, row) => {
+  if (table === 'foods') return row.base_key ? `starter:${row.base_key}` : null
+  if (DEDUPE_KEYED[table]) {
+    if (row.dedupe_key == null || (table === 'task_reschedules' && row.undone_at != null)) return null
+    return DEDUPE_KEYED[table].map((c) => row[c]).join('\u0001')
+  }
+  return CONFLICT_KEYS[table]
     .split(',')
     .filter((c) => c !== 'user_id')
     .map((c) => row[c])
     .join('\u0001')
+}
 
 /**
  * Restore = merge: rows are upserted by id into the CURRENT account (ownership is re-stamped),
@@ -72,14 +125,15 @@ export async function importBackup(backup, onProgress) {
   const order = [...TABLES.filter((t) => backup.tables[t]?.length), ...(backup.tables.user_settings?.length ? ['user_settings'] : [])]
   let done = 0
   const total = order.reduce((a, t) => a + backup.tables[t].length, 0)
-  const remap = { learning_topics: new Map(), exercises: new Map() }
+  const remap = { learning_topics: new Map(), exercises: new Map(), foods: new Map() }
   for (const table of order) {
     let rows = backup.tables[table].map(strip)
     try {
       if (NATURAL.includes(table)) {
-        const existing = new Map((await db.list(table)).map((r) => [naturalKey(table, r), r.id]))
+        const existing = new Map((await db.list(table)).map((r) => [naturalKey(table, r), r.id]).filter(([k]) => k != null))
         rows = rows.map((r) => {
-          const id = existing.get(naturalKey(table, r))
+          const key = naturalKey(table, r)
+          const id = key == null ? undefined : existing.get(key)
           if (id && id !== r.id) {
             remap[table]?.set(r.id, id)
             return { ...r, id }

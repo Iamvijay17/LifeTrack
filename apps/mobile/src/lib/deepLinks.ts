@@ -2,7 +2,7 @@
 
 /** Web-style link paths (what the server stores in notifications.link) → mobile routes. Unknown links fall back to the dashboard. */
 const TABS = new Set(['/planner', '/habits', '/finance'])
-const MODULES = new Set(['learning', 'jobs', 'fitness', 'health', 'focus', 'notes', 'goals', 'analytics', 'settings', 'notifications'])
+const MODULES = new Set(['learning', 'jobs', 'fitness', 'health', 'nutrition', 'focus', 'notes', 'goals', 'analytics', 'settings', 'notifications'])
 // Web pages that have no mobile screen yet map to the closest useful place.
 const FALLBACK: Record<string, string> = { '/reports': '/module/analytics', '/export': '/module/settings' }
 

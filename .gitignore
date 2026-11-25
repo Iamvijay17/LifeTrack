@@ -10,3 +10,8 @@ test-results
 .DS_Store
 coverage
 dist-perf
+*.apk
+apps/web/.env
+# Any other env file (.env.production, .env.development, …); only the examples are committed.
+.env.*
+!.env.example

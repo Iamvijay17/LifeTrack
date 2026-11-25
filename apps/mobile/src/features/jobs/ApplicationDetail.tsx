@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Linking, Pressable, Text, View } from 'react-native'
 import { fmtDateTime, fmtDay, dateStrInTz, paiseToLpa, uid } from '@lifetrack/utils'
+import { isSafeUrl } from '@lifetrack/core/notes'
 import { DEFAULT_PREP, JOB_STATUSES, STATUS_LABEL, applicationEvents, applicationHistory, interviewTone, prepProgress, statusTone } from '@lifetrack/core/jobs'
 import { api, store } from '../../data/client'
 import { useAction } from '../../hooks/useAction'
@@ -48,7 +49,7 @@ export function ApplicationDetail({ app, history, events, tz, today, onClose, on
       </Section>
       <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
         <View style={{ flex: 1, minWidth: 100 }}><Button title="Edit" variant="ghost" onPress={() => { onClose(); afterSheetClose(() => onEdit(app)) }} /></View>
-        {app.jd_url ? <View style={{ flex: 1, minWidth: 100 }}><Button title="Job post" variant="ghost" onPress={() => Linking.openURL(app.jd_url).catch(() => {})} /></View> : null}
+        {isSafeUrl(app.jd_url ?? '') ? <View style={{ flex: 1, minWidth: 100 }}><Button title="Job post" variant="ghost" onPress={() => Linking.openURL(app.jd_url).catch(() => {})} /></View> : null}
         <View style={{ flex: 1, minWidth: 100 }}><Button title="Delete" variant="danger" onPress={async () => { if (await confirm(`Delete ${app.company}?`, 'This also deletes its status history and interviews.')) del() }} /></View>
       </View>
       {facts.length ? <View style={{ gap: 6 }}>{facts.map(([k, v]) => <View key={k as string} style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Txt variant="small" muted>{k}</Txt><Txt variant="small">{v}</Txt></View>)}</View> : null}

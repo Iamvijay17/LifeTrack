@@ -6,7 +6,7 @@ import { Block, EmptyNote, Panel } from './Layout'
 
 export function HabitsSection({ habits: h }) {
   return (
-    <Block icon={Repeat} title="Habits">
+    <Block icon={Repeat} module="habits" title="Habits">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Completion" value={pctText(h.rate)} progress={h.rate == null ? null : h.rate * 100} tone="success" />
         <StatCard label="Longest streak" value={h.longestStreak} sub="any habit, all time" />

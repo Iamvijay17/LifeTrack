@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
+import { useContextMenu, usePageContextMenu } from '@/components/context-menu'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { DataGate } from '@/components/shared/states'
 import { Button } from '@/components/ui/button'
@@ -12,12 +14,14 @@ import { useAction } from '@/hooks/useAction'
 import { historyOf, libraryGroups, planLabel, setsByWorkout, weekStats, weeklySeries } from '@/domain/fitness'
 import { weightSeries } from '@/domain/health'
 import { addDays, eachDay, startOfWeek } from '@/lib/dates'
+import { exerciseItems, fitnessPageItems, routineItems, workoutItems } from './contextMenu'
 import { BodyTab } from './BodyTab'
 import { ExerciseDialog } from './ExerciseDialog'
 import { FitnessStats } from './FitnessStats'
 import { HistoryTab } from './HistoryTab'
 import { LibraryTab } from './LibraryTab'
 import { MeasurementDialog } from './MeasurementDialog'
+import { ProgressTab } from './ProgressTab'
 import { RoutineDialog } from './RoutineDialog'
 import { RoutinesTab } from './RoutinesTab'
 import { WeekTab } from './WeekTab'
@@ -25,6 +29,7 @@ import { WorkoutDialog } from './WorkoutDialog'
 
 const TABS = [
   { value: 'week', label: 'This week' },
+  { value: 'progress', label: 'Progress' },
   { value: 'routines', label: 'Routines' },
   { value: 'history', label: 'History' },
   { value: 'library', label: 'Exercises' },
@@ -43,7 +48,10 @@ export default function FitnessPage() {
     'body_measurements',
     'health_logs',
   )
-  const [tab, setTab] = useState('week')
+  // The tab lives in the URL (?tab=), so Back from an exercise's page lands where you were.
+  const [params, setParams] = useSearchParams()
+  const tab = TABS.some((t) => t.value === params.get('tab')) ? params.get('tab') : 'week'
+  const setTab = (t) => setParams(t === 'week' ? {} : { tab: t }, { replace: true })
   const [workoutDlg, setWorkoutDlg] = useState({ open: false, workout: null, date: today, routineId: null })
   const [routineDlg, setRoutineDlg] = useState({ open: false, routine: null })
   const [exerciseDlg, setExerciseDlg] = useState(false)
@@ -79,12 +87,37 @@ export default function FitnessPage() {
   const todays = data.workouts.filter((x) => x.workout_date === today)
 
   const logWorkout = (extra = {}) => setWorkoutDlg({ open: true, workout: null, date: today, routineId: null, ...extra })
+  const menu = useContextMenu()
+  const navigate = useNavigate()
+  usePageContextMenu(() =>
+    fitnessPageItems({
+      tab,
+      logWorkout,
+      newRoutine: () => setRoutineDlg({ open: true, routine: null }),
+      newExercise: () => setExerciseDlg(true),
+    }),
+  )
+  const editWorkout = (workout) => logWorkout({ workout, date: workout.workout_date })
+  const workoutProps = (x, sets) =>
+    menu.bind(() => workoutItems(x, { today, sets, onEdit: editWorkout }), { label: `Actions for ${x.name}` })
+  const routineProps = (r) =>
+    menu.bind(
+      () =>
+        routineItems(r, {
+          onStart: (routine) => logWorkout({ routineId: routine.id }),
+          onEdit: (routine) => setRoutineDlg({ open: true, routine }),
+        }),
+      {
+        label: `Actions for ${r.name}`,
+      },
+    )
+  const exerciseProps = (e, demo) => menu.bind(() => exerciseItems(e, { demo, navigate }), { label: `Actions for ${e.name}` })
 
   return (
     <>
       <PageHeader
         title="Gym & Fitness"
-        description="Your plan, your split — nothing is hardcoded."
+        description="Plan your week, log your sets and see your progress."
         actions={
           <Button onClick={() => logWorkout()}>
             <Plus className="h-4 w-4" />
@@ -94,7 +127,7 @@ export default function FitnessPage() {
       />
       <DataGate loading={loading} error={error} onRetry={refetch}>
         <div className="space-y-5">
-          <FitnessStats stats={stats} latestWeight={weight.latest} />
+          <FitnessStats stats={stats} latestWeight={weight.latest} week={{ days: weekDays, today, workouts: data.workouts, plan }} />
           <Segmented value={tab} onChange={setTab} options={TABS} />
 
           {tab === 'week' && (
@@ -115,22 +148,27 @@ export default function FitnessPage() {
               onUndo={undoOff}
             />
           )}
+          {tab === 'progress' && <ProgressTab logs={data.exercise_logs} workouts={data.workouts} onLog={() => logWorkout()} />}
           {tab === 'routines' && (
             <RoutinesTab
               routines={routines}
               onCreate={() => setRoutineDlg({ open: true, routine: null })}
               onEdit={(routine) => setRoutineDlg({ open: true, routine })}
               onStart={(routine) => logWorkout({ routineId: routine.id })}
+              cardProps={routineProps}
             />
           )}
           {tab === 'history' && (
             <HistoryTab
               history={history}
               logsByWorkout={logsByWorkout}
-              onEdit={(workout) => logWorkout({ workout, date: workout.workout_date })}
+              today={today}
+              weekStartsOn={weekStartsOn}
+              onEdit={editWorkout}
+              rowProps={workoutProps}
             />
           )}
-          {tab === 'library' && <LibraryTab groups={groups} onCreate={() => setExerciseDlg(true)} />}
+          {tab === 'library' && <LibraryTab groups={groups} onCreate={() => setExerciseDlg(true)} chipProps={exerciseProps} />}
           {tab === 'body' && (
             <BodyTab weightData={weight.data} measurements={data.body_measurements} onLog={() => setMeasurementDlg(true)} />
           )}

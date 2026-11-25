@@ -19,11 +19,18 @@ export default defineConfig({
     // An active service worker answers chunk requests from its precache, which bypasses page.route() and makes the "slow chunk" loader tests
     // pass or fail depending on whether the worker has taken control yet. Only the PWA spec needs it.
     serviceWorkers: 'block',
+    // New accounts get the welcome setup, a modal that would sit over every other spec. Only onboarding.spec.js opts back in.
+    storageState: {
+      cookies: [],
+      origins: [{ origin: 'http://localhost:4173', localStorage: [{ name: 'lifetrack:onboarding:skip', value: '1' }] }],
+    },
     launchOptions: { executablePath, args: ['--no-sandbox'] },
   },
   projects: [
-    { name: 'desktop', testIgnore: /responsive/, use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } },
+    { name: 'desktop', testIgnore: /responsive|visual/, use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } },
     { name: 'mobile', use: { ...devices['Pixel 7'] }, testMatch: /responsive/ },
+    // Screenshot comparisons: run on purpose (pnpm test:visual), not with the functional suite.
+    { name: 'visual', testMatch: /visual\.spec/, use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } },
   ],
   // Builds in DEV mode (no Supabase env) so the suite is hermetic.
   webServer: {

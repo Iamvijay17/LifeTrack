@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { actionSucceeded } from '@/lib/interaction/feedback'
 import { toAppError } from '@/services/errors'
 
 /**
@@ -17,6 +18,7 @@ export function useAction(fn, { success, error: errMsg } = {}) {
       setPending(true)
       try {
         const out = await fn(...args)
+        actionSucceeded()
         if (success) toast.success(typeof success === 'function' ? success(out) : success)
         return out === undefined ? true : out
       } catch (e) {

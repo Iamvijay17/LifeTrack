@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Menu } from '@/components/ui/menu'
 import { useConfirmedDelete } from '@/hooks/useConfirmedDelete'
 
-export function RoutinesTab({ routines, onCreate, onEdit, onStart }) {
+export function RoutinesTab({ routines, onCreate, onEdit, onStart, cardProps }) {
   const removeRoutine = useConfirmedDelete('routines', 'Routine deleted')
   return (
     <div className="space-y-3">
@@ -23,12 +23,12 @@ export function RoutinesTab({ routines, onCreate, onEdit, onStart }) {
           action={<Button onClick={onCreate}>Create routine</Button>}
         />
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {routines.map((r) => (
-            <Card key={r.id}>
+            <Card key={r.id} interactive {...cardProps?.(r)}>
               <CardContent className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="font-medium">{r.name}</p>
+                  <p className="font-bold tracking-tight">{r.name}</p>
                   <Menu
                     label={`Actions for ${r.name}`}
                     items={[

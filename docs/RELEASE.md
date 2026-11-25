@@ -12,10 +12,10 @@ Tick the boxes in the release PR/issue as you go.
 ## 1. Legal and store content (blocks production builds)
 - [ ] **YOU**: fill every `[placeholder]` and remove the DRAFT banners in `docs/legal/*.md` after review; `node scripts/check-legal-ready.mjs` must pass
   (the production web and mobile workflows run it and will fail otherwise)
-- [ ] **YOU**: choose the public web URL; set `EXPO_PUBLIC_WEB_URL` (mobile links to `/privacy` and `/terms`)
+- [ ] **YOU**: choose the public web URL; set `EXPO_PUBLIC_WEB_URL` (mobile links to `/privacy` and `/terms`, and loads the exercise database catalog and photos from `/exercises/`, so that site must serve them)
 - [ ] **YOU**: `LICENSE` and `SECURITY.md` placeholders filled; support email exists and is monitored
 - [ ] **YOU**: final app icon approved and replaced in `apps/mobile/assets` and `apps/web/public`
-- [ ] Store listing text (`docs/store/LISTING.md`) and data-safety answers (`docs/store/STORE_DATA_SAFETY.md`) reviewed; screenshots captured (`docs/store/SCREENSHOTS.md`)
+- [ ] Store listing text (`docs/store/LISTING.md`) and data-safety answers (`docs/legal/STORE_DATA_SAFETY.md`) reviewed; screenshots captured (`docs/store/SCREENSHOTS.md`)
 - [ ] **YOU**: Apple/Google developer accounts, app records created, age-rating and data-safety forms submitted
 
 ## 2. Supabase project hardening (dashboard; not in git)
@@ -29,7 +29,7 @@ Tick the boxes in the release PR/issue as you go.
 1. Run **Database migrations (manual)** against `staging` as a dry run, then apply (docs/DEPLOY.md; first use needs `supabase migration repair`).
 2. Smoke-test staging with the web build and a dev client.
 3. Repeat on `production` (dry run, review, `apply` + `confirm = apply-production`).
-- [ ] After applying, `select * from supabase_migrations.schema_migrations` lists all migrations through `0007`
+- [ ] After applying, `select * from supabase_migrations.schema_migrations` lists every file in `supabase/migrations`
 
 ## 4. Reminders (server)
 - [ ] `supabase secrets set CRON_SECRET=...` (and `EXPO_ACCESS_TOKEN` if enhanced push security is on)

@@ -2,6 +2,26 @@
 import { addDays, eachDay, fmtDay, startOfWeek, weekday } from '@lifetrack/utils'
 
 export const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+export const STEPS_PER_KM = 1300
+export const STEPS_PER_MINUTE = 100
+/**
+ * Steps estimated from completed cardio on `date` (treadmill, run, walk). Distance wins when logged
+ * (~1,300 steps/km); otherwise cardio minutes, or the workout's Duration when its type is Cardio (~100 steps/min).
+ * Strength-only sessions add nothing.
+ */
+export function cardioSteps(workouts, date) {
+  let n = 0
+  for (const w of workouts ?? []) {
+    if (w.workout_date !== date || w.status !== 'completed') continue
+    // A pure-cardio workout often only has the overall Duration filled in, so use that when "Cardio minutes" is blank.
+    const km = Number(w.cardio_distance_km) || 0, min = Number(w.cardio_minutes) || (w.kind === 'cardio' ? Number(w.duration_minutes) || 0 : 0)
+    n += km > 0 ? km * STEPS_PER_KM : min * STEPS_PER_MINUTE
+  }
+  return Math.round(n)
+}
+/** Steps for a day: what was logged in Health plus the estimate from cardio workouts. */
+export const stepsForDay = (health, workouts, date) => (health?.steps ?? 0) + cardioSteps(workouts, date)
+
 /** Total volume = Σ reps × weight. */
 export const volume = (sets) => sets.reduce((a, s) => a + s.reps * Number(s.weight_kg), 0)
 

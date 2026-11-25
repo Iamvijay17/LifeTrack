@@ -4,7 +4,8 @@ import { Plus, Trash2 } from 'lucide-react'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Textarea } from '@/components/ui/form'
-import { nonNegativeNumber } from '@/lib/validation'
+import { ExercisePicker } from './catalog/ExercisePicker'
+import { nonNegativeNumber, wholeNumber } from '@/lib/validation'
 import { useAction } from '@/hooks/useAction'
 import { useDialogForm } from '@/hooks/useDialogForm'
 import * as store from '@/hooks/store'
@@ -16,8 +17,8 @@ const schema = z.object({
     .array(
       z.object({
         name: z.string().trim().min(1, 'Exercise name'),
-        sets: nonNegativeNumber(20, 'Sets'),
-        reps: nonNegativeNumber(1000, 'Reps'),
+        sets: wholeNumber(20, 'Sets'),
+        reps: wholeNumber(1000, 'Reps'),
         weight_kg: nonNegativeNumber(1000, 'Weight'),
       }),
     )
@@ -66,17 +67,17 @@ export function RoutineDialog({ open, onOpenChange, routine, library }) {
       </Field>
       <div className="space-y-2">
         <p className="text-[13px] font-medium">Exercises</p>
-        <datalist id="lib-ex">
-          {library.map((e) => (
-            <option key={e.id} value={e.name} />
-          ))}
-        </datalist>
         {fields.map((f, i) => {
           const rowError = firstRowError(errors.exercises?.[i])
           return (
             <div key={f.id}>
               <div className="grid grid-cols-[1fr_3.5rem_3.5rem_4.5rem_2rem] items-start gap-1.5">
-                <Input list="lib-ex" aria-label={`Exercise ${i + 1} name`} placeholder="Exercise" {...register(`exercises.${i}.name`)} />
+                <ExercisePicker
+                  library={library}
+                  aria-label={`Exercise ${i + 1} name`}
+                  placeholder="Exercise"
+                  {...register(`exercises.${i}.name`)}
+                />
                 <Input type="number" inputMode="numeric" aria-label="Sets" placeholder="Sets" {...register(`exercises.${i}.sets`)} />
                 <Input type="number" inputMode="numeric" aria-label="Reps" placeholder="Reps" {...register(`exercises.${i}.reps`)} />
                 <Input

@@ -1,8 +1,8 @@
 import { QueryClient } from '@tanstack/react-query'
 import { createApi, withSchemaValidation } from '@lifetrack/data'
-import { DEFAULTS } from '@lifetrack/constants/schema'
+import { ALL_TABLES, DEFAULTS } from '@lifetrack/constants/schema'
 import { insertSchemas, updateSchemas } from '@lifetrack/schemas'
-import { createQueryStore, type DbAdapter } from '../src/data/queryStore'
+import { createQueryStore, tableKey, type DbAdapter } from '../src/data/queryStore'
 
 /** In-memory Postgres stand-in with the unique constraints the real schema has. */
 export function fakeDb() {
@@ -16,6 +16,7 @@ export function fakeDb() {
     async insert(t, input) {
       return input.map((r) => {
         if (t === 'tasks' && r.series_id && rows(t).some((x) => x.series_id === r.series_id && x.due_date === r.due_date)) throw dup()
+        if (t === 'transactions' && r.recurring_rule_id && rows(t).some((x) => x.recurring_rule_id === r.recurring_rule_id && x.recurring_date === r.recurring_date)) throw dup()
         const row = { ...(DEFAULTS as any)[t], id: newId(), user_id: 'u1', created_at: `2026-11-0${1 + (n % 5)}T00:00:00Z`, ...r } as any
         rows(t).push(row); return { ...row }
       })
@@ -38,6 +39,23 @@ export function fakeDb() {
         const row = { ...(DEFAULTS as any).health_logs, id: newId(), user_id: 'u1', log_date: args.p_date, water_ml: Math.max(0, args.p_ml) } as any
         rows('health_logs').push(row); return { ...row }
       }
+      if (fn === 'log_water' || fn === 'delete_water_log') { // migration 0009: the entry and health_logs.water_ml change together
+        const add = (date: string, ml: number) => {
+          const ex = rows('health_logs').find((x) => x.log_date === date)
+          if (ex) { ex.water_ml = Math.max(0, ex.water_ml + ml); return { ...ex } }
+          const row = { ...(DEFAULTS as any).health_logs, id: newId(), user_id: 'u1', log_date: date, water_ml: Math.max(0, ml) } as any
+          rows('health_logs').push(row); return { ...row }
+        }
+        if (fn === 'log_water') {
+          const entry = { ...(DEFAULTS as any).water_logs, id: newId(), user_id: 'u1', log_date: args.p_date, log_time: args.p_time ?? null, amount_ml: args.p_ml }
+          rows('water_logs').push(entry)
+          return { entry: { ...entry }, health: add(args.p_date, args.p_ml) }
+        }
+        const found = rows('water_logs').find((x) => x.id === args.p_id)
+        if (!found) throw new Error('water entry not found')
+        tables.water_logs = rows('water_logs').filter((x) => x.id !== args.p_id)
+        return add(found.log_date, -found.amount_ml)
+      }
       if (fn === 'add_savings') {
         const ex = rows('savings_goals').find((x) => x.id === args.p_goal)
         if (!ex) throw new Error('Savings goal not found.')
@@ -56,9 +74,13 @@ export function fakeDb() {
   }
   return { tables, raw }
 }
+// Starts like a fresh account whose screens have already fetched their (empty) tables: the store only patches tables that were fetched,
+// as a screen's useQuery does before anything can be written from it (see queryStore.test.ts for a write to a never-fetched table).
 export const setup = () => {
   const { tables, raw } = fakeDb()
   const db = withSchemaValidation(raw, { insertSchemas, updateSchemas }) as DbAdapter
-  const store = createQueryStore(db, new QueryClient())
+  const qc = new QueryClient()
+  for (const t of ALL_TABLES) qc.setQueryData(tableKey(t), [])
+  const store = createQueryStore(db, qc)
   return { tables, store, api: createApi(store as any) }
 }

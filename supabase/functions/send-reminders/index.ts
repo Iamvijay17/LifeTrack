@@ -4,7 +4,8 @@
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided to Edge Functions by Supabase itself and never leave the server.
 import { createClient } from '@supabase/supabase-js'
 import { runReminders } from './logic.js'
-import { afterFire, dueReminders, KIND_LINK } from '../_shared/reminders.js'
+import { afterFire, dueReminders, reminderNotification } from '../_shared/reminders.js'
+import { mayInterrupt, notificationSettings } from '../_shared/notifications.js'
 import { timeStrInTz, todayStr } from '../_shared/dates.ts'
 
 const timingSafeEqual = (a: string, b: string) => {
@@ -22,11 +23,23 @@ Deno.serve(async (req) => {
   const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
   const must = <T>(r: { data: T | null; error: { message: string } | null }) => { if (r.error) throw new Error(r.error.message); return r.data as T }
 
+  // PostgREST returns at most 1000 rows per request (max_rows): page through every active reminder, in a stable order, or the same
+  // first 1000 would come back every minute and other people's reminders would never fire. Id lists go in the URL, so they are sliced.
+  const PAGE = 1000
+  const SLICE = 200
+  const slices = (ids: string[]) => Array.from({ length: Math.ceil(ids.length / SLICE) }, (_, i) => ids.slice(i * SLICE, (i + 1) * SLICE))
   const db = {
-    listActiveReminders: async (maxDate: string) => must(await sb.from('reminders').select('*').eq('active', true).lte('remind_date', maxDate)),
+    listActiveReminders: async (maxDate: string) => {
+      const all: any[] = []
+      for (let from = 0; ; from += PAGE) {
+        const page = must(await sb.from('reminders').select('*').eq('active', true).lte('remind_date', maxDate).order('id').range(from, from + PAGE - 1)) as any[]
+        all.push(...page)
+        if (page.length < PAGE) return all
+      }
+    },
     listSettings: async (ids: string[]) => {
-      if (!ids.length) return new Map()
-      const rows = must(await sb.from('user_settings').select('user_id,timezone,notification_prefs').in('user_id', ids)) as any[]
+      const rows: any[] = []
+      for (const part of slices(ids)) rows.push(...(must(await sb.from('user_settings').select('user_id,timezone,notification_prefs,notification_settings').in('user_id', part)) as any[]))
       return new Map(rows.map((r) => [r.user_id, r]))
     },
     insertNotification: async (row: Record<string, unknown>) => {
@@ -35,7 +48,11 @@ Deno.serve(async (req) => {
       return data
     },
     updateReminder: async (id: string, patch: Record<string, unknown>) => { must(await sb.from('reminders').update(patch).eq('id', id).select('id')) },
-    listTokens: async (ids: string[]) => must(await sb.from('device_push_tokens').select('user_id,token').in('user_id', ids)),
+    listTokens: async (ids: string[]) => {
+      const rows: any[] = []
+      for (const part of slices(ids)) rows.push(...(must(await sb.from('device_push_tokens').select('user_id,token').in('user_id', part)) as any[]))
+      return rows
+    },
     deleteTokens: async (tokens: string[]) => { must(await sb.from('device_push_tokens').delete().in('token', tokens).select('id')) },
   }
   const expoToken = Deno.env.get('EXPO_ACCESS_TOKEN')
@@ -51,10 +68,17 @@ Deno.serve(async (req) => {
     },
   }
 
+  // System Health shows when this job last ran and whether it failed (migration 0027). Best effort: reporting must never change the job's result.
+  const t0 = Date.now()
+  const report = async (status: 'ok' | 'error', detail: string, error: string) => {
+    try { await sb.rpc('record_job_run', { p_job: 'send-reminders', p_status: status, p_duration_ms: Date.now() - t0, p_detail: detail, p_error: error }) } catch { /* the migration may not be applied yet */ }
+  }
   try {
-    const stats = await runReminders({ db, push, core: { afterFire, dueReminders, KIND_LINK, timeStrInTz, todayStr } })
+    const stats = await runReminders({ db, push, core: { afterFire, dueReminders, reminderNotification, notificationSettings, mayInterrupt, timeStrInTz, todayStr } })
+    await report('ok', JSON.stringify(stats).slice(0, 280), '')
     return new Response(JSON.stringify(stats), { headers: { 'Content-Type': 'application/json' } })
   } catch (e) {
+    await report('error', '', (e as Error).message.slice(0, 280))
     return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500, headers: { 'Content-Type': 'application/json' } })
   }
 })

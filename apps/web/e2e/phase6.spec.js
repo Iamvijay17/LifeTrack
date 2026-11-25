@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { register, addTask } from './helpers'
+import { register, addTask, pickOption, pickDate } from './helpers'
 
 test.describe('navigation, search, dashboard', () => {
   test('sidebar is grouped and every page loads without errors', async ({ page }) => {
@@ -8,7 +8,7 @@ test.describe('navigation, search, dashboard', () => {
     await register(page)
     const nav = page.getByRole('navigation', { name: 'Main' })
     for (const g of ['Overview', 'Productivity', 'Growth', 'Wellness', 'Money', 'Insights', 'System'])
-      await expect(nav.getByText(g, { exact: true })).toBeVisible()
+      await expect(nav.getByText(g, { exact: true }).first()).toBeVisible() // 'Insights' is both a group and a page
     for (const [path, heading] of [
       ['/focus', 'Focus Mode'],
       ['/notes', 'Notes & Journal'],
@@ -30,31 +30,55 @@ test.describe('navigation, search, dashboard', () => {
     await page.goto('/planner')
     await addTask(page, 'Prepare quarterly review')
     await page.keyboard.press('Control+k')
-    await page.getByLabel('Search everything').fill('quarterly')
+    await page.getByRole('combobox', { name: 'Search everything' }).fill('quarterly')
     await expect(page.getByRole('option', { name: /Prepare quarterly review/ })).toBeVisible()
-    await page.getByLabel('Search everything').fill('goals')
+    await page.getByRole('combobox', { name: 'Search everything' }).fill('goals')
     await page.getByRole('option', { name: /Goals & Milestones/ }).click()
     await expect(page).toHaveURL(/\/goals$/)
   })
 
+  test('Today lists the day in one place and tasks can be ticked from it', async ({ page }) => {
+    await register(page)
+    await page.goto('/planner')
+    await addTask(page, 'Call the bank')
+    await page.goto('/')
+    const today = page.getByRole('list', { name: 'Anytime today' })
+    await expect(today.getByText('Call the bank')).toBeVisible()
+    await page.getByRole('button', { name: 'Complete Call the bank' }).first().click()
+    await expect(page.getByRole('list', { name: 'Done today' }).getByText('Call the bank')).toBeVisible()
+    await expect(page.getByText('1 of 1 done')).toBeVisible()
+    await page.getByRole('button', { name: 'Mark not done Call the bank' }).click()
+    await expect(today.getByText('Call the bank')).toBeVisible()
+  })
+
   test('daily score reflects real data, explains itself, and widgets can be hidden', async ({ page }) => {
     await register(page)
-    await expect(page.getByTestId('score-value')).toHaveText('0') // study target + no study yet; nothing else planned
+    await expect(page.getByTestId('getting-started')).toBeVisible() // a new account sees the guide, not rows of zeros
+    await expect(page.getByTestId('score-card')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Dismiss the getting started guide' }).click()
+    await expect(page.getByTestId('score-value')).toHaveText('—') // nothing planned or logged yet: no score rather than a zero
     await page.goto('/planner')
     await addTask(page, 'Apply to 3 companies')
     await page.getByRole('button', { name: 'Actions for Apply to 3 companies' }).click()
     await page.getByRole('menuitem', { name: 'Edit' }).click()
-    await page.getByLabel('Category').selectOption('Job Search')
+    await pickOption(page.getByLabel('Category'), 'Job Search')
     await page.getByRole('button', { name: 'Save changes' }).click()
     await page.getByRole('button', { name: 'Complete "Apply to 3 companies"' }).click()
     await page.goto('/')
-    await expect(page.getByTestId('score-value')).toHaveText('50') // learning 0% + career 100%, equal weights
+    await expect(page.getByTestId('score-value')).toHaveText('100') // only Career applies: the study target waits until you study
     await page.getByRole('button', { name: 'How is this calculated?' }).click()
-    await expect(page.getByText(/Career 100% × 50%/)).toBeVisible()
+    await expect(page.getByText(/Career 100\.0 = 100/)).toBeVisible() // the 7-day Life Score: points per category
     await page.keyboard.press('Escape')
-    await page.getByRole('button', { name: 'Customize' }).click()
-    await page.getByRole('switch', { name: 'Daily score' }).click()
+    await page.getByRole('tab', { name: 'Today' }).click()
+    await page.getByRole('button', { name: 'How is this calculated?' }).click()
+    await expect(page.getByText(/Career 100% × 100%/)).toBeVisible() // today's score: fraction × weight
     await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: 'Edit dashboard' }).click()
+    await page.getByRole('button', { name: 'Settings for Life Score' }).click()
+    await page.getByRole('menuitem', { name: 'Remove widget' }).click()
+    await page.getByRole('button', { name: 'Remove widget' }).click() // confirm: only the card goes, not the data
+    await page.getByTestId('edit-bar').getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByTestId('edit-bar')).toHaveCount(0)
     await expect(page.getByTestId('score-card')).toHaveCount(0)
     await page.reload()
     await expect(page.getByTestId('score-card')).toHaveCount(0) // persisted to the account
@@ -109,11 +133,11 @@ test.describe('goals', () => {
     await page.getByRole('button', { name: 'Create goal' }).click()
     await expect(page.getByText('Name the goal')).toBeVisible()
     await page.getByLabel('Goal', { exact: true }).fill('Launch portfolio')
-    await page.getByLabel('Start date').fill('2026-12-10')
-    await page.getByLabel('Target date').fill('2026-12-01')
+    await pickDate(page.getByLabel('Start date'), '2026-12-10')
+    await pickDate(page.getByLabel('Target date'), '2026-12-01')
     await page.getByRole('button', { name: 'Create goal' }).click()
     await expect(page.getByText('Target date must be on or after the start date')).toBeVisible()
-    await page.getByLabel('Target date').fill('2026-12-31')
+    await pickDate(page.getByLabel('Target date'), '2026-12-31')
     await page.getByRole('button', { name: 'Create goal' }).click()
     const card = page.getByTestId('goal-card').filter({ hasText: 'Launch portfolio' })
     await expect(card).toBeVisible()
@@ -140,24 +164,25 @@ test.describe('reminders & notifications', () => {
     await page.getByRole('tab', { name: 'Reminders' }).click()
     await page.getByRole('button', { name: 'New reminder' }).first().click()
     await page.getByLabel('Remind me to').fill('Pay electricity bill')
-    await page.getByLabel('Type').selectOption('bill')
-    await page.getByLabel('Date').fill('2020-01-01') // already due
+    await pickOption(page.getByLabel('Type'), 'bill')
+    await pickDate(page.getByLabel('Date'), '2020-01-01') // already due
     await page.getByRole('button', { name: 'Set reminder' }).click()
     await expect(page.getByTestId('unread-count')).toHaveText('1')
     await page.getByRole('tab', { name: /Inbox/ }).click()
-    await expect(page.getByText('Pay electricity bill')).toHaveCount(1)
+    await expect(page.getByTestId('notification').filter({ hasText: 'Pay electricity bill' })).toHaveCount(1) // (the toast that announced it says the same words)
     await page.reload() // must not fire again
     await expect(page.getByTestId('unread-count')).toHaveText('1')
-    await page.getByRole('button', { name: 'Mark read' }).click()
+    await page.getByTestId('notification').hover()
+    await page.getByRole('button', { name: 'Mark Pay electricity bill as read' }).click()
     await expect(page.getByTestId('unread-count')).toHaveCount(0)
     // silence bill reminders, add another, expect no new notification
     await page.getByRole('tab', { name: 'Preferences' }).click()
-    await page.getByRole('switch', { name: 'Bill reminders' }).click()
+    await page.getByRole('switch', { name: 'Finance' }).click() // bills are the Finance category
     await page.getByRole('tab', { name: 'Reminders' }).click()
     await page.getByRole('button', { name: 'New reminder' }).first().click()
     await page.getByLabel('Remind me to').fill('Pay water bill')
-    await page.getByLabel('Type').selectOption('bill')
-    await page.getByLabel('Date').fill('2020-01-02')
+    await pickOption(page.getByLabel('Type'), 'bill')
+    await pickDate(page.getByLabel('Date'), '2020-01-02')
     await page.getByRole('button', { name: 'Set reminder' }).click()
     await expect(page.getByText('Pay water bill')).toBeVisible()
     await page.waitForTimeout(800)
@@ -166,7 +191,7 @@ test.describe('reminders & notifications', () => {
 })
 
 test.describe('focus mode', () => {
-  test('runs a timer, stops early and records the session', async ({ page }) => {
+  test('runs a timer and stops early (under a minute, so nothing is recorded)', async ({ page }) => {
     await register(page)
     await page.goto('/focus')
     await expect(page.getByRole('timer')).toHaveAccessibleName('25:00 remaining')
@@ -182,7 +207,9 @@ test.describe('focus mode', () => {
     await page.reload() // the running timer survives a reload
     await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible()
     await page.getByRole('button', { name: /Stop & save/ }).click()
-    await expect(page.getByText('Stopped and saved').first()).toBeVisible()
+    // A few seconds is under the one-minute minimum: the page says nothing was recorded, and no longer also claims "Stopped and saved".
+    await expect(page.getByText(/under a minute, so nothing was recorded/).first()).toBeVisible()
+    await expect(page.getByText('Stopped and saved')).toHaveCount(0)
   })
 
   test('manual record of a completed block shows in the totals', async ({ page }) => {
@@ -218,15 +245,16 @@ test.describe('finance additions', () => {
     await page.goto('/finance')
     await page.getByRole('button', { name: 'Add', exact: true }).click()
     await page.getByLabel(/Amount/).fill('250')
-    await page.getByRole('dialog').getByLabel('Payment method').selectOption('Cash')
+    await pickOption(page.getByRole('dialog').getByLabel('Payment method'), 'Cash')
     await page.getByLabel('Note').fill('Lunch')
     await page.getByRole('button', { name: 'Save' }).click()
     await page.getByRole('button', { name: 'Add', exact: true }).click()
     await page.getByLabel(/Amount/).fill('900')
-    await page.getByRole('dialog').getByLabel('Payment method').selectOption('UPI')
+    await pickOption(page.getByRole('dialog').getByLabel('Payment method'), 'UPI')
     await page.getByLabel('Note').fill('Groceries')
     await page.getByRole('button', { name: 'Save' }).click()
-    await page.locator('select[aria-label="Payment method"]').selectOption('Cash')
+    await expect(page.getByRole('dialog')).toHaveCount(0) // the form animates out; until then the page's filter has a namesake in it
+    await pickOption(page.getByLabel('Payment method'), 'Cash')
     await expect(page.getByText('Lunch')).toBeVisible()
     await expect(page.getByText('Groceries')).toHaveCount(0)
     await page.getByRole('button', { name: 'Create a savings goal' }).click()
@@ -249,7 +277,8 @@ test.describe('jobs & export', () => {
     await page.goto('/jobs')
     await page.getByRole('button', { name: 'Add your first application' }).click()
     await expect(page.getByLabel('Status')).toContainText('Wishlist')
-    await expect(page.getByLabel('Status')).toContainText('Offer')
+    await page.getByLabel('Status').click()
+    await expect(page.getByRole('option', { name: 'Offer' })).toBeVisible()
   })
 
   test('CSV export for a module, and typed-confirmation erase', async ({ page }) => {

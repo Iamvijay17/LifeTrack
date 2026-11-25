@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { auth } from '@/services/auth'
 import { db } from '@/services/db'
 import { setUserId } from '@/services/session'

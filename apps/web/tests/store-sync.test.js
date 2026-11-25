@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ list: vi.fn(), emit: null, status: null }))
+const mocks = vi.hoisted(() => ({ list: vi.fn(), insert: vi.fn(), emit: null, status: null }))
 vi.mock('@/services/db', () => ({
   db: {
     list: mocks.list,
+    insert: mocks.insert,
     subscribe: (onChange, onStatus) => {
       mocks.emit = onChange
       mocks.status = onStatus
@@ -113,5 +114,54 @@ describe('startSync', () => {
     mocks.emit('tasks')
     await vi.advanceTimersByTimeAsync(300)
     expect(mocks.list.mock.calls.map((c) => c[0])).toEqual(['tasks'])
+  })
+})
+
+describe('audit fixes: cache integrity', () => {
+  it('a write to a table nobody loaded does not make it look loaded with just that row', async () => {
+    mocks.insert.mockImplementation(async (_t, rows) => rows)
+    await store.insert('transactions', { amount_paise: 100 })
+    expect(store.isReady('transactions')).toBe(false)
+    mocks.list.mockResolvedValue([{ id: 'a' }, { id: 'b' }])
+    await store.load('transactions')
+    expect(store.peek('transactions').map((r) => r.id)).toEqual(['a', 'b']) // the real load ran
+  })
+  it('a write that lands after a reset (sign-out, lock) does not put its row back into the cache', async () => {
+    let finish
+    mocks.insert.mockImplementation((_t, rows) => new Promise((r) => (finish = () => r(rows))))
+    const p = store.insert('tasks', { title: 'late' })
+    store.resetStore()
+    mocks.list.mockResolvedValue([])
+    await store.load('tasks')
+    finish()
+    await p
+    expect(store.peek('tasks')).toEqual([])
+  })
+  it('a refresh that brings the same rows keeps the snapshot, so nothing re-renders', async () => {
+    mocks.list.mockResolvedValue([{ id: 'a', updated_at: '2026-01-01T00:00:00Z' }])
+    await store.refetch('tasks')
+    const before = store.peek('tasks')
+    mocks.list.mockResolvedValue([{ id: 'a', updated_at: '2026-01-01T00:00:00Z' }])
+    await store.refetch('tasks')
+    expect(store.peek('tasks')).toBe(before)
+    mocks.list.mockResolvedValue([{ id: 'a', updated_at: '2026-01-02T00:00:00Z' }])
+    await store.refetch('tasks')
+    expect(store.peek('tasks')).not.toBe(before)
+  })
+  it('while Realtime is connected, a short look away does not re-download everything; a long absence does', async () => {
+    store.startSync()
+    mocks.status('SUBSCRIBED')
+    await vi.advanceTimersByTimeAsync(10_000)
+    mocks.list.mockClear()
+    window.dispatchEvent(new Event('blur'))
+    await vi.advanceTimersByTimeAsync(20_000)
+    window.dispatchEvent(new Event('focus'))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(calls()).toBe(0)
+    window.dispatchEvent(new Event('blur'))
+    await vi.advanceTimersByTimeAsync(120_000)
+    window.dispatchEvent(new Event('focus'))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(calls()).toBe(2)
   })
 })

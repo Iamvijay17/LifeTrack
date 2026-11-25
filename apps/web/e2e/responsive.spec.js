@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { register } from './helpers'
 
-const PAGES = ['/', '/planner', '/learning', '/jobs', '/fitness', '/health', '/finance', '/habits', '/analytics', '/settings']
+const PAGES = ['/', '/planner', '/learning', '/jobs', '/fitness', '/health', '/nutrition', '/finance', '/habits', '/analytics', '/settings']
 
 test('mobile: bottom nav + quick-add button, no horizontal overflow on any page', async ({ page }) => {
   await register(page)
@@ -22,6 +22,7 @@ test('mobile: quick add creates a task and "More" reaches every page', async ({ 
   await page.getByLabel('Title').fill('From the FAB')
   await page.getByRole('dialog').getByRole('button', { name: 'Add task' }).click()
   await page.getByRole('navigation', { name: 'Mobile' }).getByRole('link', { name: 'Planner' }).click()
+  await expect(page.getByRole('heading', { name: 'Daily Planner' })).toBeVisible() // the dashboard, which also lists the task, has left
   await expect(page.getByText('From the FAB')).toBeVisible()
   await page.getByRole('button', { name: 'More pages' }).click()
   await page.getByRole('dialog').getByRole('link', { name: 'Analytics' }).click()

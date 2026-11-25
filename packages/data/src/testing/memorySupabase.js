@@ -8,7 +8,16 @@ import { getUserId } from '../session'
 export const MAX_ROWS = 1000
 const err = (code, message) => ({ code, message })
 const clone = (v) => (v == null ? v : structuredClone(v))
-const CASCADE = { habits: [['habit_logs', 'habit_id']], job_applications: [['application_history', 'application_id'], ['interview_events', 'application_id']], workouts: [['exercise_logs', 'workout_id']], goals: [['milestones', 'goal_id']] }
+const CASCADE = { habits: [['habit_logs', 'habit_id'], ['habit_pauses', 'habit_id']], job_applications: [['application_history', 'application_id'], ['interview_events', 'application_id']], workouts: [['exercise_logs', 'workout_id']], goals: [['milestones', 'goal_id']], calendar_events: [['calendar_event_exceptions', 'event_id']], tasks: [['task_reschedules', 'task_id']], challenges: [['challenge_checkins', 'challenge_id']] }
+const SET_NULL = {
+  habits: [['challenges', 'habit_id']],
+  automation_workflows: [['automation_executions', 'workflow_id']],
+  recurring_rules: [['transactions', 'recurring_rule_id']],
+  goals: [['calendar_events', 'goal_id']],
+  learning_topics: [['calendar_events', 'topic_id']],
+  job_applications: [['calendar_events', 'application_id']],
+  routines: [['calendar_events', 'routine_id']],
+}
 const NOW_COLUMNS = { application_history: ['changed_at'], study_sessions: ['started_at'], focus_sessions: ['started_at'] }
 const owner = (table, row) => (table === 'profiles' ? row.id : row.user_id)
 
@@ -60,6 +69,7 @@ export function createMemorySupabase({ currentUser = getUserId } = {}) {
     order(col, { ascending = true } = {}) { this.sort.push({ col, ascending }); return this }
     range(from, to) { this.from = from; this.to = to; return this }
     single() { this.one = true; return this }
+    maybeSingle() { this.one = 'maybe'; return this }
     then(resolve, reject) { return Promise.resolve().then(() => this.run()).then(resolve, reject) }
 
     run() {
@@ -73,6 +83,7 @@ export function createMemorySupabase({ currentUser = getUserId } = {}) {
         for (const input of this.payload) {
           if (input.user_id && input.user_id !== uid) return { data: null, error: err('42501', 'new row violates row-level security policy for table "' + t + '"') }
           const row = build(t, input, uid)
+          if (rows(t).some((r) => r.id === row.id) || staged.some((r) => r.id === row.id)) return { data: null, error: err('23505', 'duplicate key value violates unique constraint "' + t + '_pkey"') } // primary key
           if (violatesUnique(t, row, null) || staged.some((s) => (UNIQUES[t] ?? []).some((u) => (!u.when || (u.when(s) && u.when(row))) && u.cols.every((c) => s[c] === row[c])))) return { data: null, error: err('23505', 'duplicate key value violates unique constraint') }
           staged.push(row)
         }
@@ -111,6 +122,7 @@ export function createMemorySupabase({ currentUser = getUserId } = {}) {
         const ids = new Set(targets.map((r) => r.id))
         tables[t] = rows(t).filter((r) => !ids.has(r.id))
         for (const [child, col] of CASCADE[t] ?? []) tables[child] = rows(child).filter((r) => !ids.has(r[col]))
+        for (const [child, col] of SET_NULL[t] ?? []) tables[child] = rows(child).map((r) => (ids.has(r[col]) ? { ...r, [col]: null } : r))
         out = targets
         targets.forEach((row) => emit(t, uid, 'DELETE', row))
       } else {
@@ -124,6 +136,7 @@ export function createMemorySupabase({ currentUser = getUserId } = {}) {
       return this.finish(out.map(clone))
     }
     finish(data) {
+      if (this.one === 'maybe') return data.length <= 1 ? { data: data[0] ?? null, error: null } : { data: null, error: err('PGRST116', 'JSON object requested, multiple (or no) rows returned') }
       if (this.one) return data.length === 1 ? { data: data[0], error: null } : { data: null, error: err('PGRST116', 'JSON object requested, multiple (or no) rows returned') }
       return { data, error: null }
     }
@@ -133,7 +146,7 @@ export function createMemorySupabase({ currentUser = getUserId } = {}) {
     tables,
     from: (t) => new Query(t),
     /** The database functions the app calls (add_water, add_savings, replace_exercise_logs). Single-threaded here, so trivially atomic. */
-    rpc: async (fn, args) => {
+    rpc: async function rpc(fn, args) {
       const uid = currentUser()
       if (!uid) return { data: null, error: err('42501', 'permission denied for function ' + fn) }
       const own = (t) => rows(t).filter((r) => r.user_id === uid)
@@ -143,6 +156,19 @@ export function createMemorySupabase({ currentUser = getUserId } = {}) {
         return cur
           ? new Query('health_logs').update({ water_ml: clamp(cur.water_ml + args.p_ml) }).eq('id', cur.id).select().single()
           : new Query('health_logs').insert({ log_date: args.p_date, water_ml: clamp(args.p_ml) }).select().single()
+      }
+      if (fn === 'log_water') {
+        if (!Number.isInteger(args.p_ml) || args.p_ml < 1 || args.p_ml > 5000) return { data: null, error: err('22023', 'amount must be between 1 and 5000 ml') }
+        const entry = new Query('water_logs').insert({ log_date: args.p_date, log_time: args.p_time ?? null, amount_ml: args.p_ml }).select().single().run()
+        if (entry.error) return entry
+        const added = await rpc('add_water', { p_date: args.p_date, p_ml: args.p_ml })
+        return added.error ? added : { data: { entry: entry.data, health: added.data }, error: null }
+      }
+      if (fn === 'delete_water_log') {
+        const cur = own('water_logs').find((r) => r.id === args.p_id)
+        if (!cur) return { data: null, error: err('P0002', 'water entry not found') }
+        new Query('water_logs').delete().eq('id', cur.id).run()
+        return rpc('add_water', { p_date: cur.log_date, p_ml: -cur.amount_ml })
       }
       if (fn === 'add_savings') {
         if (!Number.isInteger(args.p_paise) || args.p_paise <= 0) return { data: null, error: err('P0001', 'Enter an amount greater than 0.') }
