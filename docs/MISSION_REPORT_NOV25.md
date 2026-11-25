@@ -74,3 +74,22 @@ Note: `node scripts/build-setup-sql.mjs` has no check mode; it rewrites `supabas
 - `apps/mobile`: `tsc --noEmit` clean; vitest 235 of 235 (22 files); jest/React Native 125 of 125 (9 suites, including the render-every-screen test). The jest run prints a React `act` warning from `PinWizard.tsx` (a timer that sets state after the test); it does not fail anything and was not changed.
 - Not run: a device or emulator, `expo export` bundle build, EAS builds.
 - `docs/NATIVE.md` step 4 no longer stops at migration `0008`; `docs/RELEASE.md` points at `docs/legal/STORE_DATA_SAFETY.md`, where the file actually is.
+
+## Migration 0029: monthly reminders keep their day
+
+Problem: a monthly reminder set for the 31st went 31 Jan -> 28 Feb -> 28 Mar and stayed on the 28th, because the next date was worked out from the date it last fired for.
+
+Change:
+- `supabase/migrations/0029_reminder_anchor_day.sql` adds a nullable `reminders.anchor_day` (check 1-31), backfills it from each row's current day, and adds an insert trigger that fills it from the date when an insert leaves it out. Additive and idempotent.
+- `packages/core/src/reminders.js`: `nextRemindDate(date, repeat, anchorDay)` aims for the anchor and clamps to the month's end (31 Jan -> 28 Feb -> 31 Mar; 29 Feb -> 28 Feb -> ... -> 29 Feb in a leap year). `afterFire` reads the stored anchor. New helpers `anchorDayOf` and `withAnchorDay`.
+- The web dialog, the mobile form and `rescheduleReminder` (snooze/move) set the anchor to the day the person picked. The Edge Function's `_shared/reminders.js` copy was regenerated.
+- `packages/schemas/src/tables.ts` lists the column.
+
+Tests: `packages/core/tests/reminderAnchor.test.js` (6 cases), two pglite cases in `supabase/tests/pglite/notifications.test.ts`, and an updated expectation in `apps/web/tests/notifications.test.jsx`. Results: core 1,170/1,170, DB 574/574, data 284/284, mobile vitest 235/235, mobile `tsc` clean. In the full web run 3 habit tests timed out under load; they passed on two re-runs in isolation, and the files I touched pass.
+
+Known limits:
+- Rows that had already drifted are backfilled with their drifted day (nothing in the data says what they were set for). Editing and saving such a reminder fixes it.
+- Existing rows created by older app versions that write no anchor get one from the insert trigger, but an old client that edits a date will leave the old anchor in place until it updates.
+- `packages/schemas` db-drift test still fails on tables from the other session's uncommitted `0028_performance_flags.sql` (`db_perf_snapshots` and others), not on anything from 0029.
+- `supabase/setup-all.sql` was not regenerated: doing so now would also pull in the unfinished 0028. Run `pnpm sql:build` once 0028 and 0029 are ready to ship together.
+- Deploy: run 0029, redeploy `send-reminders` (it ships the changed shared code), then the web and mobile apps. Not run against a live Supabase project.
