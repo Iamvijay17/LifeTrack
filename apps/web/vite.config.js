@@ -3,10 +3,14 @@ import { loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'node:path'
+import { readFileSync } from 'node:fs'
 import { resolveBackend } from './scripts/resolve-backend.js'
 
+// The one source of the displayed app version: this package's own package.json.
+const { version: APP_VERSION } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
+
 export default defineConfig(({ command, mode }) => ({
-  define: { __BACKEND__: JSON.stringify(resolveBackend({ command, mode, env: loadEnv(mode, process.cwd(), 'VITE_') })) },
+  define: { __APP_VERSION__: JSON.stringify(APP_VERSION), __BACKEND__: JSON.stringify(resolveBackend({ command, mode, env: loadEnv(mode, process.cwd(), 'VITE_') })) },
   plugins: [
     react(),
     VitePWA({
