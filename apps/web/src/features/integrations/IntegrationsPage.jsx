@@ -8,7 +8,7 @@ import { SettingsSection } from '@/components/shared/SettingsSection'
 import { EmptyState } from '@/components/shared/states'
 import { useConfirm } from '@/components/shared/Confirm'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/misc'
+import { Badge, Skeleton } from '@/components/ui/misc'
 import { Select } from '@/components/ui/form'
 import { useAction } from '@/hooks/useAction'
 import * as store from '@/hooks/store'
@@ -47,7 +47,7 @@ function statusOf(row) {
   return { tone: 'success', label: 'Connected' }
 }
 
-function ProviderCard({ meta, row, available, children }) {
+function ProviderCard({ meta, row, available, loading, children }) {
   const confirm = useConfirm()
   const status = statusOf(row)
   const [connect, connecting] = useAction(async () => {
@@ -70,8 +70,8 @@ function ProviderCard({ meta, row, available, children }) {
   const connected = row?.status === 'connected'
   return (
     <SettingsSection headingAs="h3" icon={meta.key === 'google_drive' ? HardDrive : CalendarSync} title={meta.name} desc={meta.blurb}>
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge tone={status.tone}>{status.label}</Badge>
+      <div className="flex flex-wrap items-center gap-2" aria-busy={loading || undefined}>
+        {loading ? <Skeleton className="h-5 w-24 rounded-full" /> : <Badge tone={status.tone}>{status.label}</Badge>}
         {row?.account_email && <span className="text-xs text-muted-foreground">{row.account_email}</span>}
         {connected && row.last_sync_at && <span className="text-xs text-muted-foreground">Last sync {ago(row.last_sync_at)}</span>}
       </div>
@@ -95,7 +95,8 @@ function ProviderCard({ meta, row, available, children }) {
       </details>
       {connected && children}
       <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-        {!connected && (
+        {loading && <Skeleton className="h-9 w-48 rounded-lg" />}
+        {!loading && !connected && (
           <Button
             onClick={() => connect()}
             loading={connecting}
@@ -251,7 +252,7 @@ function DriveControls() {
 export default function IntegrationsPage() {
   const [params, setParams] = useSearchParams()
   const [caps, setCaps] = useState({ state: 'checking' })
-  const { rows: rowList } = store.useTable('integrations')
+  const { rows: rowList, loading: loadingRows } = store.useTable('integrations')
   const { rows: events } = store.useTable('integration_events')
   const byProvider = useMemo(() => Object.fromEntries(rowList.map((r) => [r.provider, r])), [rowList])
 
@@ -296,10 +297,10 @@ export default function IntegrationsPage() {
           </div>
         )}
         <div className="grid gap-4 md:grid-cols-2">
-          <ProviderCard meta={PROVIDERS.google_calendar} row={byProvider.google_calendar} available={available}>
+          <ProviderCard meta={PROVIDERS.google_calendar} row={byProvider.google_calendar} available={available} loading={loadingRows}>
             <CalendarControls row={byProvider.google_calendar} />
           </ProviderCard>
-          <ProviderCard meta={PROVIDERS.google_drive} row={byProvider.google_drive} available={available}>
+          <ProviderCard meta={PROVIDERS.google_drive} row={byProvider.google_drive} available={available} loading={loadingRows}>
             <DriveControls />
           </ProviderCard>
         </div>

@@ -219,12 +219,30 @@ class Doc {
     return lines
   }
 
+  /** The LifeTrack app icon (public/brand/lifetrack-icon.svg) as vector paths, so it stays sharp at any zoom. `top` is the distance from the page top. */
+  logoMark(x, top, size) {
+    if (!allFinite(x, top, size) || size <= 0) return
+    const k = size / 512
+    const y = this.H - top
+    const violet = hex('#7c3aed')
+    this.page.drawSvgPath('M112 0H400A112 112 0 0 1 512 112V400A112 112 0 0 1 400 512H112A112 112 0 0 1 0 400V112A112 112 0 0 1 112 0Z', {
+      x,
+      y,
+      scale: k,
+      color: hex('#09090b'),
+    })
+    for (const d of ['M406 262A150 150 0 1 1 292 126', 'M185 275L235 325L400 160', 'M342 160H400V218']) {
+      // the icon's artwork is nudged up 4 units inside its square
+      this.page.drawSvgPath(d, { x, y: y + 4 * k, scale: k, borderColor: violet, borderWidth: 40 * k, borderLineCap: 1, borderLineJoin: 1 })
+    }
+    this.fresh = false
+  }
+
   // ----- page furniture -----
   cover({ title, subtitle, meta = [], generated }) {
     const { contentW: cw } = this
-    this.rect(MARGIN.x, this.y, 16, 16, COLORS.accent)
-    this.text('L', MARGIN.x, this.y + 2.2, { size: 11, bold: true, color: '#ffffff', align: 'center', width: 16 })
-    this.text('LifeTrack', MARGIN.x + 22, this.y + 3, { size: 10.5, bold: true, color: COLORS.accent })
+    this.logoMark(MARGIN.x, this.y, 18)
+    this.text('LifeTrack', MARGIN.x + 24, this.y + 3.5, { size: 10.5, bold: true, color: COLORS.accent })
     if (generated) this.text(generated, MARGIN.x, this.y + 4, { size: TYPE.small, color: COLORS.muted, align: 'right', width: cw })
     this.y += 34
     for (const l of this.wrap(title, cw, TYPE.title, true, 2)) {
