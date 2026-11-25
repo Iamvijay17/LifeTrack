@@ -108,4 +108,7 @@ export const SERVER_WRITTEN_LINKS: { child: string; column: string; parent: stri
   { child: 'webhook_secrets', column: 'endpoint_id', parent: 'webhook_endpoints' },
   { child: 'webhook_deliveries', column: 'endpoint_id', parent: 'webhook_endpoints' },
   { child: 'webhook_attempts', column: 'delivery_id', parent: 'webhook_deliveries' },
+  { child: 'experiment_events', column: 'experiment_id', parent: 'experiments' },
+  { child: 'experiments', column: 'flag_key', parent: 'feature_flags' },
+  { child: 'feature_flag_envs', column: 'flag_key', parent: 'feature_flags' },
 ]

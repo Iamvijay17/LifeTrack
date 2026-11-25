@@ -1,4 +1,15 @@
 @import '@fontsource-variable/inter/opsz.css';
+
+/* The rupee sign lives in Inter's 133 KB latin-ext file, so every money page downloaded it for one glyph. This 1.5 KB subset (just U+20B9, same
+   variable axes) is declared after the full set, so it wins for that code point and latin-ext is fetched only when a page really needs it. */
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('./assets/fonts/inter-rupee-opsz.woff2') format('woff2-variations');
+  unicode-range: U+20B9;
+}
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

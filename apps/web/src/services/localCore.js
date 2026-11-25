@@ -3,6 +3,7 @@
 // synced across devices. It exists so the UI can be developed/tested without a cloud project, and it
 // emulates the pieces of the database the app relies on (defaults, unique constraints, status-history trigger,
 // cross-tab "realtime"). Production = Supabase.
+import { normalizePageRequest, pageOfRows } from '@lifetrack/core/pagination'
 import { getUserId } from './session'
 import { DEFAULTS, UNIQUES } from '@lifetrack/constants/schema'
 import { AppError } from './errors'
@@ -70,6 +71,11 @@ export const createLocalAdapter = ({ read, write, notify, listen, wipe }) => ({
   async list(table) {
     const rows = clone(read()[table] ?? [])
     return rows.sort((a, b) => (a.created_at + a.id).localeCompare(b.created_at + b.id))
+  },
+
+  /** Same request and answer shape as the database adapter (offset or cursor, sort, filters, search, count), computed over the local rows. */
+  async listPage(table, params) {
+    return pageOfRows(normalizePageRequest(table, params), clone(read()[table] ?? []))
   },
 
   async insert(table, inputs) {

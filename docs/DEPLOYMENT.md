@@ -56,8 +56,8 @@ sections after `1.0.0` ([KNOWN_ISSUES.md](KNOWN_ISSUES.md)). Over-the-air update
 1. Take a backup (Dashboard → Database → Backups).
 2. Run *Database migrations (manual)* with `apply` off and `first_pending` set to the first migration the target lacks (e.g. `0009`). It fails on destructive statements, shows local vs remote history and the plan.
 3. Review, run again with `apply` on (production also needs `confirm = apply-production` and reviewer approval).
-4. First use on a project created from `setup-all.sql`: `supabase migration repair --status applied 0001 … 0008` (list what is really applied), then dry-run again.
-5. Verify: `select version from supabase_migrations.schema_migrations order by 1;` shows `0001`–`0010`. (`RELEASE.md` still says "through 0008" — see [KNOWN_ISSUES.md](KNOWN_ISSUES.md).)
+4. First use on a project created from `setup-all.sql`: `supabase migration repair --status applied 0001 … <last one really applied>` (list what is really applied), then dry-run again.
+5. Verify: `select version from supabase_migrations.schema_migrations order by 1;` lists every file in `supabase/migrations` (`0001`–`0027` today).
 
 A new project can simply run `supabase/setup-all.sql` once.
 
@@ -90,7 +90,7 @@ Supabase backups/PITR for the database; user-level JSON export on web ([BACKUP_R
 
 - [ ] CI green (`ci.yml`) and, once, `ci-backend.yml`
 - [ ] Hosted Auth hardened: confirmation on, leaked-password protection, minimum length ≥ 8, redirect URLs exact, sign-ups disabled if single-user
-- [ ] Backup taken; migrations `0001`–`0010` applied (dry run first)
+- [ ] Backup taken; every migration in `supabase/migrations` applied (dry run first)
 - [ ] `CRON_SECRET` set; function deployed; cron job created and returning 200
 - [ ] Legal documents finished (`check-legal-ready.mjs`), `LICENSE`/`SECURITY.md` placeholders filled
 - [ ] Web built against the right project, secrets scan passed, artifact published, SPA fallback and headers verified

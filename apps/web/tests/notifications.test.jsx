@@ -130,6 +130,7 @@ describe('ReminderDialog', () => {
         kind: 'bill',
         title: 'Pay rent',
         remind_date: TODAY,
+        anchor_day: Number(TODAY.slice(8)), // the series remembers the day it was set for
         remind_time: '09:00',
         repeat: 'monthly',
         priority: 'normal',

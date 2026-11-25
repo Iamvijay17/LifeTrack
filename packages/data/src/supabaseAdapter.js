@@ -1,6 +1,7 @@
 import { getUserId } from './session'
 import { AppError, toAppError } from './errors'
 import { ALL_TABLES } from '@lifetrack/constants/schema'
+import { listPageSupabase } from './pagedQuery'
 
 // Stable paging order per table (application_history has changed_at, not created_at).
 const ORDER_COLUMN = { application_history: 'changed_at' }
@@ -17,7 +18,15 @@ const NOT_DELETED = () => new AppError('This could not be deleted. It may be loc
 const confirmDeleted = async (supabase, table, asked, deleted) => {
   if (deleted.length >= asked.length) return
   const done = new Set(deleted.map((r) => r.id))
-  const left = check(await supabase.from(table).select('id').in('id', asked.filter((id) => !done.has(id))))
+  const left = check(
+    await supabase
+      .from(table)
+      .select('id')
+      .in(
+        'id',
+        asked.filter((id) => !done.has(id)),
+      ),
+  )
   if (left.length) throw NOT_DELETED()
 }
 const CONFLICT = () => new AppError('This record was changed somewhere else.', { code: 'CONFLICT' })
@@ -52,6 +61,9 @@ export const createSupabaseAdapter = (supabase) => ({
       const seen = new Set()
       return rows.filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)))
     }),
+
+  /** One bounded page of a large list (offset or cursor, sort, filters, search, count). See @lifetrack/core/pagination for the request shape. */
+  listPage: (table, params) => guard(() => listPageSupabase(supabase, table, params)),
 
   insert: (table, rows) =>
     guard(async () => {
@@ -90,7 +102,8 @@ export const createSupabaseAdapter = (supabase) => ({
 
   remove: (table, id, { ifUpdatedAt } = {}) =>
     guard(async () => {
-      if (!ifUpdatedAt) return void (await confirmDeleted(supabase, table, [id], check(await supabase.from(table).delete().eq('id', id).select('id'))))
+      if (!ifUpdatedAt)
+        return void (await confirmDeleted(supabase, table, [id], check(await supabase.from(table).delete().eq('id', id).select('id'))))
       const gone = check(await supabase.from(table).delete().eq('id', id).eq('updated_at', ifUpdatedAt).select('id'))
       if (gone.length) return
       // Nothing deleted: the row is already gone (fine), or it changed (or is locked): the caller looks at the row to tell which.

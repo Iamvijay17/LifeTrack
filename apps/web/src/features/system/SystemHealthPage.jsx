@@ -27,6 +27,7 @@ import { useLoad } from '@/hooks/useLoad'
 import { LATENCY_BUCKETS, availability, errorRate, overallStatus, percentileFromHistogram } from '@lifetrack/core/systemHealth'
 import { isPlatformAdmin, platformAvailable, systemErrors, systemMetrics, systemOverview } from '@/services/platform'
 import { UnavailableState, ago, stamp } from '@/features/developers/shared'
+import { DatabasePerformance } from './DatabasePerformance'
 
 const TONE = { operational: 'success', degraded: 'warning', down: 'danger', unknown: 'neutral' }
 const LABEL = { operational: 'Operational', degraded: 'Degraded', down: 'Down', unknown: 'No data yet' }
@@ -465,6 +466,7 @@ function Dashboard() {
 export default function SystemHealthPage() {
   const available = platformAvailable()
   const { data: admin, loading } = useLoad(isPlatformAdmin, [], { enabled: available })
+  const [section, setSection] = useState('overview')
   return (
     <>
       <PageHeader
@@ -482,7 +484,19 @@ export default function SystemHealthPage() {
           description="System Health shows information about the whole installation, so only administrators can open it. An administrator is added by the project owner with one SQL statement (docs/SYSTEM_HEALTH.md). Nothing about other people's data is shown here."
         />
       ) : (
-        <Dashboard />
+        <>
+          <Segmented
+            className="mb-4 print:hidden"
+            aria-label="System Health section"
+            value={section}
+            onChange={setSection}
+            options={[
+              { value: 'overview', label: 'Overview' },
+              { value: 'database', label: 'Database performance' },
+            ]}
+          />
+          {section === 'database' ? <DatabasePerformance /> : <Dashboard />}
+        </>
       )}
     </>
   )

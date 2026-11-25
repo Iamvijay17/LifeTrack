@@ -393,7 +393,23 @@ export const GUIDES = [
       'Charts show request volume, latency and application errors by hour; pick 24 hours, 3 days or 7 days.',
       'Latest errors are grouped, with how often and when; select one to see its stack.',
     ],
-    tips: ['Only administrators can open this page (docs/SYSTEM_HEALTH.md says how one is added).'],
+    tips: [
+      'Only administrators can open this page (docs/SYSTEM_HEALTH.md says how one is added).',
+      'The Database performance section lists suggestions with their evidence: connections, cache hit rate, slow statements and what the app asked for.',
+    ],
+  },
+  {
+    module: 'features',
+    summary:
+      'For administrators: switch features on for some people or everyone, roll them out gradually, run experiments and stop things in an emergency.',
+    steps: [
+      'Pick an environment, then use the switch on a flag. You are asked to confirm, and the change goes into the history.',
+      'Open a flag to set a rollout percentage, roles, or lists of people who always or never get it.',
+      'Experiments compare a control with a treatment. They stay off until you start them and their flag is on.',
+      'Emergency controls stop all experiments, one module, or every optional feature. Sign-in, security, data integrity and recovery are never switched off.',
+      'History shows who changed what and lets you roll a change back.',
+    ],
+    tips: ['Experiment results are shown as rates with ranges. The page never declares a winner for you.'],
   },
   {
     module: 'shortcuts',

@@ -4,20 +4,26 @@ import { Toaster } from 'sonner'
 import { isMisconfigured } from '@/lib/backend'
 import { ConfigError } from '@/components/shared/ConfigError'
 import { AuthProvider, useAuth } from '@/hooks/useAuth'
+import { FlagGate, FlagsProvider } from '@/hooks/useFlags'
 import { useResolvedTheme } from '@/hooks/useTheme'
 import { ConfirmProvider } from '@/components/shared/Confirm'
 import { PromptProvider } from '@/components/shared/Prompt'
-import { AppShell } from '@/components/layout/AppShell'
 import { FullScreenLoader, InitialAppLoader } from '@/components/loaders'
 import { InteractionProvider } from '@/components/interaction/InteractionProvider'
 import { MotionProvider } from '@/components/motion/primitives'
-import LegalPage from '@/features/legal/LegalPage'
-import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from '@/features/auth/AuthPages'
 import { AppLockGate } from '@/features/security/LockScreen'
 import { ModuleGate } from '@/features/security/ModuleUnlock'
 import { SecurityProvider } from '@/features/security/SecurityProvider'
 
 const page = (loader) => lazy(loader)
+// Signed-out visitors download only the page they land on; the shell (sidebar, command palette, ...) loads once someone is signed in.
+const AppShell = page(() => import('@/components/layout/AppShell').then((m) => ({ default: m.AppShell })))
+const LegalPage = page(() => import('@/features/legal/LegalPage'))
+const authPage = (name) => page(() => import('@/features/auth/AuthPages').then((m) => ({ default: m[name] })))
+const LoginPage = authPage('LoginPage')
+const RegisterPage = authPage('RegisterPage')
+const ForgotPasswordPage = authPage('ForgotPasswordPage')
+const ResetPasswordPage = authPage('ResetPasswordPage')
 const Overview = page(() => import('@/features/overview/OverviewPage'))
 const GlobalSearchPage = page(() => import('@/features/search/SearchPage'))
 const Planner = page(() => import('@/features/planner/PlannerPage'))
@@ -51,6 +57,7 @@ const Integrations = page(() => import('@/features/integrations/IntegrationsPage
 const Developers = page(() => import('@/features/developers/DevelopersPage'))
 const Audit = page(() => import('@/features/audit/AuditPage'))
 const SystemHealth = page(() => import('@/features/system/SystemHealthPage'))
+const Features = page(() => import('@/features/features/FeaturesPage'))
 const Shortcuts = page(() => import('@/features/shortcuts/ShortcutsPage'))
 const Security = page(() => import('@/features/security/SecurityPage'))
 
@@ -76,129 +83,167 @@ export default function App() {
     <MotionProvider>
       <InteractionProvider>
         <AuthProvider>
-          <ConfirmProvider>
-            <PromptProvider>
-              <Suspense fallback={<FullScreenLoader message="Syncing your progress..." />}>
-                <Routes>
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/register" element={<RegisterPage />} />
-                  <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                  <Route path="/reset-password" element={<ResetPasswordPage />} />
-                  <Route path="/privacy" element={<LegalPage doc="privacy" />} />
-                  <Route path="/terms" element={<LegalPage doc="terms" />} />
-                  {/* The companion is a small window of its own: signed in and lock-gated like the app, but without the sidebar. */}
-                  <Route
-                    path="/companion"
-                    element={
-                      <Protected>
-                        <Companion />
-                      </Protected>
-                    }
-                  />
-                  <Route
-                    element={
-                      <Protected>
-                        <AppShell />
-                      </Protected>
-                    }
-                  >
-                    <Route index element={<Overview />} />
-                    <Route path="search" element={<GlobalSearchPage />} />
-                    <Route path="planner" element={<Planner />} />
-                    <Route path="calendar" element={<Calendar />} />
-                    <Route path="recovery" element={<Recovery />} />
-                    <Route path="map" element={<LifeMap />} />
-                    <Route path="automation" element={<Automation />} />
-                    <Route path="automation/history" element={<AutomationHistory />} />
-                    <Route path="automation/:id" element={<WorkflowEditor />} />
-                    <Route path="learning" element={<Learning />} />
+          <FlagsProvider>
+            <ConfirmProvider>
+              <PromptProvider>
+                <Suspense fallback={<FullScreenLoader message="Syncing your progress..." />}>
+                  <Routes>
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                    <Route path="/reset-password" element={<ResetPasswordPage />} />
+                    <Route path="/privacy" element={<LegalPage doc="privacy" />} />
+                    <Route path="/terms" element={<LegalPage doc="terms" />} />
+                    {/* The companion is a small window of its own: signed in and lock-gated like the app, but without the sidebar. */}
                     <Route
-                      path="jobs"
+                      path="/companion"
                       element={
-                        <ModuleGate module="jobs">
-                          <Jobs />
-                        </ModuleGate>
+                        <Protected>
+                          <Companion />
+                        </Protected>
                       }
                     />
                     <Route
-                      path="fitness"
                       element={
-                        <ModuleGate module="fitness">
-                          <Fitness />
-                        </ModuleGate>
+                        <Protected>
+                          <AppShell />
+                        </Protected>
                       }
-                    />
-                    <Route path="fitness/exercises/:id" element={<ExerciseDetail />} />
-                    <Route
-                      path="health"
-                      element={
-                        <ModuleGate module="health">
-                          <Health />
-                        </ModuleGate>
-                      }
-                    />
-                    <Route
-                      path="nutrition"
-                      element={
-                        <ModuleGate module="nutrition">
-                          <Nutrition />
-                        </ModuleGate>
-                      }
-                    />
-                    <Route
-                      path="finance"
-                      element={
-                        <ModuleGate module="finance">
-                          <Finance />
-                        </ModuleGate>
-                      }
-                    />
-                    <Route path="habits" element={<Habits />} />
-                    <Route path="challenges" element={<Challenges />} />
-                    <Route path="insights" element={<Insights />} />
-                    <Route path="analytics" element={<Analytics />} />
-                    <Route path="focus" element={<Focus />} />
-                    <Route
-                      path="notes"
-                      element={
-                        <ModuleGate module="notes">
-                          <Notes />
-                        </ModuleGate>
-                      }
-                    />
-                    <Route path="goals" element={<Goals />} />
-                    <Route path="reports" element={<Reports />} />
-                    <Route path="notifications" element={<Notifications />} />
-                    <Route path="export" element={<ExportPage />} />
-                    <Route path="integrations" element={<Integrations />} />
-                    <Route path="developers" element={<Developers />} />
-                    <Route path="audit" element={<Audit />} />
-                    <Route path="system" element={<SystemHealth />} />
-                    <Route path="settings" element={<Settings />} />
-                    <Route path="security" element={<Security />} />
-                    <Route path="shortcuts" element={<Shortcuts />} />
-                    <Route path="help" element={<Help />} />
-                  </Route>
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </Suspense>
-              <Toaster
-                theme={theme}
-                position="top-center"
-                gap={8}
-                offset={{ top: 16 }}
-                toastOptions={{
-                  classNames: {
-                    toast: '!rounded-xl !bg-card !text-foreground !border-border !shadow-overlay !font-sans',
-                    description: '!text-muted-foreground',
-                    actionButton: '!rounded-md !bg-primary-solid !text-white',
-                    success: '[&_[data-icon]]:!text-success',
-                    error: '[&_[data-icon]]:!text-danger',
-                  },
-                }}
-              />
-            </PromptProvider>
-          </ConfirmProvider>
+                    >
+                      <Route index element={<Overview />} />
+                      <Route path="search" element={<GlobalSearchPage />} />
+                      <Route path="planner" element={<Planner />} />
+                      <Route path="calendar" element={<Calendar />} />
+                      <Route path="recovery" element={<Recovery />} />
+                      <Route
+                        path="map"
+                        element={
+                          <FlagGate flag="module.lifemap">
+                            <LifeMap />
+                          </FlagGate>
+                        }
+                      />
+                      <Route
+                        path="automation"
+                        element={
+                          <FlagGate flag="module.automation">
+                            <Automation />
+                          </FlagGate>
+                        }
+                      />
+                      <Route path="automation/history" element={<AutomationHistory />} />
+                      <Route path="automation/:id" element={<WorkflowEditor />} />
+                      <Route path="learning" element={<Learning />} />
+                      <Route
+                        path="jobs"
+                        element={
+                          <ModuleGate module="jobs">
+                            <Jobs />
+                          </ModuleGate>
+                        }
+                      />
+                      <Route
+                        path="fitness"
+                        element={
+                          <ModuleGate module="fitness">
+                            <Fitness />
+                          </ModuleGate>
+                        }
+                      />
+                      <Route path="fitness/exercises/:id" element={<ExerciseDetail />} />
+                      <Route
+                        path="health"
+                        element={
+                          <ModuleGate module="health">
+                            <Health />
+                          </ModuleGate>
+                        }
+                      />
+                      <Route
+                        path="nutrition"
+                        element={
+                          <ModuleGate module="nutrition">
+                            <Nutrition />
+                          </ModuleGate>
+                        }
+                      />
+                      <Route
+                        path="finance"
+                        element={
+                          <ModuleGate module="finance">
+                            <Finance />
+                          </ModuleGate>
+                        }
+                      />
+                      <Route path="habits" element={<Habits />} />
+                      <Route
+                        path="challenges"
+                        element={
+                          <FlagGate flag="module.challenges">
+                            <Challenges />
+                          </FlagGate>
+                        }
+                      />
+                      <Route
+                        path="insights"
+                        element={
+                          <FlagGate flag="module.insights">
+                            <Insights />
+                          </FlagGate>
+                        }
+                      />
+                      <Route path="analytics" element={<Analytics />} />
+                      <Route path="focus" element={<Focus />} />
+                      <Route
+                        path="notes"
+                        element={
+                          <ModuleGate module="notes">
+                            <Notes />
+                          </ModuleGate>
+                        }
+                      />
+                      <Route path="goals" element={<Goals />} />
+                      <Route path="reports" element={<Reports />} />
+                      <Route path="notifications" element={<Notifications />} />
+                      <Route path="export" element={<ExportPage />} />
+                      <Route path="integrations" element={<Integrations />} />
+                      <Route
+                        path="developers"
+                        element={
+                          <FlagGate flag="module.developers">
+                            <Developers />
+                          </FlagGate>
+                        }
+                      />
+                      <Route path="audit" element={<Audit />} />
+                      <Route path="system" element={<SystemHealth />} />
+                      <Route path="features" element={<Features />} />
+                      <Route path="settings" element={<Settings />} />
+                      <Route path="security" element={<Security />} />
+                      <Route path="shortcuts" element={<Shortcuts />} />
+                      <Route path="help" element={<Help />} />
+                    </Route>
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </Suspense>
+                <Toaster
+                  theme={theme}
+                  position="top-center"
+                  gap={8}
+                  offset={{ top: 16 }}
+                  toastOptions={{
+                    classNames: {
+                      toast: '!rounded-xl !bg-card !text-foreground !border-border !shadow-overlay !font-sans',
+                      description: '!text-muted-foreground',
+                      actionButton: '!rounded-md !bg-primary-solid !text-white',
+                      success: '[&_[data-icon]]:!text-success',
+                      error: '[&_[data-icon]]:!text-danger',
+                    },
+                  }}
+                />
+              </PromptProvider>
+            </ConfirmProvider>
+          </FlagsProvider>
         </AuthProvider>
       </InteractionProvider>
     </MotionProvider>

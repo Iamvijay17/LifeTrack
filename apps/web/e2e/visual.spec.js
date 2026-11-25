@@ -94,8 +94,11 @@ test.describe('forms and dialogs (dark)', () => {
   test('command palette', async ({ page }) => {
     await signedIn(page, 'dark')
     await ready(page)
-    await page.keyboard.press('Control+k')
-    await expect(page.getByRole('dialog')).toBeVisible()
+    // The shortcut listener attaches a moment after the shell paints (the shell is lazy-loaded), so press until the palette answers.
+    await expect(async () => {
+      await page.keyboard.press('Control+k')
+      await expect(page.getByRole('dialog')).toBeVisible({ timeout: 1500 })
+    }).toPass({ timeout: 15_000 })
     await shot(page, 'command-palette')
   })
   test('login page', async ({ page }) => {

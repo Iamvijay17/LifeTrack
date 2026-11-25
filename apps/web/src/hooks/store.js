@@ -19,8 +19,14 @@ const inflight = new Map() // table -> Promise
 const timers = new Map()
 let epoch = 0 // bumps on sign-out so stale responses are dropped
 
+const changeListeners = new Set()
+/** Be told whenever the cached rows of a table change (a write, a Realtime event, a refetch). Used to invalidate paged-list caches. Returns the remover. */
+export const onTableChange = (fn) => (changeListeners.add(fn), () => changeListeners.delete(fn))
+const emitChange = (t) => changeListeners.forEach((f) => f(t))
+
 const get = (t) => state.get(t) ?? EMPTY
 function set(t, patch) {
+  if (patch.rows) emitChange(t)
   state.set(t, { ...get(t), ...patch })
   const now = get(t)
   if (now.status === 'ready' && !now.cachedAt) sync.persist(t, now.rows) // the offline copy follows the live data (never a copy read from the offline copy)
@@ -32,7 +38,7 @@ function set(t, patch) {
 const versions = new Map() // table -> number
 const dirty = new Set() // tables that need one more fetch once the in-flight one finishes
 const ver = (t) => versions.get(t) ?? 0
-const bump = (t) => versions.set(t, ver(t) + 1)
+const bump = (t) => (versions.set(t, ver(t) + 1), emitChange(t))
 const MAX_ATTEMPTS = 3
 
 export function load(table, { force = false } = {}) {
@@ -123,6 +129,7 @@ bindDemoStore({ reset: () => resetStore() })
 
 export function resetStore() {
   epoch++
+  emitChange('*')
   inflight.clear()
   dirty.clear()
   pending.clear()

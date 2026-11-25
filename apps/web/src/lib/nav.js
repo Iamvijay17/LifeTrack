@@ -30,6 +30,7 @@ import {
   History,
   Braces,
   Activity,
+  ToggleRight,
 } from 'lucide-react'
 
 export const NAV_GROUPS = [
@@ -88,6 +89,7 @@ export const NAV_GROUPS = [
       { to: '/integrations', module: 'integrations', label: 'Integrations', icon: Plug },
       { to: '/developers', module: 'developers', label: 'Developers (API)', short: 'API', icon: Braces },
       { to: '/audit', module: 'audit', label: 'Audit History', short: 'Audit', icon: History },
+      { to: '/features', module: 'features', label: 'Feature Management', short: 'Features', icon: ToggleRight, adminOnly: true },
       { to: '/system', module: 'system', label: 'System Health', short: 'Health', icon: Activity, adminOnly: true },
       { to: '/export', module: 'export', label: 'Data Export', short: 'Export', icon: Download },
       { to: '/shortcuts', module: 'shortcuts', label: 'Keyboard Shortcuts', short: 'Keys', icon: Keyboard },
@@ -126,13 +128,14 @@ const stable = (items, order) => {
 /**
  * The navigation as this person arranged it: favourites first (shown once, not again in their group), then the groups with their items in
  * the saved order. Unknown paths in the saved lists are ignored; pages added later keep their default place.
- * Pages marked `adminOnly` (System Health) are left out unless `admin` is true: the page itself still checks on the server.
+ * Pages marked `adminOnly` (System Health, Feature Management) are left out unless `admin` is true: the page itself still checks on the server.
+ * `off` is the set of modules an administrator has switched off with a feature flag (presentation only).
  * @param {{ order?: string[], pinned?: string[] }} sidebar
- * @param {{ admin?: boolean }} [who]
+ * @param {{ admin?: boolean, off?: Set<string> }} [who]
  */
-export function arrangeNav(sidebar = {}, { admin = false } = {}) {
+export function arrangeNav(sidebar = {}, { admin = false, off } = {}) {
   const order = sidebar.order ?? []
-  const allowed = (n) => !n.adminOnly || admin
+  const allowed = (n) => (!n.adminOnly || admin) && !off?.has(n.module)
   const pinned = (sidebar.pinned ?? []).map((to) => NAV.find((n) => n.to === to)).filter((n) => n && allowed(n))
   const isPinned = new Set(pinned.map((n) => n.to))
   const groups = NAV_GROUPS.map((g) => ({

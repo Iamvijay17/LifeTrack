@@ -7,7 +7,7 @@ let U: string
 beforeAll(async () => { ctx = await createDb(); U = await ctx.newUser('cal@example.com') })
 afterAll(async () => { await ctx.db.close() })
 
-const as = <T>(fn: (q: any) => Promise<T>) => ctx.asUser(U, fn)
+const as = (fn: (q: any) => Promise<any>): Promise<any> => ctx.asUser(U, fn)
 const eventSql = `insert into calendar_events(title, starts_at, ends_at`
 const ev = (extraCols = '', extraVals = '') =>
   as((q) => q(`${eventSql}${extraCols}) values ('Standup','2026-11-05T04:00:00Z','2026-11-05T04:30:00Z'${extraVals}) returning id`))

@@ -1,6 +1,6 @@
 // Domain operations that span more than one row. UI components call these (never the adapters directly).
 import { nextOccurrence, nextDueDate } from '@lifetrack/core/recurrence'
-import { dueReminders, afterFire, reminderNotification } from '@lifetrack/core/reminders'
+import { dueReminders, afterFire, reminderNotification, withAnchorDay } from '@lifetrack/core/reminders'
 import { dismissPatch, isUnread, readPatch, restorePatch, snoozePatch, unreadPatch, validateSnooze } from '@lifetrack/core/notifications'
 import { afterPost, dueOccurrences, dueRules, occurrenceRow, togglePatch as recurringTogglePatch } from '@lifetrack/core/recurring'
 import { MIN_RECORD_SECONDS } from '@lifetrack/core/focus'
@@ -359,7 +359,7 @@ export function createApi(store) {
     if (!/^\d{2}:\d{2}$/.test(time ?? '')) throw new AppError('Pick a time.')
     const problem = validateSnooze(zonedToMs(date, time, tz), nowMs)
     if (problem) throw new AppError(problem)
-    return store.update('reminders', r.id, { remind_date: date, remind_time: time, active: true, last_fired_on: null })
+    return store.update('reminders', r.id, withAnchorDay({ remind_date: date, remind_time: time, active: true, last_fired_on: null }))
   }
 
   // ----------------------------------------------------------- notifications

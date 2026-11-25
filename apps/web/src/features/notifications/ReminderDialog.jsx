@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { useWatch } from 'react-hook-form'
 import { zonedToMs } from '@lifetrack/utils'
 import { PRIORITIES } from '@lifetrack/core/notifications'
+import { withAnchorDay } from '@lifetrack/core/reminders'
 import { FormDialog } from '@/components/shared/FormDialog'
 import { Field, Input, Select, Textarea } from '@/components/ui/form'
 import { REMINDER_KINDS, REPEATS } from '@/domain/reminders'
@@ -48,7 +49,7 @@ export function ReminderDialog({ open, onOpenChange, reminder, today }) {
   const [save, pending] = useAction(
     async (v) => {
       // Editing re-arms the reminder: clear "already fired" and make it active again.
-      const row = { ...v, title: v.title.trim(), body: v.body.trim(), active: true, last_fired_on: null }
+      const row = { ...withAnchorDay(v), title: v.title.trim(), body: v.body.trim(), active: true, last_fired_on: null }
       if (reminder) await store.update('reminders', reminder.id, row)
       else await store.insert('reminders', row)
       onOpenChange(false)

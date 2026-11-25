@@ -185,7 +185,7 @@ const insertShapes = {
   savings_goals: { name: str(1, 80), target_paise: z.number().int().positive(), saved_paise: paise().optional(), target_date: day.nullable().optional() },
   reminders: {
     kind: z.enum(REMINDER_KINDS).optional(), title: str(1, 160), remind_date: day, remind_time: time.optional(),
-    repeat: z.enum(REMINDER_REPEATS).optional(), active: z.boolean().optional(), last_fired_on: day.nullable().optional(),
+    repeat: z.enum(REMINDER_REPEATS).optional(), active: z.boolean().optional(), last_fired_on: day.nullable().optional(), anchor_day: z.number().int().min(1).max(31).nullable().optional(),
     priority: z.enum(NOTIFICATION_PRIORITIES).optional(), body: str(0, 500).optional(),
   },
   device_push_tokens: { token: z.string().regex(/^(Expo|Exponent)PushToken\[[^\]]+\]$/), platform: z.enum(['ios', 'android']), device_name: str(0, 80).optional(), last_seen_at: ts.optional() },

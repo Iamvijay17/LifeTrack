@@ -9,6 +9,20 @@ afterAll(async () => { await ctx.db.close() })
 
 const as = <T>(fn: (q: Q) => Promise<T>) => ctx.asUser(U, fn)
 
+describe('reminders.anchor_day (0029)', () => {
+  it('is filled from the date when an insert leaves it out, and kept when it is given', async () => {
+    const a = await as((q) => q(`insert into reminders(title, remind_date, repeat) values ('Rent','2026-12-31','monthly') returning anchor_day`))
+    expect(a.rows[0].anchor_day).toBe(31)
+    const b = await as((q) => q(`insert into reminders(title, remind_date, repeat, anchor_day) values ('Rent','2027-02-28','monthly', 30) returning anchor_day`))
+    expect(b.rows[0].anchor_day).toBe(30)
+  })
+  it('only accepts days 1 to 31', async () => {
+    expect(await ctx.fails(as((q) => q(`insert into reminders(title, remind_date, anchor_day) values ('t','2026-11-11', 0)`)))).toMatch(/reminders_anchor_day_ck/)
+    expect(await ctx.fails(as((q) => q(`insert into reminders(title, remind_date, anchor_day) values ('t','2026-11-11', 32)`)))).toMatch(/reminders_anchor_day_ck/)
+    expect(await ctx.fails(as((q) => q(`insert into reminders(title, remind_date, anchor_day) values ('t','2026-11-11', 31)`)))).toBeNull()
+  })
+})
+
 describe('reminders', () => {
   it('an old-style reminder keeps working and gets a normal priority and an empty note', async () => {
     const r = await as((q) => q(`insert into reminders(title, remind_date) values ('Pay rent','2026-11-11') returning priority, body, repeat, remind_time`))
