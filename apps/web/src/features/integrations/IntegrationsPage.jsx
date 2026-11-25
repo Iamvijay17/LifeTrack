@@ -126,6 +126,9 @@ function CalendarControls({ row }) {
   const [sync, syncing] = useAction(async (resolutions) => {
     const r = await integrations.syncCalendar(calendarId, resolutions)
     setResult(r)
+    // The Edge Function wrote straight to the database, so the calendar's in-memory list is stale until it is re-read.
+    store.refetch('calendar_events')
+    store.refetch('integration_events')
     const c = r.counts
     toast.success(r.conflicts.length ? 'Synced, with changes waiting for you' : 'Calendar synced', {
       description: `${c.imported} imported, ${c.exported} sent, ${c.updated} updated.`,
