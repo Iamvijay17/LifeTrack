@@ -8,7 +8,8 @@ import { ChartGradients } from '@/components/shared/chartParts'
 import { AnimatePresence, ease, m } from '@/components/motion/primitives'
 import { Sidebar } from './Sidebar'
 import { MobileNav } from './MobileNav'
-import { Banners, SaveStatus, LiveDot } from './StatusIndicators'
+import { Banners, SaveStatus, LiveDot, SyncPill } from './StatusIndicators'
+import { SyncCenter } from '@/components/sync/SyncCenter'
 import { Logo } from './Logo'
 import { GlobalSearch } from './GlobalSearch'
 import { NotificationBell } from './NotificationBell'
@@ -25,6 +26,12 @@ import { QuickAddMenu, QuickFab, QuickActionsProvider } from '@/features/quick/Q
 import { CommandCenterProvider } from '@/features/command/CommandCenter'
 import { useSettings } from '@/hooks/useSettings'
 import { useThemeSync } from '@/hooks/useTheme'
+import { useUndoShortcuts } from '@/hooks/useUndoShortcuts'
+import { DemoChip } from '@/features/demo/Demo'
+import { exitDemo } from '@/services/demo'
+import { useOnboardingSync } from '@/hooks/useOnboarding'
+import { OnboardingFlow } from '@/features/onboarding/OnboardingFlow'
+import { TourProvider } from '@/features/tour/TourProvider'
 import { setAppearance, useAppearance, useAppearanceSync } from '@/hooks/useAppearance'
 import { seedDefaults } from '@/services/api'
 import { moduleForPath, navItemForPath } from '@/lib/modules'
@@ -70,7 +77,9 @@ function Header() {
         <GlobalSearch />
       </div>
       <div className="flex items-center gap-2 sm:gap-3">
+        <DemoChip />
         <SaveStatus />
+        <SyncPill />
         <LiveDot />
         <QuickAddMenu />
         <NotificationBell />
@@ -105,6 +114,9 @@ function Shell() {
   const main = useRef(null)
   useThemeSync()
   useAppearanceSync()
+  useOnboardingSync()
+  useEffect(() => () => void exitDemo(), []) // signing out (or leaving the app) always ends a demo
+  useUndoShortcuts()
 
   // First sign-in on any device: create default topics / exercise library once (idempotent via unique keys).
   const { row, loading } = useSettings()
@@ -137,59 +149,63 @@ function Shell() {
   return (
     <QuickActionsProvider>
       <CommandCenterProvider>
-        <a
-          href="#main"
-          className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-primary-solid focus:px-3 focus:py-1.5 focus:text-white"
-        >
-          Skip to content
-        </a>
-        <Runners />
-        <ChartGradients />
-        <AnimatePresence initial={false}>
-          <m.div
-            key={module}
-            aria-hidden
-            data-module={module}
-            className="lt-ambient"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.8 }}
-          />
-        </AnimatePresence>
-        <Sidebar collapsed={collapsed} onToggle={toggle} />
-        {/* Right-clicking the page's empty space opens the menu the page registered (usePageContextMenu); the header keeps the browser's own. */}
-        <div
-          className={cn('min-h-dvh transition-[padding] duration-200 ease-out', collapsed ? 'md:pl-[68px]' : 'md:pl-60')}
-          {...menu.pageProps({ label: 'Page actions' })}
-        >
-          <Banners />
-          <Header />
-          <main
-            id="main"
-            ref={main}
-            tabIndex={-1}
-            className="mx-auto w-full max-w-[76rem] px-4 pb-28 pt-4 outline-none focus-visible:ring-0 md:px-6 md:pb-10 md:pt-5"
+        <TourProvider>
+          <a
+            href="#main"
+            className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-primary-solid focus:px-3 focus:py-1.5 focus:text-white"
           >
-            {/* A page leaves quickly and the next one rises in. Nothing here waits on data: each page shows its own skeleton. */}
-            <AnimatePresence mode="wait" initial={false}>
-              <m.div
-                key={pathname}
-                data-reveal
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, transition: { duration: 0.09, ease: ease.in } }}
-                transition={{ duration: 0.26, ease: ease.out }}
-              >
-                <ErrorBoundary variant="section" resetKey={pathname}>
-                  <Suspense fallback={<PageLoader message={messageForPath(pathname)} />}>{outlet}</Suspense>
-                </ErrorBoundary>
-              </m.div>
-            </AnimatePresence>
-          </main>
-        </div>
-        <MobileNav />
-        <QuickFab />
+            Skip to content
+          </a>
+          <Runners />
+          <ChartGradients />
+          <AnimatePresence initial={false}>
+            <m.div
+              key={module}
+              aria-hidden
+              data-module={module}
+              className="lt-ambient"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8 }}
+            />
+          </AnimatePresence>
+          <Sidebar collapsed={collapsed} onToggle={toggle} />
+          {/* Right-clicking the page's empty space opens the menu the page registered (usePageContextMenu); the header keeps the browser's own. */}
+          <div
+            className={cn('min-h-dvh transition-[padding] duration-200 ease-out', collapsed ? 'md:pl-[68px]' : 'md:pl-60')}
+            {...menu.pageProps({ label: 'Page actions' })}
+          >
+            <Banners />
+            <Header />
+            <main
+              id="main"
+              ref={main}
+              tabIndex={-1}
+              className="mx-auto w-full max-w-[76rem] px-4 pb-28 pt-4 outline-none focus-visible:ring-0 md:px-6 md:pb-10 md:pt-5 min-[1536px]:max-w-[96rem] min-[1920px]:max-w-[120rem] min-[1920px]:px-10"
+            >
+              {/* A page leaves quickly and the next one rises in. Nothing here waits on data: each page shows its own skeleton. */}
+              <AnimatePresence mode="wait" initial={false}>
+                <m.div
+                  key={pathname}
+                  data-reveal
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, transition: { duration: 0.09, ease: ease.in } }}
+                  transition={{ duration: 0.26, ease: ease.out }}
+                >
+                  <ErrorBoundary variant="section" resetKey={pathname}>
+                    <Suspense fallback={<PageLoader message={messageForPath(pathname)} />}>{outlet}</Suspense>
+                  </ErrorBoundary>
+                </m.div>
+              </AnimatePresence>
+            </main>
+          </div>
+          <MobileNav />
+          <SyncCenter />
+          <QuickFab />
+          <OnboardingFlow />
+        </TourProvider>
       </CommandCenterProvider>
     </QuickActionsProvider>
   )

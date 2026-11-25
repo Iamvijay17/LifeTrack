@@ -1,5 +1,6 @@
 import {
   LayoutDashboard,
+  TrendingUp,
   CalendarCheck,
   CalendarDays,
   CalendarClock,
@@ -11,6 +12,7 @@ import {
   Briefcase,
   Target,
   Waypoints,
+  Flag,
   Dumbbell,
   HeartPulse,
   Salad,
@@ -22,6 +24,8 @@ import {
   ShieldCheck,
   Download,
   LifeBuoy,
+  Keyboard,
+  Plug,
 } from 'lucide-react'
 
 export const NAV_GROUPS = [
@@ -35,6 +39,7 @@ export const NAV_GROUPS = [
       { to: '/automation', module: 'automation', label: 'Automation Studio', short: 'Automation', icon: Workflow },
       { to: '/focus', module: 'focus', label: 'Focus Mode', short: 'Focus', icon: Timer },
       { to: '/habits', module: 'habits', label: 'Habits', icon: Repeat },
+      { to: '/challenges', module: 'challenges', label: 'Challenges', icon: Flag },
       { to: '/notes', module: 'notes', label: 'Notes & Journal', short: 'Notes', icon: NotebookPen },
     ],
   },
@@ -68,8 +73,11 @@ export const NAV_GROUPS = [
     items: [
       { to: '/notifications', module: 'notifications', label: 'Notifications', short: 'Alerts', icon: Bell },
       { to: '/settings', module: 'settings', label: 'Settings', icon: Settings },
+      { to: '/insights', module: 'insights', label: 'Insights', icon: TrendingUp },
       { to: '/security', module: 'security', label: 'Security & Privacy', short: 'Security', icon: ShieldCheck },
+      { to: '/integrations', module: 'integrations', label: 'Integrations', icon: Plug },
       { to: '/export', module: 'export', label: 'Data Export', short: 'Export', icon: Download },
+      { to: '/shortcuts', module: 'shortcuts', label: 'Keyboard Shortcuts', short: 'Keys', icon: Keyboard },
       { to: '/help', module: 'help', label: 'Help & Support', short: 'Help', icon: LifeBuoy },
     ],
   },

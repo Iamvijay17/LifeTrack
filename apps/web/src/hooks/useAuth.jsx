@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { auth } from '@/services/auth'
 import { setUserId } from '@/services/session'
 import { resetStore, startSync, stopSync } from './store'
+import * as offline from '@/sync'
 
 const Ctx = createContext(null)
 
@@ -44,7 +45,10 @@ export function AuthProvider({ children }) {
     const off = auth.onChange((event, s) => {
       const id = s?.user?.id ?? null
       const changed = id !== lastUser.current
-      if (event === 'SIGNED_OUT' && lastUser.current) forgetOnSignOut(lastUser.current)
+      if (event === 'SIGNED_OUT' && lastUser.current) {
+        forgetOnSignOut(lastUser.current)
+        void offline.forgetCache() // the saved copy of the person's data does not outlive their session (unsent changes are kept, encrypted, for their next sign-in)
+      }
       lastUser.current = id
       setUserId(id)
       if (changed) resetStore()
@@ -62,10 +66,15 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!userId) {
       stopSync()
+      offline.stop()
       return
     }
     startSync(setRealtime)
-    return stopSync
+    void offline.start(userId)
+    return () => {
+      stopSync()
+      offline.stop()
+    }
   }, [userId])
 
   const value = useMemo(

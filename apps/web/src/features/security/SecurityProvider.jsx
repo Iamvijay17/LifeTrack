@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { isNotInstalled, isSessionEnded } from '@lifetrack/data'
 import { closedModules } from '@lifetrack/core/moduleLocks'
 import { resetStore } from '@/hooks/store'
+import { forgetCache } from '@/sync'
 import { useAuth } from '@/hooks/useAuth'
 import { explainPasskeyError, getPasskey, passkeySupport } from '@/lib/webauthn'
 import { auth } from '@/services/auth'
@@ -146,6 +147,7 @@ export function SecurityProvider({ children }) {
   useEffect(() => {
     if (!locked) return
     resetStore()
+    void forgetCache() // and gone from the device's offline copy too
     toast.dismiss() // a reminder or a saved-entry toast could otherwise sit on top of the lock screen and show what is behind it
   }, [locked])
 
@@ -156,6 +158,7 @@ export function SecurityProvider({ children }) {
     if (status !== 'ready') return
     if (seenClosed.current !== null && seenClosed.current !== closedKey) {
       resetStore()
+      void forgetCache()
       toast.dismiss()
     }
     seenClosed.current = closedKey

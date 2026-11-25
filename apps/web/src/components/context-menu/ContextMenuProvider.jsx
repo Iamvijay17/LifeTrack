@@ -5,6 +5,8 @@ import { toast } from 'sonner'
 import { useConfirm } from '@/components/shared/Confirm'
 import { useModuleLocks } from '@/features/security/useModuleLocks'
 import { toAppError } from '@/services/errors'
+import { history } from '@/lib/actionHistory'
+import { announceResult } from '@/hooks/useUndoShortcuts'
 import { ContextMenu } from './ContextMenu'
 import { normalizeItems } from './items'
 
@@ -121,18 +123,13 @@ export function ContextMenuProvider({ children }) {
     const obj = result && typeof result === 'object' ? result : null
     const message = obj?.message ?? item.success
     if (typeof obj?.undo === 'function') {
-      toast(message ?? `${item.label} done`, {
+      const label = message ?? `${item.label} done`
+      const entry = history.push({ label, undo: obj.undo, redo: obj.redo, check: obj.check })
+      toast(label, {
         duration: UNDO_MS,
         action: {
           label: 'Undo',
-          onClick: async () => {
-            try {
-              await obj.undo()
-              toast.success('Undone')
-            } catch (e) {
-              toast.error(`Could not undo: ${toAppError(e).message}`)
-            }
-          },
+          onClick: async () => announceResult(await history.undo(entry), 'Undone'),
         },
       })
     } else if (message) toast.success(message)

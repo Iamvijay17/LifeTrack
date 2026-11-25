@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { useModuleLocks } from '@/features/security/useModuleLocks'
 import { BackupCard } from './BackupCard'
 import { CsvCard } from './CsvCard'
+import { ImportCsvCard } from './ImportCsvCard'
 import { EraseCard } from './EraseCard'
 
 export default function ExportPage() {
@@ -39,6 +40,7 @@ export default function ExportPage() {
         </StaggerItem>
         <StaggerItem>
           <CsvCard />
+          <ImportCsvCard />
         </StaggerItem>
         <StaggerItem>
           <EraseCard />

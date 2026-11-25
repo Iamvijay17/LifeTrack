@@ -17,6 +17,7 @@ export function FormDialog({
   onSubmit,
   pending,
   submitLabel = 'Save',
+  submitDisabled = false,
   children,
   extraFooter,
   className,
@@ -58,7 +59,7 @@ export function FormDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
             Cancel
           </Button>
-          <Button type="submit" form={formId} loading={pending}>
+          <Button type="submit" form={formId} loading={pending} disabled={submitDisabled}>
             {pending ? 'Saving…' : submitLabel}
           </Button>
         </>

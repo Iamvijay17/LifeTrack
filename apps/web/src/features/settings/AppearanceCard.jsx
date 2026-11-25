@@ -9,7 +9,19 @@ import { useAction } from '@/hooks/useAction'
 import { resetAppearance, setAppearance, useAppearance } from '@/hooks/useAppearance'
 import { useSettings } from '@/hooks/useSettings'
 import { applyTheme } from '@/hooks/useTheme'
-import { ACCENTS, DENSITIES, FONT_SIZES, MOTIONS, accentHex, accentTokens, contrast, hexToRgb, isDefaultAppearance } from '@/lib/appearance'
+import {
+  ACCENTS,
+  DATE_FORMATS,
+  DENSITIES,
+  TIME_FORMATS,
+  FONT_SIZES,
+  MOTIONS,
+  accentHex,
+  accentTokens,
+  contrast,
+  hexToRgb,
+  isDefaultAppearance,
+} from '@/lib/appearance'
 import { cn } from '@/lib/utils'
 
 const THEMES = [
@@ -127,6 +139,22 @@ export function AppearanceCard() {
       </Row>
       <Row title="Spacing" desc="Compact fits more on screen.">
         <Segmented value={prefs.density} onChange={(density) => setAppearance({ density })} options={DENSITIES} />
+      </Row>
+      <Row title="Date format" desc="How dates are written where LifeTrack shows them in full. Saved dates never change.">
+        <Segmented
+          aria-label="Date format"
+          value={prefs.date_format}
+          onChange={(date_format) => setAppearance({ date_format })}
+          options={DATE_FORMATS}
+        />
+      </Row>
+      <Row title="Time format" desc="12-hour or 24-hour clock in times and reminders.">
+        <Segmented
+          aria-label="Time format"
+          value={prefs.time_format}
+          onChange={(time_format) => setAppearance({ time_format })}
+          options={TIME_FORMATS}
+        />
       </Row>
       <Row title="Animations" desc="Reducing motion turns off page transitions, counters and celebrations.">
         <Segmented value={prefs.motion} onChange={(motion) => setAppearance({ motion })} options={MOTIONS} />

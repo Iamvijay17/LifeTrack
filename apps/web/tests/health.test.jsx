@@ -316,8 +316,13 @@ describe('HealthStats and HealthHistory', () => {
     await user.click(screen.getByRole('button', { name: /Mon, 2 Nov/ }))
     expect(onSelect).toHaveBeenCalledWith(DAY)
   })
-  it('history has an empty state', () => {
-    render(<HealthHistory logs={[]} onSelect={() => {}} />)
-    expect(screen.getByText('Your daily logs will appear here.')).toBeInTheDocument()
+  it('history has an empty state with a next step that opens today', async () => {
+    const user = userEvent.setup()
+    const onSelect = vi.fn()
+    render(<HealthHistory logs={[]} onSelect={onSelect} />)
+    expect(screen.getByText('No daily logs yet')).toBeInTheDocument()
+    expect(screen.getByText(/For example: 7h 30m sleep/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Log today' }))
+    expect(onSelect).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/))
   })
 })

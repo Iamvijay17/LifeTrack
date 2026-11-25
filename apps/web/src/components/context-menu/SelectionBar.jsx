@@ -34,6 +34,15 @@ export function SelectionBar({ selection, noun = 'item', build }) {
         <ListChecks className="h-3.5 w-3.5" aria-hidden />
         Actions
       </button>
+      {selection.total > selection.size && (
+        <button
+          type="button"
+          onClick={selection.selectAll}
+          className="lt-press rounded-[8px] px-2.5 py-1.5 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          Select all {selection.total}
+        </button>
+      )}
       <button
         type="button"
         onClick={selection.clear}

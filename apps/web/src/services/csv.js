@@ -80,6 +80,9 @@ export const EXPORTABLE = [
   ['calendar_events', 'Calendar events'],
   ['calendar_event_exceptions', 'Calendar event changes'],
   ['task_reschedules', 'Rescheduling history'],
+  ['challenges', 'Challenges'],
+  ['challenge_checkins', 'Challenge check-ins'],
+  ['challenge_templates', 'Challenge templates'],
   ['automation_workflows', 'Automation workflows'],
   ['automation_executions', 'Automation run history'],
 ]

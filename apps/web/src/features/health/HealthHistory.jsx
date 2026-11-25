@@ -1,4 +1,7 @@
 import { Droplets, Footprints, Moon, Scale, Zap } from 'lucide-react'
+import { EmptyState } from '@/components/shared/states'
+import { Button } from '@/components/ui/button'
+import { useToday } from '@/hooks/useToday'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { fmtDay, fmtDuration } from '@/lib/dates'
 
@@ -14,6 +17,7 @@ export const logFacts = (h) =>
 
 /** Recent daily logs; choosing one opens it in the daily log form. */
 export function HealthHistory({ logs, onSelect }) {
+  const today = useToday()
   return (
     <Card>
       <CardHeader>
@@ -21,7 +25,13 @@ export function HealthHistory({ logs, onSelect }) {
       </CardHeader>
       <CardContent className="p-0 pt-2">
         {logs.length === 0 ? (
-          <p className="px-4 pb-6 pt-2 text-center text-sm text-muted-foreground">Your daily logs will appear here.</p>
+          <EmptyState
+            icon={Moon}
+            title="No daily logs yet"
+            description="Log sleep, water, steps and energy once a day and your history and trends build up here. For example: 7h 30m sleep, 2.5 L water, 8,000 steps."
+            action={<Button onClick={() => onSelect(today)}>Log today</Button>}
+            className="m-4"
+          />
         ) : (
           <ul className="divide-y divide-border/70">
             {logs.map((h) => (

@@ -13,6 +13,7 @@ import { isOpen } from '@lifetrack/core/tasks'
 import { checkLink, isNodeKey } from '@lifetrack/core/lifeMap'
 import { AppError } from './errors'
 import { createAutomationApi } from './automation'
+import { createChallengeApi } from './challenges'
 
 /**
  * Domain operations that span more than one row. `store` is the app's cache/mutation layer and must provide
@@ -666,6 +667,7 @@ export function createApi(store) {
   }
 
   const automation = createAutomationApi(store, { raiseNotification, setTaskStatus })
+  const { challengeLength: _unused, ...challenges } = createChallengeApi(store)
 
-  return { ...automation, saveRow, deleteRow, createTask, setTaskStatus, setHabitStatus, pauseHabit, resumeHabit, recoverHabitDay, saveMapPosition, saveMapPositions, resetMapLayout, linkNodes, reverseLink, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, logWater, removeWaterLog, saveNutritionGoals, saveFavoriteFoods, saveFoodCopy, deleteFood, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, postDueRecurring, toggleRecurringRule, fireDueReminders, toggleReminder, rescheduleReminder, clearReadNotifications, markNotificationRead, markNotificationUnread, markAllRead, snoozeNotification, dismissNotification, dismissNotifications, restoreNotification, deleteNotifications, raiseNotification, createCalendarEvent, saveCalendarEvent, deleteCalendarEvent, applyCalendarChange, raiseCalendarAlert, applyReschedules, undoReschedules, dismissRecovery }
+  return { ...automation, ...challenges, saveRow, deleteRow, createTask, setTaskStatus, setHabitStatus, pauseHabit, resumeHabit, recoverHabitDay, saveMapPosition, saveMapPositions, resetMapLayout, linkNodes, reverseLink, startStudy, stopStudy, discardStudy, saveWorkout, saveHealth, addWater, logWater, removeWaterLog, saveNutritionGoals, saveFavoriteFoods, saveFoodCopy, deleteFood, setApplicationStatus, setMonthBudget, addSavingsFunds, seedDefaults, setGoalStatus, toggleMilestone, recordFocus, postDueRecurring, toggleRecurringRule, fireDueReminders, toggleReminder, rescheduleReminder, clearReadNotifications, markNotificationRead, markNotificationUnread, markAllRead, snoozeNotification, dismissNotification, dismissNotifications, restoreNotification, deleteNotifications, raiseNotification, createCalendarEvent, saveCalendarEvent, deleteCalendarEvent, applyCalendarChange, raiseCalendarAlert, applyReschedules, undoReschedules, dismissRecovery }
 }

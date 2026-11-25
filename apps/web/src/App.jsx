@@ -35,6 +35,8 @@ const Health = page(() => import('@/features/health/HealthPage'))
 const Nutrition = page(() => import('@/features/nutrition/NutritionPage'))
 const Finance = page(() => import('@/features/finance/FinancePage'))
 const Habits = page(() => import('@/features/habits/HabitsPage'))
+const Challenges = page(() => import('@/features/challenges/ChallengesPage'))
+const Insights = page(() => import('@/features/insights/InsightsPage'))
 const Analytics = page(() => import('@/features/analytics/AnalyticsPage'))
 const Focus = page(() => import('@/features/focus/FocusPage'))
 const Notes = page(() => import('@/features/notes/NotesPage'))
@@ -44,6 +46,8 @@ const Notifications = page(() => import('@/features/notifications/NotificationsP
 const ExportPage = page(() => import('@/features/export/ExportPage'))
 const Help = page(() => import('@/features/help/HelpPage'))
 const Settings = page(() => import('@/features/settings/SettingsPage'))
+const Integrations = page(() => import('@/features/integrations/IntegrationsPage'))
+const Shortcuts = page(() => import('@/features/shortcuts/ShortcutsPage'))
 const Security = page(() => import('@/features/security/SecurityPage'))
 
 function Protected({ children }) {
@@ -145,6 +149,8 @@ export default function App() {
                       }
                     />
                     <Route path="habits" element={<Habits />} />
+                    <Route path="challenges" element={<Challenges />} />
+                    <Route path="insights" element={<Insights />} />
                     <Route path="analytics" element={<Analytics />} />
                     <Route path="focus" element={<Focus />} />
                     <Route
@@ -159,8 +165,10 @@ export default function App() {
                     <Route path="reports" element={<Reports />} />
                     <Route path="notifications" element={<Notifications />} />
                     <Route path="export" element={<ExportPage />} />
+                    <Route path="integrations" element={<Integrations />} />
                     <Route path="settings" element={<Settings />} />
                     <Route path="security" element={<Security />} />
+                    <Route path="shortcuts" element={<Shortcuts />} />
                     <Route path="help" element={<Help />} />
                   </Route>
                   <Route path="*" element={<Navigate to="/" replace />} />

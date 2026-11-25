@@ -44,6 +44,24 @@ export const summarizeBackup = (b) =>
     .filter(([, rows]) => rows.length)
     .map(([t, rows]) => ({ table: t, count: rows.length }))
 
+/**
+ * What a restore would do, counted before anything is written: per table, how many records are new and how many already exist in this account
+ * (same id, or the same natural key such as a habit's date) and would be updated. Reads only.
+ */
+export async function analyzeBackup(backup) {
+  const out = []
+  for (const table of [...TABLES, 'user_settings']) {
+    const rows = backup.tables[table]
+    if (!rows?.length) continue
+    const current = await db.list(table)
+    const ids = new Set(current.map((r) => r.id))
+    const keys = NATURAL.includes(table) ? new Set(current.map((r) => naturalKey(table, r)).filter((k) => k != null)) : new Set()
+    const existing = rows.filter((r) => ids.has(r.id) || (keys.size > 0 && keys.has(naturalKey(table, r)))).length
+    out.push({ table, total: rows.length, existing, fresh: rows.length - existing })
+  }
+  return out
+}
+
 const CHUNK = 200
 const strip = ({ user_id, ...row }) => row
 
@@ -62,6 +80,7 @@ const NATURAL = [
   'habit_logs',
   'calendar_event_exceptions',
   'life_map_positions',
+  'challenge_checkins',
   // Rows the apps make once per event (a reminder firing, a nudge for a day, a reschedule, an automation run): the same key may
   // already exist in the account under another id, e.g. today's "tasks due" nudge raised again before the restore.
   'notifications',

@@ -126,3 +126,19 @@ describe('navigation arrangement', () => {
     expect(mobilePrimaryItems({ pinned: five })).toHaveLength(MAX_PINNED)
   })
 })
+
+describe('date and time display preferences', () => {
+  it('normalizes unknown values to the default and keeps valid ones', async () => {
+    const { normalizeAppearance } = await import('@/lib/appearance')
+    expect(normalizeAppearance({ date_format: 'bogus', time_format: 5 })).toMatchObject({ date_format: 'auto', time_format: 'auto' })
+    expect(normalizeAppearance({ date_format: 'ymd', time_format: '12h' })).toMatchObject({ date_format: 'ymd', time_format: '12h' })
+  })
+  it('applying the preferences changes how dates are shown, and "auto" restores it', async () => {
+    const { applyAppearance } = await import('@/lib/appearance')
+    const { fmtDay } = await import('@lifetrack/utils')
+    applyAppearance({ date_format: 'dmy' }, true)
+    expect(fmtDay('2026-11-24', 'd MMM yyyy')).toBe('24/11/2026')
+    applyAppearance({}, true)
+    expect(fmtDay('2026-11-24', 'd MMM yyyy')).toBe('24 Nov 2026')
+  })
+})

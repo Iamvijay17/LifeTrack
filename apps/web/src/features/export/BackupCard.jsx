@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/misc'
 import { useAction } from '@/hooks/useAction'
 import { useToday } from '@/hooks/useToday'
 import { AppError } from '@/services/errors'
-import { buildExport, importBackup, MAX_BACKUP_BYTES, parseBackup, summarizeBackup } from '@/services/backup'
+import { analyzeBackup, buildExport, importBackup, MAX_BACKUP_BYTES, parseBackup, summarizeBackup } from '@/services/backup'
 import { download } from '@/services/csv'
 
 // When the backup was made, as the person reads it; a hand-edited or missing date says so instead of "Invalid Date".
@@ -34,7 +34,8 @@ export function BackupCard() {
   const [pick] = useAction(async (f) => {
     // Checked before reading: a huge file would otherwise be read into memory whole (and freeze the tab) only to be refused.
     if (f.size > MAX_BACKUP_BYTES) throw new AppError('That backup file is too large.')
-    setPending({ ...parseBackup(await f.text()), name: f.name })
+    const backup = parseBackup(await f.text())
+    setPending({ ...backup, name: f.name, plan: await analyzeBackup(backup) })
   })
   const [restore, restoring] = useAction(
     async () => {
@@ -103,6 +104,13 @@ export function BackupCard() {
                 </li>
               ))}
             </ul>
+            {pending.plan && (
+              <p data-testid="restore-plan" className="rounded-lg border border-border bg-surface-2/50 p-2.5 text-[13px]">
+                <b>{pending.plan.reduce((a, p) => a + p.fresh, 0)}</b> new records will be added;{' '}
+                <b>{pending.plan.reduce((a, p) => a + p.existing, 0)}</b> already exist in this account and will be updated to the backup's
+                values.
+              </p>
+            )}
             {restoring && <SectionLoader message="Restoring your data..." minHeight={120} />}
             {progress && <Progress value={(progress.done / progress.total) * 100} label="Import progress" />}
             <p className="text-xs text-muted-foreground">Records are merged by ID into your account. Existing data is kept.</p>

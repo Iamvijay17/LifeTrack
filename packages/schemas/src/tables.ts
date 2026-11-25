@@ -15,6 +15,8 @@ const text = () => z.string()
 const nodeKey = z.string().regex(/^(goal|habit|task|milestone|project|area):[0-9a-fA-F-]{8,40}$/, 'Expected kind:id')
 const hex = z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Expected #RRGGBB')
 /** Minutes before the start of an item at which to alert (at most five, up to four weeks ahead). */
+/** Up to ten {pct, title} steps along a challenge. */
+const challengeMilestones = z.array(z.object({ pct: int().min(1).max(100), title: str(1, 80) })).max(10)
 const alerts = z.array(z.number().int().min(0).max(40320)).max(5)
 
 export const TASK_CATEGORIES = ['Learning', 'Job Search', 'Gym', 'Health', 'Personal', 'Finance', 'Routine', 'Custom'] as const
@@ -28,6 +30,8 @@ export const REMINDER_REPEATS = ['none', 'daily', 'weekdays', 'weekly', 'monthly
 export const NOTIFICATION_PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const
 export const RECURRING_FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly'] as const
 export const MEAL_TYPES = ['breakfast', 'lunch', 'snack', 'dinner'] as const
+export const CHALLENGE_KINDS = ['daily', 'weekly', 'total'] as const
+export const CHALLENGE_STATUSES = ['active', 'paused', 'completed', 'cancelled'] as const
 
 const nutrient = (max: number) => z.number().min(0).max(max)
 /** Another serving size of a food, as a multiple of its base serving (foods.servings). */
@@ -52,13 +56,13 @@ export type RRule = z.infer<typeof rruleSchema>
 
 /** Writable columns per table. Optional = has a DB default or is nullable. */
 const insertShapes = {
-  profiles: { display_name: str(0, 80).optional() },
+  profiles: { display_name: str(0, 80).optional(), avatar: z.string().max(60000).nullable().optional() },
   user_settings: {
     timezone: text().optional(), currency: text().optional(), theme: z.enum(['dark', 'light', 'system']).optional(),
     daily_study_target_minutes: int().min(0).max(1440).optional(), monthly_budget_paise: paise().optional(),
     water_goal_ml: int().min(0).max(20000).optional(), steps_goal: int().min(0).max(200000).optional(),
     week_starts_on: z.union([z.literal(0), z.literal(1)]).optional(),
-    calendar_prefs: json(z.record(z.string(), z.any())).optional(), appearance_prefs: json(z.record(z.string(), z.any())).optional(),
+    calendar_prefs: json(z.record(z.string(), z.any())).optional(), appearance_prefs: json(z.record(z.string(), z.any())).optional(), onboarding_state: json(z.record(z.string(), z.any())).optional(),
     habit_prefs: json(z.record(z.string(), z.any())).optional(), workout_plan: json(z.record(z.string(), z.any())).optional(), defaults_seeded: z.boolean().optional(),
     score_weights: json(z.record(z.string(), z.number())).optional(), dashboard_widgets: json(z.record(z.string(), z.any())).optional(),
     notification_prefs: json(z.record(z.string(), z.boolean())).optional(), notification_settings: json(z.record(z.string(), z.any())).optional(), automation_prefs: json(z.record(z.string(), z.any())).optional(), focus_prefs: json(z.record(z.string(), z.number())).optional(),
@@ -86,6 +90,20 @@ const insertShapes = {
   life_map_links: { from_key: nodeKey, to_key: nodeKey, label: str(0, 60).optional() },
   life_map_positions: { node_key: nodeKey, x: z.number().min(-100000).max(100000), y: z.number().min(-100000).max(100000) },
   habit_pauses: { habit_id: uuid, start_date: day, end_date: day.nullable().optional(), reason: str(0, 200).optional() },
+  challenge_templates: {
+    name: str(1, 80), description: str(0, 500).optional(), kind: z.enum(CHALLENGE_KINDS).optional(), target: int().min(1).max(10_000_000).optional(), unit: str(0, 30).optional(),
+    duration_days: int().min(1).max(731).optional(), category: str(1, 40).optional(), color: hex.optional(), milestones: challengeMilestones.optional(),
+  },
+  challenges: {
+    title: str(1, 120), description: str(0, 1000).optional(), kind: z.enum(CHALLENGE_KINDS).optional(), target: int().min(1).max(10_000_000).optional(), unit: str(0, 30).optional(),
+    start_date: day, end_date: day, status: z.enum(CHALLENGE_STATUSES).optional(), category: str(1, 40).optional(), color: hex.optional(), habit_id: uuid.nullable().optional(),
+    template_key: str(1, 60).nullable().optional(), milestones: challengeMilestones.optional(), pauses: z.array(z.object({ from: day, to: day.nullable() })).max(200).optional(),
+    notes: str(0, 2000).optional(), completed_at: ts.nullable().optional(), cancelled_at: ts.nullable().optional(), final_pct: int().min(0).max(100).nullable().optional(),
+  },
+  challenge_checkins: {
+    challenge_id: uuid, checkin_date: day, amount: int().min(1).max(10_000_000).optional(), note: str(0, 500).optional(),
+    evidence: z.array(z.object({ label: str(0, 80), url: z.string().max(500).regex(/^https?:\/\/[^\s]{1,480}$/, 'Use an http(s) link') })).max(5).optional(),
+  },
   study_sessions: {
     goal_id: uuid.nullable().optional(), topic_id: uuid.nullable().optional(), session_date: day, started_at: ts.optional(), ended_at: ts.nullable().optional(),
     duration_seconds: int().nonnegative().nullable().optional(), status: z.enum(['running', 'completed', 'discarded']).optional(),
@@ -181,6 +199,7 @@ const insertShapes = {
     category_label: str(0, 40).optional(), priority: z.enum(PRIORITY_VALUES).optional(), color: hex.nullable().optional(), all_day: z.boolean().optional(),
     starts_at: ts, ends_at: ts, timezone: str(1, 64).optional(), rrule: rruleSchema.nullable().optional(), alert_minutes: alerts.optional(),
     goal_id: uuid.nullable().optional(), topic_id: uuid.nullable().optional(), application_id: uuid.nullable().optional(), routine_id: uuid.nullable().optional(),
+    external_provider: z.literal('google_calendar').nullable().optional(), external_id: z.string().max(1024).nullable().optional(), external_hash: z.string().max(64).nullable().optional(),
   },
   calendar_event_exceptions: {
     event_id: uuid, occurrence_date: day, status: z.enum(['modified', 'cancelled']).optional(),

@@ -37,6 +37,10 @@ export const FIXTURES: Record<string, Fixture> = {
   life_map_links: { insert: (r, o) => one(r, `insert into life_map_links(user_id, from_key, to_key) values ($1,'goal:11111111-1111-4111-8111-111111111111','habit:22222222-2222-4222-8222-222222222222')`, [o]) },
   life_map_positions: { insert: (r, o) => one(r, `insert into life_map_positions(user_id, node_key, x, y) values ($1,'goal:11111111-1111-4111-8111-111111111111',10,20)`, [o]) },
   habit_pauses: { parents: { habit_id: 'habits' }, insert: (r, o, f) => one(r, `insert into habit_pauses(user_id, habit_id, start_date) values ($1,$2,'2026-11-02')`, [o, f.habit_id]) },
+  challenge_templates: { insert: (r, o) => one(r, `insert into challenge_templates(user_id, name) values ($1,'Morning run')`, [o]) },
+  // dates in 2020 so the check-in guard (no future days) never depends on the day the suite runs
+  challenges: { insert: (r, o, f) => one(r, `insert into challenges(user_id, title, start_date, end_date, habit_id) values ($1,'Read','2020-01-01','2020-01-31',$2)`, [o, f.habit_id ?? null]) },
+  challenge_checkins: { parents: { challenge_id: 'challenges' }, insert: (r, o, f) => one(r, `insert into challenge_checkins(user_id, challenge_id, checkin_date) values ($1,$2,'2020-01-02')`, [o, f.challenge_id]) },
   study_sessions: { insert: (r, o, f) => one(r, `insert into study_sessions(user_id, session_date, status, duration_seconds, goal_id, topic_id) values ($1,'2026-11-02','completed',60,$2,$3)`, [o, f.goal_id ?? null, f.topic_id ?? null]) },
   job_applications: { insert: (r, o) => one(r, `insert into job_applications(user_id, company, job_title) values ($1,'Acme','Dev')`, [o]) },
   application_history: { parents: { application_id: 'job_applications' }, insert: (r, o, f) => one(r, `insert into application_history(user_id, application_id, to_status) values ($1,$2,'applied')`, [o, f.application_id]) },
@@ -72,6 +76,7 @@ export const FIXTURES: Record<string, Fixture> = {
  *  with a column override so the FK test can attach a child to a parent the child's owner does not own. */
 export const OPTIONAL_LINKS: { child: string; column: string; parent: string }[] = [
   { child: 'goals', column: 'topic_id', parent: 'learning_topics' },
+  { child: 'challenges', column: 'habit_id', parent: 'habits' },
   { child: 'study_sessions', column: 'goal_id', parent: 'goals' },
   { child: 'study_sessions', column: 'topic_id', parent: 'learning_topics' },
   { child: 'workouts', column: 'routine_id', parent: 'routines' },

@@ -7,9 +7,11 @@ import { Button } from '@/components/ui/button'
 import { useAction } from '@/hooks/useAction'
 import { useAuth } from '@/hooks/useAuth'
 import { auth } from '@/services/auth'
+import { useDemo } from '@/services/demo'
 
 export function AccountCard() {
   const { user } = useAuth()
+  const demo = useDemo()
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteAccount, deleting] = useAction(() => auth.deleteAccount())
 
@@ -27,7 +29,13 @@ export function AccountCard() {
           <LogOut className="h-4 w-4" />
           Sign out
         </Button>
-        <Button variant="ghost" className="text-danger" onClick={() => setDeleteOpen(true)}>
+        <Button
+          variant="ghost"
+          className="text-danger"
+          disabled={demo}
+          title={demo ? 'Not available in demo mode' : undefined}
+          onClick={() => setDeleteOpen(true)}
+        >
           <Trash2 className="h-4 w-4" />
           Delete account…
         </Button>

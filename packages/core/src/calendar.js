@@ -8,6 +8,7 @@
 //   deadline   goal / milestone / follow-up / bill / revision dates: shown for context and open their module, never edited here
 // All dates are 'yyyy-MM-dd' and all minutes are minutes since local midnight in the user's timezone `tz`.
 import { addDays, diffDays, localDayMinutes, minutesToTime, timeToMinutes, zonedToMs } from '@lifetrack/utils'
+import { calendarMarkers } from './challenges'
 import { expandEvent } from './calendarRecurrence'
 import { byPriority, isInactive, isOpen } from './tasks'
 
@@ -134,7 +135,7 @@ const eventItem = (o) =>
     deletable: true,
   })
 
-function sourceItems(d, { from, to, tz }) {
+function sourceItems(d, { from, to, tz, today }) {
   const out = []
   const inRange = (day) => !!day && day >= from && day <= to
   const lane = (o) => base({ allDay: true, startMin: 0, endMin: 1440, startMs: zonedToMs(o.date, '00:00', tz), endMs: zonedToMs(addDays(o.date, 1), '00:00', tz), endDate: o.date, ...o })
@@ -222,6 +223,12 @@ function sourceItems(d, { from, to, tz }) {
     if (!t.archived)
       for (const day of t.revision_dates ?? [])
         if (inRange(day)) out.push(lane({ key: `revision:${t.id}:${day}`, kind: 'deadline', sourceType: 'topic', id: t.id, row: t, title: `Revise ${t.name}`, category: 'learning', color: categoryMeta('learning').color, date: day, href: '/learning' }))
+  // Challenges: one marker per counted day of each running challenge, ticked once that day is covered (see core/challenges calendarMarkers).
+  for (const k of calendarMarkers(d.challenges ?? [], d.challengeCheckins ?? [], d.habitLogs ?? [], { from, to, today })) {
+    const c = k.challenge
+    const title = k.first ? `Challenge starts: ${c.title}` : k.last ? `Challenge ends: ${c.title}` : `Challenge: ${c.title}`
+    out.push(lane({ key: `challenge:${c.id}:${k.day}`, kind: 'deadline', sourceType: 'challenge', id: c.id, row: c, title, category: 'routine', color: c.color, date: k.day, done: k.done, overdue: k.overdue, href: `/challenges?c=${c.id}` }))
+  }
   return out
 }
 

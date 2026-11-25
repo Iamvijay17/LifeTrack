@@ -3,11 +3,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useContextMenu, usePageContextMenu } from '@/components/context-menu'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { FirstUseHint } from '@/components/shared/FirstUseHint'
 import { ErrorState } from '@/components/shared/states'
 import { Skeleton } from '@/components/ui/misc'
 import { AnimatePresence, ease, m } from '@/components/motion/primitives'
 import { useConfirm } from '@/components/shared/Confirm'
-import { useTables } from '@/hooks/store'
+import { useTable, useTables } from '@/hooks/store'
 import { useIsDesktop } from '@/hooks/useMediaQuery'
 import { useNow } from '@/hooks/useNow'
 import { useToday } from '@/hooks/useToday'
@@ -97,6 +98,10 @@ export default function CalendarPage() {
   const nowMs = useNow(60_000)
   const { prefs, update } = useCalendarPrefs()
   const { data, loading, error, refetch } = useTables(...TABLES)
+  // Challenges are an extra layer: if the database has not had migration 0023 yet these tables fail to load and the calendar simply shows none.
+  const { rows: challenges } = useTable('challenges')
+  const { rows: challengeCheckins } = useTable('challenge_checkins')
+  const { rows: habitLogs } = useTable('habit_logs')
   const { view, date, go } = useCalendarView(prefs.view, today)
   const filters = useCalendarFilters()
   const [query, setQuery] = useState('')
@@ -140,8 +145,11 @@ export default function CalendarPage() {
       milestones: data.milestones,
       recurringRules: data.recurring_rules,
       topics: data.learning_topics,
+      challenges,
+      challengeCheckins,
+      habitLogs,
     }),
-    [data],
+    [data, challenges, challengeCheckins, habitLogs],
   )
   const built = useMemo(() => buildCalendarItems(source, { ...windowRange, tz, today, nowMs }), [source, windowRange, tz, today, nowMs])
   const shown = useMemo(() => {
@@ -476,6 +484,9 @@ export default function CalendarPage() {
   return (
     <>
       <PageHeader title="Calendar" description={desktop ? 'Tasks, events, interviews, reminders and deadlines in one place.' : undefined} />
+      <FirstUseHint id="calendar" title="Drag to reschedule">
+        Drag any item to a new time or day, or right-click it for more actions. Press ? on this page for its own shortcuts.
+      </FirstUseHint>
       <DragProvider
         plan={plan}
         onCommit={onCommit}
