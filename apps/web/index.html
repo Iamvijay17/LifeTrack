@@ -12,6 +12,33 @@
     <meta name="description" content="LifeTrack - your personal life operating system" />
     <title>LifeTrack</title>
     <script src="/theme-init.js"></script>
+    <style>
+      /* Critical styles for the boot screen below. index.css arrives with the JavaScript bundle (in dev, injected by it),
+         so without these the logo and message would sit unstyled in the top-left corner on a reload. Fallbacks match the dark theme. */
+      .lt-boot {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        background: rgb(var(--background, 9 9 11));
+      }
+      .lt-boot .lt-orbit {
+        --lt-a: #7c3aed;
+        --lt-b: #a78bfa;
+        --lt-c: #c4b5fd;
+        flex: none;
+      }
+      .lt-boot span,
+      .lt-boot p {
+        color: rgb(var(--foreground, 250 250 250));
+      }
+      .lt-boot p {
+        color: rgb(var(--muted-foreground, 161 161 170));
+      }
+    </style>
   </head>
   <body>
     <div id="root">
@@ -68,7 +95,7 @@
               500 18px/1 system-ui,
               sans-serif;
             letter-spacing: -0.01em;
-            color: rgb(var(--foreground));
+            color: rgb(var(--foreground, 250 250 250));
           "
           >Life<b>Track</b></span
         >
@@ -79,7 +106,7 @@
             font:
               14px/1.4 system-ui,
               sans-serif;
-            color: rgb(var(--muted-foreground));
+            color: rgb(var(--muted-foreground, 161 161 170));
           "
         >
           Preparing your dashboard...
