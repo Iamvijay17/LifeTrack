@@ -474,7 +474,13 @@ class Doc {
       label.forEach((l, k) => this.text(l, MARGIN.x, this.y + k * 12, { size: TYPE.body }))
       const by = this.y + 1.5
       this.rect(MARGIN.x + labelW, by, barW, 8, COLORS.accentSoft)
-      this.rect(MARGIN.x + labelW, by, barW * Math.max(0, Math.min(1, Number.isFinite(it.value) ? it.value : 0)), 8, SERIES[(it.color ?? 0) % SERIES.length])
+      this.rect(
+        MARGIN.x + labelW,
+        by,
+        barW * Math.max(0, Math.min(1, Number.isFinite(it.value) ? it.value : 0)),
+        8,
+        SERIES[(it.color ?? 0) % SERIES.length],
+      )
       value.forEach((l, k) => this.text(l, MARGIN.x + labelW + barW + 12, this.y + k * 12, { size: TYPE.body, color: COLORS.muted }))
       this.y += h
     })
