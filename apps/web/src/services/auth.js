@@ -5,6 +5,7 @@ import { AppError } from './errors'
 import { localAdapter } from './localAdapter'
 import { checkSecret, hashSecret, markLogin, wipeSecurity } from './localSecurity'
 import { setUserId } from './session'
+import { logAudit } from './auditLog'
 
 // ------------------------------------------------------------------ Supabase (shared implementation)
 const sb = isSupabaseConfigured
@@ -204,5 +205,24 @@ const unavailableAuth = {
   ),
 }
 
-export const auth = __BACKEND__ === 'supabase' ? sb : __BACKEND__ === 'local' ? local : unavailableAuth
+// Sign-in, sign-out and password changes are written to the audit history. Each is logged by the database as the signed-in person, so
+// sign-out is recorded BEFORE the session ends; a failed log never blocks the action.
+const audited = sb && {
+  ...sb,
+  signIn: async (...a) => {
+    const r = await sb.signIn(...a)
+    void logAudit('login', 'auth', 'Signed in', { method: 'password' })
+    return r
+  },
+  signOut: async (...a) => {
+    await logAudit('logout', 'auth', 'Signed out')
+    return sb.signOut(...a)
+  },
+  changePassword: async (...a) => {
+    const r = await sb.changePassword(...a)
+    void logAudit('security', 'security', 'Password changed')
+    return r
+  },
+}
+export const auth = __BACKEND__ === 'supabase' ? audited : __BACKEND__ === 'local' ? local : unavailableAuth
 export { setUserId }

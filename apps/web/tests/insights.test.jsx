@@ -1,9 +1,9 @@
 import '@testing-library/jest-dom/vitest'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { renderPdf, toLatin1, textWidth } from '@/services/pdf'
+import { testFontBytes } from './pdfFonts'
 import { buildInsightsReport, periodFor } from '@/domain/insights'
 import { insightsToCsv, insightsToPdf, insightsFilename } from '@/features/insights/exports'
 import { formatChange, formatValue } from '@/features/insights/format'
@@ -30,7 +30,11 @@ vi.mock('@/features/security/useModuleLocks', () => ({
   useModuleLocks: () => ({ closed: mocks.closed, isLocked: (m) => mocks.closed.includes(m), unlock: () => {} }),
 }))
 vi.mock('@/services/csv', async (orig) => ({ ...(await orig()), download: mocks.download }))
-vi.mock('@/services/pdf', async (orig) => ({ ...(await orig()), downloadPdf: mocks.downloadPdf }))
+vi.mock('@/services/pdf', async (orig) => {
+  const m = await orig()
+  const { testFontBytes: fonts } = await import('./pdfFonts')
+  return { ...m, downloadPdf: mocks.downloadPdf, renderPdf: (spec, o) => m.renderPdf(spec, { ...o, fontBytes: fonts() }) }
+})
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('recharts', async (orig) => {
   const R = await orig()
@@ -70,51 +74,6 @@ beforeEach(() => {
   mocks.downloadPdf.mockClear()
 })
 
-describe('PDF writer', () => {
-  it('writes a structurally valid file: header, correct xref offsets, page count', () => {
-    const blocks = [
-      { type: 'heading', text: 'Heading (with) parens \\ and ₹1,200 — dash' },
-      {
-        type: 'table',
-        columns: [
-          { header: 'A', width: 1 },
-          { header: 'B', width: 1, align: 'right' },
-        ],
-        rows: Array.from({ length: 120 }, (_, i) => [`row ${i}`, i]),
-      },
-      { type: 'bars', items: [{ label: 'x', value: 0.5, text: '50%' }] },
-      {
-        type: 'columns',
-        title: 'c',
-        items: [
-          { label: 'a', value: 1 },
-          { label: 'b', value: null },
-          { label: 'c', value: 3 },
-        ],
-      },
-    ]
-    const bytes = renderPdf({ title: 'T', subtitle: 'S', footer: 'F', blocks })
-    const s = new TextDecoder('latin1').decode(bytes)
-    expect(s.startsWith('%PDF-1.4')).toBe(true)
-    expect(s.trimEnd().endsWith('%%EOF')).toBe(true)
-    const pages = Number(/\/Count (\d+)/.exec(s)[1])
-    expect(pages).toBeGreaterThan(1) // 120 rows do not fit on one page
-    expect(s).toContain(`Page ${pages} of ${pages}`)
-    // every xref entry points at "<n> 0 obj"
-    const start = Number(/startxref\n(\d+)/.exec(s)[1])
-    const entries = [...s.slice(start).matchAll(/(\d{10}) 00000 n /g)].map((m) => Number(m[1]))
-    expect(entries.length).toBeGreaterThan(5)
-    entries.forEach((off, i) => expect(s.slice(off, off + 12)).toMatch(new RegExp(`^${i + 1} 0 obj`)))
-    expect(s).toContain('Rs 1,200') // ₹ is not in the PDF font: written as Rs
-    expect(s).toContain('\\(with\\)') // parentheses escaped
-  })
-  it('replaces characters the font lacks instead of printing garbage', () => {
-    expect(toLatin1('₹5 – x…')).toBe('Rs 5 - x...')
-    expect(toLatin1('日本')).toBe('??')
-    expect(textWidth('WWW', 10)).toBeGreaterThan(textWidth('iii', 10))
-  })
-})
-
 describe('exports', () => {
   const report = buildInsightsReport(
     {
@@ -147,9 +106,10 @@ describe('exports', () => {
     expect(csv).toContain("'=Read") // a habit named "=Read" cannot become a formula
     expect(csv.split('\r\n').filter((l) => /^2026-11-\d\d,/.test(l))).toHaveLength(18) // one daily row per elapsed day, none for the future
   })
-  it('PDF bytes and filenames', () => {
-    const bytes = insightsToPdf(report, { money })
-    expect(new TextDecoder('latin1').decode(bytes)).toContain('Monthly Insights')
+  it('PDF bytes and filenames', async () => {
+    const bytes = await insightsToPdf(report, { money }, { fontBytes: testFontBytes() })
+    expect(new TextDecoder('latin1').decode(bytes.slice(0, 8))).toBe('%PDF-1.7')
+    expect(new TextDecoder('latin1').decode(bytes)).toContain('/Count')
     expect(insightsFilename(report, 'pdf')).toBe('lifetrack-insights-month-2026-11-01_to_2026-11-30.pdf')
   })
   it('formatters never show missing data as zero', () => {
@@ -186,6 +146,7 @@ describe('Insights page', () => {
       expect.stringContaining('LifeTrack Insights'),
     )
     await user.click(screen.getByRole('button', { name: /PDF/ }))
+    await waitFor(() => expect(mocks.downloadPdf).toHaveBeenCalled())
     expect(mocks.downloadPdf).toHaveBeenCalledWith('lifetrack-insights-month-2026-11-01_to_2026-11-30.pdf', expect.any(Uint8Array))
   })
 

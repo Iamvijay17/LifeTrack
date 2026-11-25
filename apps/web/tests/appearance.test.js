@@ -102,7 +102,7 @@ describe('appearance: applied to the page', () => {
 
 describe('navigation arrangement', () => {
   it('shows favourites once, at the top, and keeps everything else', () => {
-    const { pinned, groups } = arrangeNav({ pinned: ['/finance', '/habits', '/nope'] })
+    const { pinned, groups } = arrangeNav({ pinned: ['/finance', '/habits', '/nope'] }, { admin: true })
     expect(pinned.map((n) => n.to)).toEqual(['/finance', '/habits'])
     const rest = groups.flatMap((g) => g.items.map((n) => n.to))
     expect(rest).not.toContain('/finance')
@@ -118,7 +118,15 @@ describe('navigation arrangement', () => {
       .items.map((n) => n.to)
     expect(after.slice(0, 2)).toEqual([base[1], base[0]])
     expect(moveNavItem(order, after[0], -1)).toEqual(order) // already first
-    expect(arrangeNav({ order: ['/gone', ...order] }).groups.flatMap((g) => g.items)).toHaveLength(NAV.length)
+    expect(arrangeNav({ order: ['/gone', ...order] }, { admin: true }).groups.flatMap((g) => g.items)).toHaveLength(NAV.length)
+  })
+  it("keeps administrator-only pages (System Health) out of everyone else's menu, pinned or not", () => {
+    const all = (who) => arrangeNav({ pinned: ['/system'] }, who)
+    const seen = (r) => [...r.pinned, ...r.groups.flatMap((g) => g.items)].map((n) => n.to)
+    expect(seen(all({}))).not.toContain('/system')
+    expect(seen(all({ admin: true }))).toContain('/system')
+    expect(all({ admin: true }).pinned.map((n) => n.to)).toEqual(['/system'])
+    expect(mobilePrimaryItems({ pinned: ['/system'] }).map((n) => n.to)).not.toContain('/system')
   })
   it('the phone bar uses favourites (up to four) or the standard four', () => {
     expect(mobilePrimaryItems({}).map((n) => n.to)).toEqual(['/', '/planner', '/habits', '/finance'])

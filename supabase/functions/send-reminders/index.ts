@@ -68,10 +68,17 @@ Deno.serve(async (req) => {
     },
   }
 
+  // System Health shows when this job last ran and whether it failed (migration 0027). Best effort: reporting must never change the job's result.
+  const t0 = Date.now()
+  const report = async (status: 'ok' | 'error', detail: string, error: string) => {
+    try { await sb.rpc('record_job_run', { p_job: 'send-reminders', p_status: status, p_duration_ms: Date.now() - t0, p_detail: detail, p_error: error }) } catch { /* the migration may not be applied yet */ }
+  }
   try {
     const stats = await runReminders({ db, push, core: { afterFire, dueReminders, reminderNotification, notificationSettings, mayInterrupt, timeStrInTz, todayStr } })
+    await report('ok', JSON.stringify(stats).slice(0, 280), '')
     return new Response(JSON.stringify(stats), { headers: { 'Content-Type': 'application/json' } })
   } catch (e) {
+    await report('error', '', (e as Error).message.slice(0, 280))
     return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500, headers: { 'Content-Type': 'application/json' } })
   }
 })

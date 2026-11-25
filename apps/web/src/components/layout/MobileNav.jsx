@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { Lock, MoreHorizontal } from 'lucide-react'
 import { arrangeNav, mobilePrimaryItems } from '@/lib/nav'
+import { useIsAdmin } from '@/hooks/useIsAdmin'
 import { useAppearance } from '@/hooks/useAppearance'
 import { Dialog } from '@/components/ui/dialog'
 import { LayoutGroup, m, spring } from '@/components/motion/primitives'
@@ -25,9 +26,10 @@ export function MobileNav() {
   const [more, setMore] = useState(false)
   const { isLocked } = useModuleLocks()
   const { sidebar } = useAppearance()
-  const primary = mobilePrimaryItems(sidebar)
+  const admin = useIsAdmin()
+  const primary = mobilePrimaryItems(sidebar, { admin })
   const onBar = new Set(primary.map((n) => n.to))
-  const { groups } = arrangeNav({ order: sidebar.order })
+  const { groups } = arrangeNav({ order: sidebar.order }, { admin })
   const item = (isActive) =>
     cn(
       'lt-press relative flex flex-1 flex-col items-center gap-0.5 pb-1.5 pt-2 text-[10.5px] font-medium transition-colors',

@@ -262,6 +262,16 @@ export const GUIDES = [
     tips: ['Choose your currency in Settings.', 'The default monthly budget in Settings applies to any month you have not set your own.'],
   },
   {
+    module: 'search',
+    summary: 'Find anything you have saved: tasks, notes, goals, expenses, workouts, events and more, from one box.',
+    steps: [
+      'Type a word; matches are highlighted and every word you type must be found. Put words in quotes to find them together.',
+      'Narrow the results with the module buttons and the Status, Category, Priority and date filters, and sort by relevance, newest or oldest.',
+      'Click a result to open it. Press Ctrl or Cmd + K from anywhere and choose "Search everything" to land here with your words filled in.',
+    ],
+    tips: ['Pick a filter with no text to browse, newest first.', 'Locked modules are left out of the results until you unlock them.'],
+  },
+  {
     module: 'insights',
     summary: 'Weekly, monthly, quarterly and yearly reports with trends and comparisons, built only from what you recorded.',
     steps: [
@@ -350,6 +360,40 @@ export const GUIDES = [
       'Disconnect removes LifeTrack’s access at Google and deletes its stored copy. Your data is not deleted.',
     ],
     tips: ['If the page says an integration is not set up, the server still needs its Google credentials (see docs/INTEGRATIONS.md).'],
+  },
+  {
+    module: 'audit',
+    summary: 'A permanent, read-only record of every change to your data and account, with before and after values.',
+    steps: [
+      'Open Audit History to see changes newest first. Filter by module, action, source or date, or search for a record.',
+      'Select an event to compare the values before and after, and to see when and from where it happened.',
+      'Restore earlier values or a deleted record: you first see exactly what will change, then confirm. If the record was changed after that event, nothing is overwritten.',
+      'Verify integrity checks that no event was altered or removed. Export CSV saves the log (descriptions, not the values).',
+    ],
+    tips: [
+      'Nothing can edit or hide events. The only removal is Erase history, which leaves a note that it happened. Events of a locked module stay hidden until you unlock it.',
+    ],
+  },
+  {
+    module: 'developers',
+    summary: 'API keys, webhooks and documentation for connecting your own tools.',
+    steps: [
+      'API keys: create a key, choose what it may do and when it expires. The key is shown once; copy it then.',
+      'Activity lists the requests made with your keys and any errors.',
+      'Webhooks: add an https address and pick events. Each delivery is signed; failed ones are retried, and you can retry or test by hand.',
+      'Documentation lists every endpoint with examples, errors and how to verify a webhook signature.',
+    ],
+    tips: ['Use keys only from a server you control. Revoke a key as soon as you suspect it leaked.'],
+  },
+  {
+    module: 'system',
+    summary: 'For administrators: the health of the backend, database, API and background jobs.',
+    steps: [
+      'The banner shows the overall status and why. Each component shows its own state.',
+      'Charts show request volume, latency and application errors by hour; pick 24 hours, 3 days or 7 days.',
+      'Latest errors are grouped, with how often and when; select one to see its stack.',
+    ],
+    tips: ['Only administrators can open this page (docs/SYSTEM_HEALTH.md says how one is added).'],
   },
   {
     module: 'shortcuts',

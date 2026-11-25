@@ -6,6 +6,9 @@ import App from './App'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import './index.css'
 import '@/lib/install'
+import { installErrorReporting } from '@/lib/errorReporting'
+
+installErrorReporting()
 
 registerSW({ immediate: true })
 

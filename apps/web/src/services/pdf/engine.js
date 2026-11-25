@@ -149,7 +149,7 @@ class Doc {
   // ----- primitives (y measured from the top of the page) -----
   text(s, x, top, { size = TYPE.body, bold = false, color = COLORS.body, align = 'left', width = 0 } = {}) {
     const t = this.tf.clean(s, bold ? 1 : 0)
-    if (!t) return
+    if (!t || !allFinite(x, top, width)) return
     let px = x
     const w = this.tf.width(t, size, bold)
     if (align === 'right') px = x + width - w
@@ -162,19 +162,22 @@ class Doc {
     this.fresh = false
   }
   rect(x, top, w, h, color, opts = {}) {
-    if (w <= 0 || h <= 0) return
+    if (!allFinite(x, top, w, h) || w <= 0 || h <= 0) return
     this.page.drawRectangle({ x, y: this.H - top - h, width: w, height: h, color: hex(color), ...opts })
     this.fresh = false
   }
   hline(x1, x2, top, color = COLORS.rule, thickness = 0.6) {
+    if (!allFinite(x1, x2, top)) return
     this.page.drawLine({ start: { x: x1, y: this.H - top }, end: { x: x2, y: this.H - top }, thickness, color: hex(color) })
     this.fresh = false
   }
   line(x1, t1, x2, t2, color, thickness = 1.4) {
+    if (!allFinite(x1, t1, x2, t2)) return
     this.page.drawLine({ start: { x: x1, y: this.H - t1 }, end: { x: x2, y: this.H - t2 }, thickness, color: hex(color) })
     this.fresh = false
   }
   dot(x, top, r, color) {
+    if (!allFinite(x, top, r)) return
     this.page.drawCircle({ x, y: this.H - top, size: r, color: hex(color) })
     this.fresh = false
   }
@@ -453,7 +456,7 @@ class Doc {
       label.forEach((l, k) => this.text(l, MARGIN.x, this.y + k * 12, { size: TYPE.body }))
       const by = this.y + 1.5
       this.rect(MARGIN.x + labelW, by, barW, 8, COLORS.accentSoft)
-      this.rect(MARGIN.x + labelW, by, barW * Math.max(0, Math.min(1, it.value ?? 0)), 8, SERIES[(it.color ?? 0) % SERIES.length])
+      this.rect(MARGIN.x + labelW, by, barW * Math.max(0, Math.min(1, Number.isFinite(it.value) ? it.value : 0)), 8, SERIES[(it.color ?? 0) % SERIES.length])
       value.forEach((l, k) => this.text(l, MARGIN.x + labelW + barW + 12, this.y + k * 12, { size: TYPE.body, color: COLORS.muted }))
       this.y += h
     })
@@ -466,6 +469,7 @@ class Doc {
 
   /** Column or line chart drawn as vectors: it can never be blurred, stretched or half-rendered. */
   chart({ kind = 'columns', title, unit, labels, series, format = (v) => String(v), height = 128 }) {
+    series = series.map((s) => ({ ...s, values: s.values.map((v) => (Number.isFinite(v) ? v : null)) }))
     const hasData = series.some((s) => s.values.some((v) => v != null))
     if (!hasData || !labels.length) return
     const legend = series.length > 1
@@ -600,6 +604,9 @@ class Doc {
   }
 }
 
+/** A NaN or Infinity written into a page makes viewers refuse the whole file, so such shapes are skipped instead. */
+const allFinite = (...n) => n.every(Number.isFinite)
+
 const tick = () => new Promise((r) => setTimeout(r, 0))
 
 /**
@@ -641,5 +648,8 @@ export async function renderPdfDocument(spec, fontBytes, { onProgress } = {}) {
     if (i % 4 === 3) await tick() // keep the page responsive while a large report is laid out
   }
   doc.furniture()
-  return pdf.save({ useObjectStreams: false })
+  const bytes = await pdf.save({ useObjectStreams: false })
+  // Read the file back: a document that cannot be re-opened here would show "Failed to load PDF document" in the viewer.
+  await PDFDocument.load(bytes, { updateMetadata: false })
+  return bytes
 }

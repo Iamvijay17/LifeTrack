@@ -26,10 +26,20 @@ import {
   LifeBuoy,
   Keyboard,
   Plug,
+  Search,
+  History,
+  Braces,
+  Activity,
 } from 'lucide-react'
 
 export const NAV_GROUPS = [
-  { title: 'Overview', items: [{ to: '/', module: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true }] },
+  {
+    title: 'Overview',
+    items: [
+      { to: '/', module: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true },
+      { to: '/search', module: 'search', label: 'Search', icon: Search },
+    ],
+  },
   {
     title: 'Productivity',
     items: [
@@ -64,6 +74,7 @@ export const NAV_GROUPS = [
   {
     title: 'Insights',
     items: [
+      { to: '/insights', module: 'insights', label: 'Insights', icon: TrendingUp },
       { to: '/analytics', module: 'analytics', label: 'Analytics', icon: BarChart3 },
       { to: '/reports', module: 'reports', label: 'Reports', icon: FileText },
     ],
@@ -73,9 +84,11 @@ export const NAV_GROUPS = [
     items: [
       { to: '/notifications', module: 'notifications', label: 'Notifications', short: 'Alerts', icon: Bell },
       { to: '/settings', module: 'settings', label: 'Settings', icon: Settings },
-      { to: '/insights', module: 'insights', label: 'Insights', icon: TrendingUp },
       { to: '/security', module: 'security', label: 'Security & Privacy', short: 'Security', icon: ShieldCheck },
       { to: '/integrations', module: 'integrations', label: 'Integrations', icon: Plug },
+      { to: '/developers', module: 'developers', label: 'Developers (API)', short: 'API', icon: Braces },
+      { to: '/audit', module: 'audit', label: 'Audit History', short: 'Audit', icon: History },
+      { to: '/system', module: 'system', label: 'System Health', short: 'Health', icon: Activity, adminOnly: true },
       { to: '/export', module: 'export', label: 'Data Export', short: 'Export', icon: Download },
       { to: '/shortcuts', module: 'shortcuts', label: 'Keyboard Shortcuts', short: 'Keys', icon: Keyboard },
       { to: '/help', module: 'help', label: 'Help & Support', short: 'Help', icon: LifeBuoy },
@@ -113,21 +126,25 @@ const stable = (items, order) => {
 /**
  * The navigation as this person arranged it: favourites first (shown once, not again in their group), then the groups with their items in
  * the saved order. Unknown paths in the saved lists are ignored; pages added later keep their default place.
+ * Pages marked `adminOnly` (System Health) are left out unless `admin` is true: the page itself still checks on the server.
  * @param {{ order?: string[], pinned?: string[] }} sidebar
+ * @param {{ admin?: boolean }} [who]
  */
-export function arrangeNav(sidebar = {}) {
+export function arrangeNav(sidebar = {}, { admin = false } = {}) {
   const order = sidebar.order ?? []
-  const pinned = (sidebar.pinned ?? []).map((to) => NAV.find((n) => n.to === to)).filter(Boolean)
+  const allowed = (n) => !n.adminOnly || admin
+  const pinned = (sidebar.pinned ?? []).map((to) => NAV.find((n) => n.to === to)).filter((n) => n && allowed(n))
   const isPinned = new Set(pinned.map((n) => n.to))
-  const groups = NAV_GROUPS.map((g) => ({ title: g.title, items: stable(g.items, order).filter((n) => !isPinned.has(n.to)) })).filter(
-    (g) => g.items.length,
-  )
+  const groups = NAV_GROUPS.map((g) => ({
+    title: g.title,
+    items: stable(g.items, order).filter((n) => !isPinned.has(n.to) && allowed(n)),
+  })).filter((g) => g.items.length)
   return { pinned, groups }
 }
 
 /** The phone's bottom bar: the favourites when there are any, otherwise the standard four. */
-export function mobilePrimaryItems(sidebar = {}) {
-  const { pinned } = arrangeNav(sidebar)
+export function mobilePrimaryItems(sidebar = {}, who = {}) {
+  const { pinned } = arrangeNav(sidebar, who)
   return pinned.length ? pinned.slice(0, MAX_PINNED) : NAV.filter((n) => MOBILE_PRIMARY.includes(n.to))
 }
 

@@ -18,7 +18,7 @@ export function downloadPdf(filename, bytes) {
   document.body.appendChild(a)
   a.click()
   a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 4000)
+  setTimeout(() => URL.revokeObjectURL(url), 60000)
 }
 
 /** A file name that is safe on every OS: no path characters, no double spaces. */

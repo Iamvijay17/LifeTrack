@@ -42,6 +42,12 @@ export function useRecents() {
     const page = NAV.find((n) => n.to === pathname)
     if (page) remember({ id: page.to, kind: 'page', label: page.label, to: page.to, module: page.module })
   }, [pathname, remember])
+  // The search page records the records it opens in the same list: pick those up too.
+  useEffect(() => {
+    const again = () => setList(read())
+    window.addEventListener('lifetrack:recents', again)
+    return () => window.removeEventListener('lifetrack:recents', again)
+  }, [])
   const clear = useCallback(() => {
     write([])
     setList([])

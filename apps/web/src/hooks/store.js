@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { db } from '@/services/db'
 import { AppError, toAppError } from '@/services/errors'
+import { handleExpiredSession, isSessionExpiredError } from '@/services/sessionGuard'
 import * as sync from '@/sync'
 import { bindDemoStore, isDemo } from '@/services/demo'
 import { DEFAULTS } from '@lifetrack/constants/schema'
@@ -56,6 +57,7 @@ export function load(table, { force = false } = {}) {
         // A failed background refresh keeps the data already on screen; only a failed first load is an error state.
         if (get(table).status === 'ready') return
         const failure = toAppError(e)
+        if (isSessionExpiredError(failure)) void handleExpiredSession()
         if (failure.isNetwork) {
           // No connection: show the copy kept from the last visit (with the changes still waiting to be sent laid over it).
           const copy = await sync.hydrate(table)
@@ -232,6 +234,7 @@ export async function tracked(fn) {
   } catch (e) {
     save.pending--
     const err = toAppError(e)
+    if (isSessionExpiredError(err)) void handleExpiredSession()
     save.status = 'error'
     save.error = err.message
     emitSave()

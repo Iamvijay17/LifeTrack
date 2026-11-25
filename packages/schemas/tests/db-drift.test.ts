@@ -11,7 +11,14 @@ const migrations = new URL('../../../supabase/migrations/', import.meta.url)
 const SYSTEM = new Set(['id', 'user_id', 'created_at', 'updated_at'])
 // Security tables (0012, 0014): clients have no table privileges on them and reach them only through SECURITY DEFINER
 // functions and Edge Functions, so they have no Zod row/insert schema.
-const SERVER_ONLY = new Set(['app_unlocks', 'device_key_challenges', 'device_keys', 'passkeys', 'password_attempts', 'user_security', 'webauthn_challenges'])
+// 0026 (integrations) and 0027 (audit, health, API keys, webhooks) tables are read through functions or read-only policies and written by the server, so the
+// apps have no insert/update schema for them.
+const SERVER_ONLY = new Set([
+  'app_unlocks', 'device_key_challenges', 'device_keys', 'passkeys', 'password_attempts', 'user_security', 'webauthn_challenges',
+  'integrations', 'integration_events', 'integration_tokens',
+  'audit_events', 'api_keys', 'api_request_log', 'app_errors', 'job_runs', 'platform_admins', 'rate_windows', 'request_metrics',
+  'webhook_endpoints', 'webhook_secrets', 'webhook_deliveries', 'webhook_attempts',
+])
 let cols: Record<string, { name: string; nullable: boolean; hasDefault: boolean }[]> = {}
 
 beforeAll(async () => {

@@ -15,6 +15,16 @@ export const supabase = isConfigured
       anonKey: anonKey!,
       // Session lives in the OS keychain/keystore (chunked: sessions exceed SecureStore's per-value limit).
       auth: { storage: createChunkedStorage(SecureStore), detectSessionInUrl: false, flowType: 'pkce' },
+      // Labels database requests so the audit history can say they came from the phone (native fetch is not bound by browser CORS rules).
+      global: {
+        fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+          const href = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+          if (!href.includes('/rest/v1/')) return fetch(input, init)
+          const headers = new Headers(init?.headers)
+          headers.set('x-lifetrack-source', 'mobile')
+          return fetch(input, { ...init, headers })
+        },
+      },
     })
   : null
 

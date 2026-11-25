@@ -62,7 +62,7 @@ const insertShapes = {
     daily_study_target_minutes: int().min(0).max(1440).optional(), monthly_budget_paise: paise().optional(),
     water_goal_ml: int().min(0).max(20000).optional(), steps_goal: int().min(0).max(200000).optional(),
     week_starts_on: z.union([z.literal(0), z.literal(1)]).optional(),
-    calendar_prefs: json(z.record(z.string(), z.any())).optional(), appearance_prefs: json(z.record(z.string(), z.any())).optional(), onboarding_state: json(z.record(z.string(), z.any())).optional(),
+    calendar_prefs: json(z.record(z.string(), z.any())).optional(), appearance_prefs: json(z.record(z.string(), z.any())).optional(), report_prefs: json(z.record(z.string(), z.any())).optional(), onboarding_state: json(z.record(z.string(), z.any())).optional(),
     habit_prefs: json(z.record(z.string(), z.any())).optional(), workout_plan: json(z.record(z.string(), z.any())).optional(), defaults_seeded: z.boolean().optional(),
     score_weights: json(z.record(z.string(), z.number())).optional(), dashboard_widgets: json(z.record(z.string(), z.any())).optional(),
     notification_prefs: json(z.record(z.string(), z.boolean())).optional(), notification_settings: json(z.record(z.string(), z.any())).optional(), automation_prefs: json(z.record(z.string(), z.any())).optional(), focus_prefs: json(z.record(z.string(), z.number())).optional(),
