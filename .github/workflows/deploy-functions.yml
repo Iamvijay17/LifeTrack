@@ -37,7 +37,7 @@ jobs:
       - name: Deno tests (never deploy a function that fails its own tests)
         working-directory: supabase/functions/send-reminders
         run: deno test --config deno.json --allow-env --allow-net --allow-read index.test.ts
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v3
         with: { version: latest }
       # Secrets (CRON_SECRET, optional EXPO_ACCESS_TOKEN) are set once by hand with `supabase secrets set`, see docs/NATIVE.md.
       # CI deliberately never reads or writes them.
