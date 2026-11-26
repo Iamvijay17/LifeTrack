@@ -6,7 +6,7 @@
 | `ci-backend.yml` | nightly, manual, PRs touching `supabase/**` / data layer | migrations on a real Supabase stack, RLS through the HTTP API, two-device Realtime sync | `supabase start`, then see *API-level RLS* in SETUP.md |
 | `mobile-build.yml` | manual or `mobile-v*` tag; needs the `EXPO_TOKEN` secret (fails at its first step with a clear message otherwise) | EAS preview/production builds after the same gates | docs/NATIVE.md |
 | `db-migrate.yml` | manual only | dry run, safety check, then apply to staging/production | docs/DEPLOY.md |
-| `deploy-functions.yml` | manual only | tests then deploys `send-reminders` | docs/DEPLOY.md |
+| `deploy-functions.yml` | manual only | runs the reminder Deno tests, then deploys all seven Edge Functions (`send-reminders`, `api`, `webhook-dispatch`, `webauthn`, `device-key`, `google-integration`, `google-oauth-callback`) | docs/DEPLOY.md |
 | `deploy-web.yml` | manual only | production build + bundle secrets scan, artifact | docs/DEPLOY.md |
 
 ## Required status checks

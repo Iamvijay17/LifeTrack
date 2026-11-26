@@ -59,6 +59,23 @@ describe('analyzeTransactionsCsv', () => {
     expect(r.errors).toEqual([])
     expect(r.fresh.map((x) => x.note)).toEqual(['=SUM(A1)', 'plain, with comma'])
   })
+  it('rejects calendar dates that do not exist instead of letting the database refuse the whole chunk', () => {
+    const lines = ['2026-02-30', '2025-02-29', '2026-04-31', '2026-13-01'].map((d) => `${d},expense,Food,UPI,100.00,x`)
+    const r = analyzeTransactionsCsv([HEAD, ...lines, '2024-02-29,expense,Food,UPI,100.00,leap day'].join('\n'), [])
+    expect(r.errors.map((e) => e.line)).toEqual([2, 3, 4, 5])
+    expect(r.errors[0].message).toMatch(/not a date/)
+    expect(r.fresh.map((x) => x.txn_date)).toEqual(['2024-02-29'])
+  })
+
+  it('reads amounts as people type them in India: ₹, thousands commas, paise', () => {
+    const r = analyzeTransactionsCsv(
+      [HEAD, '2026-11-01,expense,Food,UPI,"₹1,250.50",x', '2026-11-02,income,Salary,Bank,"1,00,000",y'].join('\n'),
+      [],
+    )
+    expect(r.errors).toEqual([])
+    expect(r.fresh.map((x) => x.amount_paise)).toEqual([125050, 10000000])
+  })
+
   it('asks for the columns it needs', () => {
     expect(() => analyzeTransactionsCsv('Foo,Bar\n1,2', [])).toThrow(/needs a "Date", "Type", "Amount"/)
     expect(() => analyzeTransactionsCsv(HEAD, [])).toThrow(/no rows/)

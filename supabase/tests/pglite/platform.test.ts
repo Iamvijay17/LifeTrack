@@ -145,6 +145,15 @@ describe('restore', () => {
     const d = (await asA((q) => q(`select event_type from webhook_deliveries where endpoint_id = '${ep.id}'`))).rows
     expect(d.map((x: any) => x.event_type)).toEqual(['data.restored'])
   })
+  it('a direct call to _emit_restored without a real restore queues nothing (0032)', async () => {
+    const ep = (await asA((q) => q(`select create_webhook_endpoint('https://hooks.example.com/in', 'x', '{data.restored}') r`))).rows[0].r
+    const id = await asA(async (q) => (await q(`insert into tasks (title) values ('Fake') returning id`)).rows[0].id)
+    await asA((q) => q(`update tasks set title = 'Fake2' where id = '${id}'`))
+    const upd = (await asA((q) => events(q, `record_id = '${id}' and action = 'update'`)))[0]
+    await asA((q) => q(`select _emit_restored('${upd.id}', 'revert')`)) // nothing was restored
+    await asA((q) => q(`select _emit_restored('${upd.id}', 'anything')`))
+    expect((await asA((q) => q(`select 1 from webhook_deliveries where endpoint_id = '${ep.id}'`))).rows).toHaveLength(0)
+  })
 })
 
 describe('system health authorisation', () => {

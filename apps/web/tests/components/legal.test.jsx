@@ -6,12 +6,15 @@ beforeEach(freshBackend)
 
 describe('public legal pages', () => {
   it.each([
-    ['/privacy', /Privacy Policy/],
-    ['/terms', /Terms of Service/],
-  ])('%s is reachable without signing in', async (path, heading) => {
+    ['/privacy', /Privacy Policy/, 'Privacy policy · LifeTrack'],
+    ['/terms', /Terms of Service/, 'Terms of service · LifeTrack'],
+  ])('%s is reachable without signing in and names its tab', async (path, heading, title) => {
+    // As if arriving from inside the app: the page sits outside the shell, so it must replace the previous page's tab name itself.
+    document.title = 'Calendar · LifeTrack'
     renderApp(path)
     expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Welcome back' })).toBeNull()
+    expect(document.title).toBe(title)
   })
   it('the privacy policy states the deletion route and that nothing is sold or tracked', async () => {
     renderApp('/privacy')

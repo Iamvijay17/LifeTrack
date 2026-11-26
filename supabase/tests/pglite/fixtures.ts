@@ -65,6 +65,14 @@ export const FIXTURES: Record<string, Fixture> = {
   webhook_secrets: { kind: 'rpc' },
   webhook_deliveries: { kind: 'rpc' },
   webhook_attempts: { kind: 'rpc' },
+  platform_admins: { kind: 'rpc' }, // no client grants at all (platform.test.ts)
+  // 0026: Integration Center. integrations/integration_events are owner-read-only, tokens have no client access; written by the Edge Function
+  // with the service role (see pglite/integrations.test.ts).
+  integrations: { kind: 'rpc' },
+  integration_events: { kind: 'rpc' },
+  integration_tokens: { kind: 'rpc' },
+  // 0028: experiment exposures/conversions, written only by functions; no client grants (pglite/flagsPerf.test.ts).
+  experiment_events: { kind: 'rpc' },
   budgets: { insert: (r, o) => one(r, `insert into budgets(user_id, month, amount_paise) values ($1,'2026-11-01',100)`, [o]) },
   journal_entries: { insert: (r, o) => one(r, `insert into journal_entries(user_id, entry_date, content) values ($1,'2026-11-02','x')`, [o]) },
   milestones: { parents: { goal_id: 'goals' }, insert: (r, o, f) => one(r, `insert into milestones(user_id, goal_id, title) values ($1,$2,'Design')`, [o, f.goal_id]) },

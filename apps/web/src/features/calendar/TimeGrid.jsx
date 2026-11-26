@@ -158,7 +158,15 @@ export function TimeGrid({
       </div>
 
       {/* hours */}
-      <div ref={setScroller} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" data-testid="calendar-scroller">
+      {/* Focusable so keyboard users can scroll the hours even on a day with no events to tab to (WCAG 2.1.1). */}
+      <div
+        ref={setScroller}
+        tabIndex={0}
+        role="region"
+        aria-label="Hours"
+        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/70"
+        data-testid="calendar-scroller"
+      >
         <div className={cn(cols, 'relative')} style={{ ...nCols, height: HOUR_PX * 24 }}>
           <div className="relative" aria-hidden>
             {HOURS.map((h) => (
@@ -218,6 +226,7 @@ export function TimeGrid({
                 <div
                   className="pointer-events-none absolute inset-x-0 z-[4] flex items-center"
                   style={{ top: (nowMin / 60) * HOUR_PX }}
+                  role="img"
                   aria-label={`Now, ${clock(nowMin, prefs)}`}
                   data-testid="now-line"
                 >

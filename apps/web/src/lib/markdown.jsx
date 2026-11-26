@@ -26,14 +26,15 @@ export function renderInline(text, keyPrefix = 'i') {
 
 export { parseBlocks }
 
-export function Markdown({ source, className }) {
+/** `headingOffset`: `#` renders as h(1 + offset). Notes default to 1 (the page already has its h1); a standalone document such as the legal pages passes 0. */
+export function Markdown({ source, className, headingOffset = 1 }) {
   const blocks = parseBlocks(source)
   if (!blocks.length) return <p className="text-sm text-muted-foreground">Nothing to preview yet.</p>
   return (
     <div className={`space-y-2.5 text-sm leading-relaxed ${className ?? ''}`}>
       {blocks.map((b, i) => {
         if (b.type === 'h') {
-          const Tag = `h${b.level + 1}`
+          const Tag = `h${Math.min(6, b.level + headingOffset)}`
           return (
             <Tag key={i} className={b.level === 1 ? 'text-lg font-semibold' : 'text-base font-semibold'}>
               {renderInline(b.text, `h${i}`)}

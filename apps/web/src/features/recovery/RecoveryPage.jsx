@@ -230,7 +230,7 @@ export default function RecoveryPage() {
             )}
             <p className="px-1 text-xs text-muted-foreground">
               Based on priority, how late each task is and what is already booked. Open the{' '}
-              <Link to="/calendar" className="text-mod-text underline-offset-2 hover:underline">
+              <Link to="/calendar" className="text-mod-text underline underline-offset-2">
                 calendar
               </Link>{' '}
               to see the whole week.

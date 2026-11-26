@@ -49,6 +49,8 @@ export const integrations = {
   capabilities: () => call({ action: 'capabilities' }),
   /** The Google consent page to send the browser to. */
   start: async (provider) => (await call({ action: 'start', provider })).url,
+  /** Back from Google: the signed-in app finishes the connection, so it can only attach to the account that started it. Returns the provider. */
+  finish: async (code, state) => (await call({ action: 'finish', code, state })).provider,
   disconnect: (provider) => call({ action: 'disconnect', provider }),
   calendars: async () => (await call({ action: 'calendars', provider: 'google_calendar' })).calendars,
   syncCalendar: (calendarId, resolutions) => call({ action: 'calendar-sync', provider: 'google_calendar', calendarId, resolutions }),

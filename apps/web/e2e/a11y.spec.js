@@ -57,6 +57,45 @@ test('main pages have no serious accessibility violations', async ({ page }) => 
   }
 })
 
+// Every other signed-in route in App.jsx (the list above predates them). Routes that need an id are left out.
+test('newer pages have no serious accessibility violations', async ({ page }) => {
+  test.setTimeout(300_000) // sixteen full axe scans
+  await register(page)
+  for (const path of [
+    '/calendar',
+    '/challenges',
+    '/map',
+    '/recovery',
+    '/insights',
+    '/search',
+    '/automation',
+    '/automation/history',
+    '/integrations',
+    '/security',
+    '/shortcuts',
+    '/help',
+    '/audit',
+    '/developers',
+    '/system',
+    '/features',
+  ]) {
+    await page.goto(path)
+    await page.locator('main').waitFor()
+    await page.waitForLoadState('networkidle')
+    const v = await scan(page)
+    expect.soft(v, `${path}\n${summary(v)}`).toEqual([])
+  }
+})
+
+test('legal pages have no serious accessibility violations', async ({ page }) => {
+  for (const path of ['/privacy', '/terms']) {
+    await page.goto(path)
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    const v = await scan(page)
+    expect(v, `${path}\n${summary(v)}`).toEqual([])
+  }
+})
+
 test('global search and a form dialog are accessible', async ({ page }) => {
   await register(page)
   await page.getByRole('button', { name: 'Search…', exact: true }).click()

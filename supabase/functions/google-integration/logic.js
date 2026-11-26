@@ -7,11 +7,16 @@
 //   * Backups are uploaded only when the person asks (the request carries the file); nothing is sent on a schedule.
 //   * Calendar sync never deletes and never overwrites a change made on both sides (see _shared/calendarSync.js).
 //   * Errors returned to the app are short plain messages: no tokens, no Google response bodies, no stack traces.
+//   * Connecting is finished by the SIGNED-IN app, not by the redirect: the callback only hands the code back to the browser, and `finish` stores tokens
+//     only when the signed state names the caller. A consent link started from one LifeTrack account therefore cannot attach someone else's Google
+//     account to it (OAuth login-CSRF), and the code (single-use at Google) never connects anything on its own.
 import { PROVIDERS, RevokedError, SCOPES, accessTokenFor, authUrl, calendar, drive, exchangeCode, revokeAtGoogle, signState, verifyState } from '../_shared/google.js'
 import { fingerprint, fromGoogle, hashOf, planCalendarSync, toGoogle } from '../_shared/calendarSync.js'
 
 const MAX_BODY = 25 * 1024 * 1024
 const MAX_WRITES = 1500
+const FINISH_MAX_FAILURES = 5
+const FINISH_WINDOW_MS = 10 * 60_000 // the state's own lifetime
 const DAY = 86400000
 const reply = (status, body, headers = {}) => ({ status, body, headers })
 const fail = (status, error, message, extra = {}) => reply(status, { ok: false, error, message, ...extra })
@@ -42,6 +47,7 @@ export async function handleRequest(request, deps) {
   const { action, provider } = request.body
   if (action === 'capabilities') return done(reply(200, { ok: true, configured: isConfigured(env), providers: PROVIDERS, scopes: SCOPES }))
   if (!isConfigured(env)) return done(fail(503, 'not_configured', 'Google integrations are not set up on this server yet. See docs/INTEGRATIONS.md.'))
+  if (action === 'finish') return done(await finishConnect(request.body, me.userId, { store, fetch, env, now }))
   if (!PROVIDERS.includes(provider)) return done(fail(400, 'bad_provider', 'Unknown integration.'))
 
   const creds = { fetch, store, userId: me.userId, provider, clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET, now: now() }
@@ -164,25 +170,40 @@ export async function handleRequest(request, deps) {
 }
 
 /**
- * Google redirects the browser here after consent (no sign-in header: the signed `state` identifies the person). Returns where to send the browser.
- * @param query { code?, state?, error? }   @param deps { store, fetch, env, now? }
+ * Google redirects the browser here after consent (no sign-in header). Nothing is stored here: the code and the signed state go back to the app in the
+ * URL FRAGMENT (never sent to a server or written to access logs), and the signed-in app calls `finish` with them. Returns where to send the browser.
+ * @param query { code?, state?, error? }   @param deps { env, now? }
  */
 export async function handleCallback(query, deps) {
-  const { store, fetch, env } = deps
+  const { env } = deps
   const now = deps.now ?? (() => Date.now())
   const back = (qs) => `${env.APP_ORIGIN}/integrations?${qs}`
   if (!isConfigured(env)) return { location: `${env.APP_ORIGIN ?? ''}/integrations?error=not_configured` }
   const who = await verifyState(query.state, env.OAUTH_STATE_SECRET, now())
   if (!who) return { location: back('error=invalid_state') }
   if (query.error || !query.code) return { location: back(`error=${query.error === 'access_denied' ? 'denied' : 'failed'}`) }
+  // Not `code`/`state`: supabase-js (detectSessionInUrl, PKCE) reads `code` from the hash too and would try to use Google's code as its own.
+  return { location: `${env.APP_ORIGIN}/integrations#${new URLSearchParams({ gcode: String(query.code).slice(0, 2048), gstate: query.state })}` }
+}
+
+/** The `finish` action: the signed-in caller completes a connection it started. Stores tokens only for that caller. */
+async function finishConnect(body, userId, { store, fetch, env, now }) {
+  const who = await verifyState(body.state, env.OAUTH_STATE_SECRET, now())
+  if (!who) return fail(400, 'invalid_state', 'That sign-in link expired. Start the connection again.')
+  if (who.userId !== userId)
+    return fail(403, 'wrong_account', 'This Google connection was started from a different LifeTrack account, so nothing was connected. Start it again here.')
+  if (typeof body.code !== 'string' || !body.code || body.code.length > 2048) return fail(400, 'bad_request', 'Google did not send a usable answer. Try again.')
+  // Each failed finish records an `error` event; past a handful within one state's lifetime, stop calling Google's token endpoint for this person.
+  if ((await store.countEvents(userId, 'error', new Date(now() - FINISH_WINDOW_MS).toISOString())) >= FINISH_MAX_FAILURES)
+    return fail(429, 'too_many_attempts', 'Too many failed attempts to connect Google. Wait a few minutes, then start the connection again.')
   try {
-    const t = await exchangeCode({ fetch, code: query.code, clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET, redirectUri: redirectUri(env), provider: who.provider, now: now() })
-    await store.saveToken(who.userId, who.provider, { refresh_token: t.refreshToken, access_token: t.accessToken, access_expires_at: t.expiresAt })
-    await store.setIntegration(who.userId, who.provider, { status: 'connected', scopes: t.scopes, account_email: t.email, connected_at: new Date(now()).toISOString(), last_error: '' })
-    await store.addEvent(who.userId, who.provider, 'connected', t.email ? `Connected ${t.email}` : 'Connected')
-    return { location: back(`connected=${who.provider}`) }
+    const t = await exchangeCode({ fetch, code: body.code, clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET, redirectUri: redirectUri(env), provider: who.provider, now: now() })
+    await store.saveToken(userId, who.provider, { refresh_token: t.refreshToken, access_token: t.accessToken, access_expires_at: t.expiresAt })
+    await store.setIntegration(userId, who.provider, { status: 'connected', scopes: t.scopes, account_email: t.email, connected_at: new Date(now()).toISOString(), last_error: '' })
+    await store.addEvent(userId, who.provider, 'connected', t.email ? `Connected ${t.email}` : 'Connected')
+    return reply(200, { ok: true, provider: who.provider })
   } catch (e) {
-    await store.addEvent(who.userId, who.provider, 'error', String(e.message).slice(0, 280)).catch(() => {})
-    return { location: back('error=failed') }
+    await store.addEvent(userId, who.provider, 'error', String(e.message).slice(0, 280)).catch(() => {})
+    return fail(502, 'google_failed', 'Google could not be connected. Try again.')
   }
 }

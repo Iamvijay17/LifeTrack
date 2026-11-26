@@ -29,7 +29,9 @@ supabase migration repair --status applied 0001 0002 0003 0004
 (list exactly the versions already in the database) and run the dry run to confirm only the new ones are pending.
 
 ## Edge Functions — *Deploy Edge Functions (manual)*
-Runs the Deno tests, then `supabase functions deploy send-reminders --no-verify-jwt`. Secrets (`CRON_SECRET`, optional `EXPO_ACCESS_TOKEN`)
+Runs the reminder Deno tests, then deploys every function: `send-reminders`, `api`, `webhook-dispatch` and `google-oauth-callback` with `--no-verify-jwt`
+(they check the caller themselves), `webauthn`, `device-key` and `google-integration` with the normal JWT check. Run the database migrations first.
+Each function's secrets are listed in its `index.ts` header. Secrets (`CRON_SECRET`, optional `EXPO_ACCESS_TOKEN`)
 are set once by hand (`supabase secrets set`, see NATIVE.md); the workflow never touches them. The pg_cron schedule is also a one-time manual SQL step.
 
 ## Web — *Web release build (manual)*

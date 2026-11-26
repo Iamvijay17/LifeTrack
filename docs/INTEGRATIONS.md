@@ -41,6 +41,7 @@ then use Data Export → Restore), more than one Google account per provider.
 ## Security notes
 
 - OAuth 2.0 authorization-code flow with a server-side client secret. `state` is an HMAC-signed, 10-minute token naming the person and provider; a forged or expired one is refused.
+- The callback stores nothing. It hands the code and state back to the app in the URL fragment as `gcode`/`gstate` (never sent to a server or logged; not `code`, which supabase-js would read as its own PKCE callback), and the signed-in app finishes with `action: 'finish'`. Tokens are saved only when the state names the caller, so a consent link started from one LifeTrack account cannot attach someone else's Google account to it (login CSRF). The code is single-use at Google, and the app clears the fragment before using it.
 - Tokens live in `integration_tokens`: row-level security on, **no policy, all client roles revoked**. Only the Edge Functions (service role) can read them; the browser and the app never see one. They are stored as plain text in that locked table; if you need encryption at rest, put them in Supabase Vault.
 - `integrations` and `integration_events` are readable by their owner and writable by no client, so a page cannot mark itself connected.
 - The function answers only to `APP_ORIGIN`, requires a valid session, and returns short messages: no tokens, Google response bodies or stack traces. The activity log never contains tokens or file contents.

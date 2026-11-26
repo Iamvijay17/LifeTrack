@@ -7,6 +7,7 @@ import { MemoryRouter } from 'react-router-dom'
 const api = vi.hoisted(() => ({
   capabilities: vi.fn(),
   start: vi.fn(),
+  finish: vi.fn(),
   disconnect: vi.fn(async () => ({})),
   calendars: vi.fn(async () => [{ id: 'primary', name: 'Me', primary: true }]),
   syncCalendar: vi.fn(),
@@ -68,6 +69,24 @@ describe('Integration Center', () => {
     open()
     expect(await screen.findAllByText(/What LifeTrack can do with your Google account/)).toHaveLength(2)
     expect(screen.getByText(/cannot see anything else in your Drive/i)).toBeInTheDocument()
+  })
+  it('back from Google: finishes the connection as the signed-in person, once, and clears the code from the address bar', async () => {
+    const { toast } = await import('sonner')
+    api.finish.mockResolvedValue('google_drive')
+    window.history.replaceState(null, '', '/integrations#gcode=4%2F0Abc&gstate=signed.state')
+    open()
+    await waitFor(() => expect(api.finish).toHaveBeenCalledTimes(1))
+    expect(api.finish).toHaveBeenCalledWith('4/0Abc', 'signed.state')
+    expect(window.location.hash).toBe('')
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Google Drive connected'))
+  })
+  it('explains a connection that was started from a different account, and connects nothing', async () => {
+    const { toast } = await import('sonner')
+    api.finish.mockRejectedValue(Object.assign(new Error('x'), { code: 'wrong_account' }))
+    window.history.replaceState(null, '', '/integrations#gcode=c&gstate=s')
+    open()
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/different LifeTrack account/)))
+    expect(window.location.hash).toBe('')
   })
   it('starts the connection through the server', async () => {
     const user = userEvent.setup()

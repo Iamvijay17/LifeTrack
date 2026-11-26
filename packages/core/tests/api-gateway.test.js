@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { handleApiRequest } from '../../../supabase/functions/api/logic.js'
-import { encodeCursor, hashKey } from '../src/platformApi.js'
+import { decodeCursor, encodeCursor, hashKey } from '../src/platformApi.js'
 
 const KEY = 'lt_live_' + 'A'.repeat(43)
 const USER = '11111111-1111-1111-1111-111111111111'
@@ -102,6 +102,15 @@ describe('reading', () => {
     for (const q of ['limit=0', 'limit=101', 'limit=abc', 'cursor=junk', 'bogus=1', 'updated_since=yesterday'])
       expect((await call(s, 'GET', '/v1/tasks', { query: q })).body.error.code, q).toBe('bad_request')
     expect((await call(s, 'GET', '/v1/tasks', { query: `cursor=${encodeCursor({ created_at: '2026-01-01T00:00:00Z', id: task(1).id })}` })).status).toBe(200)
+  })
+  it('accepts only strict ISO cursors, since the cursor is spliced into a PostgREST or= filter', async () => {
+    const s = await fakeStore()
+    // Date.parse accepts these (text in parentheses is a comment to it), so the old check let filter syntax through.
+    for (const c of ['Jan 1 2020 (x),id.gt.0', '2026-01-01T00:00:00Z),or(id.gt.0', '2026-01-01'])
+      expect((await call(s, 'GET', '/v1/tasks', { query: `cursor=${encodeCursor({ created_at: c, id: task(1).id })}` })).body.error.code, c).toBe('bad_request')
+    expect((await call(s, 'GET', '/v1/tasks', { query: `cursor=${encodeCursor({ created_at: '2026-01-01T00:00:00Z', id: 'x'.repeat(36) })}` })).body.error.code).toBe('bad_request')
+    // What Postgres actually returns: microseconds and an offset. Kept exactly, or keyset paging would skip rows.
+    expect(decodeCursor(encodeCursor({ created_at: '2026-11-25T10:00:00.123456+00:00', id: task(1).id }))).toEqual({ createdAt: '2026-11-25T10:00:00.123456+00:00', id: task(1).id })
   })
 })
 

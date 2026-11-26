@@ -15,6 +15,12 @@ export function googleStore(sb) {
     setIntegration: async (userId, provider, patch) =>
       must(await sb.from('integrations').upsert({ user_id: userId, provider, ...patch }, { onConflict: 'user_id,provider' })),
     deleteIntegration: async (userId, provider) => must(await sb.from('integrations').delete().eq('user_id', userId).eq('provider', provider)),
+    /** How many events of `kind` this person has had since `sinceIso` (head-only count; served by integration_events_user_idx). */
+    countEvents: async (userId, kind, sinceIso) => {
+      const r = await sb.from('integration_events').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('kind', kind).gte('created_at', sinceIso)
+      if (r.error) throw Object.assign(new Error(r.error.message), { code: r.error.code })
+      return r.count ?? 0
+    },
     addEvent: async (userId, provider, kind, message) => must(await sb.from('integration_events').insert({ user_id: userId, provider, kind, message: String(message).slice(0, 300) })),
     getTimezone: async (userId) => (must(await sb.from('user_settings').select('timezone').eq('user_id', userId).maybeSingle()))?.timezone,
     // Events starting in the window, plus every repeating series that began earlier (it still has occurrences inside the window).

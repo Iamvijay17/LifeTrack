@@ -181,10 +181,14 @@ export function checkWebhookUrl(raw, { allowHttp = false } = {}) {
 
 // ------------------------------------------------------------------------------------------------------------------ API: validation, paging
 export const encodeCursor = (row) => btoa(JSON.stringify({ c: row.created_at, i: row.id })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+const CURSOR_TS = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}(:?\d{2})?)$/
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 export function decodeCursor(text) {
   try {
     const j = JSON.parse(atob(String(text).replace(/-/g, '+').replace(/_/g, '/')))
-    if (typeof j.c === 'string' && !Number.isNaN(Date.parse(j.c)) && /^[0-9a-f-]{36}$/.test(j.i)) return { createdAt: j.c, id: j.i }
+    // The timestamp is spliced into a PostgREST `or=` filter, so only a strict ISO 8601 value is accepted (Date.parse alone lets through text such as
+    // "Jan 1 2020 (x),id.gt.0"). Kept as sent, not re-formatted: Postgres timestamps carry microseconds that keyset paging must not lose.
+    if (typeof j.c === 'string' && CURSOR_TS.test(j.c) && !Number.isNaN(Date.parse(j.c)) && typeof j.i === 'string' && UUID_RE.test(j.i)) return { createdAt: j.c, id: j.i }
   } catch { /* fall through */ }
   return null
 }

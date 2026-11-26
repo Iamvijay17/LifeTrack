@@ -1,6 +1,7 @@
 // CSV import (transactions). Everything is checked and counted BEFORE anything is written: the person sees how many rows are new, how many
 // already exist, and which rows are invalid and why. Nothing here touches the database except `importTransactions`, called after they agree.
 import { parseMoney } from '@/lib/money'
+import { isValidDay } from '@/lib/dates'
 import { PAYMENT_METHODS } from '@lifetrack/core/finance'
 import * as store from '@/hooks/store'
 import { AppError } from './errors'
@@ -8,7 +9,6 @@ import { AppError } from './errors'
 export const MAX_CSV_BYTES = 5 * 1024 * 1024
 export const MAX_CSV_ROWS = 20_000
 const TYPES = ['income', 'expense', 'savings']
-const DAY = /^\d{4}-\d{2}-\d{2}$/
 
 /** RFC 4180-style parser: quoted cells, doubled quotes, commas and line breaks inside quotes, CRLF or LF, a leading BOM. */
 export function parseCsv(text) {
@@ -79,8 +79,8 @@ export function analyzeTransactionsCsv(text, existing = []) {
     const get = (k) => (at[k] >= 0 ? unguard((cells[at[k]] ?? '').trim()) : '')
     const fail = (message) => out.errors.push({ line, message })
     const txn_date = get('date')
-    if (!DAY.test(txn_date) || Number.isNaN(Date.parse(`${txn_date}T00:00:00Z`)))
-      return fail(`"${txn_date || 'empty'}" is not a date. Use YYYY-MM-DD.`)
+    // isValidDay round-trips the date: Date.parse alone accepts 2026-02-30 (rolling it to 2 March), which the database then refuses mid-import.
+    if (!isValidDay(txn_date)) return fail(`"${txn_date || 'empty'}" is not a date. Use YYYY-MM-DD.`)
     const type = get('type').toLowerCase()
     if (!TYPES.includes(type)) return fail(`Type must be income, expense or savings (found "${get('type') || 'empty'}").`)
     const amount_paise = parseMoney(get('amount'))

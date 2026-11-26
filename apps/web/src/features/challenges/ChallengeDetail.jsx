@@ -9,6 +9,7 @@ import { useSettings } from '@/hooks/useSettings'
 import { useAction } from '@/hooks/useAction'
 import { addMonths, fmtDay, monthStart } from '@/lib/dates'
 import { cn } from '@/lib/utils'
+import { isSafeUrl } from '@lifetrack/core/notes'
 import { rhythmText, progressText, monthCells, totalForecast, templateFromChallenge, isClosed, checkinProblem } from '@/domain/challenges'
 import {
   cancelChallenge,
@@ -279,20 +280,24 @@ export function ChallengeDetail({ card, today, open, onOpenChange, onEdit, onChe
                       )}
                     </p>
                     {k.note && <p className="mt-0.5 whitespace-pre-wrap break-words text-muted-foreground">{k.note}</p>}
-                    {k.evidence?.length > 0 && (
+                    {/* Only web links: rows from the local backend or a restored backup skip the database's https? check. */}
+                    {(k.evidence ?? []).some((e) => isSafeUrl(e?.url ?? '')) && (
                       <ul className="mt-1 flex flex-wrap gap-1.5">
-                        {k.evidence.map((e, i) => (
-                          <li key={i}>
-                            <a
-                              href={e.url}
-                              target="_blank"
-                              rel="noopener noreferrer nofollow"
-                              className="inline-flex max-w-[16rem] items-center gap-1 truncate rounded-md bg-muted px-2 py-0.5 text-xs hover:underline"
-                            >
-                              <ExternalLink className="h-3 w-3 shrink-0" aria-hidden /> <span className="truncate">{e.label || e.url}</span>
-                            </a>
-                          </li>
-                        ))}
+                        {k.evidence
+                          .filter((e) => isSafeUrl(e?.url ?? ''))
+                          .map((e, i) => (
+                            <li key={i}>
+                              <a
+                                href={e.url}
+                                target="_blank"
+                                rel="noopener noreferrer nofollow"
+                                className="inline-flex max-w-[16rem] items-center gap-1 truncate rounded-md bg-muted px-2 py-0.5 text-xs hover:underline"
+                              >
+                                <ExternalLink className="h-3 w-3 shrink-0" aria-hidden />{' '}
+                                <span className="truncate">{e.label || e.url}</span>
+                              </a>
+                            </li>
+                          ))}
                       </ul>
                     )}
                   </div>

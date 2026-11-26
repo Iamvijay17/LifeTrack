@@ -21,6 +21,7 @@ function fakeStore() {
     setIntegration: async (u, p, patch) => void s.integrations.set(k(u, p), { user_id: u, provider: p, status: 'connected', settings: {}, ...(s.integrations.get(k(u, p)) ?? {}), ...patch }),
     deleteIntegration: async (u, p) => void s.integrations.delete(k(u, p)),
     addEvent: async (u, p, kind, message) => void s.events.push({ u, p, kind, message }),
+    countEvents: async (u, kind) => s.events.filter((e) => e.u === u && e.kind === kind).length, // every fake event is "recent"
     getTimezone: async () => TZ,
     listCalendarEvents: async (u) => s.calendar.filter((e) => e.user_id === u),
     insertCalendarEvent: async (u, row) => {
@@ -80,9 +81,14 @@ function fakeGoogle() {
 let store, google
 const call = (body, over = {}) =>
   handleRequest({ method: 'POST', origin: ENV.APP_ORIGIN, authorization: 'Bearer ok', body, rawLength: 100, ...over }, { authenticate: async (a) => (a === 'Bearer ok' ? { userId: 'U1' } : null), store, fetch: google.fetch, env: ENV, now: () => NOW })
-const connect = async (provider) => {
-  const state = await signState({ userId: 'U1', provider }, ENV.OAUTH_STATE_SECRET, NOW)
-  return handleCallback({ code: 'c', state }, { store, fetch: google.fetch, env: ENV, now: () => NOW })
+/** The whole round trip: Google redirects to the callback, which hands code + state back in the fragment; the signed-in app (as `as`) finishes. */
+const connect = async (provider, { startedBy = 'U1', as = 'Bearer ok' } = {}) => {
+  const state = await signState({ userId: startedBy, provider }, ENV.OAUTH_STATE_SECRET, NOW)
+  const { location } = await handleCallback({ code: 'c', state }, { env: ENV, now: () => NOW })
+  const back = new URL(location)
+  if (!back.hash) return { location, finish: null }
+  const f = new URLSearchParams(back.hash.slice(1))
+  return { location, finish: await call({ action: 'finish', code: f.get('gcode'), state: f.get('gstate') }, { authorization: as }) }
 }
 beforeEach(() => {
   store = fakeStore()
@@ -135,21 +141,48 @@ describe('connect and disconnect', () => {
   it('start returns a Google URL; the callback stores tokens server-side and records the account', async () => {
     const start = await call({ action: 'start', provider: 'google_drive' })
     expect(start.body.url).toMatch(/^https:\/\/accounts\.google\.com\//)
-    const { location } = await connect('google_drive')
-    expect(location).toBe(`${ENV.APP_ORIGIN}/integrations?connected=google_drive`)
+    const { location, finish } = await connect('google_drive')
+    expect(location).toMatch(new RegExp(`^${ENV.APP_ORIGIN}/integrations#gcode=c&gstate=`)) // a fragment: never sent to a server
+    expect(new URLSearchParams(new URL(location).hash.slice(1)).has('code')).toBe(false) // supabase-js would read `code` as its own PKCE callback
+    expect(finish.status).toBe(200)
+    expect(finish.body).toEqual({ ok: true, provider: 'google_drive' })
     expect(store.s.tokens.get('U1|google_drive').refresh_token).toBe('refresh-1')
     expect(store.s.integrations.get('U1|google_drive')).toMatchObject({ status: 'connected', account_email: 'me@gmail.com' })
     expect(JSON.stringify(store.s.events)).not.toMatch(/refresh-1|access-1/) // no credentials in the activity log
   })
   it('refuses a callback with a bad state or a denied consent, and stores nothing', async () => {
-    expect((await handleCallback({ code: 'c', state: 'forged' }, { store, fetch: google.fetch, env: ENV, now: () => NOW })).location).toMatch(/error=invalid_state/)
+    expect((await handleCallback({ code: 'c', state: 'forged' }, { env: ENV, now: () => NOW })).location).toMatch(/error=invalid_state/)
     const state = await signState({ userId: 'U1', provider: 'google_drive' }, ENV.OAUTH_STATE_SECRET, NOW)
-    expect((await handleCallback({ error: 'access_denied', state }, { store, fetch: google.fetch, env: ENV, now: () => NOW })).location).toMatch(/error=denied/)
+    expect((await handleCallback({ error: 'access_denied', state }, { env: ENV, now: () => NOW })).location).toMatch(/error=denied/)
+    expect((await call({ action: 'finish', code: 'c', state: 'forged' })).body.error).toBe('invalid_state')
     expect(store.s.tokens.size).toBe(0)
+  })
+  it('the callback alone connects nothing: tokens are stored only when the signed-in app finishes', async () => {
+    const state = await signState({ userId: 'U1', provider: 'google_drive' }, ENV.OAUTH_STATE_SECRET, NOW)
+    await handleCallback({ code: 'c', state }, { env: ENV, now: () => NOW })
+    expect(store.s.tokens.size).toBe(0)
+    expect(google.calls).toHaveLength(0) // the code was not even exchanged
+  })
+  it('a consent link started from another LifeTrack account cannot attach this person\'s Google account to it (login CSRF)', async () => {
+    // The attacker (U2) starts a connection and sends the link; the victim (U1, signed in here) approves it at Google.
+    const { finish } = await connect('google_drive', { startedBy: 'U2' })
+    expect(finish.status).toBe(403)
+    expect(finish.body.error).toBe('wrong_account')
+    expect(store.s.tokens.size).toBe(0)
+    expect([...store.s.integrations.keys()]).toEqual([])
+  })
+  it('stops calling Google after repeated failed finishes for one person', async () => {
+    google.grantScopes = 'openid email' // every exchange fails
+    for (let i = 0; i < 5; i++) expect((await connect('google_drive')).finish.body.error).toBe('google_failed')
+    const before = google.calls.length
+    const sixth = (await connect('google_drive')).finish
+    expect(sixth.status).toBe(429)
+    expect(sixth.body.error).toBe('too_many_attempts')
+    expect(google.calls.length).toBe(before) // Google was not called again
   })
   it('does not connect when Google did not grant every permission needed', async () => {
     google.grantScopes = 'openid email'
-    expect((await connect('google_drive')).location).toMatch(/error=failed/)
+    expect((await connect('google_drive')).finish.body.error).toBe('google_failed')
     expect(store.s.tokens.size).toBe(0)
   })
   it('disconnect revokes at Google, deletes the token and the row, and logs it', async () => {

@@ -101,6 +101,10 @@ The Security & Privacy work (migration 0012, [APP_SECURITY.md](APP_SECURITY.md))
 - A 4 or 6 digit PIN is protected by the online lockout, not by the hash. Only six tables are closed on the server; the rest are hidden by the lock screen only.
 - `supabase/tests` has pre-existing TypeScript errors in `pglite/calendar.test.ts` and `notifications.test.ts` (`unknown` row types); they do not affect the test run.
 
+Found in the 25 Nov 2026 production-readiness pass ([PRODUCTION_READINESS_REPORT.md](../PRODUCTION_READINESS_REPORT.md) §3, §9):
+- ~~Google OAuth state is not bound to the browser session~~ **Fixed in the same pass**: the signed-in app now finishes the connection and the server refuses a state that names another account. Needs `google-integration` and `google-oauth-callback` redeployed, and one check against real Google.
+- **Webhook DNS rebinding** (Low). Every resolved address is checked, but `fetch` resolves again; pin the checked address or use an egress proxy.
+
 ## 7. Compatibility
 
 - Android release APKs are ARM-only and crash on an x86_64 emulator (build a debug APK for x86_64).

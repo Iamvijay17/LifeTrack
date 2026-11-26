@@ -43,3 +43,20 @@ jobs:
       # CI deliberately never reads or writes them.
       - name: Deploy send-reminders
         run: supabase functions deploy send-reminders --project-ref "$PROJECT_REF" --no-verify-jwt
+      # The other functions, each with the JWT setting its own header documents. `--no-verify-jwt` ones check the caller themselves (API key,
+      # CRON_SECRET or a signed OAuth state); the rest need a signed-in user's token. Run the database migrations first (db-migrate.yml): the
+      # api/webhook-dispatch functions need 0027, device-key 0014, webauthn 0012, the Google ones 0026. Their secrets are set by hand, see
+      # docs/WEBHOOKS_API.md, docs/APP_SECURITY.md and docs/INTEGRATIONS.md. A function whose secrets are not set yet still deploys and answers
+      # "not configured" until they are.
+      - name: Deploy api (public REST API, API-key auth)
+        run: supabase functions deploy api --project-ref "$PROJECT_REF" --no-verify-jwt
+      - name: Deploy webhook-dispatch (scheduler with CRON_SECRET, or a signed-in user)
+        run: supabase functions deploy webhook-dispatch --project-ref "$PROJECT_REF" --no-verify-jwt
+      - name: Deploy webauthn (passkeys)
+        run: supabase functions deploy webauthn --project-ref "$PROJECT_REF"
+      - name: Deploy device-key (phone biometric unlock)
+        run: supabase functions deploy device-key --project-ref "$PROJECT_REF"
+      - name: Deploy google-integration
+        run: supabase functions deploy google-integration --project-ref "$PROJECT_REF"
+      - name: Deploy google-oauth-callback (browser redirect from Google, trusts only the signed state)
+        run: supabase functions deploy google-oauth-callback --project-ref "$PROJECT_REF" --no-verify-jwt

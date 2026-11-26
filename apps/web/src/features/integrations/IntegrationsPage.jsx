@@ -37,6 +37,7 @@ const ERRORS = {
   denied: 'You chose not to allow access, so nothing was connected.',
   failed: 'Google could not be connected. Try again.',
   invalid_state: 'That sign-in link expired. Start the connection again.',
+  wrong_account: 'This Google connection was started from a different LifeTrack account, so nothing was connected. Start it again here.',
   not_configured: 'Google integrations are not set up on this server yet.',
 }
 
@@ -266,7 +267,27 @@ export default function IntegrationsPage() {
       (e) => setCaps({ state: 'unreachable', message: e.message }),
     )
   }, [])
-  // Back from Google: say what happened once, then clean the address bar.
+  // Back from Google with a code (in the fragment, so it never reaches a server log): finish the connection as the signed-in person. The code is
+  // single-use, so the fragment is cleared before anything else and a re-render or StrictMode's second effect cannot send it twice.
+  useEffect(() => {
+    const hash = new URLSearchParams(window.location.hash.slice(1))
+    const code = hash.get('gcode') // not `code`: supabase-js would take that one as its own sign-in callback
+    const state = hash.get('gstate')
+    if (!code || !state) return
+    window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search)
+    integrations.finish(code, state).then(
+      (provider) => {
+        toast.success(`${PROVIDERS[provider]?.name ?? 'Google'} connected`)
+        store.refetch('integrations')
+        store.refetch('integration_events')
+      },
+      (e) => {
+        toast.error(ERRORS[e?.code] ?? e?.message ?? ERRORS.failed)
+        store.refetch('integration_events')
+      },
+    )
+  }, [])
+  // Back from Google with an outcome (refused, expired, or an older server that still finishes the connection itself): say it once, then clean up.
   useEffect(() => {
     const ok = params.get('connected')
     const err = params.get('error')
